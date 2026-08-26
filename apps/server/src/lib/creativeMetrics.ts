@@ -62,6 +62,7 @@ function chainFrom(headId: string, prev: Map<string, string | null>) {
 
 export async function metricsForCreatives(
   heads: Head[],
+  opts: { campaigns?: boolean } = {},
 ): Promise<Map<string, CreativeMetricsBundle>> {
   const result = new Map<string, CreativeMetricsBundle>()
   if (heads.length === 0) return result
@@ -83,7 +84,9 @@ export async function metricsForCreatives(
     }),
     db.campaignCreative.findMany({
       where: { creativeId: { in: allIds } },
-      select: { creativeId: true, campaign: { select: { id: true, name: true } } },
+      select: opts.campaigns
+        ? { creativeId: true, campaignId: true, campaign: { select: { id: true, name: true } } }
+        : { creativeId: true, campaignId: true },
     }),
   ])
 
@@ -105,8 +108,9 @@ export async function metricsForCreatives(
   }
   for (const link of links) {
     const entry = byCreative.get(link.creativeId)!
-    if (!entry.campaigns.some((campaign) => campaign.id === link.campaign.id)) {
-      entry.campaigns.push(link.campaign)
+    const campaign = 'campaign' in link ? link.campaign : { id: link.campaignId, name: '' }
+    if (!entry.campaigns.some((row) => row.id === campaign.id)) {
+      entry.campaigns.push(campaign)
     }
   }
 

@@ -43,7 +43,7 @@ function toCreativeDTO(
 }
 
 async function withMetrics(rows: CreativeRow[], withCampaigns: boolean) {
-  const metrics = await metricsForCreatives(rows)
+  const metrics = await metricsForCreatives(rows, { campaigns: withCampaigns })
   return rows.map((row) => toCreativeDTO(row, metrics.get(row.id)!, withCampaigns))
 }
 
