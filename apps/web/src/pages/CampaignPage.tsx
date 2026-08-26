@@ -3,6 +3,7 @@ import { useCampaign, useLandingPages } from '@project/sdk'
 import { Card, CardContent, CardHeader } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Button } from '@/components/ui/Button'
+import { CampaignNav } from '@/components/campaigns/CampaignNav'
 import { ExternalLink } from 'lucide-react'
 
 const STATUS_LABEL: Record<string, string> = { DRAFT: 'Draft', ACTIVE: 'Active', PAUSED: 'Paused', ENDED: 'Ended' }
@@ -10,10 +11,6 @@ const STATUS_LABEL: Record<string, string> = { DRAFT: 'Draft', ACTIVE: 'Active',
 export function CampaignPage() {
   const { campaignId } = useParams<{ campaignId: string }>()
   const { data, isLoading } = useCampaign(campaignId!)
-  // Landing pages are a reusable library, not owned by one campaign (see
-  // docs/00-unified-ia-navigation.md "Landing Pages and Creatives Are Reusable Libraries") —
-  // so "which page is this campaign pointed at" is resolved by matching destinationUrl against
-  // a page's hostedUrl, not a foreign key.
   const landingPagesQuery = useLandingPages()
 
   if (isLoading) return <Skeleton className="h-48 w-full" />
@@ -26,42 +23,28 @@ export function CampaignPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-xl font-semibold">{campaign.name}</h1>
-          <p className="text-xs text-muted-foreground">
-            {STATUS_LABEL[campaign.status] ?? campaign.status} · ${campaign.budget.toLocaleString()} budget
-          </p>
-        </div>
-        <Link to={`/campaigns/${campaignId}/edit`}>
-          <Button variant="outline" size="sm">
-            Edit
-          </Button>
-        </Link>
-      </div>
+      <CampaignNav
+        campaignId={campaignId!}
+        name={campaign.name}
+        actions={
+          <div className="flex gap-2">
+            <Link to={`/campaigns/${campaignId}/edit`}>
+              <Button variant="outline" size="sm">
+                Edit
+              </Button>
+            </Link>
+            <Link to={`/campaigns/${campaignId}/performance`}>
+              <Button variant="outline" size="sm">
+                Performance
+              </Button>
+            </Link>
+          </div>
+        }
+      />
 
-      <div className="flex gap-2 flex-wrap">
-        <Link to={`/campaigns/${campaignId}/deployments`}>
-          <Button variant="outline" size="sm">
-            Platforms
-          </Button>
-        </Link>
-        <Link to={`/campaigns/${campaignId}/performance`}>
-          <Button variant="outline" size="sm">
-            Performance
-          </Button>
-        </Link>
-        <Link to={`/campaigns/${campaignId}/budget`}>
-          <Button variant="outline" size="sm">
-            Budget
-          </Button>
-        </Link>
-        <Link to="/landing-pages">
-          <Button variant="outline" size="sm">
-            Landing Pages Library
-          </Button>
-        </Link>
-      </div>
+      <p className="text-xs text-muted-foreground">
+        {STATUS_LABEL[campaign.status] ?? campaign.status} · ${campaign.budget.toLocaleString()} planning budget
+      </p>
 
       <Card>
         <CardHeader>
@@ -96,6 +79,9 @@ export function CampaignPage() {
               .
             </p>
           )}
+          <Link to="/landing-pages" className="text-xs underline text-muted-foreground">
+            Landing pages library
+          </Link>
         </CardContent>
       </Card>
 
@@ -114,7 +100,12 @@ export function CampaignPage() {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Platforms</p>
-            <p>{campaign.platforms.join(', ')}</p>
+            <p>
+              {campaign.platforms.join(', ')}{' '}
+              <Link to={`/campaigns/${campaignId}/deployments`} className="text-xs underline text-muted-foreground">
+                manage
+              </Link>
+            </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Creatives</p>

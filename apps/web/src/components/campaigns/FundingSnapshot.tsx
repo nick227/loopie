@@ -12,11 +12,11 @@ type Funding = {
 export function FundingSnapshot({ funding }: { funding: Funding }) {
   const cells = [
     { label: 'Planning budget', value: formatUsd(Math.round(funding.planningBudget * 100)), hint: 'Operational only' },
-    { label: 'Authorized', value: formatUsd(funding.authorizedAmountMinor) },
-    { label: 'Reserved', value: formatUsd(funding.reservedAmountMinor) },
-    { label: 'Platform reported', value: formatUsd(funding.platformReportedAmountMinor) },
-    { label: 'Settled', value: formatUsd(funding.settledAmountMinor) },
-    { label: 'Client available', value: formatUsd(funding.clientAvailableAmountMinor) },
+    { label: 'Authorized funds', value: formatUsd(funding.authorizedAmountMinor) },
+    { label: 'Reserved funds', value: formatUsd(funding.reservedAmountMinor) },
+    { label: 'Platform-reported spend', value: formatUsd(funding.platformReportedAmountMinor) },
+    { label: 'Settled spend', value: formatUsd(funding.settledAmountMinor) },
+    { label: 'Client available balance', value: formatUsd(funding.clientAvailableAmountMinor), hint: 'Wallet, not this campaign' },
   ]
 
   return (

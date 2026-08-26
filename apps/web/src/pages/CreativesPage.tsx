@@ -1,43 +1,47 @@
+import { Link } from 'react-router-dom'
 import { useCreatives } from '@project/sdk'
-import { Card, CardContent } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { List } from 'lucide-react'
+import { CreativeRow } from '@/components/campaigns/CreativeRow'
+import { Image, Plus } from 'lucide-react'
 
 export function CreativesPage() {
-  
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useCreatives()
 
-  if (isLoading) return (
-    <div className="space-y-3">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <Skeleton key={i} className="h-20 w-full" />
-      ))}
-    </div>
-  )
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-20 w-full" />
+        ))}
+      </div>
+    )
+  }
 
   const items = data?.pages.flatMap((page) => page.data) ?? []
 
   return (
     <div className="space-y-3">
-      <h1 className="text-xl font-semibold">Creatives</h1>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">Creatives</h1>
+          <p className="text-xs text-muted-foreground">Reusable library. Attach a creative from a campaign.</p>
+        </div>
+        <Link to="/creatives/new">
+          <Button size="sm">
+            <Plus size={14} /> New
+          </Button>
+        </Link>
+      </div>
 
       {items.length === 0 ? (
-        <EmptyState
-          icon={List}
-          title="Nothing here yet"
-          description="Items will appear here once created."
-        />
+        <EmptyState icon={Image} title="No creatives yet" description="Create a creative, then attach it to a campaign." />
       ) : (
-        items.map((item: any) => (
-          <Card key={item.id}>
-            <CardContent className="py-4">
-              {/* TODO: replace with real fields */}
-              <pre className="text-xs text-muted-foreground overflow-auto">
-                {JSON.stringify(item, null, 2)}
-              </pre>
-            </CardContent>
-          </Card>
+        items.map((item) => (
+          <Link key={item.id} to={`/creatives/${item.id}`}>
+            <CreativeRow creative={item} />
+          </Link>
         ))
       )}
 

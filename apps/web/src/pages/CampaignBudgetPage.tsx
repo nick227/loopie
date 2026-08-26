@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useAuthorizeCampaignBudget, useCampaign, useCampaignFunding, useRecordClientFunding } from '@project/sdk'
 import { Card, CardContent, CardHeader } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { CampaignNav } from '@/components/campaigns/CampaignNav'
 import { FundingSnapshot } from '@/components/campaigns/FundingSnapshot'
 import { AmountForm } from '@/components/campaigns/AmountForm'
 import { RecordSpendForm } from '@/components/campaigns/RecordSpendForm'
@@ -23,56 +24,66 @@ export function CampaignBudgetPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <Link to={`/campaigns/${campaignId}`} className="text-xs text-muted-foreground hover:underline">
-          ← {campaign.name}
-        </Link>
-        <h1 className="text-xl font-semibold">Budget</h1>
-        <p className="text-xs text-muted-foreground">
-          Available funds come from the ledger, not planning budget minus spend.
-        </p>
-      </div>
+      <CampaignNav campaignId={campaignId!} name={campaign.name} />
+      <p className="text-xs text-muted-foreground">
+        Available funds come from the ledger, not planning budget minus spend.
+      </p>
 
       <FundingSnapshot funding={funding} />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <p className="text-sm font-medium">Add client funds</p>
-          </CardHeader>
-          <CardContent>
+      <Card className="border-l-4 border-l-primary">
+        <CardHeader>
+          <p className="text-sm font-medium">Client wallet</p>
+          <p className="text-xs text-muted-foreground">
+            Deposits money into the client wallet. It does not allocate funds to this campaign.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <AmountForm
+            label="Amount to deposit"
+            submitLabel="Add funds to wallet"
+            confirmLabel="Confirm: add to wallet"
+            confirmCopy={(formatted) =>
+              `Add ${formatted} to the client wallet? This increases available funds. It does not authorize this campaign.`
+            }
+            pending={addFunds.isPending}
+            onSubmit={(amountMinor, idempotencyKey) =>
+              addFunds.mutateAsync({ amountMinor, currency: 'USD', idempotencyKey }).then(() => undefined)
+            }
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="border-l-4 border-l-muted-foreground bg-background">
+        <CardHeader>
+          <p className="text-sm font-medium">This campaign</p>
+          <p className="text-xs text-muted-foreground">
+            Allocates money already in the wallet to this campaign. It does not add new funds.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {hasAuthorization ? (
+            <p className="text-sm text-muted-foreground">This campaign already has an active authorization.</p>
+          ) : (
             <AmountForm
-              label="Funds to add"
-              submitLabel="Add funds"
-              pending={addFunds.isPending}
+              label="Amount to allocate"
+              submitLabel="Authorize campaign funds"
+              confirmLabel="Confirm: authorize campaign"
+              confirmCopy={(formatted) =>
+                `Authorize ${formatted} for this campaign from the client wallet? This allocates existing funds. It does not add new money.`
+              }
+              variant="outline"
+              defaultValue={String(Math.min(funding.planningBudget, funding.clientAvailableAmountMinor / 100) || '')}
+              pending={authorize.isPending}
               onSubmit={(amountMinor, idempotencyKey) =>
-                addFunds.mutateAsync({ amountMinor, currency: 'USD', idempotencyKey }).then(() => undefined)
+                authorize
+                  .mutateAsync({ campaignId: campaignId!, amountMinor, currency: 'USD', idempotencyKey })
+                  .then(() => undefined)
               }
             />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <p className="text-sm font-medium">{hasAuthorization ? 'Authorization' : 'Authorize campaign'}</p>
-          </CardHeader>
-          <CardContent>
-            {hasAuthorization ? (
-              <p className="text-sm text-muted-foreground">This campaign already has an active authorization.</p>
-            ) : (
-              <AmountForm
-                label="Amount to authorize"
-                submitLabel="Authorize budget"
-                defaultValue={String(Math.min(funding.planningBudget, funding.clientAvailableAmountMinor / 100) || '')}
-                pending={authorize.isPending}
-                onSubmit={(amountMinor, idempotencyKey) =>
-                  authorize.mutateAsync({ campaignId: campaignId!, amountMinor, currency: 'USD', idempotencyKey }).then(() => undefined)
-                }
-              />
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </CardContent>
+      </Card>
 
       {hasAuthorization ? (
         <Card>
@@ -85,6 +96,10 @@ export function CampaignBudgetPage() {
           </CardContent>
         </Card>
       ) : null}
+
+      <Link to={`/campaigns/${campaignId}/performance`} className="text-xs text-muted-foreground hover:underline">
+        Performance
+      </Link>
     </div>
   )
 }

@@ -47,6 +47,10 @@ import { EndCampaignPage } from '@/pages/EndCampaignPage'
 import { DuplicateCampaignPage } from '@/pages/DuplicateCampaignPage'
 import { CampaignPerformancePage } from '@/pages/CampaignPerformancePage'
 import { CampaignBudgetPage } from '@/pages/CampaignBudgetPage'
+import { CampaignCreativesPage } from '@/pages/CampaignCreativesPage'
+import { CampaignCreateCreativePage } from '@/pages/CampaignCreateCreativePage'
+import { CampaignAdUnitsPage } from '@/pages/CampaignAdUnitsPage'
+import { CampaignCreateAdUnitPage } from '@/pages/CampaignCreateAdUnitPage'
 import { DeploymentsPage } from '@/pages/DeploymentsPage'
 import { CreateDeploymentPage } from '@/pages/CreateDeploymentPage'
 import { UpdateDeploymentPage } from '@/pages/UpdateDeploymentPage'
@@ -137,6 +141,10 @@ export function App() {
           <Route path="/campaigns/:campaignId/duplicate" element={<DuplicateCampaignPage />} />
           <Route path="/campaigns/:campaignId/performance" element={<CampaignPerformancePage />} />
           <Route path="/campaigns/:campaignId/budget" element={<CampaignBudgetPage />} />
+          <Route path="/campaigns/:campaignId/creatives/new" element={<CampaignCreateCreativePage />} />
+          <Route path="/campaigns/:campaignId/creatives" element={<CampaignCreativesPage />} />
+          <Route path="/campaigns/:campaignId/ad-units/new" element={<CampaignCreateAdUnitPage />} />
+          <Route path="/campaigns/:campaignId/ad-units" element={<CampaignAdUnitsPage />} />
           <Route path="/campaigns/:campaignId/deployments" element={<DeploymentsPage />} />
           <Route path="/campaigns/:campaignId/deployments/new" element={<CreateDeploymentPage />} />
           <Route path="/deployments/:deploymentId/edit" element={<UpdateDeploymentPage />} />

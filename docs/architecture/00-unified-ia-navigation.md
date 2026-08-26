@@ -19,13 +19,14 @@ Home · Campaigns · Messages
 Campaigns
   Campaign list
   Campaign detail
-    Landing Pages    (attached to this campaign; links out to the full reusable library)
+    Overview
+    Budget            (ledger: planning / authorized / reserved / reported / settled / client available)
     Creatives         (attached to this campaign; links out to the full reusable library)
-    Platforms / Deployments
-    Ad Units
-    Budget
-    Performance       (this campaign's funnel: views → clicks → leads → sales)
+    Ad Units          (scoped to this campaign)
     Leads             (leads attributed to this campaign)
+    Landing Pages     (reusable library, reached from overview destination)
+    Platforms / Deployments
+    Performance       (this campaign's funnel: views → clicks → leads → sales)
 
 Messages
   New Message

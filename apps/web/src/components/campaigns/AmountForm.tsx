@@ -2,26 +2,45 @@ import { useState, type FormEvent } from 'react'
 import { ApiError } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { dollarsToMinor, newIdempotencyKey } from '@/lib/money'
+import { dollarsToMinor, formatUsd, newIdempotencyKey } from '@/lib/money'
 
 type Props = {
   label: string
   submitLabel: string
+  confirmLabel: string
+  confirmCopy: (formattedAmount: string) => string
+  variant?: 'default' | 'outline'
   defaultValue?: string
   pending: boolean
   onSubmit: (amountMinor: number, idempotencyKey: string) => Promise<void>
 }
 
-export function AmountForm({ label, submitLabel, defaultValue, pending, onSubmit }: Props) {
+export function AmountForm({
+  label,
+  submitLabel,
+  confirmLabel,
+  confirmCopy,
+  variant = 'default',
+  defaultValue,
+  pending,
+  onSubmit,
+}: Props) {
   const [amount, setAmount] = useState(defaultValue ?? '')
+  const [confirmText, setConfirmText] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setError(null)
     try {
-      await onSubmit(dollarsToMinor(Number(amount)), newIdempotencyKey(submitLabel))
+      const amountMinor = dollarsToMinor(Number(amount))
+      if (!confirmText) {
+        setConfirmText(confirmCopy(formatUsd(amountMinor)))
+        return
+      }
+      await onSubmit(amountMinor, newIdempotencyKey(submitLabel))
       setAmount('')
+      setConfirmText(null)
     } catch (err) {
       setError(err instanceof ApiError || err instanceof Error ? err.message : 'Request failed')
     }
@@ -39,15 +58,30 @@ export function AmountForm({ label, submitLabel, defaultValue, pending, onSubmit
           step="0.01"
           min="0.01"
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          onChange={(e) => {
+            setAmount(e.target.value)
+            setConfirmText(null)
+          }}
           placeholder="0.00"
           required
         />
       </div>
+      {confirmText ? (
+        <p className="text-sm" role="status">
+          {confirmText}
+        </p>
+      ) : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <Button type="submit" size="sm" disabled={pending}>
-        {submitLabel}
-      </Button>
+      <div className="flex gap-2">
+        <Button type="submit" size="sm" variant={variant} disabled={pending}>
+          {confirmText ? confirmLabel : submitLabel}
+        </Button>
+        {confirmText ? (
+          <Button type="button" size="sm" variant="ghost" onClick={() => setConfirmText(null)}>
+            Cancel
+          </Button>
+        ) : null}
+      </div>
     </form>
   )
 }
