@@ -6,8 +6,11 @@ export class AffiliateEarningsService {
   async get(user: AuthedUser, affiliateId: string) {
     const row = await findAffiliate(user.businessId, affiliateId)
     if (user.role !== 'ADMIN') {
-      const me = await db.affiliate.findFirst({ where: { userId: user.id, businessId: user.businessId } })
-      if (!me || (row.id !== me.id && row.managerId !== me.id)) throw { statusCode: 403, message: 'Forbidden' }
+      const me = await db.affiliate.findFirst({
+        where: { userId: user.id, businessId: user.businessId },
+      })
+      if (!me || (row.id !== me.id && row.managerId !== me.id))
+        throw { statusCode: 403, message: 'Forbidden' }
     }
     const payeeRef = `affiliate:${row.id}`
     const commissions = await db.commission.findMany({
@@ -16,6 +19,7 @@ export class AffiliateEarningsService {
     })
     const payouts = await db.payout.findMany({
       where: { businessId: user.businessId, payeeRef },
+      include: { items: true },
       orderBy: { createdAt: 'desc' },
     })
     const sum = (status: string) =>
@@ -37,6 +41,7 @@ export class AffiliateEarningsService {
         amountMinor: p.amountMinor,
         currency: p.currency,
         status: p.status,
+        commissionIds: p.items.map((item) => item.commissionId),
         createdAt: p.createdAt.toISOString(),
       })),
     }

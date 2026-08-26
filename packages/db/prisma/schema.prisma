@@ -1423,18 +1423,18 @@ model Payout {
   currency            String       @db.VarChar(3)
   status              PayoutStatus @default(PAID)
   idempotencyKey      String
-  ledgerTransactionId String
-  stripeTransferId    String?
+  ledgerTransactionId String?
+  stripeTransferId    String?      @unique
   stripePayoutId      String?
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
 
-  business          Business          @relation(fields: [businessId], references: [id])
-  ledgerTransaction LedgerTransaction @relation(fields: [ledgerTransactionId], references: [id])
+  business          Business           @relation(fields: [businessId], references: [id])
+  ledgerTransaction LedgerTransaction? @relation(fields: [ledgerTransactionId], references: [id])
   items             PayoutItem[]
 
   @@unique([businessId, idempotencyKey])
-  @@index([businessId])
+  @@index([businessId, status])
   @@index([ledgerTransactionId])
 }
 

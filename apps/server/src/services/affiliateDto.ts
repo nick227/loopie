@@ -71,11 +71,14 @@ export function toAffiliateDTO(row: AffiliateRow, extra?: { initialPassword?: st
     className: row.class?.name ?? null,
     managerName: row.manager?.name ?? null,
     destinationPageName: row.destinationLandingPage?.name ?? null,
-    destinationHostedUrl: row.destinationLandingPage ? hostedPageUrl(row.destinationLandingPage.slug) : null,
+    destinationHostedUrl: row.destinationLandingPage
+      ? hostedPageUrl(row.destinationLandingPage.slug)
+      : null,
     destinationLandingPageId: row.destinationLandingPageId,
     destinationUrl: row.destinationUrl,
     payoutsEnabled: row.stripePayoutsEnabled,
     connectStatus: connectStatus(row),
+    openPayoutStatus: null as 'PENDING' | 'TRANSFERRED' | null,
     isActive: row.isActive,
     pausedAt: row.pausedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
@@ -94,14 +97,29 @@ export const affiliateInclude = {
 export async function withFrozenMoney<T extends { id: string }>(
   businessId: string,
   rows: T[],
-): Promise<Array<T & { pendingMinor: number; payableMinor: number; paidMinor: number }>> {
-  const zeros = { pendingMinor: 0, payableMinor: 0, paidMinor: 0 }
+): Promise<
+  Array<
+    T & {
+      pendingMinor: number
+      payableMinor: number
+      paidMinor: number
+      openPayoutStatus: 'PENDING' | 'TRANSFERRED' | null
+    }
+  >
+> {
+  const zeros = {
+    pendingMinor: 0,
+    payableMinor: 0,
+    paidMinor: 0,
+    openPayoutStatus: null as 'PENDING' | 'TRANSFERRED' | null,
+  }
   if (rows.length === 0) return []
+  const payeeRefs = rows.map((row) => `affiliate:${row.id}`)
   const groups = await db.commission.groupBy({
     by: ['payeeRef', 'status'],
     where: {
       businessId,
-      payeeRef: { in: rows.map((row) => `affiliate:${row.id}`) },
+      payeeRef: { in: payeeRefs },
       status: { in: ['PENDING', 'PAYABLE', 'PAID'] },
     },
     _sum: { amountMinor: true },
@@ -116,11 +134,31 @@ export async function withFrozenMoney<T extends { id: string }>(
     if (group.status === 'PAYABLE') slot.payableMinor = amount
     if (group.status === 'PAID') slot.paidMinor = amount
   }
+  const openPayouts = await db.payout.findMany({
+    where: { businessId, payeeRef: { in: payeeRefs }, status: { in: ['PENDING', 'TRANSFERRED'] } },
+    include: { items: true },
+    orderBy: { createdAt: 'desc' },
+  })
+  for (const payout of openPayouts) {
+    const id = payout.payeeRef.replace(/^affiliate:/, '')
+    const slot = byId.get(id)
+    if (!slot) continue
+    if (!slot.openPayoutStatus) {
+      slot.openPayoutStatus = payout.status as 'PENDING' | 'TRANSFERRED'
+    }
+    if (payout.status === 'PENDING') {
+      slot.payableMinor -= payout.items.reduce((sum, item) => sum + item.amountMinor, 0)
+      if (slot.payableMinor < 0) slot.payableMinor = 0
+    }
+  }
   return rows.map((row) => ({ ...row, ...byId.get(row.id)! }))
 }
 
 export async function findAffiliate(businessId: string, affiliateId: string) {
-  const row = await db.affiliate.findFirst({ where: { id: affiliateId, businessId }, include: affiliateInclude })
+  const row = await db.affiliate.findFirst({
+    where: { id: affiliateId, businessId },
+    include: affiliateInclude,
+  })
   if (!row) throw { statusCode: 404, message: 'Affiliate not found' }
   return row
 }
@@ -129,7 +167,10 @@ export function assertDealWithinClassCaps(
   cls: { maxAffiliateRateBps: number; maxManagerShareBps: number },
   policy: DealPolicy,
 ) {
-  if (policy.commissionRuleType === 'PERCENTAGE' && (policy.affiliateRateBps ?? 0) > cls.maxAffiliateRateBps) {
+  if (
+    policy.commissionRuleType === 'PERCENTAGE' &&
+    (policy.affiliateRateBps ?? 0) > cls.maxAffiliateRateBps
+  ) {
     throw { statusCode: 400, message: 'Deal affiliate rate exceeds class cap' }
   }
   if (policy.managerShareBps > cls.maxManagerShareBps) {
@@ -138,7 +179,8 @@ export function assertDealWithinClassCaps(
 }
 
 export async function ensureNoManagerCycle(affiliateId: string, managerId: string) {
-  if (managerId === affiliateId) throw { statusCode: 400, message: 'Affiliate cannot manage itself' }
+  if (managerId === affiliateId)
+    throw { statusCode: 400, message: 'Affiliate cannot manage itself' }
   let current: string | null = managerId
   const seen = new Set<string>([affiliateId])
   while (current) {
@@ -151,4 +193,3 @@ export async function ensureNoManagerCycle(affiliateId: string, managerId: strin
     current = next?.managerId ?? null
   }
 }
-

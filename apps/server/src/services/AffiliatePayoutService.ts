@@ -1,8 +1,10 @@
 import { db } from '@project/db'
 import { dealPolicyFromRow, resolveDealPolicy } from '../lib/affiliateRates'
 import { FinanceService } from './FinanceService'
+import { StripeConnectPayoutService } from './StripeConnectPayoutService'
 
 const financeService = new FinanceService()
+const connectPayouts = new StripeConnectPayoutService()
 
 const CADENCE_INTERVAL_MS: Record<'WEEKLY' | 'MONTHLY', number> = {
   WEEKLY: 7 * 24 * 60 * 60 * 1000,
@@ -26,7 +28,9 @@ export async function runDuePayouts(): Promise<{ processed: number; paidOut: num
     try {
       const policy = resolveDealPolicy({
         assignedDeal: affiliate.deal ? dealPolicyFromRow(affiliate.deal) : null,
-        classDefaultDeal: affiliate.class?.defaultDeal ? dealPolicyFromRow(affiliate.class.defaultDeal) : null,
+        classDefaultDeal: affiliate.class?.defaultDeal
+          ? dealPolicyFromRow(affiliate.class.defaultDeal)
+          : null,
         overrideRateBps: affiliate.affiliateRateOverrideBps,
         overrideManagerShareBps: affiliate.managerShareOverrideBps,
       })
@@ -40,7 +44,9 @@ export async function runDuePayouts(): Promise<{ processed: number; paidOut: num
   for (const affiliate of due) {
     const policy = resolveDealPolicy({
       assignedDeal: affiliate.deal ? dealPolicyFromRow(affiliate.deal) : null,
-      classDefaultDeal: affiliate.class?.defaultDeal ? dealPolicyFromRow(affiliate.class.defaultDeal) : null,
+      classDefaultDeal: affiliate.class?.defaultDeal
+        ? dealPolicyFromRow(affiliate.class.defaultDeal)
+        : null,
       overrideRateBps: affiliate.affiliateRateOverrideBps,
       overrideManagerShareBps: affiliate.managerShareOverrideBps,
     })
@@ -52,6 +58,9 @@ export async function runDuePayouts(): Promise<{ processed: number; paidOut: num
 
     const totalMinor = payable.reduce((sum, c) => sum + c.amountMinor, 0)
     if (policy.payoutThresholdMinor != null && totalMinor < policy.payoutThresholdMinor) continue
+    // Connect account exists but payouts are not enabled — do not auto-pay as cash.
+    if (affiliate.stripeConnectAccountId && !affiliate.stripePayoutsEnabled) continue
+    if (await financeService.findInFlightPayout(affiliate.businessId, payeeRef)) continue
 
     const byCurrency = new Map<string, typeof payable>()
     for (const commission of payable) {
@@ -62,11 +71,16 @@ export async function runDuePayouts(): Promise<{ processed: number; paidOut: num
 
     const datePart = new Date().toISOString().slice(0, 10)
     for (const [currency, commissions] of byCurrency) {
-      await financeService.createPayout(affiliate.businessId, {
+      const input = {
         commissionIds: commissions.map((c) => c.id),
         payeeRef,
         idempotencyKey: `payout:cadence:${affiliate.id}:${currency}:${datePart}`,
-      })
+      }
+      if (affiliate.stripePayoutsEnabled && affiliate.stripeConnectAccountId) {
+        await connectPayouts.pay(affiliate.businessId, input, affiliate.stripeConnectAccountId)
+      } else if (!affiliate.stripeConnectAccountId) {
+        await financeService.createPayout(affiliate.businessId, input)
+      }
     }
     await db.affiliate.update({ where: { id: affiliate.id }, data: { lastPayoutAt: new Date() } })
     paidOut++

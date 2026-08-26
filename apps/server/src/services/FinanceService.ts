@@ -1,8 +1,38 @@
-import { applyCredit, issueRefund, recordClientFunding, reverseTransaction } from './finance/fundingOps'
+import {
+  applyCredit,
+  issueRefund,
+  recordClientFunding,
+  reverseTransaction,
+} from './finance/fundingOps'
 import { recordServicePayment, refundServicePayment } from './finance/servicePaymentOps'
-import { createCommission, cancelCommission, createPayout, markCommissionPayable, reverseCommission } from './finance/payoutOps'
-import { getCampaignFunding, getTransaction, listAccounts, listTransactions, reconcileAdSpend } from './finance/queryOps'
-import { authorizeCampaignBudget, recordAdSpend, recordLoopieFee, settleAdSpend } from './finance/spendOps'
+import {
+  createCommission,
+  cancelCommission,
+  createPayout,
+  markCommissionPayable,
+  reverseCommission,
+} from './finance/payoutOps'
+import {
+  attachPayoutTransferRef,
+  createConnectPayout,
+  failConnectPayout,
+  findInFlightPayout,
+  recordPayoutPaid,
+  recordPayoutTransferred,
+} from './finance/connectPayoutOps'
+import {
+  getCampaignFunding,
+  getTransaction,
+  listAccounts,
+  listTransactions,
+  reconcileAdSpend,
+} from './finance/queryOps'
+import {
+  authorizeCampaignBudget,
+  recordAdSpend,
+  recordLoopieFee,
+  settleAdSpend,
+} from './finance/spendOps'
 
 export class FinanceService {
   listAccounts = listAccounts
@@ -24,5 +54,11 @@ export class FinanceService {
   cancelCommission = cancelCommission
   reverseCommission = reverseCommission
   createPayout = createPayout
+  createConnectPayout = createConnectPayout
+  attachPayoutTransferRef = attachPayoutTransferRef
+  recordPayoutTransferred = recordPayoutTransferred
+  recordPayoutPaid = recordPayoutPaid
+  failConnectPayout = failConnectPayout
+  findInFlightPayout = findInFlightPayout
   reconcileAdSpend = reconcileAdSpend
 }

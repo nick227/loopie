@@ -8,7 +8,8 @@ const connect = new StripeConnectService()
 
 function asId(value: unknown): string | null {
   if (typeof value === 'string' && value.length > 0) return value
-  if (value && typeof value === 'object' && 'id' in value && typeof value.id === 'string') return value.id
+  if (value && typeof value === 'object' && 'id' in value && typeof value.id === 'string')
+    return value.id
   return null
 }
 
@@ -50,6 +51,15 @@ export class StripeWebhookService {
         // Capability/status only. Never commissions, payouts, or ledger rows.
         await connect.applyAccount(event.data.object as Stripe.Account)
         return
+      case 'transfer.created':
+      case 'transfer.updated':
+      case 'transfer.reversed':
+        await this._onTransfer(event)
+        return
+      case 'payout.paid':
+      case 'payout.failed':
+        await this._onConnectedPayout(event)
+        return
       default:
         return
     }
@@ -64,7 +74,9 @@ export class StripeWebhookService {
       where: { id: businessId },
       data: {
         ...(customerId ? { stripeCustomerId: customerId } : {}),
-        ...(subscriptionId ? { stripeSubscriptionId: subscriptionId, subscriptionStatus: 'active' } : {}),
+        ...(subscriptionId
+          ? { stripeSubscriptionId: subscriptionId, subscriptionStatus: 'active' }
+          : {}),
       },
     })
   }
@@ -132,6 +144,58 @@ export class StripeWebhookService {
       paymentId: payment.id,
       idempotencyKey: event.id,
       reason: 'stripe.charge.refunded',
+    })
+  }
+
+  private async _onTransfer(event: Stripe.Event) {
+    const transfer = event.data.object as Stripe.Transfer
+    const businessId = metadataBusinessId(transfer.metadata)
+    const payoutId = transfer.metadata?.loopiePayoutId
+    const reversed =
+      event.type === 'transfer.reversed' || transfer.reversed || (transfer.amount_reversed ?? 0) > 0
+    const reverseKey = `payout:reverse:${transfer.metadata?.payoutIdempotencyKey || payoutId || transfer.id}`
+    if (reversed) {
+      if (payoutId && businessId) {
+        await finance.failConnectPayout(businessId, {
+          payoutId,
+          outcome: 'REVERSED',
+          idempotencyKey: reverseKey,
+        })
+      } else if (businessId) {
+        await finance.failConnectPayout(businessId, {
+          stripeTransferId: transfer.id,
+          outcome: 'REVERSED',
+          idempotencyKey: reverseKey,
+        })
+      }
+      return
+    }
+    if (!businessId || !payoutId) return
+    await finance.recordPayoutTransferred(businessId, {
+      payoutId,
+      stripeTransferId: transfer.id,
+      idempotencyKey: `payout:transferred:${transfer.metadata?.payoutIdempotencyKey || payoutId}`,
+    })
+  }
+
+  private async _onConnectedPayout(event: Stripe.Event) {
+    const accountId = 'account' in event && typeof event.account === 'string' ? event.account : null
+    if (!accountId) return
+    const payoutObj = event.data.object as Stripe.Payout
+    const affiliate = await db.affiliate.findFirst({ where: { stripeConnectAccountId: accountId } })
+    if (!affiliate) return
+    const payeeRef = `affiliate:${affiliate.id}`
+    if (event.type === 'payout.failed') {
+      await finance.failConnectPayout(affiliate.businessId, {
+        payeeRef,
+        outcome: 'FAILED',
+        idempotencyKey: `payout:failed:${payeeRef}:${payoutObj.id}`,
+      })
+      return
+    }
+    await finance.recordPayoutPaid(affiliate.businessId, {
+      payeeRef,
+      stripePayoutId: payoutObj.id,
     })
   }
 

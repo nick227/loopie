@@ -34,7 +34,11 @@ export async function createCommission(businessId: string, input: CreateCommissi
   }
 }
 
-export async function markCommissionPayable(businessId: string, commissionId: string, idempotencyKey: string) {
+export async function markCommissionPayable(
+  businessId: string,
+  commissionId: string,
+  idempotencyKey: string,
+) {
   requireIdempotencyKey(idempotencyKey)
   const existing = await db.ledgerTransaction.findUnique({
     where: { businessId_idempotencyKey: { businessId, idempotencyKey } },
@@ -58,7 +62,11 @@ export async function markCommissionPayable(businessId: string, commissionId: st
         type: 'COMMISSION',
         idempotencyKey,
         metadata: { commissionId, payeeRef: commission.payeeRef },
-        entries: balancedPair(chart.LOOPIE_REVENUE.id, chart.AFFILIATE_PAYABLE.id, commission.amountMinor),
+        entries: balancedPair(
+          chart.LOOPIE_REVENUE.id,
+          chart.AFFILIATE_PAYABLE.id,
+          commission.amountMinor,
+        ),
       })
       const updated = await tx.commission.update({
         where: { id: commission.id },
@@ -79,7 +87,10 @@ export async function cancelCommission(businessId: string, commissionId: string)
   if (!commission) throw { statusCode: 404, message: 'Commission not found' }
   if (commission.status === 'CANCELLED') return toCommissionDTO(commission)
   if (commission.status !== 'PENDING') {
-    throw { statusCode: 409, message: 'Only pending commissions can be cancelled; reverse posted ones instead' }
+    throw {
+      statusCode: 409,
+      message: 'Only pending commissions can be cancelled; reverse posted ones instead',
+    }
   }
   const updated = await db.commission.update({
     where: { id: commission.id },
@@ -96,7 +107,12 @@ export async function cancelCommission(businessId: string, commissionId: string)
 // specific wrapper isn't needed there since reverseTransaction doesn't know or care what kind of
 // transaction it's reversing — and then marks the commission REVERSED, a step reverseTransaction
 // itself deliberately doesn't take.
-export async function reverseCommission(businessId: string, commissionId: string, idempotencyKey: string, reason?: string) {
+export async function reverseCommission(
+  businessId: string,
+  commissionId: string,
+  idempotencyKey: string,
+  reason?: string,
+) {
   requireIdempotencyKey(idempotencyKey)
   const commission = await db.commission.findFirst({ where: { id: commissionId, businessId } })
   if (!commission) throw { statusCode: 404, message: 'Commission not found' }
@@ -104,14 +120,24 @@ export async function reverseCommission(businessId: string, commissionId: string
     return toCommissionDTO(commission)
   }
   if (commission.status === 'PENDING') {
-    const updated = await db.commission.update({ where: { id: commission.id }, data: { status: 'CANCELLED' } })
+    const updated = await db.commission.update({
+      where: { id: commission.id },
+      data: { status: 'CANCELLED' },
+    })
     return toCommissionDTO(updated)
   }
   if (!commission.ledgerTransactionId) {
     throw { statusCode: 409, message: 'Commission has no posted transaction to reverse' }
   }
-  await reverseTransaction(businessId, { transactionId: commission.ledgerTransactionId, idempotencyKey, reason })
-  const updated = await db.commission.update({ where: { id: commission.id }, data: { status: 'REVERSED' } })
+  await reverseTransaction(businessId, {
+    transactionId: commission.ledgerTransactionId,
+    idempotencyKey,
+    reason,
+  })
+  const updated = await db.commission.update({
+    where: { id: commission.id },
+    data: { status: 'REVERSED' },
+  })
   return toCommissionDTO(updated)
 }
 
@@ -131,8 +157,10 @@ export async function createPayout(businessId: string, input: CreatePayoutInput)
         throw { statusCode: 404, message: 'Commission not found' }
       }
       for (const commission of commissions) {
-        if (commission.status !== 'PAYABLE') throw { statusCode: 409, message: 'Commission is not payable' }
-        if (commission.payeeRef !== input.payeeRef) throw { statusCode: 409, message: 'Commission payee mismatch' }
+        if (commission.status !== 'PAYABLE')
+          throw { statusCode: 409, message: 'Commission is not payable' }
+        if (commission.payeeRef !== input.payeeRef)
+          throw { statusCode: 409, message: 'Commission payee mismatch' }
       }
       const first = commissions[0]
       if (!first) throw { statusCode: 400, message: 'Payout requires at least one commission' }
@@ -150,19 +178,20 @@ export async function createPayout(businessId: string, input: CreatePayoutInput)
         metadata: input.metadata,
         entries: balancedPair(chart.AFFILIATE_PAYABLE.id, chart.LOOPIE_CASH.id, amountMinor),
       })
-      // Manual payouts post cash immediately and land on PAID. Connect payouts (next slice)
-      // will create PENDING, move to TRANSFERRED when the Transfer hits the connected
-      // account, and PAID only when Stripe reports the bank payout — those are not the same event.
       const payout = await tx.payout.create({
         data: {
           businessId,
           payeeRef: input.payeeRef,
           amountMinor,
           currency,
+          status: 'PAID',
           idempotencyKey,
           ledgerTransactionId: posted.id,
           items: {
-            create: commissions.map((row) => ({ commissionId: row.id, amountMinor: row.amountMinor })),
+            create: commissions.map((row) => ({
+              commissionId: row.id,
+              amountMinor: row.amountMinor,
+            })),
           },
         },
         include: { items: true },

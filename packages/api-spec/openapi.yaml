@@ -692,6 +692,11 @@ components:
           type: string
           enum: [NOT_CONNECTED, ONBOARDING, READY, RESTRICTED]
           description: "Derived from Connect capabilities. NOT_CONNECTED / ONBOARDING / READY / RESTRICTED."
+        openPayoutStatus:
+          type: string
+          nullable: true
+          enum: [PENDING, TRANSFERRED]
+          description: "In-flight Connect payout. PENDING = Sending; TRANSFERRED = on the connected account, not yet bank-received."
 
     CreateAffiliateInput:
       type: object
@@ -748,7 +753,10 @@ components:
               id: { type: string }
               amountMinor: { type: integer }
               currency: { type: string }
-              status: { type: string }
+              status: { type: string, enum: [PENDING, TRANSFERRED, PAID, FAILED, REVERSED], description: "PENDING = Sending. TRANSFERRED is not bank-received." }
+              commissionIds:
+                type: array
+                items: { type: string }
               createdAt: { type: string, format: date-time }
 
     # ---------- Campaign / Deployment ----------
@@ -1477,7 +1485,7 @@ components:
 
     Payout:
       type: object
-      required: [id, businessId, payeeRef, amountMinor, currency, status, idempotencyKey, ledgerTransactionId, commissionIds, createdAt]
+      required: [id, businessId, payeeRef, amountMinor, currency, status, idempotencyKey, commissionIds, createdAt]
       properties:
         id: { type: string }
         businessId: { type: string }
@@ -1486,7 +1494,7 @@ components:
         currency: { type: string }
         status: { type: string, enum: [PENDING, TRANSFERRED, PAID, FAILED, REVERSED] }
         idempotencyKey: { type: string }
-        ledgerTransactionId: { type: string }
+        ledgerTransactionId: { type: string, nullable: true, description: "Set when the PAYOUT ledger posts at TRANSFERRED (Connect) or immediately at PAID (manual)." }
         stripeTransferId: { type: string, nullable: true, description: "Connect Transfer to the affiliate's Stripe account. TRANSFERRED is this movement." }
         stripePayoutId: { type: string, nullable: true, description: "Connected-account Payout to bank. PAID is this movement, not the Transfer." }
         commissionIds:
