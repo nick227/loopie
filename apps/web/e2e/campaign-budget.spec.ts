@@ -30,8 +30,7 @@ test.describe('campaign budget ledger slice', () => {
     await page.getByRole('button', { name: /create campaign/i }).click()
     await page.waitForURL(/\/campaigns\/(?!new$)[^/]+$/)
 
-    await page.getByRole('link', { name: 'Budget' }).click()
-    await page.waitForURL(/\/budget$/)
+    await expect(page.getByRole('heading', { name: campaignName })).toBeVisible()
     await expect(page.getByText('Client wallet', { exact: true })).toHaveCount(0)
     await expect(page.getByText('Spend Limit', { exact: true }).first()).toBeVisible()
     await expect(metric(page, 'Spend Plan')).toContainText('$500.00')

@@ -1,9 +1,23 @@
-import { useParams, Link } from 'react-router-dom'
-import { useCampaign, useLandingPages } from '@project/sdk'
-import { Card, CardContent, CardHeader } from '@/components/ui/Card'
+import { useCallback, useMemo } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import {
+  useAdUnits,
+  useAuthorizeCampaignBudget,
+  useCampaign,
+  useCampaignFunding,
+  useCampaignLeads,
+  useCampaignPerformance,
+  useCreatives,
+  useDeployments,
+  useLandingPages,
+  useUpdateAdUnit,
+} from '@project/sdk'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { Button } from '@/components/ui/Button'
-import { CampaignNav } from '@/components/campaigns/CampaignNav'
+import { CampaignPerformanceSummary } from '@/components/campaigns/CampaignPerformanceSummary'
+import { CampaignAds } from '@/components/campaigns/CampaignAds'
+import { CampaignLeads } from '@/components/campaigns/CampaignLeads'
+import { CampaignMoney } from '@/components/campaigns/CampaignMoney'
+import { buildCampaignAds, PLATFORM_LABEL } from '@/components/campaigns/buildCampaignAds'
 import { ExternalLink } from 'lucide-react'
 import { useFlatPages } from '@/hooks/useFlatPages'
 
@@ -16,114 +30,128 @@ const STATUS_LABEL: Record<string, string> = {
 
 export function CampaignPage() {
   const { campaignId } = useParams<{ campaignId: string }>()
-  const { data, isLoading } = useCampaign(campaignId!)
+  const campaignQuery = useCampaign(campaignId!)
+  const performanceQuery = useCampaignPerformance(campaignId!)
+  const fundingQuery = useCampaignFunding(campaignId!)
+  const leadsQuery = useCampaignLeads(campaignId!)
+  const unitsQuery = useAdUnits({ campaignId: campaignId! })
+  const deploymentsQuery = useDeployments(campaignId!)
+  const creativesQuery = useCreatives()
   const landingPagesQuery = useLandingPages()
+  const updateAdUnit = useUpdateAdUnit()
+  const authorize = useAuthorizeCampaignBudget()
+
+  const campaign = campaignQuery.data?.data
+  const units = useFlatPages(unitsQuery)
+  const creatives = useFlatPages(creativesQuery)
   const landingPages = useFlatPages(landingPagesQuery)
+  const leads = useFlatPages(leadsQuery)
+  const creativeName = useMemo(
+    () => new Map(creatives.map((creative) => [creative.id, creative.name])),
+    [creatives],
+  )
+  const ads = useMemo(
+    () => buildCampaignAds(units, deploymentsQuery.data?.data ?? [], creativeName),
+    [units, deploymentsQuery.data?.data, creativeName],
+  )
+  const activate = useCallback(
+    (adUnitId: string) => updateAdUnit.mutate({ adUnitId, status: 'ACTIVE' }),
+    [updateAdUnit],
+  )
 
-  if (isLoading) return <Skeleton className="h-48 w-full" />
-
-  const campaign = data?.data
+  if (campaignQuery.isLoading) return <Skeleton className="h-48 w-full" />
   if (!campaign) return <p className="text-muted-foreground">Not found.</p>
 
   const destinationPage = landingPages.find((lp) => lp.hostedUrl === campaign.destinationUrl)
+  const dates = `${new Date(campaign.startDate).toLocaleDateString()} – ${
+    campaign.endDate ? new Date(campaign.endDate).toLocaleDateString() : 'open'
+  }`
 
   return (
-    <div className="space-y-4">
-      <CampaignNav
+    <div className="space-y-10">
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+            {STATUS_LABEL[campaign.status] ?? campaign.status} · {dates}
+            {campaign.platforms.length
+              ? ` · ${campaign.platforms.map((p) => PLATFORM_LABEL[p] ?? p).join(', ')}`
+              : ''}
+          </p>
+          <h1 className="text-3xl font-semibold tracking-tight mt-1">{campaign.name}</h1>
+        </div>
+        <Link to={`/campaigns/${campaignId}/edit`} className="text-sm underline underline-offset-4">
+          Edit
+        </Link>
+      </div>
+
+      <CampaignPerformanceSummary performance={performanceQuery.data?.data} />
+
+      <CampaignAds
         campaignId={campaignId!}
-        name={campaign.name}
-        actions={
-          <div className="flex gap-2">
-            <Link to={`/campaigns/${campaignId}/edit`}>
-              <Button variant="outline" size="sm">
-                Edit
-              </Button>
-            </Link>
-            <Link to={`/campaigns/${campaignId}/performance`}>
-              <Button variant="outline" size="sm">
-                Performance
-              </Button>
-            </Link>
-          </div>
-        }
+        ads={ads}
+        activating={updateAdUnit.isPending}
+        onActivate={activate}
       />
 
-      <p className="text-xs text-muted-foreground">
-        {STATUS_LABEL[campaign.status] ?? campaign.status} · ${campaign.budget.toLocaleString()}{' '}
-        planning budget
-      </p>
+      <section className="space-y-2">
+        <h2 className="text-sm font-medium tracking-wide uppercase">Destination</h2>
+        {campaign.destinationUrl ? (
+          <div className="space-y-1">
+            <a
+              href={campaign.destinationUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm hover:underline inline-flex items-center gap-1"
+            >
+              {campaign.destinationUrl} <ExternalLink size={12} />
+            </a>
+            {destinationPage ? (
+              <p className="text-xs text-muted-foreground">
+                Landing page &quot;{destinationPage.name}&quot; —{' '}
+                <Link to={`/landing-pages/${destinationPage.id}`} className="underline">
+                  edit
+                </Link>
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            No destination yet.{' '}
+            <Link to={`/campaigns/${campaignId}/edit`} className="underline">
+              Set a URL
+            </Link>
+            {' · '}
+            <Link to="/landing-pages" className="underline">
+              Landing pages
+            </Link>
+          </p>
+        )}
+      </section>
 
-      <Card>
-        <CardHeader>
-          <p className="text-sm font-medium">Destination</p>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          {campaign.destinationUrl ? (
-            <>
-              <a
-                href={campaign.destinationUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm text-primary hover:underline flex items-center gap-1"
-              >
-                {campaign.destinationUrl} <ExternalLink size={12} />
-              </a>
-              {destinationPage && (
-                <p className="text-xs text-muted-foreground">
-                  Points at landing page &quot;{destinationPage.name}&quot; —{' '}
-                  <Link to={`/landing-pages/${destinationPage.id}`} className="underline">
-                    edit it
-                  </Link>
-                </p>
-              )}
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              No destination set yet. Publish a landing page and use &quot;Set as Destination&quot;
-              there, or{' '}
-              <Link to={`/campaigns/${campaignId}/edit`} className="underline">
-                set a URL directly
-              </Link>
-              .
-            </p>
-          )}
-          <Link to="/landing-pages" className="text-xs underline text-muted-foreground">
-            Landing pages library
-          </Link>
-        </CardContent>
-      </Card>
+      <CampaignLeads
+        leads={leads}
+        hasMore={!!leadsQuery.hasNextPage}
+        loadingMore={leadsQuery.isFetchingNextPage}
+        onLoadMore={() => leadsQuery.fetchNextPage()}
+      />
 
-      <Card>
-        <CardHeader>
-          <p className="text-sm font-medium">Details</p>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-3 text-sm">
-          <div>
-            <p className="text-xs text-muted-foreground">Start date</p>
-            <p>{new Date(campaign.startDate).toLocaleDateString()}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">End date</p>
-            <p>{campaign.endDate ? new Date(campaign.endDate).toLocaleDateString() : '—'}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Platforms</p>
-            <p>
-              {campaign.platforms.join(', ')}{' '}
-              <Link
-                to={`/campaigns/${campaignId}/deployments`}
-                className="text-xs underline text-muted-foreground"
-              >
-                manage
-              </Link>
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Creatives</p>
-            <p>{campaign.creativeIds.length}</p>
-          </div>
-        </CardContent>
-      </Card>
+      {fundingQuery.data?.data ? (
+        <CampaignMoney
+          campaignId={campaignId!}
+          funding={fundingQuery.data.data}
+          pending={authorize.isPending}
+          onAuthorize={(amountMinor, idempotencyKey) =>
+            authorize
+              .mutateAsync({
+                campaignId: campaignId!,
+                amountMinor,
+                currency: 'USD',
+                idempotencyKey,
+              })
+              .then(() => undefined)
+          }
+        />
+      ) : null}
     </div>
   )
 }

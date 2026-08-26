@@ -1,5 +1,5 @@
+import { Link } from 'react-router-dom'
 import type { components } from '@project/sdk'
-import { Card, CardContent } from '@/components/ui/Card'
 import { formatDollars } from '@/lib/money'
 
 type CampaignLead = components['schemas']['CampaignLead']
@@ -47,30 +47,31 @@ export function CampaignLeadRow({ lead }: { lead: CampaignLead }) {
       : FOLLOW_UP_LABEL[lead.followUpStatus]
 
   return (
-    <Card className="hover:bg-accent/50 transition-colors">
-      <CardContent className="py-4 grid gap-3 sm:grid-cols-2">
-        <div>
-          <p className="text-sm font-medium">{lead.contactName}</p>
+    <tr className="border-b border-border last:border-b-0">
+      <td className="py-3 pr-6 align-top">
+        <Link
+          to={`/contacts/${lead.contactId}`}
+          className="block hover:underline underline-offset-4"
+        >
+          <span className="text-sm font-medium">{lead.contactName}</span>
           <p className="text-xs text-muted-foreground">Acquired {when(lead.acquiredAt)}</p>
-        </div>
-        <div>
-          <p className="text-sm">{lead.sourceLabel}</p>
-          <p className="text-xs text-muted-foreground">{STAGE_LABEL[lead.stage]}</p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">Attributed value</p>
-          <p className="text-sm tabular-nums">{lead.attributedValue == null ? '—' : formatDollars(lead.attributedValue)}</p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">Last interaction</p>
-          <p className="text-sm">
-            {lead.lastInteractionType
-              ? `${INTERACTION_LABEL[lead.lastInteractionType] ?? lead.lastInteractionType}${lead.lastInteractionAt ? ` · ${when(lead.lastInteractionAt)}` : ''}`
-              : '—'}
-          </p>
-          <p className="text-xs text-muted-foreground">{followUp}</p>
-        </div>
-      </CardContent>
-    </Card>
+        </Link>
+      </td>
+      <td className="py-3 pr-6 align-top text-sm">{lead.sourceLabel}</td>
+      <td className="py-3 pr-6 align-top text-sm">{STAGE_LABEL[lead.stage]}</td>
+      <td className="py-3 pr-6 align-top text-sm tabular-nums">
+        {lead.attributedValue == null ? '—' : formatDollars(lead.attributedValue)}
+      </td>
+      <td className="py-3 align-top text-sm">
+        <p>
+          {lead.lastInteractionType
+            ? `${INTERACTION_LABEL[lead.lastInteractionType] ?? lead.lastInteractionType}${
+                lead.lastInteractionAt ? ` · ${when(lead.lastInteractionAt)}` : ''
+              }`
+            : '—'}
+        </p>
+        <p className="text-xs text-muted-foreground">{followUp}</p>
+      </td>
+    </tr>
   )
 }

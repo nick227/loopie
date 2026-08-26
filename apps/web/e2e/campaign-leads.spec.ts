@@ -65,11 +65,10 @@ test.describe('campaign leads outcomes', () => {
     )
     expect(submit.status()).toBe(201)
 
-    await page.getByRole('link', { name: 'Leads', exact: true }).click()
-    await page.waitForURL(/\/leads$/)
+    await page.goto(`/campaigns/${campaignId}`)
     await expect(page.getByText(contactName)).toBeVisible()
     await expect(page.getByText(/META/)).toBeVisible()
-    await expect(page.getByText('Qualified').or(page.getByText('New'))).toBeVisible()
+    await expect(page.getByRole('cell', { name: /^(Qualified|New)$/ })).toBeVisible()
 
     await page.getByText(contactName).click()
     await page.waitForURL(/\/contacts\//)

@@ -73,7 +73,13 @@ export function AmountForm({
       ) : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <div className="flex gap-2">
-        <Button type="submit" size="sm" variant={variant} disabled={pending}>
+        <Button
+          type="submit"
+          size="sm"
+          variant={variant}
+          disabled={pending}
+          className="!shadow-none hover:!translate-y-0"
+        >
           {confirmText ? confirmLabel : submitLabel}
         </Button>
         {confirmText ? (

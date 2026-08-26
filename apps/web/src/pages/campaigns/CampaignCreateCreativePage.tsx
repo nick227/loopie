@@ -1,12 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import {
-  ApiError,
-  useAssets,
-  useCampaign,
-  useCreateCreative,
-  useUpdateCampaign,
-} from '@project/sdk'
+import { ApiError, useAssets, useCampaign, useCreateCreative } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -22,7 +16,6 @@ export function CampaignCreateCreativePage() {
   const campaignQuery = useCampaign(campaignId!)
   const assetsQuery = useAssets()
   const createCreative = useCreateCreative()
-  const updateCampaign = useUpdateCampaign()
 
   const [name, setName] = useState('')
   const [assetIds, setAssetIds] = useState<string[]>([])
@@ -48,13 +41,8 @@ export function CampaignCreateCreativePage() {
       return
     }
     try {
-      const created = await createCreative.mutateAsync({ name, assetIds })
-      const creativeId = created.data!.id
-      await updateCampaign.mutateAsync({
-        campaignId: campaignId!,
-        creativeIds: [...campaign!.creativeIds, creativeId],
-      })
-      navigate(`/campaigns/${campaignId}/creatives`)
+      await createCreative.mutateAsync({ name, assetIds })
+      navigate(`/campaigns/${campaignId}`)
     } catch (err) {
       setError(
         err instanceof ApiError || err instanceof Error ? err.message : 'Could not create creative',
@@ -65,9 +53,9 @@ export function CampaignCreateCreativePage() {
   return (
     <div className="space-y-4">
       <CampaignNav campaignId={campaignId!} name={campaign.name} />
-      <h2 className="text-sm font-medium">New creative</h2>
+      <h1 className="text-xl font-semibold">New creative</h1>
       <p className="text-xs text-muted-foreground">
-        Creates a library creative and attaches it to this campaign.
+        Creates a creative this campaign can run as an ad.
       </p>
 
       {assets.length === 0 ? (
@@ -96,11 +84,12 @@ export function CampaignCreateCreativePage() {
             <Button
               type="submit"
               size="sm"
-              disabled={createCreative.isPending || updateCampaign.isPending}
+              disabled={createCreative.isPending}
+              className="!shadow-none hover:!translate-y-0"
             >
-              Create and attach
+              Create creative
             </Button>
-            <Link to={`/campaigns/${campaignId}/creatives`}>
+            <Link to={`/campaigns/${campaignId}`}>
               <Button type="button" variant="ghost" size="sm">
                 Cancel
               </Button>

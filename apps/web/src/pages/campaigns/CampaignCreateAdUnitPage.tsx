@@ -1,6 +1,13 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ApiError, useCampaign, useCreateAdUnit, useCreatives, useLandingPages } from '@project/sdk'
+import {
+  ApiError,
+  useCampaign,
+  useCreateAdUnit,
+  useCreatives,
+  useLandingPages,
+  useUpdateCampaign,
+} from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -25,10 +32,10 @@ export function CampaignCreateAdUnitPage() {
   const creativesQuery = useCreatives()
   const pagesQuery = useLandingPages()
   const createAdUnit = useCreateAdUnit()
+  const updateCampaign = useUpdateCampaign()
 
   const campaign = campaignQuery.data?.data
   const library = useFlatPages(creativesQuery)
-  const attached = library.filter((creative) => campaign?.creativeIds.includes(creative.id))
   const landingPages = useFlatPages(pagesQuery)
 
   const [creativeId, setCreativeId] = useState('')
@@ -41,23 +48,32 @@ export function CampaignCreateAdUnitPage() {
     return <Skeleton className="h-48 w-full" />
   if (!campaign) return <p className="text-muted-foreground">Not found.</p>
 
-  const selectedCreativeId = creativeId || attached[0]?.id || ''
+  const selectedCreativeId = creativeId || library[0]?.id || ''
+  const back = `/campaigns/${campaignId}`
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setError(null)
     try {
-      await createAdUnit.mutateAsync({
-        campaignId: campaignId!,
-        creativeId: selectedCreativeId,
-        format,
-        ...(landingPageId ? { destinationLandingPageId: landingPageId } : {}),
-        ...(destinationUrl ? { destinationUrl } : {}),
-      })
-      navigate(`/campaigns/${campaignId}/ad-units`)
+      if (!campaign!.creativeIds.includes(selectedCreativeId)) {
+        await updateCampaign.mutateAsync({
+          campaignId: campaignId!,
+          creativeIds: [...campaign!.creativeIds, selectedCreativeId],
+        })
+      }
+      if (!campaign!.platforms.includes('LOOPIE')) {
+        await createAdUnit.mutateAsync({
+          campaignId: campaignId!,
+          creativeId: selectedCreativeId,
+          format,
+          ...(landingPageId ? { destinationLandingPageId: landingPageId } : {}),
+          ...(destinationUrl ? { destinationUrl } : {}),
+        })
+      }
+      navigate(back)
     } catch (err) {
       setError(
-        err instanceof ApiError || err instanceof Error ? err.message : 'Could not create ad unit',
+        err instanceof ApiError || err instanceof Error ? err.message : 'Could not create ad',
       )
     }
   }
@@ -65,19 +81,17 @@ export function CampaignCreateAdUnitPage() {
   return (
     <div className="space-y-4">
       <CampaignNav campaignId={campaignId!} name={campaign.name} />
-      <h2 className="text-sm font-medium">New ad unit</h2>
-      <p className="text-xs text-muted-foreground">
-        Scoped to this campaign. Pick an attached creative to serve.
-      </p>
+      <h1 className="text-xl font-semibold">New ad</h1>
+      <p className="text-xs text-muted-foreground">An ad on this campaign runs one creative.</p>
 
-      {attached.length === 0 ? (
+      {library.length === 0 ? (
         <EmptyState
           icon={Image}
-          title="Attach a creative first"
-          description="Ad units serve a creative that is already on this campaign."
+          title="No creatives yet"
+          description="Create a creative, then come back to run it as an ad."
           action={{
-            label: 'Go to Creatives',
-            onClick: () => navigate(`/campaigns/${campaignId}/creatives`),
+            label: 'New creative',
+            onClick: () => navigate(`/campaigns/${campaignId}/creatives/new`),
           }}
         />
       ) : (
@@ -92,7 +106,7 @@ export function CampaignCreateAdUnitPage() {
               onChange={(e) => setCreativeId(e.target.value)}
               className={selectClass}
             >
-              {attached.map((creative) => (
+              {library.map((creative) => (
                 <option key={creative.id} value={creative.id}>
                   {creative.name}
                 </option>
@@ -148,10 +162,15 @@ export function CampaignCreateAdUnitPage() {
           </div>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <div className="flex gap-2">
-            <Button type="submit" size="sm" disabled={createAdUnit.isPending}>
-              Create ad unit
+            <Button
+              type="submit"
+              size="sm"
+              disabled={createAdUnit.isPending || updateCampaign.isPending}
+              className="!shadow-none hover:!translate-y-0"
+            >
+              Create ad
             </Button>
-            <Link to={`/campaigns/${campaignId}/ad-units`}>
+            <Link to={back}>
               <Button type="button" variant="ghost" size="sm">
                 Cancel
               </Button>
