@@ -41,8 +41,7 @@ COPY --from=builder /app/apps/ad-server/src ./apps/ad-server/src
 COPY --from=builder /app/apps/ad-server/package.json ./apps/ad-server/
 
 EXPOSE 3002
-# Unlike apps/web (a static server with no fixed port signal, which needed an explicit ${PORT}
-# bind — see that Dockerfile), Railway infers this service's target port from EXPOSE above, and
-# the app itself defaults AD_SERVER_PORT to 3002 when unset — confirmed consistent, no PORT env
-# var needed here.
+# Correction, found live: Railway's healthcheck probes PORT regardless of EXPOSE — the earlier
+# assumption here (that EXPOSE alone was enough, no PORT needed) was wrong; the app now
+# prioritizes process.env.PORT (see index.ts).
 CMD ["node_modules/.bin/tsx", "apps/ad-server/src/index.ts"]

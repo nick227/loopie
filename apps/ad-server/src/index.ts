@@ -41,8 +41,12 @@ async function main() {
     }, rateLimitCleanupIntervalMs)
   }
 
+  // Railway always injects PORT and healthchecks against it, regardless of what the Dockerfile
+  // EXPOSEs — confirmed live: the app was correctly listening on AD_SERVER_PORT's default (3002)
+  // but Railway's healthcheck probe still reported "service unavailable" until PORT took
+  // priority here. AD_SERVER_PORT stays as the override for local/manual runs.
   await server.listen({
-    port: Number(process.env.AD_SERVER_PORT ?? 3002),
+    port: Number(process.env.PORT ?? process.env.AD_SERVER_PORT ?? 3002),
     host: '0.0.0.0',
   })
 }
