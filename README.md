@@ -124,7 +124,9 @@ pnpm --filter server dev    # default PORT=3001; /docs is the OpenAPI UI
 pnpm --filter web dev       # Vite, default 5173; VITE_API_URL must match the API
 ```
 
-- Seed login: `demo@loopie.app` / `password123` (ADMIN).
+- Seed password for every login: `password123`.
+  - `demo@loopie.app` ADMIN (Riverside) · `shop@loopie.app` / `marketer@loopie.app` USER · `affiliate@loopie.app` field rep · `manager@loopie.app` / `downline@loopie.app` manager tree · `paused-affiliate@loopie.app` paused · `suspended@loopie.app` 403
+  - Second tenant: `oak@loopie.app` ADMIN · `oak-shop@loopie.app` USER · `oak-affiliate@loopie.app` AFFILIATE
 - `apps/server`’s `tsx watch` **does not load `.env`**. Export `DATABASE_URL` (and Stripe keys when you want Checkout/Connect) in the shell that starts it.
 - Tests never use whatever `DATABASE_URL` happens to be in the shell. `pnpm --filter server test` / `pnpm --filter ad-server test` default to a dedicated `loopie_test` database. Do not point that suite at the shared `loopie` DB — the suite wipes tables.
 - On a shared machine, check what is actually bound to a port before assuming it is LOOPIE. This repo’s Playwright runs have collided with other projects on **3001**.
