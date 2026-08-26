@@ -11,6 +11,7 @@ import * as handlers from './handlers'
 import * as security from './plugins/security'
 import { mapErrorToReply } from './plugins/errorHandler'
 import { publicRateLimit } from './plugins/publicRateLimit'
+import { runDuePayouts } from './services/AffiliatePayoutService'
 
 const server = Fastify({ logger: true })
 
@@ -48,6 +49,17 @@ async function main() {
 
   // health check — not in spec, always public
   server.get('/health', async () => ({ status: 'ok' }))
+
+  // Automation execution poller — no queue/worker infra exists, so this is a plain interval on
+  // the one server process (matches the existing single-process Railway deployment). Guarded
+  // out of NODE_ENV=test so tests (which don't import this file at all today, but might via a
+  // future full-app harness) never get a background timer racing their own DB assertions.
+  if (process.env.NODE_ENV !== 'test') {
+    const payoutIntervalMs = Number(process.env.AFFILIATE_PAYOUT_POLL_INTERVAL_MS ?? 60 * 60_000)
+    setInterval(() => {
+      runDuePayouts().catch((err) => server.log.error(err))
+    }, payoutIntervalMs)
+  }
 
   await server.listen({
     port: Number(process.env.PORT ?? 3001),

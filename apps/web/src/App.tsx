@@ -79,10 +79,18 @@ import { UpdateLeadPage } from '@/pages/UpdateLeadPage'
 import { SalesPage } from '@/pages/SalesPage'
 import { CreateSalePage } from '@/pages/CreateSalePage'
 import { SalePage } from '@/pages/SalePage'
-import { HomeSummaryPage } from '@/pages/HomeSummaryPage'
 import { ResultsSummaryPage } from '@/pages/ResultsSummaryPage'
 import { AuthGuard } from '@/lib/AuthGuard'
+import { RequireRole, HomeRoute } from '@/lib/RequireRole'
 import { Shell } from '@/components/layout/Shell'
+import { AffiliatesPage } from '@/pages/AffiliatesPage'
+import { CreateAffiliatePage } from '@/pages/CreateAffiliatePage'
+import { AffiliateDetailPage } from '@/pages/AffiliateDetailPage'
+import { AffiliateClassesPage } from '@/pages/AffiliateClassesPage'
+import { AffiliatePayoutsPage } from '@/pages/AffiliatePayoutsPage'
+import { AffiliatePortalHomePage } from '@/pages/AffiliatePortalHomePage'
+import { AffiliatePortalTeamPage } from '@/pages/AffiliatePortalTeamPage'
+import { AffiliatePortalPayoutsPage } from '@/pages/AffiliatePortalPayoutsPage'
 
 export function App() {
   return (
@@ -174,8 +182,16 @@ export function App() {
           <Route path="/sales" element={<SalesPage />} />
           <Route path="/sales/new" element={<CreateSalePage />} />
           <Route path="/sales/:saleId" element={<SalePage />} />
-          <Route path="/home" element={<HomeSummaryPage />} />
+          <Route path="/home" element={<HomeRoute />} />
           <Route path="/results" element={<ResultsSummaryPage />} />
+          <Route path="/affiliates" element={<RequireRole role="ADMIN"><AffiliatesPage /></RequireRole>} />
+          <Route path="/affiliates/new" element={<RequireRole role="ADMIN"><CreateAffiliatePage /></RequireRole>} />
+          <Route path="/affiliates/classes" element={<RequireRole role="ADMIN"><AffiliateClassesPage /></RequireRole>} />
+          <Route path="/affiliates/payouts" element={<RequireRole role="ADMIN"><AffiliatePayoutsPage /></RequireRole>} />
+          <Route path="/affiliates/:affiliateId" element={<RequireRole role="ADMIN"><AffiliateDetailPage /></RequireRole>} />
+          <Route path="/portal" element={<RequireRole role="AFFILIATE"><AffiliatePortalHomePage /></RequireRole>} />
+          <Route path="/portal/team" element={<RequireRole role="AFFILIATE"><AffiliatePortalTeamPage /></RequireRole>} />
+          <Route path="/portal/payouts" element={<RequireRole role="AFFILIATE"><AffiliatePortalPayoutsPage /></RequireRole>} />
           </Route>
         </Route>
 

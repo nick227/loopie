@@ -69,6 +69,21 @@ components:
       name: automationId
       required: true
       schema: { type: string }
+    AffiliateId:
+      in: path
+      name: affiliateId
+      required: true
+      schema: { type: string }
+    AffiliateClassId:
+      in: path
+      name: classId
+      required: true
+      schema: { type: string }
+    AffiliateDealId:
+      in: path
+      name: dealId
+      required: true
+      schema: { type: string }
     CampaignId:
       in: path
       name: campaignId
@@ -148,12 +163,13 @@ components:
     # ---------- Auth ----------
     User:
       type: object
-      required: [id, email, businessId, createdAt]
+      required: [id, email, businessId, role, createdAt]
       properties:
         id: { type: string }
         email: { type: string }
         businessId: { type: string }
         businessName: { type: string }
+        role: { type: string, enum: [USER, ADMIN, AFFILIATE] }
         createdAt: { type: string, format: date-time }
 
     RegisterInput:
@@ -533,6 +549,181 @@ components:
         outcome: { type: string, enum: [SENT, SKIPPED, FAILED] }
         reasonSkipped: { type: string, nullable: true }
         triggeredAt: { type: string, format: date-time }
+
+    # ---------- Affiliates ----------
+    # Assignment (class/deal/manager/overrides) chooses which policy applies. AffiliateDeal is the
+    # commission policy (PERCENTAGE|FIXED, eligibility from referral click, payout cadence).
+    # Sale freezes resolved economics onto SaleAffiliateSplit; FinanceService posts commissions.
+    AffiliateClass:
+      type: object
+      required: [id, businessId, name, maxAffiliateRateBps, maxManagerShareBps, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        name: { type: string }
+        maxAffiliateRateBps: { type: integer }
+        maxManagerShareBps: { type: integer }
+        defaultDealId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    CreateAffiliateClassInput:
+      type: object
+      required: [name, maxAffiliateRateBps, maxManagerShareBps]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        maxAffiliateRateBps: { type: integer, minimum: 0, maximum: 10000 }
+        maxManagerShareBps: { type: integer, minimum: 0, maximum: 10000 }
+
+    UpdateAffiliateClassInput:
+      type: object
+      properties:
+        name: { type: string }
+        maxAffiliateRateBps: { type: integer, minimum: 0, maximum: 10000 }
+        maxManagerShareBps: { type: integer, minimum: 0, maximum: 10000 }
+        defaultDealId: { type: string, nullable: true }
+
+    AffiliateDeal:
+      type: object
+      required: [id, businessId, name, commissionRuleType, managerShareBps, payoutCadence, isActive, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        classId: { type: string, nullable: true }
+        name: { type: string }
+        commissionRuleType: { type: string, enum: [PERCENTAGE, FIXED] }
+        affiliateRateBps: { type: integer, nullable: true }
+        fixedAmountMinor: { type: integer, nullable: true }
+        managerShareBps: { type: integer, description: Percent of gross commission paid to the manager. Does not increase total cost. }
+        eligibilityWindowDays:
+          type: integer
+          nullable: true
+          description: Cookie-window bound measured from the referral click, not Lead creation. null = unlimited.
+        payoutThresholdMinor: { type: integer, nullable: true }
+        payoutCadence: { type: string, enum: [MANUAL, WEEKLY, MONTHLY] }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    CreateAffiliateDealInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        classId: { type: string }
+        commissionRuleType: { type: string, enum: [PERCENTAGE, FIXED], description: Defaults to PERCENTAGE. }
+        affiliateRateBps: { type: integer, minimum: 1, maximum: 10000 }
+        fixedAmountMinor: { type: integer, minimum: 1 }
+        managerShareBps: { type: integer, minimum: 0, maximum: 10000 }
+        eligibilityWindowDays: { type: integer, minimum: 1 }
+        payoutThresholdMinor: { type: integer, minimum: 1 }
+        payoutCadence: { type: string, enum: [MANUAL, WEEKLY, MONTHLY] }
+
+    UpdateAffiliateDealInput:
+      type: object
+      properties:
+        name: { type: string }
+        classId: { type: string, nullable: true }
+        commissionRuleType: { type: string, enum: [PERCENTAGE, FIXED] }
+        affiliateRateBps: { type: integer, minimum: 1, maximum: 10000 }
+        fixedAmountMinor: { type: integer, minimum: 1 }
+        managerShareBps: { type: integer, minimum: 0, maximum: 10000 }
+        eligibilityWindowDays: { type: integer, minimum: 1, nullable: true }
+        payoutThresholdMinor: { type: integer, minimum: 1, nullable: true }
+        payoutCadence: { type: string, enum: [MANUAL, WEEKLY, MONTHLY] }
+        isActive: { type: boolean }
+
+    Affiliate:
+      type: object
+      required: [id, businessId, name, referralCode, referralUrl, classId, commissionRuleType, payoutCadence, isActive, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        name: { type: string }
+        email: { type: string, nullable: true }
+        referralCode: { type: string, description: "Globally unique, like LandingPage.slug." }
+        referralUrl: { type: string, description: "GET this URL to track a click and redirect the visitor — GET /r/affiliate/{affiliateId}." }
+        classId: { type: string }
+        dealId: { type: string, nullable: true }
+        managerId: { type: string, nullable: true }
+        userId: { type: string, nullable: true }
+        affiliateRateOverrideBps: { type: integer, nullable: true }
+        managerShareOverrideBps: { type: integer, nullable: true }
+        commissionRuleType:
+          type: string
+          enum: [PERCENTAGE, FIXED]
+          description: Resolved live from assigned Deal (display only — historical earnings use frozen commissions).
+        commissionRateBps: { type: integer, nullable: true }
+        commissionFixedAmountMinor: { type: integer, nullable: true }
+        managerShareBps: { type: integer }
+        affiliateNetBps: { type: integer, nullable: true }
+        eligibilityWindowDays: { type: integer, nullable: true }
+        payoutThresholdMinor: { type: integer, nullable: true }
+        payoutCadence: { type: string, enum: [MANUAL, WEEKLY, MONTHLY] }
+        lastPayoutAt: { type: string, format: date-time, nullable: true }
+        downlineCount: { type: integer }
+        initialPassword: { type: string, description: Returned once when createLogin is true. }
+        destinationLandingPageId: { type: string, nullable: true }
+        destinationUrl: { type: string, nullable: true, description: Fallback redirect if no landing page is set. }
+        isActive: { type: boolean }
+        pausedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    CreateAffiliateInput:
+      type: object
+      required: [name, classId]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        email: { type: string, format: email }
+        referralCode: { type: string, minLength: 1, maxLength: 40, pattern: '^[a-zA-Z0-9-]+$', description: Auto-generated if omitted. }
+        classId: { type: string }
+        dealId: { type: string }
+        managerId: { type: string }
+        createLogin: { type: boolean }
+        destinationLandingPageId: { type: string }
+        destinationUrl: { type: string }
+
+    UpdateAffiliateInput:
+      type: object
+      properties:
+        name: { type: string }
+        email: { type: string, format: email, nullable: true }
+        classId: { type: string }
+        dealId: { type: string, nullable: true }
+        managerId: { type: string, nullable: true }
+        affiliateRateOverrideBps: { type: integer, minimum: 0, maximum: 10000, nullable: true }
+        managerShareOverrideBps: { type: integer, minimum: 0, maximum: 10000, nullable: true }
+        destinationLandingPageId: { type: string, nullable: true }
+        destinationUrl: { type: string, nullable: true }
+
+    AffiliateEarnings:
+      type: object
+      required: [pendingMinor, payableMinor, paidMinor, commissions, payouts]
+      properties:
+        pendingMinor: { type: integer }
+        payableMinor: { type: integer }
+        paidMinor: { type: integer }
+        commissions:
+          type: array
+          items:
+            type: object
+            required: [id, amountMinor, currency, status, createdAt]
+            properties:
+              id: { type: string }
+              amountMinor: { type: integer }
+              currency: { type: string }
+              status: { type: string, enum: [PENDING, PAYABLE, PAID, CANCELLED, REVERSED] }
+              sourceRef: { type: string, nullable: true }
+              createdAt: { type: string, format: date-time }
+        payouts:
+          type: array
+          items:
+            type: object
+            required: [id, amountMinor, currency, status, createdAt]
+            properties:
+              id: { type: string }
+              amountMinor: { type: integer }
+              currency: { type: string }
+              status: { type: string }
+              createdAt: { type: string, format: date-time }
 
     # ---------- Campaign / Deployment ----------
     Campaign:
@@ -931,6 +1122,13 @@ components:
         sourceAdUnitId: { type: string, nullable: true }
         clickId: { type: string, nullable: true }
         landingSessionId: { type: string, nullable: true }
+        referringAffiliateId:
+          type: string
+          nullable: true
+          description: >
+            Separate from sourceType above — sourceType answers "how did this lead reach us"
+            (message/deployment/ad-unit/manual/import); this answers "which affiliate gets
+            credit," set independently by the same submission and orthogonal to it.
         openedAt: { type: string, format: date-time }
         closedAt: { type: string, format: date-time, nullable: true }
         createdAt: { type: string, format: date-time }
@@ -958,7 +1156,17 @@ components:
         sourceDeploymentId: { type: string, nullable: true }
         sourceAdUnitId: { type: string, nullable: true }
         notes: { type: string, nullable: true }
+        reversedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Set by POST /sales/{saleId}/reverse. Not a status enum — matches Lead.closedAt/Automation.pausedAt.
         createdAt: { type: string, format: date-time }
+
+    ReverseSaleInput:
+      type: object
+      properties:
+        reason: { type: string }
 
     CreateSaleInput:
       type: object
@@ -2251,6 +2459,304 @@ paths:
                     items: { $ref: '#/components/schemas/AutomationLog' }
                   meta: { $ref: '#/components/schemas/PaginatedMeta' }
 
+  # ---------- Affiliates ----------
+  /affiliate-classes:
+    get:
+      operationId: listAffiliateClasses
+      summary: List affiliate classes
+      tags: [affiliates]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated classes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AffiliateClass' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createAffiliateClass
+      summary: Create affiliate class
+      tags: [affiliates]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAffiliateClassInput' }
+      responses:
+        '201':
+          description: Class created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AffiliateClass' }
+
+  /affiliate-classes/{classId}:
+    get:
+      operationId: getAffiliateClass
+      summary: Get affiliate class
+      tags: [affiliates]
+      parameters:
+        - $ref: '#/components/parameters/AffiliateClassId'
+      responses:
+        '200':
+          description: Class
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AffiliateClass' }
+    patch:
+      operationId: updateAffiliateClass
+      summary: Update affiliate class
+      tags: [affiliates]
+      parameters:
+        - $ref: '#/components/parameters/AffiliateClassId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAffiliateClassInput' }
+      responses:
+        '200':
+          description: Updated class
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AffiliateClass' }
+
+  /affiliate-deals:
+    get:
+      operationId: listAffiliateDeals
+      summary: List affiliate deals
+      tags: [affiliates]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated deals
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AffiliateDeal' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createAffiliateDeal
+      summary: Create affiliate deal
+      tags: [affiliates]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAffiliateDealInput' }
+      responses:
+        '201':
+          description: Deal created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AffiliateDeal' }
+
+  /affiliate-deals/{dealId}:
+    get:
+      operationId: getAffiliateDeal
+      summary: Get affiliate deal
+      tags: [affiliates]
+      parameters:
+        - $ref: '#/components/parameters/AffiliateDealId'
+      responses:
+        '200':
+          description: Deal
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AffiliateDeal' }
+    patch:
+      operationId: updateAffiliateDeal
+      summary: Update affiliate deal
+      tags: [affiliates]
+      parameters:
+        - $ref: '#/components/parameters/AffiliateDealId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAffiliateDealInput' }
+      responses:
+        '200':
+          description: Updated deal
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AffiliateDeal' }
+
+  /affiliates:
+    get:
+      operationId: listAffiliates
+      summary: List affiliates
+      tags: [affiliates]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated affiliates
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Affiliate' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createAffiliate
+      summary: Create affiliate
+      tags: [affiliates]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAffiliateInput' }
+      responses:
+        '201':
+          description: Affiliate created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Affiliate' }
+
+  /affiliates/me:
+    get:
+      operationId: getMyAffiliate
+      summary: Current user's affiliate record
+      tags: [affiliates]
+      responses:
+        '200':
+          description: Affiliate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Affiliate' }
+
+  /affiliates/{affiliateId}:
+    get:
+      operationId: getAffiliate
+      summary: Get affiliate
+      tags: [affiliates]
+      parameters:
+        - $ref: '#/components/parameters/AffiliateId'
+      responses:
+        '200':
+          description: Affiliate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Affiliate' }
+    patch:
+      operationId: updateAffiliate
+      summary: Update affiliate
+      tags: [affiliates]
+      parameters:
+        - $ref: '#/components/parameters/AffiliateId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAffiliateInput' }
+      responses:
+        '200':
+          description: Updated affiliate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Affiliate' }
+
+  /affiliates/{affiliateId}/earnings:
+    get:
+      operationId: getAffiliateEarnings
+      summary: Frozen commissions and payouts for an affiliate
+      tags: [affiliates]
+      parameters:
+        - $ref: '#/components/parameters/AffiliateId'
+      responses:
+        '200':
+          description: Earnings from Commission/Payout rows — never recomputed from live Deal
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AffiliateEarnings' }
+
+  /affiliates/{affiliateId}/pause:
+    post:
+      operationId: pauseAffiliate
+      summary: Pause affiliate
+      tags: [affiliates]
+      parameters:
+        - $ref: '#/components/parameters/AffiliateId'
+      responses:
+        '200':
+          description: Affiliate paused
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Affiliate' }
+
+  /affiliates/{affiliateId}/resume:
+    post:
+      operationId: resumeAffiliate
+      summary: Resume affiliate
+      tags: [affiliates]
+      parameters:
+        - $ref: '#/components/parameters/AffiliateId'
+      responses:
+        '200':
+          description: Affiliate resumed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Affiliate' }
+
   # ---------- Campaigns ----------
   /campaigns:
     get:
@@ -2560,6 +3066,28 @@ paths:
       responses:
         '302':
           description: Records an AttributionEvent and redirects to the campaign destination URL
+          headers:
+            Location: { schema: { type: string } }
+
+  /r/affiliate/{affiliateId}:
+    get:
+      operationId: trackAffiliateClick
+      summary: Track affiliate referral click
+      tags: [attribution]
+      security: []
+      description: >
+        Mirrors GET /r/{deploymentId} exactly (same session-mint/redirect shape) for an
+        affiliate's referral link. Records an AffiliateReferralClick, not an AttributionEvent —
+        affiliate attribution is a separate mechanism from campaign/deployment tracking.
+      parameters:
+        - $ref: '#/components/parameters/AffiliateId'
+        - in: query
+          name: sid
+          schema: { type: string }
+          description: Anonymous session id, generated client-side if absent.
+      responses:
+        '302':
+          description: Records an AffiliateReferralClick and redirects to the affiliate's destination
           headers:
             Location: { schema: { type: string } }
 
@@ -3165,6 +3693,31 @@ paths:
       responses:
         '200':
           description: Sale
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Sale' }
+
+  /sales/{saleId}/reverse:
+    post:
+      operationId: reverseSale
+      summary: Reverse sale
+      tags: [sales]
+      description: >
+        Idempotent. Sets Sale.reversedAt, reopens the linked Lead's stage if this was its only
+        active sale, and reverses the linked Commission (if any) through
+        FinanceService.reverseCommission — never mutated directly.
+      parameters:
+        - $ref: '#/components/parameters/SaleId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReverseSaleInput' }
+      responses:
+        '200':
+          description: Reversed sale
           content:
             application/json:
               schema:

@@ -16,3 +16,8 @@ export async function getSale(request: any, reply: any) {
   const sale = await saleService.get(request.user.businessId, request.params.saleId)
   return reply.send({ data: sale })
 }
+
+export async function reverseSale(request: any, reply: any) {
+  const sale = await saleService.reverse(request.user.businessId, request.params.saleId, request.body ?? {})
+  return reply.send({ data: sale })
+}

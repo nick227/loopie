@@ -15,11 +15,12 @@ async function main() {
 
   await db.user.upsert({
     where: { email: 'demo@loopie.app' },
-    update: {},
+    update: { role: 'ADMIN' },
     create: {
       email: 'demo@loopie.app',
       passwordHash: hash,
       businessId: business.id,
+      role: 'ADMIN',
       sessions: {
         create: {
           token: hashSessionToken(randomSessionToken()),
@@ -265,11 +266,66 @@ async function main() {
     },
   })
 
+  const fieldClass = await db.affiliateClass.upsert({
+    where: { id: 'demo-affiliate-class-field' },
+    update: {},
+    create: {
+      id: 'demo-affiliate-class-field',
+      businessId: business.id,
+      name: 'Field Rep',
+      maxAffiliateRateBps: 5000,
+      maxManagerShareBps: 5000,
+    },
+  })
+  const standardDeal = await db.affiliateDeal.upsert({
+    where: { id: 'demo-affiliate-deal-standard' },
+    update: {},
+    create: {
+      id: 'demo-affiliate-deal-standard',
+      businessId: business.id,
+      classId: fieldClass.id,
+      name: 'Standard 10',
+      affiliateRateBps: 1000,
+      managerShareBps: 2000,
+      payoutCadence: 'MANUAL',
+    },
+  })
+  await db.affiliateClass.update({
+    where: { id: fieldClass.id },
+    data: { defaultDealId: standardDeal.id },
+  })
+  const affiliateUser = await db.user.upsert({
+    where: { email: 'affiliate@loopie.app' },
+    update: { role: 'AFFILIATE' },
+    create: {
+      email: 'affiliate@loopie.app',
+      passwordHash: hash,
+      businessId: business.id,
+      role: 'AFFILIATE',
+    },
+  })
+  await db.affiliate.upsert({
+    where: { id: 'demo-affiliate-jordan' },
+    update: { classId: fieldClass.id, dealId: standardDeal.id, userId: affiliateUser.id },
+    create: {
+      id: 'demo-affiliate-jordan',
+      businessId: business.id,
+      name: 'Jordan Referrer',
+      email: 'affiliate@loopie.app',
+      referralCode: 'jordan10',
+      classId: fieldClass.id,
+      dealId: standardDeal.id,
+      userId: affiliateUser.id,
+      destinationLandingPageId: landingPage.id,
+    },
+  })
+
   console.log(
     `Seeded business "${business.name}" with a contact, lead, message, campaign, deployment (${deployment.id}), ` +
       `landing page (/p/${landingPage.slug}), form, and first-party ad unit.`,
   )
-  console.log('Login: demo@loopie.app / password123')
+  console.log('Login: demo@loopie.app / password123 (ADMIN)')
+  console.log('Affiliate: affiliate@loopie.app / password123')
   console.log('Seeding complete.')
 }
 

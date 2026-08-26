@@ -8,18 +8,18 @@ type UserWithBusiness = {
   id: string
   email: string
   businessId: string
+  role: string
   createdAt: Date
   business: { name: string }
 }
 
-// Shared shape used by auth handlers and security.ts — strips passwordHash,
-// flattens business.name to businessName per the User schema in openapi.yaml.
 export function toUserDTO(user: UserWithBusiness) {
   return {
     id: user.id,
     email: user.email,
     businessId: user.businessId,
     businessName: user.business.name,
+    role: user.role,
     createdAt: user.createdAt.toISOString(),
   }
 }

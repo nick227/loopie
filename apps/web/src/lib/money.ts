@@ -9,6 +9,11 @@ export function formatUsd(amountMinor: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amountMinor / 100)
 }
 
+export function formatBps(bps: number | null | undefined): string {
+  if (bps == null) return '—'
+  return `${(bps / 100).toLocaleString(undefined, { maximumFractionDigits: 2 })}%`
+}
+
 export function formatDollars(amount: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
 }

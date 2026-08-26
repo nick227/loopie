@@ -40,8 +40,8 @@ async function seedTestUsers() {
   })
   await db.user.createMany({
     data: [
-      { id: testUserId, email: 'alice@test.local', passwordHash: 'x', businessId: testBusinessId },
-      { id: testOtherUserId, email: 'bob@test.local', passwordHash: 'x', businessId: testOtherBusinessId },
+      { id: testUserId, email: 'alice@test.local', passwordHash: 'x', businessId: testBusinessId, role: 'ADMIN' },
+      { id: testOtherUserId, email: 'bob@test.local', passwordHash: 'x', businessId: testOtherBusinessId, role: 'ADMIN' },
     ],
     skipDuplicates: true,
   })

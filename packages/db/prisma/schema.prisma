@@ -43,6 +43,9 @@ model Business {
   forms                Form[]
   formSubmissions      FormSubmission[]
   adUnits              AdUnit[]
+  affiliates           Affiliate[]
+  affiliateClasses     AffiliateClass[]
+  affiliateDeals       AffiliateDeal[]
 
   financialAccounts    FinancialAccount[]
   ledgerTransactions   LedgerTransaction[]
@@ -56,19 +59,27 @@ model Business {
   reconciliations      Reconciliation[]
 }
 
+enum UserRole {
+  USER
+  ADMIN
+  AFFILIATE
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
   passwordHash String
   businessId   String
+  role         UserRole  @default(USER)
   isVerified   Boolean   @default(false)
   suspendedAt  DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
-  business Business  @relation(fields: [businessId], references: [id])
-  sessions Session[]
+  business  Business   @relation(fields: [businessId], references: [id])
+  sessions  Session[]
+  affiliate Affiliate?
 
   @@index([businessId])
 }
@@ -533,6 +544,128 @@ model AttributionEvent {
   @@index([sessionId])
 }
 
+// A business's own referral partners — deliberately unrelated to Deployment/AdUnit (an affiliate
+// isn't a paid ad platform) and to Commission/Payout (which stay generic: payeeRef/sourceRef are
+// plain strings so the finance schema never needs to know what an "affiliate" is — see
+// SaleService.create's payeeRef: `affiliate:${affiliate.id}` convention).
+enum CommissionRuleType {
+  PERCENTAGE
+  FIXED
+}
+
+enum PayoutCadence {
+  MANUAL
+  WEEKLY
+  MONTHLY
+}
+
+model AffiliateClass {
+  id                   String   @id @default(cuid())
+  businessId           String
+  name                 String
+  maxAffiliateRateBps  Int
+  maxManagerShareBps   Int
+  defaultDealId        String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  business    Business        @relation(fields: [businessId], references: [id])
+  defaultDeal AffiliateDeal?  @relation("ClassDefaultDeal", fields: [defaultDealId], references: [id])
+  deals       AffiliateDeal[] @relation("DealClass")
+  affiliates  Affiliate[]
+
+  @@index([businessId])
+  @@index([defaultDealId])
+}
+
+model AffiliateDeal {
+  id                         String             @id @default(cuid())
+  businessId                 String
+  classId                    String?
+  name                       String
+  commissionRuleType         CommissionRuleType @default(PERCENTAGE)
+  affiliateRateBps           Int?
+  fixedAmountMinor           Int?
+  managerShareBps            Int
+  eligibilityWindowDays      Int?
+  payoutThresholdMinor       Int?
+  payoutCadence              PayoutCadence      @default(MANUAL)
+  isActive                   Boolean            @default(true)
+  createdAt                  DateTime           @default(now())
+  updatedAt                  DateTime           @updatedAt
+
+  business          Business         @relation(fields: [businessId], references: [id])
+  class             AffiliateClass?  @relation("DealClass", fields: [classId], references: [id])
+  defaultForClasses AffiliateClass[] @relation("ClassDefaultDeal")
+  affiliates        Affiliate[]
+
+  @@index([businessId])
+  @@index([classId])
+}
+
+model Affiliate {
+  id                        String    @id @default(cuid())
+  businessId                String
+  name                      String
+  email                     String?
+  referralCode              String // globally unique like LandingPage.slug — a clean public link, no business-id prefix
+  // Policy fields below are leftover from when rate lived on Affiliate. Source of truth is the
+  // assigned Deal (class default or dealId) plus optional rate overrides. Do not read these for
+  // new commissions or cadence payouts.
+  commissionRuleType        CommissionRuleType @default(PERCENTAGE)
+  commissionRateBps         Int?
+  commissionFixedAmountMinor Int?
+  eligibilityWindowDays     Int?
+  payoutThresholdMinor      Int?
+  payoutCadence             PayoutCadence @default(MANUAL)
+  lastPayoutAt              DateTime?
+  classId                   String?
+  dealId                    String?
+  managerId                 String?
+  userId                    String?   @unique
+  affiliateRateOverrideBps  Int?
+  managerShareOverrideBps   Int?
+  destinationLandingPageId  String?
+  destinationUrl            String? // fallback if no landing page set — same pattern as Campaign.destinationUrl / Deployment.destinationLandingPageId
+  isActive                  Boolean   @default(true)
+  pausedAt                  DateTime?
+  createdAt                 DateTime  @default(now())
+
+  business                Business                 @relation(fields: [businessId], references: [id])
+  class                   AffiliateClass?          @relation(fields: [classId], references: [id])
+  deal                    AffiliateDeal?           @relation(fields: [dealId], references: [id])
+  manager                 Affiliate?               @relation("AffiliateManager", fields: [managerId], references: [id])
+  downline                Affiliate[]              @relation("AffiliateManager")
+  user                    User?                    @relation(fields: [userId], references: [id])
+  destinationLandingPage  LandingPage?             @relation(fields: [destinationLandingPageId], references: [id])
+  clicks                  AffiliateReferralClick[]
+  referringSplits         SaleAffiliateSplit[]     @relation("SplitReferrer")
+  managerSplits           SaleAffiliateSplit[]     @relation("SplitManager")
+
+  @@unique([referralCode])
+  @@index([businessId])
+  @@index([classId])
+  @@index([dealId])
+  @@index([managerId])
+  @@index([destinationLandingPageId])
+}
+
+// Pre-identity click/session tracking for affiliate referrals — mirrors AttributionEvent's role
+// but kept as its own table rather than overloading AttributionEvent's campaign/deployment/ad-unit
+// shape with an unrelated concept.
+model AffiliateReferralClick {
+  id            String   @id @default(cuid())
+  affiliateId   String
+  sessionId     String
+  landingPageId String?
+  clickedAt     DateTime @default(now())
+
+  affiliate Affiliate @relation(fields: [affiliateId], references: [id])
+
+  @@index([affiliateId])
+  @@index([sessionId])
+}
+
 // ---------- Lead / Sale / Interaction (the shared spine) ----------
 
 enum SourceType {
@@ -565,6 +698,11 @@ model Lead {
   sourceAdUnitId     String?
   clickId            String?
   landingSessionId   String?
+  // Which affiliate (if any) referred this lead — deliberately separate from sourceType/source*Id
+  // above (those answer "how did this lead reach us"; this answers "who gets credit"), stamped
+  // once at creation only (see resolveContactAndLead in lib/identityResolution.ts). Plain field,
+  // not a relation, matching this schema's no-new-FK-sprawl pattern for loose cross-references.
+  referringAffiliateId String?
   // 'OPEN' while stage is not WON/LOST; null once closed. Unique with contactId so
   // concurrent form submits cannot insert a second active lead for the same person.
   openSlot           String?
@@ -602,6 +740,10 @@ model Sale {
   sourceDeploymentId String?
   sourceAdUnitId     String?
   notes              String?    @db.Text
+  // Nullable timestamp, not a status enum — matches Lead.closedAt/Automation.pausedAt. Set by
+  // POST /sales/{saleId}/reverse; the linked Commission (if any) is reversed through
+  // FinanceService.reverseCommission, not mutated directly.
+  reversedAt         DateTime?
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
@@ -611,12 +753,40 @@ model Sale {
   sourceMessage    Message?    @relation("SaleSourceMessage", fields: [sourceMessageId], references: [id])
   sourceDeployment Deployment? @relation("SaleSourceDeployment", fields: [sourceDeploymentId], references: [id])
   sourceAdUnit     AdUnit?     @relation("SaleSourceAdUnit", fields: [sourceAdUnitId], references: [id])
+  affiliateSplit   SaleAffiliateSplit?
 
   @@index([businessId, date])
   @@index([contactId])
   @@index([sourceMessageId])
   @@index([sourceDeploymentId])
   @@index([sourceAdUnitId])
+}
+
+// Frozen economics for one Sale. Written once when the Sale is created; never updated.
+// Live Deal/Class/manager changes must not alter these values or the Commission payees.
+model SaleAffiliateSplit {
+  id                       String             @id @default(cuid())
+  saleId                   String             @unique
+  referringAffiliateId     String
+  managerAffiliateId       String?
+  commissionRuleType       CommissionRuleType
+  grossAffiliateRateBps    Int
+  fixedAmountMinor         Int?
+  managerShareBps          Int
+  affiliateNetBps          Int
+  eligibilityWindowDays    Int?
+  saleAmountMinor          Int
+  grossCommissionMinor     Int
+  managerCommissionMinor   Int
+  affiliateCommissionMinor Int
+  createdAt                DateTime           @default(now())
+
+  sale               Sale      @relation(fields: [saleId], references: [id])
+  referringAffiliate Affiliate @relation("SplitReferrer", fields: [referringAffiliateId], references: [id])
+  managerAffiliate   Affiliate? @relation("SplitManager", fields: [managerAffiliateId], references: [id])
+
+  @@index([referringAffiliateId])
+  @@index([managerAffiliateId])
 }
 
 enum InteractionType {
@@ -719,6 +889,7 @@ model LandingPage {
 
   deployments       Deployment[]
   adUnits           AdUnit[]
+  affiliates        Affiliate[]
   attributionEvents AttributionEvent[]
   pageViews         PageView[]
   formSubmissions   FormSubmission[]

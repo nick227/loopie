@@ -4,6 +4,7 @@ import { toCommissionDTO, toPayoutDTO } from '../../lib/finance/dtoEntities'
 import { balancedPair, postLedger, replayOnConflict } from '../../lib/finance/ledger'
 import { requireIdempotencyKey, requireMoney } from '../../lib/finance/money'
 import type { CreateCommissionInput, CreatePayoutInput } from '../../lib/finance/types'
+import { reverseTransaction } from './fundingOps'
 
 export async function createCommission(businessId: string, input: CreateCommissionInput) {
   const { amountMinor, currency, idempotencyKey } = requireMoney(input)
@@ -84,6 +85,33 @@ export async function cancelCommission(businessId: string, commissionId: string)
     where: { id: commission.id },
     data: { status: 'CANCELLED' },
   })
+  return toCommissionDTO(updated)
+}
+
+// The one new function in the finance module for the affiliate-policy pass — added here, not
+// called from outside FinanceService, because "all money owed/paid flows through FinanceService"
+// means a Commission's status can't be mutated from anywhere else either. PENDING has no posted
+// ledger transaction yet, so it's the same as cancelCommission. PAYABLE/PAID already posted one
+// (COMMISSION or PAYOUT), so this reuses the existing generic reverseTransaction — a commission-
+// specific wrapper isn't needed there since reverseTransaction doesn't know or care what kind of
+// transaction it's reversing — and then marks the commission REVERSED, a step reverseTransaction
+// itself deliberately doesn't take.
+export async function reverseCommission(businessId: string, commissionId: string, idempotencyKey: string, reason?: string) {
+  requireIdempotencyKey(idempotencyKey)
+  const commission = await db.commission.findFirst({ where: { id: commissionId, businessId } })
+  if (!commission) throw { statusCode: 404, message: 'Commission not found' }
+  if (commission.status === 'CANCELLED' || commission.status === 'REVERSED') {
+    return toCommissionDTO(commission)
+  }
+  if (commission.status === 'PENDING') {
+    const updated = await db.commission.update({ where: { id: commission.id }, data: { status: 'CANCELLED' } })
+    return toCommissionDTO(updated)
+  }
+  if (!commission.ledgerTransactionId) {
+    throw { statusCode: 409, message: 'Commission has no posted transaction to reverse' }
+  }
+  await reverseTransaction(businessId, { transactionId: commission.ledgerTransactionId, idempotencyKey, reason })
+  const updated = await db.commission.update({ where: { id: commission.id }, data: { status: 'REVERSED' } })
   return toCommissionDTO(updated)
 }
 

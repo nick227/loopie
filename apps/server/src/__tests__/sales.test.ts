@@ -62,3 +62,22 @@ describe('getSale', () => {
     await validateResponse('getSale', 200, res.json())
   })
 })
+
+describe('reverseSale', () => {
+  it('requires auth', async () => {
+    const res = await app.inject({ method: 'POST', url: '/sales/00000000-0000-0000-0000-000000000001/reverse' })
+    expect(res.statusCode).toBe(401)
+  })
+
+  it('POST /sales/{saleId}/reverse', async () => {
+    // TODO: seed domain data (test users are pre-seeded by buildTestApp)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/sales/00000000-0000-0000-0000-000000000001/reverse',
+      headers: asAuth(testUserId),
+      // payload: {},
+    })
+    expect(res.statusCode).toBe(200)
+    await validateResponse('reverseSale', 200, res.json())
+  })
+})

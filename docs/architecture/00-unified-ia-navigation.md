@@ -12,8 +12,10 @@ A user saying "I want to text my customers" should still never have to understan
 
 ## Top-Level Navigation
 ```text
-Home · Campaigns · Messages
+Home · Campaigns · Messages · Affiliates
 ```
+
+`Affiliates` is ADMIN-only (LOOPIE staff). Affiliate logins get a different shell: Home · Team · Payouts (`/portal`). Shop `USER` accounts keep Home · Campaigns · Messages.
 
 ```text
 Campaigns

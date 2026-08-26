@@ -482,6 +482,182 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/affiliate-classes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List affiliate classes */
+        get: operations["listAffiliateClasses"];
+        put?: never;
+        /** Create affiliate class */
+        post: operations["createAffiliateClass"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/affiliate-classes/{classId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get affiliate class */
+        get: operations["getAffiliateClass"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update affiliate class */
+        patch: operations["updateAffiliateClass"];
+        trace?: never;
+    };
+    "/affiliate-deals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List affiliate deals */
+        get: operations["listAffiliateDeals"];
+        put?: never;
+        /** Create affiliate deal */
+        post: operations["createAffiliateDeal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/affiliate-deals/{dealId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get affiliate deal */
+        get: operations["getAffiliateDeal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update affiliate deal */
+        patch: operations["updateAffiliateDeal"];
+        trace?: never;
+    };
+    "/affiliates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List affiliates */
+        get: operations["listAffiliates"];
+        put?: never;
+        /** Create affiliate */
+        post: operations["createAffiliate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/affiliates/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Current user's affiliate record */
+        get: operations["getMyAffiliate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/affiliates/{affiliateId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get affiliate */
+        get: operations["getAffiliate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update affiliate */
+        patch: operations["updateAffiliate"];
+        trace?: never;
+    };
+    "/affiliates/{affiliateId}/earnings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Frozen commissions and payouts for an affiliate */
+        get: operations["getAffiliateEarnings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/affiliates/{affiliateId}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pause affiliate */
+        post: operations["pauseAffiliate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/affiliates/{affiliateId}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume affiliate */
+        post: operations["resumeAffiliate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/campaigns": {
         parameters: {
             query?: never;
@@ -698,6 +874,26 @@ export interface paths {
         };
         /** Track deployment click */
         get: operations["trackDeploymentClick"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/r/affiliate/{affiliateId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Track affiliate referral click
+         * @description Mirrors GET /r/{deploymentId} exactly (same session-mint/redirect shape) for an affiliate's referral link. Records an AffiliateReferralClick, not an AttributionEvent — affiliate attribution is a separate mechanism from campaign/deployment tracking.
+         */
+        get: operations["trackAffiliateClick"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1068,6 +1264,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sales/{saleId}/reverse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reverse sale
+         * @description Idempotent. Sets Sale.reversedAt, reopens the linked Lead's stage if this was its only active sale, and reverses the linked Commission (if any) through FinanceService.reverseCommission — never mutated directly.
+         */
+        post: operations["reverseSale"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/home": {
         parameters: {
             query?: never;
@@ -1374,6 +1590,8 @@ export interface components {
             email: string;
             businessId: string;
             businessName?: string;
+            /** @enum {string} */
+            role: "USER" | "ADMIN" | "AFFILIATE";
             /** Format: date-time */
             createdAt: string;
         };
@@ -1658,6 +1876,167 @@ export interface components {
             reasonSkipped?: string | null;
             /** Format: date-time */
             triggeredAt: string;
+        };
+        AffiliateClass: {
+            id: string;
+            businessId: string;
+            name: string;
+            maxAffiliateRateBps: number;
+            maxManagerShareBps: number;
+            defaultDealId?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CreateAffiliateClassInput: {
+            name: string;
+            maxAffiliateRateBps: number;
+            maxManagerShareBps: number;
+        };
+        UpdateAffiliateClassInput: {
+            name?: string;
+            maxAffiliateRateBps?: number;
+            maxManagerShareBps?: number;
+            defaultDealId?: string | null;
+        };
+        AffiliateDeal: {
+            id: string;
+            businessId: string;
+            classId?: string | null;
+            name: string;
+            /** @enum {string} */
+            commissionRuleType: "PERCENTAGE" | "FIXED";
+            affiliateRateBps?: number | null;
+            fixedAmountMinor?: number | null;
+            /** @description Percent of gross commission paid to the manager. Does not increase total cost. */
+            managerShareBps: number;
+            /** @description Cookie-window bound measured from the referral click, not Lead creation. null = unlimited. */
+            eligibilityWindowDays?: number | null;
+            payoutThresholdMinor?: number | null;
+            /** @enum {string} */
+            payoutCadence: "MANUAL" | "WEEKLY" | "MONTHLY";
+            isActive: boolean;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CreateAffiliateDealInput: {
+            name: string;
+            classId?: string;
+            /**
+             * @description Defaults to PERCENTAGE.
+             * @enum {string}
+             */
+            commissionRuleType?: "PERCENTAGE" | "FIXED";
+            affiliateRateBps?: number;
+            fixedAmountMinor?: number;
+            managerShareBps?: number;
+            eligibilityWindowDays?: number;
+            payoutThresholdMinor?: number;
+            /** @enum {string} */
+            payoutCadence?: "MANUAL" | "WEEKLY" | "MONTHLY";
+        };
+        UpdateAffiliateDealInput: {
+            name?: string;
+            classId?: string | null;
+            /** @enum {string} */
+            commissionRuleType?: "PERCENTAGE" | "FIXED";
+            affiliateRateBps?: number;
+            fixedAmountMinor?: number;
+            managerShareBps?: number;
+            eligibilityWindowDays?: number | null;
+            payoutThresholdMinor?: number | null;
+            /** @enum {string} */
+            payoutCadence?: "MANUAL" | "WEEKLY" | "MONTHLY";
+            isActive?: boolean;
+        };
+        Affiliate: {
+            id: string;
+            businessId: string;
+            name: string;
+            email?: string | null;
+            /** @description Globally unique, like LandingPage.slug. */
+            referralCode: string;
+            /** @description GET this URL to track a click and redirect the visitor — GET /r/affiliate/{affiliateId}. */
+            referralUrl: string;
+            classId: string;
+            dealId?: string | null;
+            managerId?: string | null;
+            userId?: string | null;
+            affiliateRateOverrideBps?: number | null;
+            managerShareOverrideBps?: number | null;
+            /**
+             * @description Resolved live from assigned Deal (display only — historical earnings use frozen commissions).
+             * @enum {string}
+             */
+            commissionRuleType: "PERCENTAGE" | "FIXED";
+            commissionRateBps?: number | null;
+            commissionFixedAmountMinor?: number | null;
+            managerShareBps?: number;
+            affiliateNetBps?: number | null;
+            eligibilityWindowDays?: number | null;
+            payoutThresholdMinor?: number | null;
+            /** @enum {string} */
+            payoutCadence: "MANUAL" | "WEEKLY" | "MONTHLY";
+            /** Format: date-time */
+            lastPayoutAt?: string | null;
+            downlineCount?: number;
+            /** @description Returned once when createLogin is true. */
+            initialPassword?: string;
+            destinationLandingPageId?: string | null;
+            /** @description Fallback redirect if no landing page is set. */
+            destinationUrl?: string | null;
+            isActive: boolean;
+            /** Format: date-time */
+            pausedAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CreateAffiliateInput: {
+            name: string;
+            /** Format: email */
+            email?: string;
+            /** @description Auto-generated if omitted. */
+            referralCode?: string;
+            classId: string;
+            dealId?: string;
+            managerId?: string;
+            createLogin?: boolean;
+            destinationLandingPageId?: string;
+            destinationUrl?: string;
+        };
+        UpdateAffiliateInput: {
+            name?: string;
+            /** Format: email */
+            email?: string | null;
+            classId?: string;
+            dealId?: string | null;
+            managerId?: string | null;
+            affiliateRateOverrideBps?: number | null;
+            managerShareOverrideBps?: number | null;
+            destinationLandingPageId?: string | null;
+            destinationUrl?: string | null;
+        };
+        AffiliateEarnings: {
+            pendingMinor: number;
+            payableMinor: number;
+            paidMinor: number;
+            commissions: {
+                id: string;
+                amountMinor: number;
+                currency: string;
+                /** @enum {string} */
+                status: "PENDING" | "PAYABLE" | "PAID" | "CANCELLED" | "REVERSED";
+                sourceRef?: string | null;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+            payouts: {
+                id: string;
+                amountMinor: number;
+                currency: string;
+                status: string;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
         };
         Campaign: {
             id: string;
@@ -2000,6 +2379,8 @@ export interface components {
             sourceAdUnitId?: string | null;
             clickId?: string | null;
             landingSessionId?: string | null;
+            /** @description Separate from sourceType above — sourceType answers "how did this lead reach us" (message/deployment/ad-unit/manual/import); this answers "which affiliate gets credit," set independently by the same submission and orthogonal to it. */
+            referringAffiliateId?: string | null;
             /** Format: date-time */
             openedAt?: string;
             /** Format: date-time */
@@ -2028,8 +2409,16 @@ export interface components {
             sourceDeploymentId?: string | null;
             sourceAdUnitId?: string | null;
             notes?: string | null;
+            /**
+             * Format: date-time
+             * @description Set by POST /sales/{saleId}/reverse. Not a status enum — matches Lead.closedAt/Automation.pausedAt.
+             */
+            reversedAt?: string | null;
             /** Format: date-time */
             createdAt: string;
+        };
+        ReverseSaleInput: {
+            reason?: string;
         };
         CreateSaleInput: {
             contactId: string;
@@ -2400,6 +2789,9 @@ export interface components {
         CreativeId: string;
         MessageId: string;
         AutomationId: string;
+        AffiliateId: string;
+        AffiliateClassId: string;
+        AffiliateDealId: string;
         CampaignId: string;
         DeploymentId: string;
         LeadId: string;
@@ -3606,6 +3998,415 @@ export interface operations {
             };
         };
     };
+    listAffiliateClasses: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor returned by the previous page. */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated classes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AffiliateClass"][];
+                        meta: components["schemas"]["PaginatedMeta"];
+                    };
+                };
+            };
+        };
+    };
+    createAffiliateClass: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAffiliateClassInput"];
+            };
+        };
+        responses: {
+            /** @description Class created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["AffiliateClass"];
+                    };
+                };
+            };
+        };
+    };
+    getAffiliateClass: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                classId: components["parameters"]["AffiliateClassId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Class */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["AffiliateClass"];
+                    };
+                };
+            };
+        };
+    };
+    updateAffiliateClass: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                classId: components["parameters"]["AffiliateClassId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAffiliateClassInput"];
+            };
+        };
+        responses: {
+            /** @description Updated class */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["AffiliateClass"];
+                    };
+                };
+            };
+        };
+    };
+    listAffiliateDeals: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor returned by the previous page. */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated deals */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AffiliateDeal"][];
+                        meta: components["schemas"]["PaginatedMeta"];
+                    };
+                };
+            };
+        };
+    };
+    createAffiliateDeal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAffiliateDealInput"];
+            };
+        };
+        responses: {
+            /** @description Deal created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["AffiliateDeal"];
+                    };
+                };
+            };
+        };
+    };
+    getAffiliateDeal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dealId: components["parameters"]["AffiliateDealId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deal */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["AffiliateDeal"];
+                    };
+                };
+            };
+        };
+    };
+    updateAffiliateDeal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dealId: components["parameters"]["AffiliateDealId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAffiliateDealInput"];
+            };
+        };
+        responses: {
+            /** @description Updated deal */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["AffiliateDeal"];
+                    };
+                };
+            };
+        };
+    };
+    listAffiliates: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor returned by the previous page. */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated affiliates */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Affiliate"][];
+                        meta: components["schemas"]["PaginatedMeta"];
+                    };
+                };
+            };
+        };
+    };
+    createAffiliate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAffiliateInput"];
+            };
+        };
+        responses: {
+            /** @description Affiliate created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["Affiliate"];
+                    };
+                };
+            };
+        };
+    };
+    getMyAffiliate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Affiliate */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["Affiliate"];
+                    };
+                };
+            };
+        };
+    };
+    getAffiliate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                affiliateId: components["parameters"]["AffiliateId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Affiliate */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["Affiliate"];
+                    };
+                };
+            };
+        };
+    };
+    updateAffiliate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                affiliateId: components["parameters"]["AffiliateId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAffiliateInput"];
+            };
+        };
+        responses: {
+            /** @description Updated affiliate */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["Affiliate"];
+                    };
+                };
+            };
+        };
+    };
+    getAffiliateEarnings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                affiliateId: components["parameters"]["AffiliateId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Earnings from Commission/Payout rows — never recomputed from live Deal */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["AffiliateEarnings"];
+                    };
+                };
+            };
+        };
+    };
+    pauseAffiliate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                affiliateId: components["parameters"]["AffiliateId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Affiliate paused */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["Affiliate"];
+                    };
+                };
+            };
+        };
+    };
+    resumeAffiliate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                affiliateId: components["parameters"]["AffiliateId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Affiliate resumed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["Affiliate"];
+                    };
+                };
+            };
+        };
+    };
     listCampaigns: {
         parameters: {
             query?: {
@@ -4013,6 +4814,30 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Records an AttributionEvent and redirects to the campaign destination URL */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    trackAffiliateClick: {
+        parameters: {
+            query?: {
+                /** @description Anonymous session id, generated client-side if absent. */
+                sid?: string;
+            };
+            header?: never;
+            path: {
+                affiliateId: components["parameters"]["AffiliateId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Records an AffiliateReferralClick and redirects to the affiliate's destination */
             302: {
                 headers: {
                     Location?: string;
@@ -4790,6 +5615,34 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Sale */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["Sale"];
+                    };
+                };
+            };
+        };
+    };
+    reverseSale: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                saleId: components["parameters"]["SaleId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ReverseSaleInput"];
+            };
+        };
+        responses: {
+            /** @description Reversed sale */
             200: {
                 headers: {
                     [name: string]: unknown;
