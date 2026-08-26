@@ -1,14 +1,47 @@
+import type Stripe from 'stripe'
 import { db } from '@project/db'
-import { appBaseUrl, getStripe, stripeBillingConfigured } from '../lib/stripe'
+import {
+  appBaseUrl,
+  formatStripePriceLabel,
+  getStripe,
+  stripeBillingConfigured,
+} from '../lib/stripe'
 
 type BillingUser = { businessId: string; email: string }
+
+const DEFAULT_PLAN = { planName: 'LOOPIE', planPriceLabel: null as string | null }
+
+function productName(product: Stripe.Price['product']): string {
+  if (!product || typeof product === 'string') return DEFAULT_PLAN.planName
+  if ('deleted' in product && product.deleted) return DEFAULT_PLAN.planName
+  return product.name || DEFAULT_PLAN.planName
+}
+
+async function planFromStripe() {
+  if (!stripeBillingConfigured()) return DEFAULT_PLAN
+  try {
+    const price = await getStripe().prices.retrieve(process.env.STRIPE_PRICE_ID!, {
+      expand: ['product'],
+    })
+    return {
+      planName: productName(price.product),
+      planPriceLabel: formatStripePriceLabel(price),
+    }
+  } catch {
+    return DEFAULT_PLAN
+  }
+}
 
 export class StripeBillingService {
   async get(businessId: string) {
     const business = await db.business.findUniqueOrThrow({ where: { id: businessId } })
+    const plan = await planFromStripe()
     return {
       subscriptionStatus: business.subscriptionStatus,
       stripeCustomerId: business.stripeCustomerId,
+      configured: stripeBillingConfigured(),
+      planName: plan.planName,
+      planPriceLabel: plan.planPriceLabel,
     }
   }
 
@@ -34,7 +67,8 @@ export class StripeBillingService {
   async createPortal(user: BillingUser) {
     if (!stripeBillingConfigured()) throw { statusCode: 503, message: 'Stripe is not configured' }
     const business = await db.business.findUniqueOrThrow({ where: { id: user.businessId } })
-    if (!business.stripeCustomerId) throw { statusCode: 409, message: 'No Stripe customer for this business' }
+    if (!business.stripeCustomerId)
+      throw { statusCode: 409, message: 'No Stripe customer for this business' }
     const session = await getStripe().billingPortal.sessions.create({
       customer: business.stripeCustomerId,
       return_url: `${appBaseUrl()}/billing`,

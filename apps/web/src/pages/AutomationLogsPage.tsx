@@ -1,26 +1,33 @@
-import { useParams } from 'react-router-dom'
-import { useAutomationLogs } from '@project/sdk'
+import { Link, useParams } from 'react-router-dom'
+import { useAutomation, useAutomationLogs } from '@project/sdk'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { AutomationLogs } from '@/components/automations/AutomationLogs'
 
 export function AutomationLogsPage() {
   const { automationId } = useParams<{ automationId: string }>()
-  const { data, isLoading } = useAutomationLogs(automationId!)
+  const automationQuery = useAutomation(automationId!)
+  const logsQuery = useAutomationLogs(automationId!)
 
-  if (isLoading) return <Skeleton className="h-48 w-full" />
+  if (automationQuery.isLoading || logsQuery.isLoading) return <Skeleton className="h-48 w-full" />
 
-  const item = data?.data
+  const item = automationQuery.data?.data
   if (!item) return <p className="text-muted-foreground">Not found.</p>
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Automation Logs</h1>
+      <div className="space-y-1">
+        <Link
+          to={`/automations/${item.id}`}
+          className="text-xs text-muted-foreground hover:underline"
+        >
+          {item.name}
+        </Link>
+        <h1 className="text-xl font-semibold">Logs</h1>
+      </div>
       <Card>
         <CardContent className="py-4">
-          {/* TODO: replace with real fields */}
-          <pre className="text-xs text-muted-foreground overflow-auto">
-            {JSON.stringify(item, null, 2)}
-          </pre>
+          <AutomationLogs logs={logsQuery.data?.data ?? []} />
         </CardContent>
       </Card>
     </div>

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { formatStripePriceLabel } from '../lib/stripe'
 import { db } from '@project/db'
 import { buildTestApp, asAuth, testUserId, testShopUserId, testBusinessId } from './helpers'
 import { FinanceService } from '../services/FinanceService'
@@ -50,6 +51,16 @@ function invoicePaidEvent(overrides: Partial<Stripe.Invoice> = {}): Stripe.Event
 }
 
 describe('Stripe service billing', () => {
+  it('formats a recurring Stripe price for display', () => {
+    expect(
+      formatStripePriceLabel({
+        unit_amount: 29900,
+        currency: 'usd',
+        recurring: { interval: 'month' },
+      }),
+    ).toBe('$299.00 / month')
+  })
+
   it('posts PROCESSOR_CLEARING / LOOPIE_REVENUE and never credits CLIENT_AD_FUNDS', async () => {
     await webhooks.handleVerifiedEvent(invoicePaidEvent())
     const chart = await ensureChartOfAccounts(db, testBusinessId, 'USD')
@@ -64,7 +75,9 @@ describe('Stripe service billing', () => {
     expect(payment.stripePaymentIntentId).toBe('pi_test_1')
     expect(payment.status).toBe('POSTED')
 
-    const tx = await db.ledgerTransaction.findUniqueOrThrow({ where: { id: payment.ledgerTransactionId } })
+    const tx = await db.ledgerTransaction.findUniqueOrThrow({
+      where: { id: payment.ledgerTransactionId },
+    })
     expect(tx.type).toBe('SERVICE_PAYMENT')
     expect(tx.externalProvider).toBe('STRIPE')
     expect(tx.externalRef).toBe('in_test_299')
@@ -103,7 +116,9 @@ describe('Stripe service billing', () => {
     expect(still.status).toBe('POSTED')
     const refund = await db.refund.findFirstOrThrow({ where: { paymentId: payment.id } })
     expect(refund.amountMinor).toBe(29900)
-    const reversal = await db.ledgerTransaction.findUniqueOrThrow({ where: { id: refund.ledgerTransactionId } })
+    const reversal = await db.ledgerTransaction.findUniqueOrThrow({
+      where: { id: refund.ledgerTransactionId },
+    })
     expect(reversal.type).toBe('REVERSAL')
     expect(reversal.reversesTransactionId).toBe(payment.ledgerTransactionId)
 
@@ -113,11 +128,21 @@ describe('Stripe service billing', () => {
   })
 
   it('GET /billing is admin-only and recordClientFunding stays a separate custodial path', async () => {
-    const billing = await app.inject({ method: 'GET', url: '/billing', headers: asAuth(testUserId) })
+    const billing = await app.inject({
+      method: 'GET',
+      url: '/billing',
+      headers: asAuth(testUserId),
+    })
     expect(billing.statusCode).toBe(200)
     expect(billing.json().data.subscriptionStatus).toBe(null)
+    expect(billing.json().data.configured).toBe(false)
+    expect(billing.json().data.planName).toBe('LOOPIE')
 
-    const denied = await app.inject({ method: 'GET', url: '/billing', headers: asAuth(testShopUserId) })
+    const denied = await app.inject({
+      method: 'GET',
+      url: '/billing',
+      headers: asAuth(testShopUserId),
+    })
     expect(denied.statusCode).toBe(403)
 
     await finance.recordClientFunding(testBusinessId, {

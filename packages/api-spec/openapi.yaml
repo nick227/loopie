@@ -196,10 +196,13 @@ components:
 
     Billing:
       type: object
-      required: [subscriptionStatus]
+      required: [subscriptionStatus, configured, planName]
       properties:
         subscriptionStatus: { type: string, nullable: true }
         stripeCustomerId: { type: string, nullable: true }
+        configured: { type: boolean, description: "True when Stripe billing env is set. Checkout is available." }
+        planName: { type: string }
+        planPriceLabel: { type: string, nullable: true, description: "Human-readable price from the Stripe Price, e.g. $29.00 / month." }
 
     CheckoutSession:
       type: object
