@@ -17,15 +17,11 @@ async function loginAs(page: Page) {
 async function createCampaign(page: Page, name: string) {
   const apiOrigin = process.env.PLAYWRIGHT_API_URL ?? 'http://localhost:3001'
   const creatives = await (await page.request.get(`${apiOrigin}/creatives`)).json()
-  const creativeId = creatives.data[0].id
   const creativeName = creatives.data[0].name as string
 
   await page.goto('/campaigns/new')
   await page.locator('#field-name').fill(name)
-  await page.locator('#field-budget').fill('500')
-  await page.locator('#field-startDate').fill(new Date().toISOString())
-  await page.locator('#field-platforms').fill('META')
-  await page.locator('#field-creativeIds').fill(creativeId)
+  await page.getByRole('checkbox', { name: 'Meta' }).check()
   await page.getByRole('button', { name: /create campaign/i }).click()
   await page.waitForURL(/\/campaigns\/(?!new$)[^/]+$/)
   return creativeName
@@ -41,6 +37,8 @@ test.describe('campaign creatives and ad units', () => {
 
     await page.getByRole('link', { name: 'Creatives', exact: true }).click()
     await page.waitForURL(/\/creatives$/)
+    await page.locator('#attach-creative').selectOption({ label: seedCreativeName })
+    await page.getByRole('button', { name: 'Attach to campaign' }).click()
     await expect(page.getByText(seedCreativeName).first()).toBeVisible()
 
     const assets = await (await page.request.get(`${apiOrigin}/assets`)).json()

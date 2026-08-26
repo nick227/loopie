@@ -2221,15 +2221,15 @@ export interface components {
     }
     CreateCampaignInput: {
       name: string
-      budget: number
+      budget?: number
       /** Format: date-time */
-      startDate: string
+      startDate?: string
       /** Format: date-time */
       endDate?: string
       destinationUrl?: string
-      /** @description LOOPIE creates first-party AdUnit rows (served by apps/ad-server), not Deployment rows. META/GOOGLE/TIKTOK create Deployment rows. */
-      platforms: ('META' | 'GOOGLE' | 'TIKTOK' | 'LOOPIE')[]
-      creativeIds: string[]
+      /** @description LOOPIE creates first-party AdUnit rows (served by apps/ad-server), not Deployment rows. META/GOOGLE/TIKTOK create Deployment rows. Omit or pass an empty list to create a named draft with no inventory yet. */
+      platforms?: ('META' | 'GOOGLE' | 'TIKTOK' | 'LOOPIE')[]
+      creativeIds?: string[]
     }
     UpdateCampaignInput: {
       name?: string

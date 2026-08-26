@@ -3,15 +3,15 @@ import { getApiClient, ApiError } from '../client'
 
 type CreateCampaignInput = {
   name: string
-  budget: number
-  startDate: string
+  budget?: number
+  startDate?: string
   endDate?: string
   destinationUrl?: string
   // LOOPIE is a valid campaign platform selection (creates first-party AdUnit rows instead of
   // a Deployment — see CreateCampaignInput.platforms in openapi.yaml) even though it's not a
   // valid Deployment.platform value below; the two enums are related but not identical.
-  platforms: ('META' | 'GOOGLE' | 'TIKTOK' | 'LOOPIE')[]
-  creativeIds: string[]
+  platforms?: ('META' | 'GOOGLE' | 'TIKTOK' | 'LOOPIE')[]
+  creativeIds?: string[]
 }
 
 type UpdateCampaignInput = {

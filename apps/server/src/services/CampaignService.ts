@@ -58,27 +58,29 @@ export class CampaignService {
   }
 
   async create(businessId: string, data: any) {
-    await requireCreatives(businessId, data.creativeIds)
+    const creativeIds: string[] = data.creativeIds ?? []
+    const platforms: string[] = data.platforms ?? []
+    await requireCreatives(businessId, creativeIds)
     return db.$transaction(async (tx) => {
       const campaign = await tx.campaign.create({
         data: {
           businessId,
           name: data.name,
-          budget: data.budget,
-          startDate: new Date(data.startDate),
+          budget: data.budget ?? 0,
+          startDate: data.startDate ? new Date(data.startDate) : new Date(),
           endDate: data.endDate ? new Date(data.endDate) : null,
           destinationUrl: data.destinationUrl,
-          platforms: data.platforms,
+          platforms,
           status: 'DRAFT',
-          creativeLinks: { create: data.creativeIds.map((creativeId: string) => ({ creativeId })) },
+          creativeLinks: { create: creativeIds.map((creativeId: string) => ({ creativeId })) },
         },
         include: INCLUDE,
       })
       await reconcileCampaignInventory(tx, {
         businessId,
         campaignId: campaign.id,
-        platforms: data.platforms,
-        creativeIds: data.creativeIds,
+        platforms,
+        creativeIds,
         destinationUrl: campaign.destinationUrl,
       })
       return toCampaignDTO(campaign)

@@ -31,18 +31,10 @@ test.describe('landing page vertical slice', () => {
     // VITE_API_URL (see apps/web/src/main.tsx), which isn't exposed to the test process directly.
     const apiOrigin = process.env.PLAYWRIGHT_API_URL ?? 'http://localhost:3001'
 
-    // A campaign needs an existing creative (minItems: 1) — the seed data provides one.
-    const creatives = await (await page.request.get(`${apiOrigin}/creatives`)).json()
-    const creativeId = creatives.data[0].id
-
     // --- Create a campaign ---
     const campaignName = `E2E Campaign ${Date.now()}`
     await page.goto('/campaigns/new')
     await page.locator('#field-name').fill(campaignName)
-    await page.locator('#field-budget').fill('500')
-    await page.locator('#field-startDate').fill(new Date().toISOString())
-    await page.locator('#field-platforms').fill('META')
-    await page.locator('#field-creativeIds').fill(creativeId)
     await page.getByRole('button', { name: /create campaign/i }).click()
     await page.waitForURL(/\/campaigns\/(?!new$)[^/]+$/)
     await expect(page.getByText(campaignName)).toBeVisible()

@@ -785,7 +785,7 @@ components:
 
     CreateCampaignInput:
       type: object
-      required: [name, budget, startDate, platforms, creativeIds]
+      required: [name]
       properties:
         name: { type: string, minLength: 1, maxLength: 150 }
         budget: { type: number, minimum: 0 }
@@ -795,14 +795,13 @@ components:
         platforms:
           type: array
           items: { type: string, enum: [META, GOOGLE, TIKTOK, LOOPIE] }
-          minItems: 1
           description: >
             LOOPIE creates first-party AdUnit rows (served by apps/ad-server), not
-            Deployment rows. META/GOOGLE/TIKTOK create Deployment rows.
+            Deployment rows. META/GOOGLE/TIKTOK create Deployment rows. Omit or pass
+            an empty list to create a named draft with no inventory yet.
         creativeIds:
           type: array
           items: { type: string }
-          minItems: 1
 
     UpdateCampaignInput:
       type: object

@@ -22,12 +22,17 @@ export type FieldConfig = {
     | 'select'
     | 'tags'
     | 'json'
+    | 'date'
+    | 'radio'
+    | 'checkboxes'
   placeholder?: string
   voice?: boolean
   required?: boolean
   rows?: number
-  /** Option values for 'select' (single choice) and 'tags' (comma-separated, constrained to these). */
+  /** Option values for 'select', 'radio', 'checkboxes', and 'tags'. */
   options?: string[]
+  /** Display labels parallel to `options`. Falls back to the option value. */
+  optionLabels?: string[]
 }
 
 interface FormProps<T extends Record<string, unknown>> {
@@ -91,12 +96,20 @@ export function Form<T extends Record<string, unknown>>({
     >
       {fields.map((field) => {
         const id = `field-${field.name}`
+        const isGroup = field.type === 'radio' || field.type === 'checkboxes'
         return (
           <div key={field.name} className="flex flex-col gap-1.5">
-            <label htmlFor={id} className="text-sm font-medium">
-              {field.label}
-              {field.required && <span className="text-destructive ml-0.5">*</span>}
-            </label>
+            {isGroup ? (
+              <span className="text-sm font-medium">
+                {field.label}
+                {field.required && <span className="text-destructive ml-0.5">*</span>}
+              </span>
+            ) : (
+              <label htmlFor={id} className="text-sm font-medium">
+                {field.label}
+                {field.required && <span className="text-destructive ml-0.5">*</span>}
+              </label>
+            )}
 
             {field.type === 'textarea' || field.type === 'json' ? (
               <Textarea
@@ -120,9 +133,9 @@ export function Form<T extends Record<string, unknown>>({
                 <option value="" disabled>
                   Select...
                 </option>
-                {field.options?.map((opt) => (
+                {field.options?.map((opt, i) => (
                   <option key={opt} value={opt}>
-                    {opt}
+                    {field.optionLabels?.[i] ?? opt}
                   </option>
                 ))}
               </select>
@@ -133,6 +146,34 @@ export function Form<T extends Record<string, unknown>>({
                 type="checkbox"
                 className="h-4 w-4 rounded border-input-border"
               />
+            ) : field.type === 'radio' ? (
+              <div className="flex flex-wrap gap-3" role="radiogroup" aria-label={field.label}>
+                {field.options?.map((opt, i) => (
+                  <label key={opt} className="flex items-center gap-2 text-sm">
+                    <input
+                      {...register(field.name as any)}
+                      type="radio"
+                      value={opt}
+                      className="h-4 w-4 border-input-border"
+                    />
+                    {field.optionLabels?.[i] ?? opt}
+                  </label>
+                ))}
+              </div>
+            ) : field.type === 'checkboxes' ? (
+              <div className="flex flex-col gap-2">
+                {field.options?.map((opt, i) => (
+                  <label key={opt} className="flex items-center gap-2 text-sm">
+                    <input
+                      {...register(field.name as any)}
+                      type="checkbox"
+                      value={opt}
+                      className="h-4 w-4 rounded border-input-border"
+                    />
+                    {field.optionLabels?.[i] ?? opt}
+                  </label>
+                ))}
+              </div>
             ) : (
               <Input
                 {...register(field.name as any)}
