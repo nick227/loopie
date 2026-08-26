@@ -45,14 +45,14 @@ const AudienceContactsPage = lazy(() =>
     default: m.AudienceContactsPage,
   })),
 )
-const AssetsPage = lazy(() =>
-  import('@/pages/assets/AssetsPage').then((m) => ({ default: m.AssetsPage })),
+const MediaPage = lazy(() =>
+  import('@/pages/media/MediaPage').then((m) => ({ default: m.MediaPage })),
 )
-const CreateAssetPage = lazy(() =>
-  import('@/pages/assets/CreateAssetPage').then((m) => ({ default: m.CreateAssetPage })),
+const MediaItemPage = lazy(() =>
+  import('@/pages/media/MediaItemPage').then((m) => ({ default: m.MediaItemPage })),
 )
-const AssetPage = lazy(() =>
-  import('@/pages/assets/AssetPage').then((m) => ({ default: m.AssetPage })),
+const AssetToMedia = lazy(() =>
+  import('@/pages/media/MediaRedirects').then((m) => ({ default: m.AssetToMedia })),
 )
 const TemplatesPage = lazy(() =>
   import('@/pages/templates/TemplatesPage').then((m) => ({ default: m.TemplatesPage })),
@@ -347,9 +347,11 @@ export function App() {
                 <Route path="/audiences/:audienceId" element={<AudiencePage />} />
                 <Route path="/audiences/:audienceId/edit" element={<UpdateAudiencePage />} />
                 <Route path="/audiences/:audienceId/contacts" element={<AudienceContactsPage />} />
-                <Route path="/assets" element={<AssetsPage />} />
-                <Route path="/assets/new" element={<CreateAssetPage />} />
-                <Route path="/assets/:assetId" element={<AssetPage />} />
+                <Route path="/media" element={<MediaPage />} />
+                <Route path="/media/:assetId" element={<MediaItemPage />} />
+                <Route path="/assets" element={<Navigate to="/media" replace />} />
+                <Route path="/assets/new" element={<Navigate to="/media" replace />} />
+                <Route path="/assets/:assetId" element={<AssetToMedia />} />
                 <Route path="/templates" element={<TemplatesPage />} />
                 <Route path="/templates/new" element={<CreateTemplatePage />} />
                 <Route path="/templates/:templateId" element={<TemplatePage />} />

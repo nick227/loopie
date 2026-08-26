@@ -7,6 +7,7 @@ import {
   LogOut,
   Handshake,
   CreditCard,
+  Clapperboard,
   type LucideIcon,
   Bell,
   Search,
@@ -20,8 +21,9 @@ type NavItem = { to: string; label: string; icon: LucideIcon; end?: boolean }
 const SHOP_NAV: NavItem[] = [
   { to: '/home', label: 'Home', icon: Home },
   { to: '/campaigns', label: 'Campaigns', icon: Megaphone },
-  { to: '/ads', label: 'Ads', icon: Image },
   { to: '/messages', label: 'Messages', icon: Mail },
+  { to: '/ads', label: 'Ads', icon: Image },
+  { to: '/media', label: 'Media', icon: Clapperboard },
 ]
 
 const ADMIN_NAV: NavItem[] = [

@@ -11,6 +11,7 @@ import * as handlers from './handlers'
 import * as security from './plugins/security'
 import { mapErrorToReply } from './plugins/errorHandler'
 import { publicRateLimit } from './plugins/publicRateLimit'
+import { registerUploadStatic } from './lib/serveUploads'
 import { runDueAutomations } from './services/AutomationExecutorService'
 import { runDuePayouts } from './services/AffiliatePayoutService'
 import { db, cleanupExpiredRateLimitBuckets } from '@project/db'
@@ -51,6 +52,7 @@ async function main() {
 
   // health check — not in spec, always public
   server.get('/health', async () => ({ status: 'ok' }))
+  await registerUploadStatic(server)
 
   await server.register(async (stripeApp) => {
     stripeApp.addContentTypeParser(

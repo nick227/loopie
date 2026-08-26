@@ -230,7 +230,8 @@ export interface paths {
     delete: operations['deleteAsset']
     options?: never
     head?: never
-    patch?: never
+    /** Update asset */
+    patch: operations['updateAsset']
     trace?: never
   }
   '/templates': {
@@ -1792,6 +1793,11 @@ export interface components {
         [key: string]: unknown
       }
     }
+    /**
+     * @description Ad placement this asset's aspect ratio fits (Feed 1:1 / 4:5, Story 9:16, Landscape 16:9).
+     * @enum {string}
+     */
+    Placement: 'SQUARE' | 'PORTRAIT' | 'STORY' | 'LANDSCAPE'
     Asset: {
       id: string
       businessId: string
@@ -1800,8 +1806,23 @@ export interface components {
       name: string
       url?: string | null
       textContent?: string | null
+      mimeType?: string | null
+      sizeBytes?: number | null
+      widthPx?: number | null
+      heightPx?: number | null
+      durationMs?: number | null
+      aspectRatio?: string | null
+      placements: components['schemas']['Placement'][]
+      usedInAds: number
+      usedInTemplates: number
       /** Format: date-time */
       createdAt: string
+    }
+    AssetFileInput: {
+      filename: string
+      mimeType: string
+      /** @description Base64 file body, optionally a data URL. */
+      data: string
     }
     CreateAssetInput: {
       /** @enum {string} */
@@ -1809,6 +1830,23 @@ export interface components {
       name: string
       url?: string
       textContent?: string
+      mimeType?: string
+      sizeBytes?: number
+      widthPx?: number
+      heightPx?: number
+      durationMs?: number
+      file?: components['schemas']['AssetFileInput']
+    }
+    UpdateAssetInput: {
+      name?: string
+      url?: string
+      textContent?: string
+      mimeType?: string
+      sizeBytes?: number
+      widthPx?: number
+      heightPx?: number
+      durationMs?: number
+      file?: components['schemas']['AssetFileInput']
     }
     Template: {
       id: string
@@ -3481,6 +3519,7 @@ export interface operations {
         /** @description Opaque cursor returned by the previous page. */
         cursor?: components['parameters']['Cursor']
         limit?: components['parameters']['Limit']
+        q?: components['parameters']['SearchQuery']
         type?: 'IMAGE' | 'TEXT' | 'VIDEO' | 'AUDIO'
       }
       header?: never
@@ -3572,6 +3611,34 @@ export interface operations {
         content: {
           'application/json': {
             data?: Record<string, never> | null
+          }
+        }
+      }
+    }
+  }
+  updateAsset: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        assetId: components['parameters']['AssetId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateAssetInput']
+      }
+    }
+    responses: {
+      /** @description Updated asset */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['Asset']
           }
         }
       }

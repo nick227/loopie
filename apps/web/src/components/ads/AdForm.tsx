@@ -2,10 +2,11 @@ import { useState, type FormEvent } from 'react'
 import type { components } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { MediaLibraryModal } from '@/components/ads/MediaLibraryModal'
+import { MediaPicker } from '@/components/media/MediaPicker'
+import type { AddMediaInput } from '@/components/media/AddMediaForm'
+import { mediaSrc } from '@/lib/media'
 
 type Asset = components['schemas']['Asset']
-type AssetType = Asset['type']
 
 export function AdForm({
   name,
@@ -27,7 +28,7 @@ export function AdForm({
   submitLabel: string
   onName: (value: string) => void
   onToggleAsset: (assetId: string) => void
-  onAddAsset: (input: { type: AssetType; name: string; url: string }) => Promise<void>
+  onAddAsset: (input: AddMediaInput) => Promise<void>
   onSubmit: () => Promise<void>
 }) {
   const [open, setOpen] = useState(false)
@@ -47,9 +48,18 @@ export function AdForm({
         {selected.length === 0 ? (
           <p className="text-sm text-muted-foreground">No media selected.</p>
         ) : (
-          <ul className="text-sm space-y-1">
+          <ul className="space-y-2">
             {selected.map((asset) => (
-              <li key={asset.id}>{asset.name}</li>
+              <li key={asset.id} className="flex items-center gap-2 text-sm">
+                {asset.type === 'IMAGE' && asset.url ? (
+                  <img
+                    src={mediaSrc(asset.url) ?? undefined}
+                    alt=""
+                    className="h-8 w-8 object-cover rounded"
+                  />
+                ) : null}
+                <span className="truncate">{asset.name}</span>
+              </li>
             ))}
           </ul>
         )}
@@ -69,7 +79,7 @@ export function AdForm({
       </Button>
 
       {open ? (
-        <MediaLibraryModal
+        <MediaPicker
           assets={assets}
           selectedIds={assetIds}
           adding={pending}

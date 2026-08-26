@@ -5,11 +5,13 @@ export function Modal({
   onClose,
   children,
   footer,
+  size = 'md',
 }: {
   title: string
   onClose: () => void
   children: ReactNode
   footer?: ReactNode
+  size?: 'md' | 'xl'
 }) {
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -31,7 +33,9 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className="relative z-10 w-full max-w-lg rounded-lg border border-border bg-background p-4"
+        className={`relative z-10 w-full rounded-lg border border-border bg-background p-4 ${
+          size === 'xl' ? 'max-w-4xl' : 'max-w-lg'
+        }`}
       >
         <div className="flex items-baseline justify-between gap-3 mb-3">
           <h2 id="modal-title" className="text-sm font-medium tracking-wide uppercase">

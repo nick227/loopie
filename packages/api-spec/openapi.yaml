@@ -328,9 +328,22 @@ components:
           additionalProperties: true
 
     # ---------- Asset ----------
+    Placement:
+      type: string
+      enum: [SQUARE, PORTRAIT, STORY, LANDSCAPE]
+      description: Ad placement this asset's aspect ratio fits (Feed 1:1 / 4:5, Story 9:16, Landscape 16:9).
+
     Asset:
       type: object
-      required: [id, businessId, type, name, createdAt]
+      required:
+        - id
+        - businessId
+        - type
+        - name
+        - createdAt
+        - placements
+        - usedInAds
+        - usedInTemplates
       properties:
         id: { type: string }
         businessId: { type: string }
@@ -338,7 +351,26 @@ components:
         name: { type: string }
         url: { type: string, nullable: true }
         textContent: { type: string, nullable: true }
+        mimeType: { type: string, nullable: true }
+        sizeBytes: { type: integer, nullable: true }
+        widthPx: { type: integer, nullable: true }
+        heightPx: { type: integer, nullable: true }
+        durationMs: { type: integer, nullable: true }
+        aspectRatio: { type: string, nullable: true }
+        placements:
+          type: array
+          items: { $ref: '#/components/schemas/Placement' }
+        usedInAds: { type: integer }
+        usedInTemplates: { type: integer }
         createdAt: { type: string, format: date-time }
+
+    AssetFileInput:
+      type: object
+      required: [filename, mimeType, data]
+      properties:
+        filename: { type: string, minLength: 1, maxLength: 200 }
+        mimeType: { type: string, minLength: 1, maxLength: 100 }
+        data: { type: string, description: 'Base64 file body, optionally a data URL.' }
 
     CreateAssetInput:
       type: object
@@ -348,6 +380,25 @@ components:
         name: { type: string, minLength: 1, maxLength: 200 }
         url: { type: string }
         textContent: { type: string }
+        mimeType: { type: string }
+        sizeBytes: { type: integer, minimum: 0 }
+        widthPx: { type: integer, minimum: 1 }
+        heightPx: { type: integer, minimum: 1 }
+        durationMs: { type: integer, minimum: 0 }
+        file: { $ref: '#/components/schemas/AssetFileInput' }
+
+    UpdateAssetInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        url: { type: string }
+        textContent: { type: string }
+        mimeType: { type: string }
+        sizeBytes: { type: integer, minimum: 0 }
+        widthPx: { type: integer, minimum: 1 }
+        heightPx: { type: integer, minimum: 1 }
+        durationMs: { type: integer, minimum: 0 }
+        file: { $ref: '#/components/schemas/AssetFileInput' }
 
     # ---------- Template ----------
     Template:
@@ -1997,6 +2048,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/SearchQuery'
         - in: query
           name: type
           schema: { type: string, enum: [IMAGE, TEXT, VIDEO, AUDIO] }
@@ -2042,6 +2094,26 @@ paths:
       responses:
         '200':
           description: Asset
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Asset' }
+    patch:
+      operationId: updateAsset
+      summary: Update asset
+      tags: [assets]
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAssetInput' }
+      responses:
+        '200':
+          description: Updated asset
           content:
             application/json:
               schema:

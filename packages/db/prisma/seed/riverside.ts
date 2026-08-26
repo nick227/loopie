@@ -88,13 +88,51 @@ export async function seedRiversideDemo(businessId: string) {
 
   const image = await db.asset.upsert({
     where: { id: 'demo-asset-photo' },
-    update: {},
+    update: {
+      url: 'https://picsum.photos/id/1015/1080/1350',
+      mimeType: 'image/jpeg',
+      widthPx: 1080,
+      heightPx: 1350,
+    },
     create: {
       id: 'demo-asset-photo',
       businessId,
       type: 'IMAGE',
       name: 'Before & After Detail',
-      url: 'https://example.com/assets/before-after.jpg',
+      url: 'https://picsum.photos/id/1015/1080/1350',
+      mimeType: 'image/jpeg',
+      widthPx: 1080,
+      heightPx: 1350,
+    },
+  })
+
+  await db.asset.upsert({
+    where: { id: 'demo-asset-square' },
+    update: {},
+    create: {
+      id: 'demo-asset-square',
+      businessId,
+      type: 'IMAGE',
+      name: 'Shop floor square',
+      url: 'https://picsum.photos/id/1011/1080/1080',
+      mimeType: 'image/jpeg',
+      widthPx: 1080,
+      heightPx: 1080,
+    },
+  })
+
+  await db.asset.upsert({
+    where: { id: 'demo-asset-story' },
+    update: {},
+    create: {
+      id: 'demo-asset-story',
+      businessId,
+      type: 'IMAGE',
+      name: 'Bay doors story',
+      url: 'https://picsum.photos/id/1016/1080/1920',
+      mimeType: 'image/jpeg',
+      widthPx: 1080,
+      heightPx: 1920,
     },
   })
 
