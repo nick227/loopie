@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { useAffiliateClasses, useAffiliateDeals, useAffiliates, useUpdateAffiliate } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { DestinationPicker, SELECT_CLASS } from '@/components/affiliates/DestinationPicker'
+import { SplitPreview } from '@/components/affiliates/SplitPreview'
 
 type AffiliateAssignment = {
   id: string
@@ -11,6 +13,9 @@ type AffiliateAssignment = {
   managerId?: string | null
   affiliateRateOverrideBps?: number | null
   managerShareOverrideBps?: number | null
+  destinationLandingPageId?: string | null
+  commissionRateBps?: number | null
+  managerShareBps?: number
 }
 
 function bpsToPercent(bps: number | null | undefined) {
@@ -34,6 +39,7 @@ export function AffiliateAssignmentForm({ affiliate }: { affiliate: AffiliateAss
   const [classId, setClassId] = useState(affiliate.classId ?? '')
   const [dealId, setDealId] = useState(affiliate.dealId ?? '')
   const [managerId, setManagerId] = useState(affiliate.managerId ?? '')
+  const [landingPageId, setLandingPageId] = useState(affiliate.destinationLandingPageId ?? '')
   const [rateOverride, setRateOverride] = useState(bpsToPercent(affiliate.affiliateRateOverrideBps))
   const [shareOverride, setShareOverride] = useState(bpsToPercent(affiliate.managerShareOverrideBps))
   const [error, setError] = useState('')
@@ -46,6 +52,7 @@ export function AffiliateAssignmentForm({ affiliate }: { affiliate: AffiliateAss
       classId,
       dealId: dealId || null,
       managerId: managerId || null,
+      destinationLandingPageId: landingPageId || null,
       affiliateRateOverrideBps: percentToBps(rateOverride),
       managerShareOverrideBps: percentToBps(shareOverride),
     }).catch((err: { message?: string }) => {
@@ -53,11 +60,14 @@ export function AffiliateAssignmentForm({ affiliate }: { affiliate: AffiliateAss
     })
   }
 
+  const liveRate = percentToBps(rateOverride) ?? affiliate.commissionRateBps
+  const liveShare = percentToBps(shareOverride) ?? affiliate.managerShareBps
+
   return (
     <form onSubmit={onSubmit} className="space-y-3">
       <label className="flex flex-col gap-1.5 text-sm font-medium">
         Class
-        <select className="h-9 rounded border border-input-border bg-transparent px-3 text-sm" value={classId} onChange={(e) => setClassId(e.target.value)} required>
+        <select className={SELECT_CLASS} value={classId} onChange={(e) => setClassId(e.target.value)} required>
           {classItems.map((row) => (
             <option key={row.id} value={row.id}>{row.name}</option>
           ))}
@@ -65,7 +75,7 @@ export function AffiliateAssignmentForm({ affiliate }: { affiliate: AffiliateAss
       </label>
       <label className="flex flex-col gap-1.5 text-sm font-medium">
         Deal
-        <select className="h-9 rounded border border-input-border bg-transparent px-3 text-sm" value={dealId} onChange={(e) => setDealId(e.target.value)}>
+        <select className={SELECT_CLASS} value={dealId} onChange={(e) => setDealId(e.target.value)}>
           <option value="">Class default</option>
           {dealItems.map((row) => (
             <option key={row.id} value={row.id}>{row.name}</option>
@@ -74,13 +84,14 @@ export function AffiliateAssignmentForm({ affiliate }: { affiliate: AffiliateAss
       </label>
       <label className="flex flex-col gap-1.5 text-sm font-medium">
         Manager
-        <select className="h-9 rounded border border-input-border bg-transparent px-3 text-sm" value={managerId} onChange={(e) => setManagerId(e.target.value)}>
+        <select className={SELECT_CLASS} value={managerId} onChange={(e) => setManagerId(e.target.value)}>
           <option value="">None</option>
           {others.map((row) => (
             <option key={row.id} value={row.id}>{row.name}</option>
           ))}
         </select>
       </label>
+      <DestinationPicker value={landingPageId} onChange={setLandingPageId} />
       <label className="flex flex-col gap-1.5 text-sm font-medium">
         Rate override %
         <Input value={rateOverride} onChange={(e) => setRateOverride(e.target.value)} />
@@ -89,6 +100,7 @@ export function AffiliateAssignmentForm({ affiliate }: { affiliate: AffiliateAss
         Manager share override %
         <Input value={shareOverride} onChange={(e) => setShareOverride(e.target.value)} />
       </label>
+      <SplitPreview rateBps={liveRate} managerShareBps={liveShare} hasManager={!!managerId} />
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Button type="submit" size="sm" disabled={update.isPending}>Save assignment</Button>
       {downline.length > 0 && (

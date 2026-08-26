@@ -79,7 +79,14 @@ export function useCreateAffiliateDeal() {
 export function useUpdateAffiliateDeal() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (body: { dealId: string; isActive?: boolean; defaultDeal?: boolean }) => {
+    mutationFn: async (body: {
+      dealId: string
+      name?: string
+      classId?: string | null
+      affiliateRateBps?: number
+      managerShareBps?: number
+      isActive?: boolean
+    }) => {
       const { dealId, ...payload } = body
       const result = await getApiClient().PATCH('/affiliate-deals/{dealId}', { params: { path: { dealId } }, body: payload })
       return throwIfError(result) as NonNullable<typeof result.data>

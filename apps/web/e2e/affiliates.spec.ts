@@ -11,12 +11,18 @@ async function loginAs(page: Page, email: string, password: string) {
 
 test.describe('affiliate portal', () => {
   test('admin creates affiliate login, sale pays frozen net, manager assigns a cheaper deal', async ({ page }) => {
+    page.on('dialog', (dialog) => dialog.accept())
     const stamp = Date.now()
     await loginAs(page, 'demo@loopie.app', 'password123')
     await page.waitForURL(/\/home/)
     await expect(page.getByRole('link', { name: 'Affiliates' })).toBeVisible()
     await page.getByRole('link', { name: 'Affiliates' }).click()
     await page.waitForURL(/\/affiliates/)
+    await page.goto('/affiliates/new')
+    await expect(page.getByText('Destination landing page')).toBeVisible()
+    await expect(page.getByText(/Past referrals stay attributed/)).toBeVisible()
+    await page.goto('/affiliates/classes')
+    await expect(page.getByText(/Named packages/)).toBeVisible()
 
     const classRes = await page.request.post(`${API}/affiliate-classes`, {
       data: { name: `E2E Class ${stamp}`, maxAffiliateRateBps: 5000, maxManagerShareBps: 5000 },
@@ -70,7 +76,9 @@ test.describe('affiliate portal', () => {
 
     const click = await page.request.get(`${API}/r/affiliate/${rep.id}`, { maxRedirects: 0 })
     expect(click.status()).toBe(302)
-    const sid = new URL(click.headers()['location']!).searchParams.get('sid')
+    const location = click.headers()['location']!
+    expect(location).toContain(`/p/${published.slug}`)
+    const sid = new URL(location).searchParams.get('sid')
     expect(sid).toBeTruthy()
 
     const submit = await page.request.post(`${API}/landing-pages/${published.id}/submissions`, {
@@ -83,6 +91,10 @@ test.describe('affiliate portal', () => {
       data: { contactId: submitted.contactId, leadId: submitted.leadId, amount: 500, date: new Date().toISOString() },
     })
     expect(sale.status()).toBe(201)
+
+    await page.goto('/affiliates/payouts')
+    const owed = page.getByRole('link', { name: `E2E Rep ${stamp}` }).locator('xpath=following-sibling::p')
+    await expect(owed).toHaveText(/\$50\.00 pending/)
 
     await page.getByRole('button', { name: /log out/i }).click()
     await loginAs(page, repEmail, rep.initialPassword)

@@ -633,7 +633,7 @@ components:
 
     Affiliate:
       type: object
-      required: [id, businessId, name, referralCode, referralUrl, classId, commissionRuleType, payoutCadence, isActive, createdAt]
+      required: [id, businessId, name, referralCode, referralUrl, classId, commissionRuleType, payoutCadence, pendingMinor, payableMinor, paidMinor, isActive, createdAt]
       properties:
         id: { type: string }
         businessId: { type: string }
@@ -660,6 +660,13 @@ components:
         payoutCadence: { type: string, enum: [MANUAL, WEEKLY, MONTHLY] }
         lastPayoutAt: { type: string, format: date-time, nullable: true }
         downlineCount: { type: integer }
+        className: { type: string, nullable: true }
+        managerName: { type: string, nullable: true }
+        destinationPageName: { type: string, nullable: true }
+        destinationHostedUrl: { type: string, nullable: true, description: "Live hosted URL of the assigned landing page. Changing destination does not rewrite past clicks." }
+        pendingMinor: { type: integer, description: Sum of frozen PENDING commissions for this payee. Not a balance. }
+        payableMinor: { type: integer, description: Sum of frozen PAYABLE commissions for this payee. Not a balance. }
+        paidMinor: { type: integer, description: Sum of frozen PAID commissions for this payee. Not a balance. }
         initialPassword: { type: string, description: Returned once when createLogin is true. }
         destinationLandingPageId: { type: string, nullable: true }
         destinationUrl: { type: string, nullable: true, description: Fallback redirect if no landing page is set. }

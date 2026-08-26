@@ -1,5 +1,5 @@
 import { db } from '@project/db'
-import { trackedAffiliateUrl } from '../lib/urls'
+import { hostedPageUrl, trackedAffiliateUrl } from '../lib/urls'
 import { dealPolicyFromRow, resolveDealPolicy, type DealPolicy } from '../lib/affiliateRates'
 
 type AffiliateRow = {
@@ -21,7 +21,9 @@ type AffiliateRow = {
   lastPayoutAt: Date | null
   createdAt: Date
   deal: Parameters<typeof dealPolicyFromRow>[0] | null
-  class: { defaultDeal: Parameters<typeof dealPolicyFromRow>[0] | null } | null
+  class: { name: string; defaultDeal: Parameters<typeof dealPolicyFromRow>[0] | null } | null
+  manager: { name: string } | null
+  destinationLandingPage: { name: string; slug: string } | null
   _count?: { downline: number }
 }
 
@@ -62,6 +64,10 @@ export function toAffiliateDTO(row: AffiliateRow, extra?: { initialPassword?: st
     payoutCadence: policy.payoutCadence,
     lastPayoutAt: row.lastPayoutAt?.toISOString() ?? null,
     downlineCount: row._count?.downline ?? 0,
+    className: row.class?.name ?? null,
+    managerName: row.manager?.name ?? null,
+    destinationPageName: row.destinationLandingPage?.name ?? null,
+    destinationHostedUrl: row.destinationLandingPage ? hostedPageUrl(row.destinationLandingPage.slug) : null,
     destinationLandingPageId: row.destinationLandingPageId,
     destinationUrl: row.destinationUrl,
     isActive: row.isActive,
@@ -74,8 +80,38 @@ export function toAffiliateDTO(row: AffiliateRow, extra?: { initialPassword?: st
 export const affiliateInclude = {
   deal: true,
   class: { include: { defaultDeal: true } },
+  manager: { select: { name: true } },
+  destinationLandingPage: { select: { name: true, slug: true } },
   _count: { select: { downline: true } },
 } as const
+
+export async function withFrozenMoney<T extends { id: string }>(
+  businessId: string,
+  rows: T[],
+): Promise<Array<T & { pendingMinor: number; payableMinor: number; paidMinor: number }>> {
+  const zeros = { pendingMinor: 0, payableMinor: 0, paidMinor: 0 }
+  if (rows.length === 0) return []
+  const groups = await db.commission.groupBy({
+    by: ['payeeRef', 'status'],
+    where: {
+      businessId,
+      payeeRef: { in: rows.map((row) => `affiliate:${row.id}`) },
+      status: { in: ['PENDING', 'PAYABLE', 'PAID'] },
+    },
+    _sum: { amountMinor: true },
+  })
+  const byId = new Map(rows.map((row) => [row.id, { ...zeros }]))
+  for (const group of groups) {
+    const id = group.payeeRef.replace(/^affiliate:/, '')
+    const slot = byId.get(id)
+    if (!slot) continue
+    const amount = group._sum.amountMinor ?? 0
+    if (group.status === 'PENDING') slot.pendingMinor = amount
+    if (group.status === 'PAYABLE') slot.payableMinor = amount
+    if (group.status === 'PAID') slot.paidMinor = amount
+  }
+  return rows.map((row) => ({ ...row, ...byId.get(row.id)! }))
+}
 
 export async function findAffiliate(businessId: string, affiliateId: string) {
   const row = await db.affiliate.findFirst({ where: { id: affiliateId, businessId }, include: affiliateInclude })

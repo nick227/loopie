@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { AffiliateNav } from '@/components/affiliates/AffiliateNav'
 import { rateLabel } from '@/components/affiliates/AffiliateRow'
+import { formatUsd } from '@/lib/money'
 import { Handshake, Plus } from 'lucide-react'
 
 export function AffiliatesPage() {
@@ -34,9 +35,18 @@ export function AffiliatesPage() {
               <CardContent className="py-4 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium">{item.name}</p>
-                  <p className="text-xs text-muted-foreground">{item.isActive ? 'Active' : 'Paused'}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {item.className ?? 'No class'}
+                    {item.managerName ? ` · ${item.managerName}` : ''}
+                    {item.isActive ? '' : ' · Paused'}
+                  </p>
                 </div>
-                <span className="text-xs text-muted-foreground">{rateLabel(item.commissionRateBps, item.commissionRuleType)}</span>
+                <div className="text-right shrink-0">
+                  <p className="text-xs">{rateLabel(item.commissionRateBps, item.commissionRuleType)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {item.payableMinor > 0 ? `${formatUsd(item.payableMinor)} payable` : formatUsd(item.pendingMinor) + ' pending'}
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </Link>

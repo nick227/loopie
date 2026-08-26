@@ -10,6 +10,7 @@ import {
   ensureNoManagerCycle,
   findAffiliate,
   toAffiliateDTO,
+  withFrozenMoney,
 } from './affiliateDto'
 
 function randomReferralCode(): string {
@@ -48,7 +49,7 @@ export class AffiliateService {
     const items = hasMore ? affiliates.slice(0, limit) : affiliates
     const last = items[items.length - 1]
     const nextCursor = hasMore && last ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id }) : null
-    return { data: items.map((row) => toAffiliateDTO(row)), meta: { hasMore, nextCursor } }
+    return { data: await withFrozenMoney(user.businessId, items.map((row) => toAffiliateDTO(row))), meta: { hasMore, nextCursor } }
   }
 
   async me(user: AuthedUser) {
@@ -57,19 +58,18 @@ export class AffiliateService {
       include: affiliateInclude,
     })
     if (!row) throw { statusCode: 404, message: 'Affiliate not found' }
-    return toAffiliateDTO(row)
+    return (await withFrozenMoney(user.businessId, [toAffiliateDTO(row)]))[0]
   }
 
   async get(user: AuthedUser, affiliateId: string) {
     const row = await findAffiliate(user.businessId, affiliateId)
     await this._assertCanView(user, row)
-    return toAffiliateDTO(row)
+    return (await withFrozenMoney(user.businessId, [toAffiliateDTO(row)]))[0]
   }
 
   async create(businessId: string, data: Record<string, unknown>) {
     if (data.destinationLandingPageId) {
-      const page = await db.landingPage.findFirst({ where: { id: data.destinationLandingPageId as string, businessId } })
-      if (!page) throw { statusCode: 404, message: 'Landing page not found' }
+      await this._assertLandingPage(businessId, data.destinationLandingPageId as string)
     }
     const dealId = await this._assertClassAndDeal(businessId, data)
     if (data.managerId) await findAffiliate(businessId, data.managerId as string)
@@ -94,13 +94,13 @@ export class AffiliateService {
       const clash = await db.affiliate.findUnique({ where: { referralCode: data.referralCode as string } })
       if (clash) throw { statusCode: 409, message: 'Referral code already in use' }
         const row = await this._createRow(businessId, data, data.referralCode as string, userId, dealId)
-        return toAffiliateDTO(row, initialPassword ? { initialPassword } : undefined)
+        return this._view(businessId, row, initialPassword ? { initialPassword } : undefined)
     }
 
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
         const row = await this._createRow(businessId, data, randomReferralCode(), userId, dealId)
-        return toAffiliateDTO(row, initialPassword ? { initialPassword } : undefined)
+        return this._view(businessId, row, initialPassword ? { initialPassword } : undefined)
       } catch (err) {
         if (!isUniqueConflict(err)) throw err
       }
@@ -126,6 +126,9 @@ export class AffiliateService {
       await findAffiliate(user.businessId, data.managerId as string)
       await ensureNoManagerCycle(affiliateId, data.managerId as string)
     }
+    if (data.destinationLandingPageId) {
+      await this._assertLandingPage(user.businessId, data.destinationLandingPageId as string)
+    }
     const row = await db.affiliate.update({
       where: { id: affiliateId },
       include: affiliateInclude,
@@ -141,12 +144,13 @@ export class AffiliateService {
         ...(data.destinationUrl !== undefined ? { destinationUrl: data.destinationUrl as string | null } : {}),
       },
     })
-    return toAffiliateDTO(row)
+    return this._view(user.businessId, row)
   }
 
   async pause(businessId: string, affiliateId: string) {
     await findAffiliate(businessId, affiliateId)
-    return toAffiliateDTO(
+    return this._view(
+      businessId,
       await db.affiliate.update({
         where: { id: affiliateId },
         include: affiliateInclude,
@@ -157,7 +161,8 @@ export class AffiliateService {
 
   async resume(businessId: string, affiliateId: string) {
     await findAffiliate(businessId, affiliateId)
-    return toAffiliateDTO(
+    return this._view(
+      businessId,
       await db.affiliate.update({
         where: { id: affiliateId },
         include: affiliateInclude,
@@ -188,6 +193,22 @@ export class AffiliateService {
         destinationUrl: (data.destinationUrl as string) ?? null,
       },
     })
+  }
+
+  private async _view(
+    businessId: string,
+    row: Parameters<typeof toAffiliateDTO>[0],
+    extra?: { initialPassword?: string },
+  ) {
+    const [view] = await withFrozenMoney(businessId, [toAffiliateDTO(row, extra)])
+    return view
+  }
+
+  private async _assertLandingPage(businessId: string, landingPageId: string) {
+    const page = await db.landingPage.findFirst({
+      where: { id: landingPageId, businessId, deletedAt: null, status: 'PUBLISHED' },
+    })
+    if (!page) throw { statusCode: 404, message: 'Landing page not found' }
   }
 
   private async _assertClassAndDeal(businessId: string, data: Record<string, unknown>) {

@@ -1979,6 +1979,17 @@ export interface components {
             /** Format: date-time */
             lastPayoutAt?: string | null;
             downlineCount?: number;
+            className?: string | null;
+            managerName?: string | null;
+            destinationPageName?: string | null;
+            /** @description Live hosted URL of the assigned landing page. Changing destination does not rewrite past clicks. */
+            destinationHostedUrl?: string | null;
+            /** @description Sum of frozen PENDING commissions for this payee. Not a balance. */
+            pendingMinor: number;
+            /** @description Sum of frozen PAYABLE commissions for this payee. Not a balance. */
+            payableMinor: number;
+            /** @description Sum of frozen PAID commissions for this payee. Not a balance. */
+            paidMinor: number;
             /** @description Returned once when createLogin is true. */
             initialPassword?: string;
             destinationLandingPageId?: string | null;

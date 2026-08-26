@@ -109,6 +109,11 @@ describe('affiliate deal freeze and manager split', () => {
       where: { sourceRef: sale.id, payeeRef: `affiliate:${manager.id}` },
     })
     expect(stillX?.amountMinor).toBe(1000)
+
+    const listed = await app.inject({ method: 'GET', url: '/affiliates', headers: asAuth(testUserId) })
+    const listedRep = listed.json().data.find((row: { id: string }) => row.id === affiliate.id)
+    expect(listedRep.pendingMinor).toBe(4000)
+    expect(listedRep.payableMinor).toBe(0)
   })
 
   it('resolves live DTO rates from class default, assigned deal, then admin override', async () => {
@@ -142,6 +147,7 @@ describe('affiliate deal freeze and manager split', () => {
       headers: asAuth(testUserId),
       payload: { affiliateRateOverrideBps: 800 },
     })
+    expect(overridden.statusCode).toBe(200)
     expect(overridden.json().data.commissionRateBps).toBe(800)
   })
 

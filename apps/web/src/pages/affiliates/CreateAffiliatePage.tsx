@@ -4,6 +4,8 @@ import { useAffiliateClasses, useAffiliateDeals, useAffiliates, useCreateAffilia
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { AffiliateNav } from '@/components/affiliates/AffiliateNav'
+import { DestinationPicker, SELECT_CLASS } from '@/components/affiliates/DestinationPicker'
+import { SplitPreview } from '@/components/affiliates/SplitPreview'
 
 export function CreateAffiliatePage() {
   const navigate = useNavigate()
@@ -19,12 +21,23 @@ export function CreateAffiliatePage() {
   const [classId, setClassId] = useState('')
   const [dealId, setDealId] = useState('')
   const [managerId, setManagerId] = useState('')
+  const [landingPageId, setLandingPageId] = useState('')
   const [createLogin, setCreateLogin] = useState(false)
   const [error, setError] = useState('')
+
+  const selectedDeal = dealItems.find((row) => row.id === dealId) ?? dealItems.find((row) => row.classId === classId)
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError('')
+    if (createLogin && !email) {
+      setError('Email is required when creating a login')
+      return
+    }
+    if (!landingPageId) {
+      setError('Pick a published landing page so referral clicks have somewhere to go')
+      return
+    }
     const result = await create.mutateAsync({
       name,
       classId,
@@ -32,6 +45,7 @@ export function CreateAffiliatePage() {
       dealId: dealId || undefined,
       managerId: managerId || undefined,
       createLogin,
+      destinationLandingPageId: landingPageId || undefined,
     }).catch((err: { message?: string }) => {
       setError(err.message ?? 'Could not create affiliate')
       return null
@@ -50,11 +64,11 @@ export function CreateAffiliatePage() {
       </label>
       <label className="flex flex-col gap-1.5 text-sm font-medium">
         Email
-        <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required={createLogin} />
       </label>
       <label className="flex flex-col gap-1.5 text-sm font-medium">
         Class
-        <select className="h-9 rounded border border-input-border bg-transparent px-3 text-sm" value={classId} onChange={(e) => setClassId(e.target.value)} required>
+        <select className={SELECT_CLASS} value={classId} onChange={(e) => setClassId(e.target.value)} required>
           <option value="">Select class</option>
           {classItems.map((row) => (
             <option key={row.id} value={row.id}>{row.name}</option>
@@ -63,7 +77,7 @@ export function CreateAffiliatePage() {
       </label>
       <label className="flex flex-col gap-1.5 text-sm font-medium">
         Deal
-        <select className="h-9 rounded border border-input-border bg-transparent px-3 text-sm" value={dealId} onChange={(e) => setDealId(e.target.value)}>
+        <select className={SELECT_CLASS} value={dealId} onChange={(e) => setDealId(e.target.value)}>
           <option value="">Class default</option>
           {dealItems.map((row) => (
             <option key={row.id} value={row.id}>{row.name}</option>
@@ -72,13 +86,21 @@ export function CreateAffiliatePage() {
       </label>
       <label className="flex flex-col gap-1.5 text-sm font-medium">
         Manager
-        <select className="h-9 rounded border border-input-border bg-transparent px-3 text-sm" value={managerId} onChange={(e) => setManagerId(e.target.value)}>
+        <select className={SELECT_CLASS} value={managerId} onChange={(e) => setManagerId(e.target.value)}>
           <option value="">None</option>
           {people.map((row) => (
             <option key={row.id} value={row.id}>{row.name}</option>
           ))}
         </select>
       </label>
+      <DestinationPicker value={landingPageId} onChange={setLandingPageId} required />
+      {selectedDeal && (
+        <SplitPreview
+          rateBps={selectedDeal.affiliateRateBps}
+          managerShareBps={selectedDeal.managerShareBps}
+          hasManager={!!managerId}
+        />
+      )}
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={createLogin} onChange={(e) => setCreateLogin(e.target.checked)} />
         Create login
