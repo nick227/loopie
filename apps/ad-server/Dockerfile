@@ -21,6 +21,12 @@ RUN pnpm --filter "./apps/ad-server" typecheck
 # Runtime stage — tsx runs TypeScript source directly, handling the @project/db workspace package
 FROM node:20-alpine AS runner
 RUN corepack enable
+# Prisma's engine-selection probe runs again at runtime to decide which pre-generated engine
+# binary to load, and mis-detects OpenSSL on a bare alpine image with no openssl CLI/libs present
+# — defaulting to "openssl-1.1.x" and trying to load a binary needing libssl.so.1.1, which doesn't
+# exist here. See apps/server/Dockerfile for the full explanation — same fix, same shared
+# @project/db dependency.
+RUN apk add --no-cache openssl
 
 WORKDIR /app
 ENV NODE_ENV=production

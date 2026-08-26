@@ -25,6 +25,15 @@ RUN pnpm --filter "./apps/server" typecheck
 # that .ts import fine, exactly like `pnpm dev` already does locally.
 FROM node:20-alpine AS runner
 RUN corepack enable
+# Prisma's engine-selection probe runs again at runtime (not just at `prisma generate` time) to
+# decide which pre-generated engine binary to load, and it mis-detects OpenSSL the same way on a
+# bare alpine image with no openssl CLI/libs present — defaulting to "openssl-1.1.x" and trying
+# to load a binary that needs libssl.so.1.1, which doesn't exist here. Installing openssl (giving
+# the probe real OpenSSL 3.x to detect) fixes what schema.prisma's binaryTargets alone couldn't:
+# that only controls which files get *generated*, not which one gets *selected* at runtime.
+# Confirmed live: this exact crash still happened after the binaryTargets fix, until this line
+# was added.
+RUN apk add --no-cache openssl
 
 WORKDIR /app
 ENV NODE_ENV=production
