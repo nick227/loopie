@@ -1,8 +1,10 @@
 import type Stripe from 'stripe'
 import { db } from '@project/db'
 import { FinanceService } from './FinanceService'
+import { StripeConnectService } from './StripeConnectService'
 
 const finance = new FinanceService()
+const connect = new StripeConnectService()
 
 function asId(value: unknown): string | null {
   if (typeof value === 'string' && value.length > 0) return value
@@ -43,6 +45,10 @@ export class StripeWebhookService {
         return
       case 'charge.refunded':
         await this._onChargeRefunded(event)
+        return
+      case 'account.updated':
+        // Capability/status only. Never commissions, payouts, or ledger rows.
+        await connect.applyAccount(event.data.object as Stripe.Account)
         return
       default:
         return

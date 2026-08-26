@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { AffiliateNav } from '@/components/affiliates/AffiliateNav'
 import { rateLabel } from '@/components/affiliates/AffiliateRow'
+import { connectStatusLabel } from '@/components/affiliates/ConnectStatusBadge'
 import { formatUsd } from '@/lib/money'
 import { Handshake, Plus } from 'lucide-react'
 
@@ -45,6 +46,7 @@ export function AffiliatesPage() {
                   <p className="text-xs">{rateLabel(item.commissionRateBps, item.commissionRuleType)}</p>
                   <p className="text-xs text-muted-foreground">
                     {item.payableMinor > 0 ? `${formatUsd(item.payableMinor)} payable` : formatUsd(item.pendingMinor) + ' pending'}
+                    {` · ${connectStatusLabel(item.connectStatus)}`}
                   </p>
                 </div>
               </CardContent>

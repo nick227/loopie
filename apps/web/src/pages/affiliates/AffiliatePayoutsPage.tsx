@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { AffiliateNav } from '@/components/affiliates/AffiliateNav'
 import { CommissionLedger } from '@/components/affiliates/CommissionLedger'
 import { formatUsd, newIdempotencyKey } from '@/lib/money'
+import { ConnectStatusBadge } from '@/components/affiliates/ConnectStatusBadge'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -26,7 +27,17 @@ export function AffiliatePayoutsPage() {
       {owed.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nobody is owed right now.</p>
       ) : (
-        owed.map((row) => <OwedRow key={row.id} affiliateId={row.id} name={row.name} pendingMinor={row.pendingMinor} payableMinor={row.payableMinor} />)
+        owed.map((row) => (
+          <OwedRow
+            key={row.id}
+            affiliateId={row.id}
+            name={row.name}
+            pendingMinor={row.pendingMinor}
+            payableMinor={row.payableMinor}
+            payoutsEnabled={row.payoutsEnabled}
+            connectStatus={row.connectStatus}
+          />
+        ))
       )}
     </div>
   )
@@ -37,11 +48,15 @@ function OwedRow({
   name,
   pendingMinor,
   payableMinor,
+  payoutsEnabled,
+  connectStatus,
 }: {
   affiliateId: string
   name: string
   pendingMinor: number
   payableMinor: number
+  payoutsEnabled: boolean
+  connectStatus: string
 }) {
   const [open, setOpen] = useState(false)
   const queryClient = useQueryClient()
@@ -63,7 +78,7 @@ function OwedRow({
         <div className="flex items-center justify-between gap-3">
           <Link to={`/affiliates/${affiliateId}`} className="text-sm font-medium hover:underline">{name}</Link>
           <p className="text-xs text-muted-foreground">
-            {formatUsd(pendingMinor)} pending · {formatUsd(payableMinor)} payable
+            {formatUsd(pendingMinor)} pending · {formatUsd(payableMinor)} payable · <ConnectStatusBadge status={connectStatus} />
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -85,7 +100,8 @@ function OwedRow({
           {payableIds.length > 0 && (
             <Button
               size="sm"
-              disabled={pay.isPending}
+              disabled={pay.isPending || !payoutsEnabled}
+              title={payoutsEnabled ? undefined : 'Connect payouts are blocked until payoutsEnabled is true'}
               onClick={async () => {
                 if (!window.confirm(`Pay ${formatUsd(payableMinor)} to ${name} from frozen commissions?`)) return
                 await pay.mutateAsync({
@@ -98,6 +114,9 @@ function OwedRow({
             >
               Pay {formatUsd(payableMinor)}
             </Button>
+          )}
+          {payableIds.length > 0 && !payoutsEnabled && (
+            <p className="text-xs text-muted-foreground">Connect payout is blocked until status is Ready.</p>
           )}
           <Button size="sm" variant="ghost" onClick={() => setOpen((v) => !v)}>
             {open ? 'Hide ledger' : 'Show ledger'}

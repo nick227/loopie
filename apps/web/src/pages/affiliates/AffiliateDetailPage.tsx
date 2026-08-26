@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { formatBps, formatUsd } from '@/lib/money'
+import { ConnectStatusBadge } from '@/components/affiliates/ConnectStatusBadge'
+import { SetUpPayoutsButton, useConnectReturn } from '@/components/affiliates/SetUpPayoutsButton'
 
 export function AffiliateDetailPage() {
   const { affiliateId } = useParams<{ affiliateId: string }>()
@@ -19,6 +21,7 @@ export function AffiliateDetailPage() {
   const resume = useResumeAffiliate()
   const affiliate = affiliateQuery.data?.data
   const earnings = earningsQuery.data?.data
+  useConnectReturn(affiliateId!)
 
   if (affiliateQuery.isLoading) return <Skeleton className="h-48 w-full" />
   if (!affiliate) return <p className="text-muted-foreground">Not found.</p>
@@ -38,6 +41,8 @@ export function AffiliateDetailPage() {
           <p className="text-sm">
             {affiliate.className ?? 'No class'} · {formatBps(affiliate.commissionRateBps)} of sale
             {affiliate.managerName ? ` · reports to ${affiliate.managerName}` : ''}
+            {' · '}
+            <ConnectStatusBadge status={affiliate.connectStatus} />
           </p>
           <CopyText value={affiliate.referralUrl} />
           <SplitPreview
@@ -48,6 +53,12 @@ export function AffiliateDetailPage() {
         </CardContent>
       </Card>
       <AffiliateAssignmentForm affiliate={affiliate} />
+      <Card>
+        <CardContent className="py-4 space-y-2">
+          <p className="text-sm font-medium">Payouts</p>
+          <SetUpPayoutsButton affiliateId={affiliate.id} connectStatus={affiliate.connectStatus} />
+        </CardContent>
+      </Card>
       <Card>
         <CardContent className="py-4 space-y-2">
           <p className="text-sm">

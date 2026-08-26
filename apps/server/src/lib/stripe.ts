@@ -1,6 +1,10 @@
 import Stripe from 'stripe'
 
 export function stripeConfigured() {
+  return Boolean(process.env.STRIPE_SECRET_KEY)
+}
+
+export function stripeBillingConfigured() {
   return Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_ID)
 }
 

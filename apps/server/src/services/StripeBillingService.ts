@@ -1,5 +1,5 @@
 import { db } from '@project/db'
-import { appBaseUrl, getStripe, stripeConfigured } from '../lib/stripe'
+import { appBaseUrl, getStripe, stripeBillingConfigured } from '../lib/stripe'
 
 type BillingUser = { businessId: string; email: string }
 
@@ -13,7 +13,7 @@ export class StripeBillingService {
   }
 
   async createCheckout(user: BillingUser) {
-    if (!stripeConfigured()) throw { statusCode: 503, message: 'Stripe is not configured' }
+    if (!stripeBillingConfigured()) throw { statusCode: 503, message: 'Stripe is not configured' }
     const priceId = process.env.STRIPE_PRICE_ID!
     const stripe = getStripe()
     const customerId = await this._ensureCustomer(stripe, user)
@@ -32,7 +32,7 @@ export class StripeBillingService {
   }
 
   async createPortal(user: BillingUser) {
-    if (!stripeConfigured()) throw { statusCode: 503, message: 'Stripe is not configured' }
+    if (!stripeBillingConfigured()) throw { statusCode: 503, message: 'Stripe is not configured' }
     const business = await db.business.findUniqueOrThrow({ where: { id: user.businessId } })
     if (!business.stripeCustomerId) throw { statusCode: 409, message: 'No Stripe customer for this business' }
     const session = await getStripe().billingPortal.sessions.create({

@@ -647,7 +647,7 @@ components:
 
     Affiliate:
       type: object
-      required: [id, businessId, name, referralCode, referralUrl, classId, commissionRuleType, payoutCadence, pendingMinor, payableMinor, paidMinor, isActive, createdAt]
+      required: [id, businessId, name, referralCode, referralUrl, classId, commissionRuleType, payoutCadence, pendingMinor, payableMinor, paidMinor, isActive, createdAt, payoutsEnabled, connectStatus]
       properties:
         id: { type: string }
         businessId: { type: string }
@@ -687,6 +687,11 @@ components:
         isActive: { type: boolean }
         pausedAt: { type: string, format: date-time, nullable: true }
         createdAt: { type: string, format: date-time }
+        payoutsEnabled: { type: boolean, description: "Stripe Connect payouts_enabled. LOOPIE stores capability, not bank or KYC fields." }
+        connectStatus:
+          type: string
+          enum: [NOT_CONNECTED, ONBOARDING, READY, RESTRICTED]
+          description: "Derived from Connect capabilities. NOT_CONNECTED / ONBOARDING / READY / RESTRICTED."
 
     CreateAffiliateInput:
       type: object
@@ -2775,6 +2780,41 @@ paths:
                 type: object
                 properties:
                   data: { $ref: '#/components/schemas/AffiliateEarnings' }
+
+  /affiliates/{affiliateId}/connect/onboarding:
+    post:
+      operationId: createAffiliateConnectOnboarding
+      summary: Create a Stripe Connect Express onboarding (or update) link
+      tags: [affiliates]
+      parameters:
+        - $ref: '#/components/parameters/AffiliateId'
+      responses:
+        '201':
+          description: Redirect the browser to url. Does not move money.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/CheckoutSession' }
+
+  /affiliates/{affiliateId}/connect/sync:
+    post:
+      operationId: syncAffiliateConnect
+      summary: Pull Connect capability flags from Stripe onto the affiliate
+      tags: [affiliates]
+      parameters:
+        - $ref: '#/components/parameters/AffiliateId'
+      responses:
+        '200':
+          description: Status only. Does not create commissions, payouts, or ledger rows.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Affiliate' }
 
   /affiliates/{affiliateId}/pause:
     post:

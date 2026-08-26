@@ -1,9 +1,11 @@
 import { AffiliateService } from '../services/AffiliateService'
 import { AffiliateEarningsService } from '../services/AffiliateEarningsService'
+import { StripeConnectService } from '../services/StripeConnectService'
 import { requireAdmin, requireAdminOrAffiliate, requireAffiliate } from '../lib/affiliateRoles'
 
 const affiliateService = new AffiliateService()
 const earningsService = new AffiliateEarningsService()
+const connect = new StripeConnectService()
 
 export async function listAffiliates(request: any, reply: any) {
   requireAdminOrAffiliate(request.user)
@@ -51,4 +53,16 @@ export async function getAffiliateEarnings(request: any, reply: any) {
   requireAdminOrAffiliate(request.user)
   const earnings = await earningsService.get(request.user, request.params.affiliateId)
   return reply.send({ data: earnings })
+}
+
+export async function createAffiliateConnectOnboarding(request: any, reply: any) {
+  requireAdminOrAffiliate(request.user)
+  const session = await connect.createOnboardingLink(request.user, request.params.affiliateId)
+  return reply.status(201).send({ data: session })
+}
+
+export async function syncAffiliateConnect(request: any, reply: any) {
+  requireAdminOrAffiliate(request.user)
+  const affiliate = await connect.sync(request.user, request.params.affiliateId)
+  return reply.send({ data: affiliate })
 }

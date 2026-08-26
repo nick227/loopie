@@ -630,6 +630,10 @@ model Affiliate {
   managerShareOverrideBps   Int?
   destinationLandingPageId  String?
   destinationUrl            String? // fallback if no landing page set — same pattern as Campaign.destinationUrl / Deployment.destinationLandingPageId
+  stripeConnectAccountId    String?   @unique
+  stripePayoutsEnabled      Boolean   @default(false)
+  stripeDetailsSubmitted    Boolean   @default(false)
+  stripeDisabledReason      String?
   isActive                  Boolean   @default(true)
   pausedAt                  DateTime?
   createdAt                 DateTime  @default(now())

@@ -309,3 +309,41 @@ describe('getAffiliateEarnings', () => {
     await validateResponse('getAffiliateEarnings', 200, res.json())
   })
 })
+
+describe('createAffiliateConnectOnboarding', () => {
+  it('requires auth', async () => {
+    const res = await app.inject({ method: 'POST', url: '/affiliates/00000000-0000-0000-0000-000000000001/connect/onboarding' })
+    expect(res.statusCode).toBe(401)
+  })
+
+  it('POST /affiliates/{affiliateId}/connect/onboarding', async () => {
+    // TODO: seed domain data (test users are pre-seeded by buildTestApp)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/affiliates/00000000-0000-0000-0000-000000000001/connect/onboarding',
+      headers: asAuth(testUserId),
+      // payload: {},
+    })
+    expect(res.statusCode).toBe(201)
+    await validateResponse('createAffiliateConnectOnboarding', 201, res.json())
+  })
+})
+
+describe('syncAffiliateConnect', () => {
+  it('requires auth', async () => {
+    const res = await app.inject({ method: 'POST', url: '/affiliates/00000000-0000-0000-0000-000000000001/connect/sync' })
+    expect(res.statusCode).toBe(401)
+  })
+
+  it('POST /affiliates/{affiliateId}/connect/sync', async () => {
+    // TODO: seed domain data (test users are pre-seeded by buildTestApp)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/affiliates/00000000-0000-0000-0000-000000000001/connect/sync',
+      headers: asAuth(testUserId),
+      // payload: {},
+    })
+    expect(res.statusCode).toBe(200)
+    await validateResponse('syncAffiliateConnect', 200, res.json())
+  })
+})

@@ -1,5 +1,6 @@
 import { db } from '@project/db'
 import { hostedPageUrl, trackedAffiliateUrl } from '../lib/urls'
+import { connectStatus } from '../lib/connectStatus'
 import { dealPolicyFromRow, resolveDealPolicy, type DealPolicy } from '../lib/affiliateRates'
 
 type AffiliateRow = {
@@ -16,6 +17,9 @@ type AffiliateRow = {
   managerShareOverrideBps: number | null
   destinationLandingPageId: string | null
   destinationUrl: string | null
+  stripeConnectAccountId: string | null
+  stripePayoutsEnabled: boolean
+  stripeDetailsSubmitted: boolean
   isActive: boolean
   pausedAt: Date | null
   lastPayoutAt: Date | null
@@ -70,6 +74,8 @@ export function toAffiliateDTO(row: AffiliateRow, extra?: { initialPassword?: st
     destinationHostedUrl: row.destinationLandingPage ? hostedPageUrl(row.destinationLandingPage.slug) : null,
     destinationLandingPageId: row.destinationLandingPageId,
     destinationUrl: row.destinationUrl,
+    payoutsEnabled: row.stripePayoutsEnabled,
+    connectStatus: connectStatus(row),
     isActive: row.isActive,
     pausedAt: row.pausedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),

@@ -624,6 +624,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/affiliates/{affiliateId}/connect/onboarding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a Stripe Connect Express onboarding (or update) link */
+        post: operations["createAffiliateConnectOnboarding"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/affiliates/{affiliateId}/connect/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pull Connect capability flags from Stripe onto the affiliate */
+        post: operations["syncAffiliateConnect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/affiliates/{affiliateId}/pause": {
         parameters: {
             query?: never;
@@ -2060,6 +2094,13 @@ export interface components {
             pausedAt?: string | null;
             /** Format: date-time */
             createdAt: string;
+            /** @description Stripe Connect payouts_enabled. LOOPIE stores capability, not bank or KYC fields. */
+            payoutsEnabled: boolean;
+            /**
+             * @description Derived from Connect capabilities. NOT_CONNECTED / ONBOARDING / READY / RESTRICTED.
+             * @enum {string}
+             */
+            connectStatus: "NOT_CONNECTED" | "ONBOARDING" | "READY" | "RESTRICTED";
         };
         CreateAffiliateInput: {
             name: string;
@@ -4443,6 +4484,54 @@ export interface operations {
                 content: {
                     "application/json": {
                         data?: components["schemas"]["AffiliateEarnings"];
+                    };
+                };
+            };
+        };
+    };
+    createAffiliateConnectOnboarding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                affiliateId: components["parameters"]["AffiliateId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect the browser to url. Does not move money. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CheckoutSession"];
+                    };
+                };
+            };
+        };
+    };
+    syncAffiliateConnect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                affiliateId: components["parameters"]["AffiliateId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Status only. Does not create commissions, payouts, or ledger rows. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["Affiliate"];
                     };
                 };
             };
