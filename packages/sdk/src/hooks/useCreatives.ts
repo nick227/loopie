@@ -18,7 +18,9 @@ export function useCreatives(params?: { limit?: number }) {
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
       const client = getApiClient()
-      const result = await client.GET('/creatives', { params: { query: { ...params, cursor: pageParam } } })
+      const result = await client.GET('/creatives', {
+        params: { query: { ...params, cursor: pageParam } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -34,7 +36,9 @@ export function useCreative(creativeId: string) {
     queryKey: ['creative', creativeId],
     queryFn: async () => {
       const client = getApiClient()
-      const result = await client.GET('/creatives/{creativeId}', { params: { path: { creativeId } } })
+      const result = await client.GET('/creatives/{creativeId}', {
+        params: { path: { creativeId } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -69,14 +73,20 @@ export function useUpdateCreative() {
   return useMutation({
     mutationFn: async ({ creativeId, ...body }: UpdateCreativeInput) => {
       const client = getApiClient()
-      const result = await client.PATCH('/creatives/{creativeId}', { params: { path: { creativeId } }, body })
+      const result = await client.PATCH('/creatives/{creativeId}', {
+        params: { path: { creativeId } },
+        body,
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
       if (err) throw new ApiError(status, (err as any).error)
       return data!
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['creatives', 'list'] }),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['creatives', 'list'] })
+      if (result.data?.id) queryClient.invalidateQueries({ queryKey: ['creative', result.data.id] })
+    },
   })
 }
 
@@ -85,7 +95,9 @@ export function useDeleteCreative() {
   return useMutation({
     mutationFn: async (creativeId: string) => {
       const client = getApiClient()
-      const result = await client.DELETE('/creatives/{creativeId}', { params: { path: { creativeId } } })
+      const result = await client.DELETE('/creatives/{creativeId}', {
+        params: { path: { creativeId } },
+      })
       const err = result.error
       const status = result.response.status
       if (err) throw new ApiError(status, (err as any).error)

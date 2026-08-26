@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { CreativeToAd, CreativeEditToAd } from '@/pages/ads/CreativeRedirects'
 const RegisterPage = lazy(() =>
   import('@/pages/auth/RegisterPage').then((m) => ({ default: m.RegisterPage })),
 )
@@ -65,17 +66,13 @@ const TemplatePage = lazy(() =>
 const UpdateTemplatePage = lazy(() =>
   import('@/pages/templates/UpdateTemplatePage').then((m) => ({ default: m.UpdateTemplatePage })),
 )
-const CreativesPage = lazy(() =>
-  import('@/pages/creatives/CreativesPage').then((m) => ({ default: m.CreativesPage })),
+const AdsPage = lazy(() => import('@/pages/ads/AdsPage').then((m) => ({ default: m.AdsPage })))
+const CreateAdPage = lazy(() =>
+  import('@/pages/ads/CreateAdPage').then((m) => ({ default: m.CreateAdPage })),
 )
-const CreateCreativePage = lazy(() =>
-  import('@/pages/creatives/CreateCreativePage').then((m) => ({ default: m.CreateCreativePage })),
-)
-const CreativePage = lazy(() =>
-  import('@/pages/creatives/CreativePage').then((m) => ({ default: m.CreativePage })),
-)
-const UpdateCreativePage = lazy(() =>
-  import('@/pages/creatives/UpdateCreativePage').then((m) => ({ default: m.UpdateCreativePage })),
+const AdPage = lazy(() => import('@/pages/ads/AdPage').then((m) => ({ default: m.AdPage })))
+const UpdateAdPage = lazy(() =>
+  import('@/pages/ads/UpdateAdPage').then((m) => ({ default: m.UpdateAdPage })),
 )
 const MessagesPage = lazy(() =>
   import('@/pages/messages/MessagesPage').then((m) => ({ default: m.MessagesPage })),
@@ -357,10 +354,14 @@ export function App() {
                 <Route path="/templates/new" element={<CreateTemplatePage />} />
                 <Route path="/templates/:templateId" element={<TemplatePage />} />
                 <Route path="/templates/:templateId/edit" element={<UpdateTemplatePage />} />
-                <Route path="/creatives" element={<CreativesPage />} />
-                <Route path="/creatives/new" element={<CreateCreativePage />} />
-                <Route path="/creatives/:creativeId" element={<CreativePage />} />
-                <Route path="/creatives/:creativeId/edit" element={<UpdateCreativePage />} />
+                <Route path="/ads" element={<AdsPage />} />
+                <Route path="/ads/new" element={<CreateAdPage />} />
+                <Route path="/ads/:adId" element={<AdPage />} />
+                <Route path="/ads/:adId/edit" element={<UpdateAdPage />} />
+                <Route path="/creatives" element={<Navigate to="/ads" replace />} />
+                <Route path="/creatives/new" element={<Navigate to="/ads/new" replace />} />
+                <Route path="/creatives/:creativeId" element={<CreativeToAd />} />
+                <Route path="/creatives/:creativeId/edit" element={<CreativeEditToAd />} />
                 <Route path="/messages" element={<MessagesPage />} />
                 <Route path="/messages/new" element={<CreateMessagePage />} />
                 <Route path="/messages/:messageId" element={<MessagePage />} />

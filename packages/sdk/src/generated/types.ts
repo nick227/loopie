@@ -1844,6 +1844,10 @@ export interface components {
       body?: string
       cta?: string | null
     }
+    CreativeCampaign: {
+      id: string
+      name: string
+    }
     Creative: {
       id: string
       businessId: string
@@ -1852,8 +1856,15 @@ export interface components {
       version: number
       previousVersionId?: string | null
       assetIds: string[]
+      previewUrl?: string | null
       /** Format: date-time */
       createdAt: string
+      impressions: number
+      clicks: number
+      conversions: number
+      spend: number
+      campaignCount: number
+      campaigns?: components['schemas']['CreativeCampaign'][]
     }
     CreateCreativeInput: {
       name: string
@@ -1981,6 +1992,7 @@ export interface components {
         | 'LEAD_REACHED_STAGE'
         | 'CUSTOMER_STATUS'
         | 'CHANNEL_ELIGIBILITY'
+        | null
       conditionValue?: {
         [key: string]: unknown
       }
@@ -2911,7 +2923,7 @@ export interface components {
       amountMinor: number
       currency: string
       idempotencyKey: string
-      paymentId?: string
+      paymentId: string
       reason?: string
       metadata?: {
         [key: string]: unknown
@@ -2955,7 +2967,7 @@ export interface components {
       amountMinor: number
       currency: string
       idempotencyKey: string
-      campaignId?: string
+      campaignId: string
       description?: string
       metadata?: {
         [key: string]: unknown

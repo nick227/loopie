@@ -1,5 +1,5 @@
 /**
- * Campaign detail: ads (creative + serve), activate a first-party unit.
+ * Campaign detail: attach a library ad, activate a first-party unit.
  */
 import { test, expect, type Page } from '@playwright/test'
 
@@ -15,7 +15,7 @@ async function loginAs(page: Page) {
 }
 
 test.describe('campaign ads', () => {
-  test('create and activate an ad with a library creative', async ({ page }) => {
+  test('attach a library ad and activate a LOOPIE placement', async ({ page }) => {
     const apiOrigin = process.env.PLAYWRIGHT_API_URL ?? 'http://localhost:3001'
     await loginAs(page)
 
@@ -25,18 +25,20 @@ test.describe('campaign ads', () => {
     const campaignName = `Running Campaign ${Date.now()}`
     await page.goto('/campaigns/new')
     await page.locator('#field-name').fill(campaignName)
-    await page.getByRole('checkbox', { name: 'Meta' }).check()
+    await page.getByRole('checkbox', { name: 'LOOPIE' }).check()
     await page.getByRole('button', { name: /create campaign/i }).click()
     await page.waitForURL(/\/campaigns\/(?!new$)[^/]+$/)
 
-    await page.getByRole('link', { name: 'New ad' }).click()
-    await page.waitForURL(/\/ad-units\/new$/)
-    await page.getByLabel('Creative').selectOption({ label: creativeName })
-    await page.getByRole('button', { name: 'Create ad' }).click()
-    await page.waitForURL(/\/campaigns\/(?!new$)[^/]+$/)
-    await expect(page.getByText(creativeName).first()).toBeVisible()
-    await expect(page.getByText(/Display banner/)).toBeVisible()
+    const patched = page.waitForResponse(
+      (response) =>
+        response.url().includes('/campaigns/') && response.request().method() === 'PATCH',
+    )
+    await page.getByLabel('Attach an ad').selectOption({ label: creativeName })
+    await patched
+
+    await expect(page.getByRole('link', { name: creativeName })).toBeVisible()
     await expect(page.getByRole('cell', { name: 'Draft' })).toBeVisible()
+    await expect(page.getByRole('row', { name: new RegExp(creativeName) })).toHaveCount(1)
 
     await page.getByRole('button', { name: 'Activate' }).click()
     await expect(page.getByRole('cell', { name: 'Active' })).toBeVisible()

@@ -394,9 +394,16 @@ components:
         cta: { type: string, nullable: true }
 
     # ---------- Creative ----------
+    CreativeCampaign:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+
     Creative:
       type: object
-      required: [id, businessId, name, version, assetIds, createdAt]
+      required: [id, businessId, name, version, assetIds, createdAt, impressions, clicks, conversions, spend, campaignCount]
       properties:
         id: { type: string }
         businessId: { type: string }
@@ -407,7 +414,16 @@ components:
         assetIds:
           type: array
           items: { type: string }
+        previewUrl: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
+        impressions: { type: integer }
+        clicks: { type: integer }
+        conversions: { type: integer }
+        spend: { type: number }
+        campaignCount: { type: integer }
+        campaigns:
+          type: array
+          items: { $ref: '#/components/schemas/CreativeCampaign' }
 
     CreateCreativeInput:
       type: object

@@ -1,47 +1,35 @@
-import { Link } from 'react-router-dom'
-import { CampaignAdRow, type CampaignAd } from '@/components/campaigns/CampaignAdRow'
+import type { CampaignAd } from '@/components/campaigns/CampaignAdRow'
+import { CampaignAdRow } from '@/components/campaigns/CampaignAdRow'
+
+type LibraryAd = { id: string; name: string }
 
 export function CampaignAds({
-  campaignId,
   ads,
+  library,
+  attaching,
   activating,
+  onAttach,
   onActivate,
 }: {
-  campaignId: string
   ads: CampaignAd[]
+  library: LibraryAd[]
+  attaching: boolean
   activating: boolean
+  onAttach: (creativeId: string) => void
   onActivate: (adUnitId: string) => void
 }) {
   return (
     <section id="ads" className="space-y-3">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-sm font-medium tracking-wide uppercase">Ads</h2>
-        <div className="flex gap-4 text-sm">
-          <Link
-            to={`/campaigns/${campaignId}/creatives/new`}
-            className="underline underline-offset-4"
-          >
-            New creative
-          </Link>
-          <Link
-            to={`/campaigns/${campaignId}/ad-units/new`}
-            className="underline underline-offset-4"
-          >
-            New ad
-          </Link>
-        </div>
-      </div>
+      <h2 className="text-sm font-medium tracking-wide uppercase">Ads</h2>
       {ads.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No ads yet. An ad runs a creative on this campaign.
-        </p>
+        <p className="text-sm text-muted-foreground">No ads on this campaign.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-border text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                <th className="pb-2 pr-6 font-medium">Creative</th>
-                <th className="pb-2 pr-6 font-medium">Channel</th>
+                <th className="pb-2 pr-6 font-medium">Ad</th>
+                <th className="pb-2 pr-6 font-medium">Channels</th>
                 <th className="pb-2 pr-6 font-medium">Status</th>
                 <th className="pb-2 pr-6 font-medium text-right">Views</th>
                 <th className="pb-2 pr-6 font-medium text-right">Clicks</th>
@@ -61,6 +49,33 @@ export function CampaignAds({
           </table>
         </div>
       )}
+      <div>
+        <label
+          htmlFor="attach-ad"
+          className="text-xs uppercase tracking-[0.14em] text-muted-foreground"
+        >
+          Attach an ad
+        </label>
+        <select
+          id="attach-ad"
+          disabled={attaching || library.length === 0}
+          defaultValue=""
+          onChange={(event) => {
+            const creativeId = event.target.value
+            if (!creativeId) return
+            onAttach(creativeId)
+            event.target.value = ''
+          }}
+          className="mt-1 flex h-10 w-full max-w-sm rounded-lg border border-input-border bg-transparent px-3 text-sm"
+        >
+          <option value="">{library.length === 0 ? 'No ads available' : 'Choose an ad'}</option>
+          {library.map((ad) => (
+            <option key={ad.id} value={ad.id}>
+              {ad.name}
+            </option>
+          ))}
+        </select>
+      </div>
     </section>
   )
 }

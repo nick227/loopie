@@ -1,5 +1,17 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Home, Megaphone, Mail, LogOut, Handshake, CreditCard, type LucideIcon } from 'lucide-react'
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
+import {
+  Home,
+  Megaphone,
+  Image,
+  Mail,
+  LogOut,
+  Handshake,
+  CreditCard,
+  type LucideIcon,
+  Bell,
+  Search,
+  Command,
+} from 'lucide-react'
 import { useCurrentUser, useLogout } from '@project/sdk'
 import { cn } from '@/lib/utils'
 
@@ -8,6 +20,7 @@ type NavItem = { to: string; label: string; icon: LucideIcon; end?: boolean }
 const SHOP_NAV: NavItem[] = [
   { to: '/home', label: 'Home', icon: Home },
   { to: '/campaigns', label: 'Campaigns', icon: Megaphone },
+  { to: '/ads', label: 'Ads', icon: Image },
   { to: '/messages', label: 'Messages', icon: Mail },
 ]
 
@@ -26,6 +39,7 @@ const AFFILIATE_NAV: NavItem[] = [
 export function Shell() {
   const logout = useLogout()
   const navigate = useNavigate()
+  const location = useLocation()
   const me = useCurrentUser()
   const role = me.data?.data?.role ?? 'USER'
   const navItems = role === 'ADMIN' ? ADMIN_NAV : role === 'AFFILIATE' ? AFFILIATE_NAV : SHOP_NAV
@@ -36,9 +50,17 @@ export function Shell() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <aside className="hidden md:flex fixed left-0 top-0 h-full w-56 flex-col border-r px-3 py-6 gap-1">
-        <div className="flex-1 space-y-1">
+    <div className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-primary-foreground font-sans">
+      {/* Sidebar Navigation */}
+      <aside className="hidden md:flex fixed left-0 top-0 h-full w-64 flex-col border-r border-border bg-surface/50 backdrop-blur-xl px-4 py-6 gap-6 z-40 transition-all duration-300">
+        <div className="flex items-center gap-3 px-2">
+          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
+            <Command size={18} />
+          </div>
+          <span className="font-semibold tracking-tight text-lg">Loopie</span>
+        </div>
+
+        <div className="flex-1 space-y-1.5 mt-4">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -46,44 +68,86 @@ export function Shell() {
               end={item.end}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-3 px-3 py-2 rounded text-sm font-medium transition-colors',
-                  isActive ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50',
+                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group',
+                  isActive
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/80',
                 )
               }
             >
-              <item.icon size={18} />
+              <item.icon
+                size={18}
+                className="opacity-80 group-hover:opacity-100 transition-opacity"
+              />
               {item.label}
             </NavLink>
           ))}
         </div>
+
         <button
           type="button"
           onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2 rounded text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors group mt-auto"
         >
-          <LogOut size={18} />
+          <LogOut size={18} className="opacity-80 group-hover:opacity-100 transition-opacity" />
           Log out
         </button>
       </aside>
 
-      <main className="md:ml-56 pb-20 md:pb-0 min-h-screen">
-        <div className="max-w-xl mx-auto px-4 py-4">
-          <Outlet />
-        </div>
-      </main>
+      {/* Main Content Area */}
+      <div className="md:pl-64 flex flex-col min-h-screen transition-all duration-300">
+        {/* Top App Bar */}
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 backdrop-blur-md px-6 lg:px-8">
+          <div className="flex items-center gap-4 flex-1">
+            <div className="relative hidden sm:block w-full max-w-md">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <input
+                type="search"
+                placeholder="Search..."
+                className="h-9 w-full rounded-full border border-input-border bg-surface pl-9 pr-4 text-sm outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <button className="h-9 w-9 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+              <Bell size={18} />
+            </button>
+            <div className="h-8 w-8 rounded-full bg-accent border border-border flex items-center justify-center overflow-hidden cursor-pointer">
+              <span className="text-xs font-semibold text-foreground">
+                {me.data?.data?.email?.charAt(0).toUpperCase() || 'U'}
+              </span>
+            </div>
+          </div>
+        </header>
 
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-background flex justify-around px-2 py-2 z-10">
+        {/* Page Content */}
+        <main className="flex-1 pb-20 md:pb-8 pt-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 animate-in">
+            <Outlet />
+          </div>
+        </main>
+      </div>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-background/80 backdrop-blur-md flex justify-around px-2 py-3 z-50 pb-[env(safe-area-inset-bottom)]">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.end}
             className={({ isActive }) =>
-              cn('flex flex-col items-center gap-0.5 px-4 py-1 rounded text-xs', isActive ? 'text-foreground' : 'text-muted-foreground')
+              cn(
+                'flex flex-col items-center gap-1 px-4 py-1.5 rounded-lg text-[11px] font-medium transition-colors',
+                isActive ? 'text-primary' : 'text-muted-foreground',
+              )
             }
           >
-            <item.icon size={18} />
-            {item.label}
+            {({ isActive }) => (
+              <>
+                <item.icon size={20} className={cn(isActive ? 'opacity-100' : 'opacity-70')} />
+                {item.label}
+              </>
+            )}
           </NavLink>
         ))}
       </nav>

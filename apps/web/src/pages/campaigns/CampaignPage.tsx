@@ -47,13 +47,24 @@ export function CampaignPage() {
     () => new Map(creatives.map((creative) => [creative.id, creative.name])),
     [creatives],
   )
+  const attachedIds = useMemo(() => campaign?.creativeIds ?? [], [campaign])
   const ads = useMemo(
-    () => buildCampaignAds(units, deploymentsQuery.data?.data ?? [], creativeName),
-    [units, deploymentsQuery.data?.data, creativeName],
+    () => buildCampaignAds(units, deploymentsQuery.data?.data ?? [], creativeName, attachedIds),
+    [units, deploymentsQuery.data?.data, creativeName, attachedIds],
+  )
+  const library = useMemo(
+    () => creatives.filter((creative) => !attachedIds.includes(creative.id)),
+    [creatives, attachedIds],
   )
   const activate = useCallback(
     (adUnitId: string) => updateAdUnit.mutate({ adUnitId, status: 'ACTIVE' }),
     [updateAdUnit],
+  )
+  const attach = useCallback(
+    (creativeId: string) => {
+      updateCampaign.mutate({ campaignId: campaignId!, creativeIds: [...attachedIds, creativeId] })
+    },
+    [attachedIds, campaignId, updateCampaign],
   )
   const save = useCallback(
     (patch: {
@@ -92,9 +103,11 @@ export function CampaignPage() {
       <CampaignPerformanceSummary performance={performanceQuery.data?.data} />
 
       <CampaignAds
-        campaignId={campaignId!}
         ads={ads}
+        library={library}
+        attaching={updateCampaign.isPending}
         activating={updateAdUnit.isPending}
+        onAttach={attach}
         onActivate={activate}
       />
 
