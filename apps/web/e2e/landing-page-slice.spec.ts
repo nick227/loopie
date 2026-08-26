@@ -37,7 +37,7 @@ test.describe('landing page vertical slice', () => {
     await page.locator('#field-name').fill(campaignName)
     await page.getByRole('button', { name: /create campaign/i }).click()
     await page.waitForURL(/\/campaigns\/(?!new$)[^/]+$/)
-    await expect(page.getByText(campaignName)).toBeVisible()
+    await expect(page.getByLabel('Name')).toHaveValue(campaignName)
     const campaignId = page.url().split('/campaigns/')[1]!
 
     // --- Create a landing page ---
@@ -79,12 +79,13 @@ test.describe('landing page vertical slice', () => {
 
     // --- Campaign detail resolves the destination back to this landing page ---
     await page.goto(`/campaigns/${campaignId}`)
-    await expect(page.getByText(lpName)).toBeVisible()
+    await expect(page.getByRole('link', { name: lpName })).toBeVisible()
 
     // --- The hosted page actually serves the published content ---
-    const hostedHref = await page.locator('a[href*="/p/"]').first().getAttribute('href')
+    const hostedHref = await page.getByLabel('Destination URL').inputValue()
     expect(hostedHref).toBeTruthy()
-    const hostedResp = await page.request.get(hostedHref!)
+    const hostedPath = new URL(hostedHref, apiOrigin).pathname
+    const hostedResp = await page.request.get(`${apiOrigin}${hostedPath}`)
     expect(hostedResp.status()).toBe(200)
     expect(await hostedResp.text()).toContain('E2E Verified Headline')
   })

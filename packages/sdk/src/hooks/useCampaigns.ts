@@ -173,6 +173,11 @@ export function useUpdateCampaign() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['campaigns', 'list'] })
       queryClient.invalidateQueries({ queryKey: ['campaign', variables.campaignId] })
+      queryClient.invalidateQueries({
+        queryKey: ['finance', 'campaign-funding', variables.campaignId],
+      })
+      queryClient.invalidateQueries({ queryKey: ['campaign', variables.campaignId, 'deployments'] })
+      queryClient.invalidateQueries({ queryKey: ['adUnits', 'list'] })
     },
   })
 }

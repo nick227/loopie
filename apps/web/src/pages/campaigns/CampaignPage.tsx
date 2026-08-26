@@ -1,5 +1,5 @@
-import { useCallback, useMemo } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useCallback, useMemo, useRef } from 'react'
+import { useParams } from 'react-router-dom'
 import {
   useAdUnits,
   useAuthorizeCampaignBudget,
@@ -11,22 +11,17 @@ import {
   useDeployments,
   useLandingPages,
   useUpdateAdUnit,
+  useUpdateCampaign,
 } from '@project/sdk'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { CampaignPerformanceSummary } from '@/components/campaigns/CampaignPerformanceSummary'
+import { CampaignIdentity, type CampaignPlatform } from '@/components/campaigns/CampaignIdentity'
 import { CampaignAds } from '@/components/campaigns/CampaignAds'
+import { CampaignDestination } from '@/components/campaigns/CampaignDestination'
 import { CampaignLeads } from '@/components/campaigns/CampaignLeads'
 import { CampaignMoney } from '@/components/campaigns/CampaignMoney'
-import { buildCampaignAds, PLATFORM_LABEL } from '@/components/campaigns/buildCampaignAds'
-import { ExternalLink } from 'lucide-react'
+import { buildCampaignAds } from '@/components/campaigns/buildCampaignAds'
 import { useFlatPages } from '@/hooks/useFlatPages'
-
-const STATUS_LABEL: Record<string, string> = {
-  DRAFT: 'Draft',
-  ACTIVE: 'Active',
-  PAUSED: 'Paused',
-  ENDED: 'Ended',
-}
 
 export function CampaignPage() {
   const { campaignId } = useParams<{ campaignId: string }>()
@@ -39,7 +34,9 @@ export function CampaignPage() {
   const creativesQuery = useCreatives()
   const landingPagesQuery = useLandingPages()
   const updateAdUnit = useUpdateAdUnit()
+  const updateCampaign = useUpdateCampaign()
   const authorize = useAuthorizeCampaignBudget()
+  const saveChain = useRef(Promise.resolve())
 
   const campaign = campaignQuery.data?.data
   const units = useFlatPages(unitsQuery)
@@ -58,31 +55,39 @@ export function CampaignPage() {
     (adUnitId: string) => updateAdUnit.mutate({ adUnitId, status: 'ACTIVE' }),
     [updateAdUnit],
   )
+  const save = useCallback(
+    (patch: {
+      name?: string
+      budget?: number
+      endDate?: string | null
+      destinationUrl?: string
+      platforms?: CampaignPlatform[]
+    }) => {
+      saveChain.current = saveChain.current
+        .catch(() => undefined)
+        .then(() => updateCampaign.mutateAsync({ campaignId: campaignId!, ...patch }))
+        .then(() => undefined)
+    },
+    [campaignId, updateCampaign],
+  )
 
-  if (campaignQuery.isLoading) return <Skeleton className="h-48 w-full" />
-  if (!campaign) return <p className="text-muted-foreground">Not found.</p>
-
-  const destinationPage = landingPages.find((lp) => lp.hostedUrl === campaign.destinationUrl)
-  const dates = `${new Date(campaign.startDate).toLocaleDateString()} – ${
-    campaign.endDate ? new Date(campaign.endDate).toLocaleDateString() : 'open'
-  }`
+  if (!campaign) {
+    if (campaignQuery.isPending) return <Skeleton className="h-48 w-full" />
+    return <p className="text-muted-foreground">Not found.</p>
+  }
 
   return (
     <div className="space-y-10">
-      <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-            {STATUS_LABEL[campaign.status] ?? campaign.status} · {dates}
-            {campaign.platforms.length
-              ? ` · ${campaign.platforms.map((p) => PLATFORM_LABEL[p] ?? p).join(', ')}`
-              : ''}
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight mt-1">{campaign.name}</h1>
-        </div>
-        <Link to={`/campaigns/${campaignId}/edit`} className="text-sm underline underline-offset-4">
-          Edit
-        </Link>
-      </div>
+      <CampaignIdentity
+        key={campaign.id}
+        name={campaign.name}
+        status={campaign.status}
+        startDate={campaign.startDate}
+        endDate={campaign.endDate ?? null}
+        budget={campaign.budget}
+        platforms={campaign.platforms}
+        onSave={save}
+      />
 
       <CampaignPerformanceSummary performance={performanceQuery.data?.data} />
 
@@ -93,40 +98,14 @@ export function CampaignPage() {
         onActivate={activate}
       />
 
-      <section className="space-y-2">
-        <h2 className="text-sm font-medium tracking-wide uppercase">Destination</h2>
-        {campaign.destinationUrl ? (
-          <div className="space-y-1">
-            <a
-              href={campaign.destinationUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm hover:underline inline-flex items-center gap-1"
-            >
-              {campaign.destinationUrl} <ExternalLink size={12} />
-            </a>
-            {destinationPage ? (
-              <p className="text-xs text-muted-foreground">
-                Landing page &quot;{destinationPage.name}&quot; —{' '}
-                <Link to={`/landing-pages/${destinationPage.id}`} className="underline">
-                  edit
-                </Link>
-              </p>
-            ) : null}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            No destination yet.{' '}
-            <Link to={`/campaigns/${campaignId}/edit`} className="underline">
-              Set a URL
-            </Link>
-            {' · '}
-            <Link to="/landing-pages" className="underline">
-              Landing pages
-            </Link>
-          </p>
+      <CampaignDestination
+        key={`${campaign.id}-destination`}
+        destinationUrl={campaign.destinationUrl ?? null}
+        landingPages={landingPages.flatMap((page) =>
+          page.hostedUrl ? [{ id: page.id, name: page.name, hostedUrl: page.hostedUrl }] : [],
         )}
-      </section>
+        onSave={(destinationUrl) => save({ destinationUrl })}
+      />
 
       <CampaignLeads
         leads={leads}
