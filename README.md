@@ -124,9 +124,28 @@ pnpm --filter server dev    # default PORT=3001; /docs is the OpenAPI UI
 pnpm --filter web dev       # Vite, default 5173; VITE_API_URL must match the API
 ```
 
-- Seed password for every login: `password123`.
-  - `demo@loopie.app` ADMIN (Riverside) · `shop@loopie.app` / `marketer@loopie.app` USER · `affiliate@loopie.app` field rep · `manager@loopie.app` / `downline@loopie.app` manager tree · `paused-affiliate@loopie.app` paused · `suspended@loopie.app` 403
-  - Second tenant: `oak@loopie.app` ADMIN · `oak-shop@loopie.app` USER · `oak-affiliate@loopie.app` AFFILIATE
+### Seed accounts
+
+`pnpm db:seed` is idempotent. Password for every login: **`password123`**.
+
+| Email                         | Role      | Tenant     | What it’s for                                                |
+| ----------------------------- | --------- | ---------- | ------------------------------------------------------------ |
+| `demo@loopie.app`             | ADMIN     | Riverside  | Owner — campaigns, affiliates, billing (e2e still uses this) |
+| `shop@loopie.app`             | USER      | Riverside  | Staff — Home / Campaigns / Messages only                     |
+| `marketer@loopie.app`         | USER      | Riverside  | Second staff login                                           |
+| `suspended@loopie.app`        | USER      | Riverside  | Login returns **403**                                        |
+| `affiliate@loopie.app`        | AFFILIATE | Riverside  | Jordan — independent field rep                               |
+| `manager@loopie.app`          | AFFILIATE | Riverside  | Casey — has a downline                                       |
+| `downline@loopie.app`         | AFFILIATE | Riverside  | Riley — reports to Casey                                     |
+| `paused-affiliate@loopie.app` | AFFILIATE | Riverside  | Taylor — paused                                              |
+| `oak@loopie.app`              | ADMIN     | Oak Street | Second-tenant owner                                          |
+| `oak-shop@loopie.app`         | USER      | Oak Street | Second-tenant staff                                          |
+| `oak-affiliate@loopie.app`    | AFFILIATE | Oak Street | Sam — other-tenant affiliate                                 |
+
+Maya (`maya25`) is an affiliate **without** a login (flat $25 deal), so the admin directory is not only portal users. Riverside demo data is unchanged (Jane, campaign, `/p/raw-customer-stories`, form, ad unit). Affiliate deals include Standard 10, Weekly 8, and Flat 25.
+
+Vitest has its own throwaway users (`alice@test.local` ADMIN, `shop@test.local` USER, `bob@test.local` on a second business) in `apps/server/src/__tests__/helpers`. Those are wiped every test and are not for clicking around in the app.
+
 - `apps/server`’s `tsx watch` **does not load `.env`**. Export `DATABASE_URL` (and Stripe keys when you want Checkout/Connect) in the shell that starts it.
 - Tests never use whatever `DATABASE_URL` happens to be in the shell. `pnpm --filter server test` / `pnpm --filter ad-server test` default to a dedicated `loopie_test` database. Do not point that suite at the shared `loopie` DB — the suite wipes tables.
 - On a shared machine, check what is actually bound to a port before assuming it is LOOPIE. This repo’s Playwright runs have collided with other projects on **3001**.
