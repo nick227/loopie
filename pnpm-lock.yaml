@@ -32,6 +32,9 @@ importers:
       eslint-plugin-react-refresh:
         specifier: ^0.5.5
         version: 0.5.5(eslint@8.57.1)
+      husky:
+        specifier: ^9.0.0
+        version: 9.1.7
       js-yaml:
         specifier: ^4.0.0
         version: 4.3.1
@@ -209,6 +212,9 @@ importers:
       autoprefixer:
         specifier: ^10.0.0
         version: 10.5.4(postcss@8.5.26)
+      happy-dom:
+        specifier: ^20.0.0
+        version: 20.11.6
       postcss:
         specifier: ^8.0.0
         version: 8.5.26
@@ -221,6 +227,9 @@ importers:
       vite:
         specifier: ^5.0.0
         version: 5.4.21(@types/node@20.19.43)
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@20.19.43)(happy-dom@20.11.6)(jsdom@30.0.1)
 
   packages/api-spec: {}
 
@@ -1965,6 +1974,11 @@ packages:
   https-proxy-agent@7.0.6:
     resolution: {integrity: sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw==}
     engines: {node: '>= 14'}
+
+  husky@9.1.7:
+    resolution: {integrity: sha512-5gs5ytaNjBrh5Ow3zrvdUUY+0VxIuWVL4i9irt6friV+BqdCfmV11CQTWMiBYWHbXhco+J1kHfTOUkePhCDvMA==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   ignore@5.3.2:
     resolution: {integrity: sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g==}
@@ -3921,13 +3935,11 @@ snapshots:
       '@types/prop-types': 15.7.15
       csstype: 3.2.3
 
-  '@types/whatwg-mimetype@3.0.2':
-    optional: true
+  '@types/whatwg-mimetype@3.0.2': {}
 
   '@types/ws@8.18.1':
     dependencies:
       '@types/node': 20.19.43
-    optional: true
 
   '@typescript-eslint/eslint-plugin@8.68.0(@typescript-eslint/parser@8.68.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)':
     dependencies:
@@ -4265,7 +4277,6 @@ snapshots:
   buffer-image-size@0.6.4:
     dependencies:
       '@types/node': 20.19.43
-    optional: true
 
   cac@6.7.14: {}
 
@@ -4454,8 +4465,7 @@ snapshots:
 
   emoji-regex@9.2.2: {}
 
-  entities@7.0.1:
-    optional: true
+  entities@7.0.1: {}
 
   entities@8.0.0:
     optional: true
@@ -4967,7 +4977,6 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
-    optional: true
 
   has-bigints@1.1.0: {}
 
@@ -5018,6 +5027,8 @@ snapshots:
       debug: 4.4.3(supports-color@10.2.2)
     transitivePeerDependencies:
       - supports-color
+
+  husky@9.1.7: {}
 
   ignore@5.3.2: {}
 
@@ -6215,8 +6226,7 @@ snapshots:
   webidl-conversions@8.0.1:
     optional: true
 
-  whatwg-mimetype@3.0.0:
-    optional: true
+  whatwg-mimetype@3.0.0: {}
 
   whatwg-mimetype@5.0.0:
     optional: true
@@ -6305,8 +6315,7 @@ snapshots:
 
   wrappy@1.0.2: {}
 
-  ws@8.21.3:
-    optional: true
+  ws@8.21.3: {}
 
   xml-name-validator@5.0.0:
     optional: true
