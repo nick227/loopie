@@ -9,7 +9,14 @@
 // serving lives in apps/ad-server, a standalone deployable service that shares this schema.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // "native" alone let Prisma's generate-time OpenSSL probe silently mis-detect on the
+  // node:20-alpine images used by every Dockerfile in this repo — it defaulted to
+  // "openssl-1.1.x" and generated an engine binary that then failed to load at runtime
+  // ("Error loading shared library libssl.so.1.1: No such file or directory"), because recent
+  // Alpine actually ships OpenSSL 3.x. Found live against a real Railway deploy, not by
+  // inspection. Pinning the musl-openssl-3.0.x target explicitly avoids relying on that probe.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
