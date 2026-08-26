@@ -81,12 +81,7 @@ export function CampaignCreateCreativePage() {
           <AssetPicker assets={assets} selectedIds={assetIds} onToggle={toggleAsset} />
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <div className="flex gap-2">
-            <Button
-              type="submit"
-              size="sm"
-              disabled={createCreative.isPending}
-              className="!shadow-none hover:!translate-y-0"
-            >
+            <Button type="submit" size="sm" disabled={createCreative.isPending}>
               Create creative
             </Button>
             <Link to={`/campaigns/${campaignId}`}>

@@ -103,12 +103,7 @@ export function RecordSpendForm({ campaignId }: { campaignId: string }) {
         />
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <Button
-        type="submit"
-        size="sm"
-        disabled={recordSpend.isPending}
-        className="!shadow-none hover:!translate-y-0"
-      >
+      <Button type="submit" size="sm" disabled={recordSpend.isPending}>
         Record spend
       </Button>
       {lastSpend ? (
@@ -118,7 +113,6 @@ export function RecordSpendForm({ campaignId }: { campaignId: string }) {
           size="sm"
           disabled={settleSpend.isPending}
           onClick={handleSettle}
-          className="!shadow-none hover:!translate-y-0"
         >
           Settle {formatUsd(lastSpend.amountMinor)}
         </Button>

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 type LandingPage = { id: string; name: string; hostedUrl: string }
 
 const ghost =
-  'bg-transparent border-0 border-b border-border p-0 h-8 shadow-none outline-none focus-visible:ring-0 rounded-none text-sm w-full max-w-xl'
+  'bg-transparent border-0 border-b border-border p-0 h-8 outline-none focus-visible:ring-0 rounded-none text-sm w-full max-w-xl'
 
 export function CampaignDestination({
   destinationUrl,

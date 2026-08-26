@@ -11,8 +11,7 @@ const STATUS_LABEL: Record<string, string> = {
   ENDED: 'Ended',
 }
 
-const ghost =
-  'bg-transparent border-0 p-0 shadow-none outline-none focus-visible:ring-0 rounded-none'
+const ghost = 'bg-transparent border-0 p-0 outline-none focus-visible:ring-0 rounded-none'
 
 function toDay(iso: string | null) {
   return iso ? iso.slice(0, 10) : ''

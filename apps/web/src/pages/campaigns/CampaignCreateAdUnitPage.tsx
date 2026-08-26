@@ -166,7 +166,6 @@ export function CampaignCreateAdUnitPage() {
               type="submit"
               size="sm"
               disabled={createAdUnit.isPending || updateCampaign.isPending}
-              className="!shadow-none hover:!translate-y-0"
             >
               Create ad
             </Button>
