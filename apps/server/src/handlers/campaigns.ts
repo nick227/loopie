@@ -63,3 +63,13 @@ export async function updateDeployment(request: any, reply: any) {
   const deployment = await deploymentService.update(request.user.businessId, request.params.deploymentId, request.body)
   return reply.send({ data: deployment })
 }
+
+export async function authorizeCampaignBudget(request: any, reply: any) {
+  const auth = await campaignService.authorizeBudget(request.user.businessId, request.params.campaignId, request.body)
+  return reply.status(201).send({ data: auth })
+}
+
+export async function getCampaignFunding(request: any, reply: any) {
+  const data = await campaignService.funding(request.user.businessId, request.params.campaignId)
+  return reply.send({ data })
+}

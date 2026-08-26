@@ -603,6 +603,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/campaigns/{campaignId}/budget-authorizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Authorize campaign budget from client ad funds */
+        post: operations["authorizeCampaignBudget"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/funding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get campaign funding snapshot */
+        get: operations["getCampaignFunding"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/campaigns/{campaignId}/deployments": {
         parameters: {
             query?: never;
@@ -1045,6 +1079,261 @@ export interface paths {
         get: operations["getResultsSummary"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/finance/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List financial accounts with derived balances */
+        get: operations["listFinanceAccounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/finance/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List posted ledger transactions */
+        get: operations["listLedgerTransactions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/finance/transactions/{transactionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a ledger transaction and its entries */
+        get: operations["getLedgerTransaction"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/finance/transactions/{transactionId}/reverse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reverse a posted ledger transaction */
+        post: operations["reverseLedgerTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/finance/funding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record client ad funding */
+        post: operations["recordClientFunding"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/finance/credits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply a promotional credit to client ad funds */
+        post: operations["applyFinanceCredit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/finance/refunds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Issue a refund from client ad funds */
+        post: operations["issueFinanceRefund"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/finance/ad-spend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record platform-reported ad spend */
+        post: operations["recordAdSpend"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/finance/ad-spend/{adSpendId}/settle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Settle a recorded ad spend */
+        post: operations["settleAdSpend"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/finance/fees": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record a LOOPIE management fee */
+        post: operations["recordLoopieFee"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/finance/commissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a pending commission */
+        post: operations["createCommission"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/finance/commissions/{commissionId}/payable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark a commission payable */
+        post: operations["markCommissionPayable"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/finance/commissions/{commissionId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel a pending commission */
+        post: operations["cancelCommission"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/finance/payouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pay payable commissions */
+        post: operations["createPayout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/finance/reconciliations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reconcile tracked, platform-reported, and settled spend */
+        post: operations["reconcileAdSpend"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1792,6 +2081,270 @@ export interface components {
                 spend?: number | null;
             }[];
         };
+        MoneyMetadata: {
+            [key: string]: unknown;
+        } | null;
+        LedgerEntry: {
+            id: string;
+            accountId: string;
+            campaignId?: string | null;
+            /** @enum {string} */
+            direction: "DEBIT" | "CREDIT";
+            amountMinor: number;
+            currency: string;
+        };
+        LedgerTransaction: {
+            id: string;
+            businessId: string;
+            currency: string;
+            /** @enum {string} */
+            type: "CLIENT_FUNDING" | "CREDIT" | "REFUND" | "REVERSAL" | "BUDGET_RESERVE" | "AD_SPEND" | "AD_SPEND_SETTLEMENT" | "LOOPIE_FEE" | "COMMISSION" | "PAYOUT" | "ADJUSTMENT";
+            /** @enum {string} */
+            status: "POSTED";
+            idempotencyKey: string;
+            externalRef?: string | null;
+            metadata?: components["schemas"]["MoneyMetadata"];
+            reversesTransactionId?: string | null;
+            /** Format: date-time */
+            postedAt: string;
+            /** Format: date-time */
+            createdAt: string;
+            entries: components["schemas"]["LedgerEntry"][];
+        };
+        FinancialAccount: {
+            id: string;
+            businessId: string;
+            /** @enum {string} */
+            kind: "CLIENT_AD_FUNDS" | "CLIENT_FUNDS_RESERVED" | "LOOPIE_CASH" | "PROCESSOR_CLEARING" | "AD_PLATFORM_CLEARING" | "LOOPIE_REVENUE" | "AFFILIATE_PAYABLE" | "REFUNDS_CREDITS";
+            currency: string;
+            name: string;
+            /** @description Derived from ledger entries. Never stored. */
+            balanceMinor: number;
+        };
+        Payment: {
+            id: string;
+            businessId: string;
+            amountMinor: number;
+            currency: string;
+            /** @enum {string} */
+            status: "POSTED" | "REFUNDED" | "FAILED";
+            processor?: string | null;
+            externalRef?: string | null;
+            idempotencyKey: string;
+            ledgerTransactionId: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        Refund: {
+            id: string;
+            businessId: string;
+            paymentId?: string | null;
+            amountMinor: number;
+            currency: string;
+            /** @enum {string} */
+            status: "POSTED";
+            reason?: string | null;
+            idempotencyKey: string;
+            ledgerTransactionId: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        BudgetAuthorization: {
+            id: string;
+            businessId: string;
+            campaignId: string;
+            currency: string;
+            authorizedAmountMinor: number;
+            /** @enum {string} */
+            status: "ACTIVE" | "RELEASED";
+            idempotencyKey: string;
+            ledgerTransactionId: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CampaignFunding: {
+            campaignId: string;
+            currency: string;
+            /** @description Campaign.budget — operational planning only */
+            planningBudget: number;
+            authorizedAmountMinor: number;
+            reservedAmountMinor: number;
+            platformReportedAmountMinor: number;
+            settledAmountMinor: number;
+            clientAvailableAmountMinor: number;
+        };
+        AdSpend: {
+            id: string;
+            businessId: string;
+            campaignId: string;
+            budgetAuthorizationId?: string | null;
+            deploymentId?: string | null;
+            adUnitId?: string | null;
+            /** @enum {string} */
+            platform: "META" | "GOOGLE" | "TIKTOK" | "LOOPIE";
+            externalChargeId: string;
+            /** Format: date-time */
+            periodStart: string;
+            /** Format: date-time */
+            periodEnd: string;
+            currency: string;
+            reportedAmountMinor: number;
+            settledAmountMinor: number;
+            /** @enum {string} */
+            settlementStatus: "REPORTED" | "RECONCILED" | "SETTLED" | "DISPUTED";
+            idempotencyKey: string;
+            ledgerTransactionId: string;
+            settlementTransactionId?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        Commission: {
+            id: string;
+            businessId: string;
+            payeeRef: string;
+            amountMinor: number;
+            currency: string;
+            /** @enum {string} */
+            status: "PENDING" | "PAYABLE" | "PAID" | "CANCELLED" | "REVERSED";
+            sourceRef?: string | null;
+            idempotencyKey: string;
+            ledgerTransactionId?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        Payout: {
+            id: string;
+            businessId: string;
+            payeeRef: string;
+            amountMinor: number;
+            currency: string;
+            /** @enum {string} */
+            status: "PENDING" | "PAID" | "FAILED";
+            idempotencyKey: string;
+            ledgerTransactionId: string;
+            commissionIds: string[];
+            /** Format: date-time */
+            createdAt: string;
+        };
+        Reconciliation: {
+            id: string;
+            businessId: string;
+            campaignId?: string | null;
+            adSpendId?: string | null;
+            currency: string;
+            trackedAmountMinor: number;
+            platformReportedAmountMinor: number;
+            settledAmountMinor: number;
+            discrepancyMinor: number;
+            /** @enum {string} */
+            status: "MATCHED" | "DISCREPANCY" | "RESOLVED";
+            notes?: string | null;
+            idempotencyKey: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        RecordFundingInput: {
+            amountMinor: number;
+            currency: string;
+            idempotencyKey: string;
+            externalRef?: string;
+            processor?: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        ApplyCreditInput: {
+            amountMinor: number;
+            currency: string;
+            idempotencyKey: string;
+            reason?: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        IssueRefundInput: {
+            amountMinor: number;
+            currency: string;
+            idempotencyKey: string;
+            paymentId?: string;
+            reason?: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        ReverseTransactionInput: {
+            idempotencyKey: string;
+            reason?: string;
+        };
+        AuthorizeBudgetInput: {
+            amountMinor: number;
+            currency: string;
+            idempotencyKey: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        RecordAdSpendInput: {
+            campaignId: string;
+            amountMinor: number;
+            currency: string;
+            /** @enum {string} */
+            platform: "META" | "GOOGLE" | "TIKTOK" | "LOOPIE";
+            externalChargeId: string;
+            /** Format: date-time */
+            periodStart: string;
+            /** Format: date-time */
+            periodEnd: string;
+            idempotencyKey: string;
+            deploymentId?: string;
+            adUnitId?: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        SettleAdSpendInput: {
+            settledAmountMinor: number;
+            idempotencyKey: string;
+        };
+        RecordFeeInput: {
+            amountMinor: number;
+            currency: string;
+            idempotencyKey: string;
+            campaignId?: string;
+            description?: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        CreateCommissionInput: {
+            amountMinor: number;
+            currency: string;
+            payeeRef: string;
+            idempotencyKey: string;
+            sourceRef?: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        MarkCommissionPayableInput: {
+            idempotencyKey: string;
+        };
+        CreatePayoutInput: {
+            commissionIds: string[];
+            payeeRef: string;
+            idempotencyKey: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        ReconcileAdSpendInput: {
+            adSpendId: string;
+            trackedAmountMinor: number;
+            platformReportedAmountMinor: number;
+            settledAmountMinor: number;
+            idempotencyKey: string;
+            notes?: string;
+        };
     };
     responses: never;
     parameters: {
@@ -1815,6 +2368,9 @@ export interface components {
         Slug: string;
         FormId: string;
         AdUnitId: string;
+        TransactionId: string;
+        AdSpendId: string;
+        CommissionId: string;
     };
     requestBodies: never;
     headers: never;
@@ -3235,6 +3791,58 @@ export interface operations {
             };
         };
     };
+    authorizeCampaignBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: components["parameters"]["CampaignId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthorizeBudgetInput"];
+            };
+        };
+        responses: {
+            /** @description Budget reserved against client funds via a balanced ledger transaction */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["BudgetAuthorization"];
+                    };
+                };
+            };
+        };
+    };
+    getCampaignFunding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: components["parameters"]["CampaignId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authorized, reserved, reported, settled, and available funds — not budget minus spend */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["CampaignFunding"];
+                    };
+                };
+            };
+        };
+    };
     listDeployments: {
         parameters: {
             query?: {
@@ -4163,6 +4771,397 @@ export interface operations {
                 content: {
                     "application/json": {
                         data?: components["schemas"]["ResultsSummary"];
+                    };
+                };
+            };
+        };
+    };
+    listFinanceAccounts: {
+        parameters: {
+            query?: {
+                currency?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Chart of accounts; balanceMinor is reconstructed from ledger entries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["FinancialAccount"][];
+                    };
+                };
+            };
+        };
+    };
+    listLedgerTransactions: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor returned by the previous page. */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated immutable ledger transactions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["LedgerTransaction"][];
+                        meta: components["schemas"]["PaginatedMeta"];
+                    };
+                };
+            };
+        };
+    };
+    getLedgerTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Posted transaction */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["LedgerTransaction"];
+                    };
+                };
+            };
+        };
+    };
+    reverseLedgerTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReverseTransactionInput"];
+            };
+        };
+        responses: {
+            /** @description New reversing transaction; original entries are unchanged */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["LedgerTransaction"];
+                    };
+                };
+            };
+        };
+    };
+    recordClientFunding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordFundingInput"];
+            };
+        };
+        responses: {
+            /** @description Payment posted with a balanced ledger transaction */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["Payment"];
+                    };
+                };
+            };
+        };
+    };
+    applyFinanceCredit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyCreditInput"];
+            };
+        };
+        responses: {
+            /** @description Credit posted */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["LedgerTransaction"];
+                    };
+                };
+            };
+        };
+    };
+    issueFinanceRefund: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueRefundInput"];
+            };
+        };
+        responses: {
+            /** @description Refund posted */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["Refund"];
+                    };
+                };
+            };
+        };
+    };
+    recordAdSpend: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordAdSpendInput"];
+            };
+        };
+        responses: {
+            /** @description Ad spend recorded against reserved campaign funds */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["AdSpend"];
+                    };
+                };
+            };
+        };
+    };
+    settleAdSpend: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                adSpendId: components["parameters"]["AdSpendId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettleAdSpendInput"];
+            };
+        };
+        responses: {
+            /** @description Settled amount stored separately from reported amount */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["AdSpend"];
+                    };
+                };
+            };
+        };
+    };
+    recordLoopieFee: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordFeeInput"];
+            };
+        };
+        responses: {
+            /** @description Fee posted to LOOPIE revenue */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["LedgerTransaction"];
+                    };
+                };
+            };
+        };
+    };
+    createCommission: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCommissionInput"];
+            };
+        };
+        responses: {
+            /** @description Commission created in PENDING (no ledger posting yet) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["Commission"];
+                    };
+                };
+            };
+        };
+    };
+    markCommissionPayable: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commissionId: components["parameters"]["CommissionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkCommissionPayableInput"];
+            };
+        };
+        responses: {
+            /** @description Commission is now a payable liability on the ledger */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["Commission"];
+                    };
+                };
+            };
+        };
+    };
+    cancelCommission: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commissionId: components["parameters"]["CommissionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pending commission cancelled; posted commissions must be reversed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["Commission"];
+                    };
+                };
+            };
+        };
+    };
+    createPayout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePayoutInput"];
+            };
+        };
+        responses: {
+            /** @description Payout posted; affiliate payable reduced via ledger entries */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["Payout"];
+                    };
+                };
+            };
+        };
+    };
+    reconcileAdSpend: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReconcileAdSpendInput"];
+            };
+        };
+        responses: {
+            /** @description Comparison persisted; amounts are not overwritten on AdSpend */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["Reconciliation"];
                     };
                 };
             };

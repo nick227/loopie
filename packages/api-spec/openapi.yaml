@@ -114,6 +114,21 @@ components:
       name: adUnitId
       required: true
       schema: { type: string }
+    TransactionId:
+      in: path
+      name: transactionId
+      required: true
+      schema: { type: string }
+    AdSpendId:
+      in: path
+      name: adSpendId
+      required: true
+      schema: { type: string }
+    CommissionId:
+      in: path
+      name: commissionId
+      required: true
+      schema: { type: string }
 
   schemas:
     PaginatedMeta:
@@ -1028,6 +1043,309 @@ components:
               sales: { type: integer }
               revenue: { type: number }
               spend: { type: number, nullable: true }
+
+    # ---------- Finance / Ledger ----------
+    MoneyMetadata:
+      type: object
+      additionalProperties: true
+      nullable: true
+
+    LedgerEntry:
+      type: object
+      required: [id, accountId, direction, amountMinor, currency]
+      properties:
+        id: { type: string }
+        accountId: { type: string }
+        campaignId: { type: string, nullable: true }
+        direction: { type: string, enum: [DEBIT, CREDIT] }
+        amountMinor: { type: integer }
+        currency: { type: string }
+
+    LedgerTransaction:
+      type: object
+      required: [id, businessId, currency, type, status, idempotencyKey, postedAt, createdAt, entries]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        currency: { type: string }
+        type:
+          type: string
+          enum: [CLIENT_FUNDING, CREDIT, REFUND, REVERSAL, BUDGET_RESERVE, AD_SPEND, AD_SPEND_SETTLEMENT, LOOPIE_FEE, COMMISSION, PAYOUT, ADJUSTMENT]
+        status: { type: string, enum: [POSTED] }
+        idempotencyKey: { type: string }
+        externalRef: { type: string, nullable: true }
+        metadata: { $ref: '#/components/schemas/MoneyMetadata' }
+        reversesTransactionId: { type: string, nullable: true }
+        postedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        entries:
+          type: array
+          items: { $ref: '#/components/schemas/LedgerEntry' }
+
+    FinancialAccount:
+      type: object
+      required: [id, businessId, kind, currency, name, balanceMinor]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        kind:
+          type: string
+          enum: [CLIENT_AD_FUNDS, CLIENT_FUNDS_RESERVED, LOOPIE_CASH, PROCESSOR_CLEARING, AD_PLATFORM_CLEARING, LOOPIE_REVENUE, AFFILIATE_PAYABLE, REFUNDS_CREDITS]
+        currency: { type: string }
+        name: { type: string }
+        balanceMinor: { type: integer, description: Derived from ledger entries. Never stored. }
+
+    Payment:
+      type: object
+      required: [id, businessId, amountMinor, currency, status, idempotencyKey, ledgerTransactionId, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        amountMinor: { type: integer }
+        currency: { type: string }
+        status: { type: string, enum: [POSTED, REFUNDED, FAILED] }
+        processor: { type: string, nullable: true }
+        externalRef: { type: string, nullable: true }
+        idempotencyKey: { type: string }
+        ledgerTransactionId: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    Refund:
+      type: object
+      required: [id, businessId, amountMinor, currency, status, idempotencyKey, ledgerTransactionId, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        paymentId: { type: string, nullable: true }
+        amountMinor: { type: integer }
+        currency: { type: string }
+        status: { type: string, enum: [POSTED] }
+        reason: { type: string, nullable: true }
+        idempotencyKey: { type: string }
+        ledgerTransactionId: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    BudgetAuthorization:
+      type: object
+      required: [id, businessId, campaignId, currency, authorizedAmountMinor, status, idempotencyKey, ledgerTransactionId, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        campaignId: { type: string }
+        currency: { type: string }
+        authorizedAmountMinor: { type: integer }
+        status: { type: string, enum: [ACTIVE, RELEASED] }
+        idempotencyKey: { type: string }
+        ledgerTransactionId: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    CampaignFunding:
+      type: object
+      required: [campaignId, currency, planningBudget, authorizedAmountMinor, reservedAmountMinor, platformReportedAmountMinor, settledAmountMinor, clientAvailableAmountMinor]
+      properties:
+        campaignId: { type: string }
+        currency: { type: string }
+        planningBudget: { type: number, description: "Campaign.budget is operational planning only, not the financial source of truth." }
+        authorizedAmountMinor: { type: integer }
+        reservedAmountMinor: { type: integer }
+        platformReportedAmountMinor: { type: integer }
+        settledAmountMinor: { type: integer }
+        clientAvailableAmountMinor: { type: integer }
+
+    AdSpend:
+      type: object
+      required: [id, businessId, campaignId, platform, externalChargeId, periodStart, periodEnd, currency, reportedAmountMinor, settledAmountMinor, settlementStatus, idempotencyKey, ledgerTransactionId, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        campaignId: { type: string }
+        budgetAuthorizationId: { type: string, nullable: true }
+        deploymentId: { type: string, nullable: true }
+        adUnitId: { type: string, nullable: true }
+        platform: { type: string, enum: [META, GOOGLE, TIKTOK, LOOPIE] }
+        externalChargeId: { type: string }
+        periodStart: { type: string, format: date-time }
+        periodEnd: { type: string, format: date-time }
+        currency: { type: string }
+        reportedAmountMinor: { type: integer }
+        settledAmountMinor: { type: integer }
+        settlementStatus: { type: string, enum: [REPORTED, RECONCILED, SETTLED, DISPUTED] }
+        idempotencyKey: { type: string }
+        ledgerTransactionId: { type: string }
+        settlementTransactionId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    Commission:
+      type: object
+      required: [id, businessId, payeeRef, amountMinor, currency, status, idempotencyKey, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        payeeRef: { type: string }
+        amountMinor: { type: integer }
+        currency: { type: string }
+        status: { type: string, enum: [PENDING, PAYABLE, PAID, CANCELLED, REVERSED] }
+        sourceRef: { type: string, nullable: true }
+        idempotencyKey: { type: string }
+        ledgerTransactionId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    Payout:
+      type: object
+      required: [id, businessId, payeeRef, amountMinor, currency, status, idempotencyKey, ledgerTransactionId, commissionIds, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        payeeRef: { type: string }
+        amountMinor: { type: integer }
+        currency: { type: string }
+        status: { type: string, enum: [PENDING, PAID, FAILED] }
+        idempotencyKey: { type: string }
+        ledgerTransactionId: { type: string }
+        commissionIds:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    Reconciliation:
+      type: object
+      required: [id, businessId, currency, trackedAmountMinor, platformReportedAmountMinor, settledAmountMinor, discrepancyMinor, status, idempotencyKey, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        campaignId: { type: string, nullable: true }
+        adSpendId: { type: string, nullable: true }
+        currency: { type: string }
+        trackedAmountMinor: { type: integer }
+        platformReportedAmountMinor: { type: integer }
+        settledAmountMinor: { type: integer }
+        discrepancyMinor: { type: integer }
+        status: { type: string, enum: [MATCHED, DISCREPANCY, RESOLVED] }
+        notes: { type: string, nullable: true }
+        idempotencyKey: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    RecordFundingInput:
+      type: object
+      required: [amountMinor, currency, idempotencyKey]
+      properties:
+        amountMinor: { type: integer, minimum: 1 }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        idempotencyKey: { type: string, minLength: 1, maxLength: 128 }
+        externalRef: { type: string }
+        processor: { type: string }
+        metadata: { type: object, additionalProperties: true }
+
+    ApplyCreditInput:
+      type: object
+      required: [amountMinor, currency, idempotencyKey]
+      properties:
+        amountMinor: { type: integer, minimum: 1 }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        idempotencyKey: { type: string, minLength: 1, maxLength: 128 }
+        reason: { type: string }
+        metadata: { type: object, additionalProperties: true }
+
+    IssueRefundInput:
+      type: object
+      required: [amountMinor, currency, idempotencyKey]
+      properties:
+        amountMinor: { type: integer, minimum: 1 }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        idempotencyKey: { type: string, minLength: 1, maxLength: 128 }
+        paymentId: { type: string }
+        reason: { type: string }
+        metadata: { type: object, additionalProperties: true }
+
+    ReverseTransactionInput:
+      type: object
+      required: [idempotencyKey]
+      properties:
+        idempotencyKey: { type: string, minLength: 1, maxLength: 128 }
+        reason: { type: string }
+
+    AuthorizeBudgetInput:
+      type: object
+      required: [amountMinor, currency, idempotencyKey]
+      properties:
+        amountMinor: { type: integer, minimum: 1 }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        idempotencyKey: { type: string, minLength: 1, maxLength: 128 }
+        metadata: { type: object, additionalProperties: true }
+
+    RecordAdSpendInput:
+      type: object
+      required: [campaignId, amountMinor, currency, platform, externalChargeId, periodStart, periodEnd, idempotencyKey]
+      properties:
+        campaignId: { type: string }
+        amountMinor: { type: integer, minimum: 1 }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        platform: { type: string, enum: [META, GOOGLE, TIKTOK, LOOPIE] }
+        externalChargeId: { type: string }
+        periodStart: { type: string, format: date-time }
+        periodEnd: { type: string, format: date-time }
+        idempotencyKey: { type: string, minLength: 1, maxLength: 128 }
+        deploymentId: { type: string }
+        adUnitId: { type: string }
+        metadata: { type: object, additionalProperties: true }
+
+    SettleAdSpendInput:
+      type: object
+      required: [settledAmountMinor, idempotencyKey]
+      properties:
+        settledAmountMinor: { type: integer, minimum: 1 }
+        idempotencyKey: { type: string, minLength: 1, maxLength: 128 }
+
+    RecordFeeInput:
+      type: object
+      required: [amountMinor, currency, idempotencyKey]
+      properties:
+        amountMinor: { type: integer, minimum: 1 }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        idempotencyKey: { type: string, minLength: 1, maxLength: 128 }
+        campaignId: { type: string }
+        description: { type: string }
+        metadata: { type: object, additionalProperties: true }
+
+    CreateCommissionInput:
+      type: object
+      required: [amountMinor, currency, payeeRef, idempotencyKey]
+      properties:
+        amountMinor: { type: integer, minimum: 1 }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        payeeRef: { type: string, minLength: 1 }
+        idempotencyKey: { type: string, minLength: 1, maxLength: 128 }
+        sourceRef: { type: string }
+        metadata: { type: object, additionalProperties: true }
+
+    MarkCommissionPayableInput:
+      type: object
+      required: [idempotencyKey]
+      properties:
+        idempotencyKey: { type: string, minLength: 1, maxLength: 128 }
+
+    CreatePayoutInput:
+      type: object
+      required: [commissionIds, payeeRef, idempotencyKey]
+      properties:
+        commissionIds:
+          type: array
+          items: { type: string }
+          minItems: 1
+        payeeRef: { type: string, minLength: 1 }
+        idempotencyKey: { type: string, minLength: 1, maxLength: 128 }
+        metadata: { type: object, additionalProperties: true }
+
+    ReconcileAdSpendInput:
+      type: object
+      required: [adSpendId, trackedAmountMinor, platformReportedAmountMinor, settledAmountMinor, idempotencyKey]
+      properties:
+        adSpendId: { type: string }
+        trackedAmountMinor: { type: integer, minimum: 0 }
+        platformReportedAmountMinor: { type: integer, minimum: 0 }
+        settledAmountMinor: { type: integer, minimum: 0 }
+        idempotencyKey: { type: string, minLength: 1, maxLength: 128 }
+        notes: { type: string }
 
 paths:
   # ---------- Auth ----------
@@ -2078,6 +2396,45 @@ paths:
                 properties:
                   data: { $ref: '#/components/schemas/CampaignPerformance' }
 
+  /campaigns/{campaignId}/budget-authorizations:
+    post:
+      operationId: authorizeCampaignBudget
+      summary: Authorize campaign budget from client ad funds
+      tags: [campaigns]
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AuthorizeBudgetInput' }
+      responses:
+        '201':
+          description: Budget reserved against client funds via a balanced ledger transaction
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/BudgetAuthorization' }
+
+  /campaigns/{campaignId}/funding:
+    get:
+      operationId: getCampaignFunding
+      summary: Get campaign funding snapshot
+      tags: [campaigns]
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+      responses:
+        '200':
+          description: Authorized, reserved, reported, settled, and available funds — not budget minus spend
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/CampaignFunding' }
+
   /campaigns/{campaignId}/deployments:
     get:
       operationId: listDeployments
@@ -2803,3 +3160,308 @@ paths:
                 type: object
                 properties:
                   data: { $ref: '#/components/schemas/ResultsSummary' }
+
+  # ---------- Finance / Ledger ----------
+  /finance/accounts:
+    get:
+      operationId: listFinanceAccounts
+      summary: List financial accounts with derived balances
+      tags: [finance]
+      parameters:
+        - in: query
+          name: currency
+          schema: { type: string, minLength: 3, maxLength: 3, default: USD }
+      responses:
+        '200':
+          description: Chart of accounts; balanceMinor is reconstructed from ledger entries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/FinancialAccount' }
+
+  /finance/transactions:
+    get:
+      operationId: listLedgerTransactions
+      summary: List posted ledger transactions
+      tags: [finance]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated immutable ledger transactions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/LedgerTransaction' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+
+  /finance/transactions/{transactionId}:
+    get:
+      operationId: getLedgerTransaction
+      summary: Get a ledger transaction and its entries
+      tags: [finance]
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      responses:
+        '200':
+          description: Posted transaction
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/LedgerTransaction' }
+
+  /finance/transactions/{transactionId}/reverse:
+    post:
+      operationId: reverseLedgerTransaction
+      summary: Reverse a posted ledger transaction
+      tags: [finance]
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReverseTransactionInput' }
+      responses:
+        '201':
+          description: New reversing transaction; original entries are unchanged
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/LedgerTransaction' }
+
+  /finance/funding:
+    post:
+      operationId: recordClientFunding
+      summary: Record client ad funding
+      tags: [finance]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordFundingInput' }
+      responses:
+        '201':
+          description: Payment posted with a balanced ledger transaction
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Payment' }
+
+  /finance/credits:
+    post:
+      operationId: applyFinanceCredit
+      summary: Apply a promotional credit to client ad funds
+      tags: [finance]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApplyCreditInput' }
+      responses:
+        '201':
+          description: Credit posted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/LedgerTransaction' }
+
+  /finance/refunds:
+    post:
+      operationId: issueFinanceRefund
+      summary: Issue a refund from client ad funds
+      tags: [finance]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IssueRefundInput' }
+      responses:
+        '201':
+          description: Refund posted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Refund' }
+
+  /finance/ad-spend:
+    post:
+      operationId: recordAdSpend
+      summary: Record platform-reported ad spend
+      tags: [finance]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordAdSpendInput' }
+      responses:
+        '201':
+          description: Ad spend recorded against reserved campaign funds
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdSpend' }
+
+  /finance/ad-spend/{adSpendId}/settle:
+    post:
+      operationId: settleAdSpend
+      summary: Settle a recorded ad spend
+      tags: [finance]
+      parameters:
+        - $ref: '#/components/parameters/AdSpendId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SettleAdSpendInput' }
+      responses:
+        '201':
+          description: Settled amount stored separately from reported amount
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdSpend' }
+
+  /finance/fees:
+    post:
+      operationId: recordLoopieFee
+      summary: Record a LOOPIE management fee
+      tags: [finance]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordFeeInput' }
+      responses:
+        '201':
+          description: Fee posted to LOOPIE revenue
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/LedgerTransaction' }
+
+  /finance/commissions:
+    post:
+      operationId: createCommission
+      summary: Create a pending commission
+      tags: [finance]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCommissionInput' }
+      responses:
+        '201':
+          description: Commission created in PENDING (no ledger posting yet)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Commission' }
+
+  /finance/commissions/{commissionId}/payable:
+    post:
+      operationId: markCommissionPayable
+      summary: Mark a commission payable
+      tags: [finance]
+      parameters:
+        - $ref: '#/components/parameters/CommissionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MarkCommissionPayableInput' }
+      responses:
+        '200':
+          description: Commission is now a payable liability on the ledger
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Commission' }
+
+  /finance/commissions/{commissionId}/cancel:
+    post:
+      operationId: cancelCommission
+      summary: Cancel a pending commission
+      tags: [finance]
+      parameters:
+        - $ref: '#/components/parameters/CommissionId'
+      responses:
+        '200':
+          description: Pending commission cancelled; posted commissions must be reversed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Commission' }
+
+  /finance/payouts:
+    post:
+      operationId: createPayout
+      summary: Pay payable commissions
+      tags: [finance]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePayoutInput' }
+      responses:
+        '201':
+          description: Payout posted; affiliate payable reduced via ledger entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Payout' }
+
+  /finance/reconciliations:
+    post:
+      operationId: reconcileAdSpend
+      summary: Reconcile tracked, platform-reported, and settled spend
+      tags: [finance]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReconcileAdSpendInput' }
+      responses:
+        '201':
+          description: Comparison persisted; amounts are not overwritten on AdSpend
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Reconciliation' }

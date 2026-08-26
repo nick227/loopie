@@ -1,4 +1,4 @@
-// Mirrors docs/00-unified-data-model.md. Source is represented as a discriminant
+// Mirrors docs/architecture/00-unified-data-model.md. Source is represented as a discriminant
 // (sourceType) plus typed nullable FKs (sourceMessageId / sourceDeploymentId / sourceAdUnitId)
 // rather than a true polymorphic relation, so referential integrity is preserved
 // on both sides while Lead/Sale/Interaction still read as "one pointer, several origins."
@@ -43,6 +43,17 @@ model Business {
   forms                Form[]
   formSubmissions      FormSubmission[]
   adUnits              AdUnit[]
+
+  financialAccounts    FinancialAccount[]
+  ledgerTransactions   LedgerTransaction[]
+  ledgerEntries        LedgerEntry[]
+  payments             Payment[]
+  refunds              Refund[]
+  budgetAuthorizations BudgetAuthorization[]
+  adSpends             AdSpend[]
+  commissions          Commission[]
+  payouts              Payout[]
+  reconciliations      Reconciliation[]
 }
 
 model User {
@@ -101,6 +112,7 @@ model Contact {
   interactions        Interaction[]
   audienceMemberships AudienceMember[]
   formSubmissions     FormSubmission[]
+  automationRuns      AutomationRun[]
 
   @@unique([businessId, email])
   @@unique([businessId, phone])
@@ -337,6 +349,7 @@ model Automation {
   business Business        @relation(fields: [businessId], references: [id])
   messages Message[]
   logs     AutomationLog[]
+  runs     AutomationRun[]
 
   @@index([businessId, trigger])
 }
@@ -360,6 +373,36 @@ model AutomationLog {
 
   @@index([automationId, triggeredAt])
   @@index([contactId])
+}
+
+enum AutomationRunStatus {
+  PENDING
+  EXECUTED
+  SKIPPED
+  CANCELED
+}
+
+// A scheduled evaluation of one Automation for one Contact, created the moment a trigger event
+// happens (see apps/server/src/lib/automationScheduling.ts) and picked up by the poller in
+// AutomationExecutorService once `runAt` arrives. Internal execution plumbing, not a new
+// user-facing surface — AutomationLog stays the one user-visible history.
+model AutomationRun {
+  id              String              @id @default(cuid())
+  automationId    String
+  contactId       String
+  leadId          String? // trigger context for LEAD_STILL_OPEN/LEAD_REACHED_STAGE/CHANGE_LEAD_STATUS — plain
+  // field not a relation, matching this schema's existing no-new-FK-sprawl pattern (sourceMessageId etc.)
+  triggerSourceId String // id of the Lead/Interaction/Sale row that caused scheduling — the dedup key
+  triggerEventAt  DateTime // when the trigger event actually happened
+  runAt           DateTime // triggerEventAt + waitDays (waitDays null/0 => due on next poll)
+  status          AutomationRunStatus @default(PENDING)
+  createdAt       DateTime            @default(now())
+
+  automation Automation @relation(fields: [automationId], references: [id])
+  contact    Contact    @relation(fields: [contactId], references: [id])
+
+  @@unique([automationId, triggerSourceId])
+  @@index([status, runAt])
 }
 
 // ---------- Campaign / Deployment ----------
@@ -397,9 +440,13 @@ model Campaign {
   business       Business           @relation(fields: [businessId], references: [id])
   duplicatedFrom Campaign?          @relation("CampaignDuplicate", fields: [duplicatedFromId], references: [id])
   duplicates     Campaign[]         @relation("CampaignDuplicate")
-  creativeLinks  CampaignCreative[]
-  deployments    Deployment[]
-  adUnits        AdUnit[]
+  creativeLinks        CampaignCreative[]
+  deployments          Deployment[]
+  adUnits              AdUnit[]
+  budgetAuthorizations BudgetAuthorization[]
+  adSpends             AdSpend[]
+  reconciliations      Reconciliation[]
+  ledgerEntries        LedgerEntry[]
 
   @@index([businessId, status])
 }
@@ -450,6 +497,7 @@ model Deployment {
   leadsSourced      Lead[]             @relation("LeadSourceDeployment")
   salesSourced      Sale[]             @relation("SaleSourceDeployment")
   interactions      Interaction[]      @relation("InteractionSourceDeployment")
+  adSpends          AdSpend[]
 
   @@index([campaignId])
   @@index([creativeId])
@@ -853,6 +901,7 @@ model AdUnit {
   leadsSourced      Lead[]             @relation("LeadSourceAdUnit")
   salesSourced      Sale[]             @relation("SaleSourceAdUnit")
   interactions      Interaction[]      @relation("InteractionSourceAdUnit")
+  adSpends          AdSpend[]
 
   @@index([businessId])
   @@index([campaignId])
@@ -888,4 +937,346 @@ model PerformanceSnapshot {
 
   @@unique([entityType, entityId, period])
   @@index([businessId, entityType])
+}
+
+// ---------- Money & Ledger ----------
+//
+// Double-entry ledger. Balances are always derived from LedgerEntry rows — FinancialAccount
+// has no stored balance field. Posted LedgerTransaction/LedgerEntry rows are immutable;
+// corrections create a reversing transaction rather than editing history.
+// Campaign.budget remains an operational planning field and is not the financial source of truth.
+// Path: Campaign → BudgetAuthorization → client funds → AdSpend → ledger.
+
+enum AccountKind {
+  CLIENT_AD_FUNDS
+  CLIENT_FUNDS_RESERVED
+  LOOPIE_CASH
+  PROCESSOR_CLEARING
+  AD_PLATFORM_CLEARING
+  LOOPIE_REVENUE
+  AFFILIATE_PAYABLE
+  REFUNDS_CREDITS
+}
+
+enum LedgerDirection {
+  DEBIT
+  CREDIT
+}
+
+enum LedgerTransactionType {
+  CLIENT_FUNDING
+  CREDIT
+  REFUND
+  REVERSAL
+  BUDGET_RESERVE
+  AD_SPEND
+  AD_SPEND_SETTLEMENT
+  LOOPIE_FEE
+  COMMISSION
+  PAYOUT
+  ADJUSTMENT
+}
+
+enum LedgerTransactionStatus {
+  POSTED
+}
+
+enum PaymentStatus {
+  POSTED
+  REFUNDED
+  FAILED
+}
+
+enum RefundStatus {
+  POSTED
+}
+
+enum BudgetAuthorizationStatus {
+  ACTIVE
+  RELEASED
+}
+
+enum AdSpendSettlementStatus {
+  REPORTED
+  RECONCILED
+  SETTLED
+  DISPUTED
+}
+
+enum CommissionStatus {
+  PENDING
+  PAYABLE
+  PAID
+  CANCELLED
+  REVERSED
+}
+
+enum PayoutStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+enum ReconciliationStatus {
+  MATCHED
+  DISCREPANCY
+  RESOLVED
+}
+
+model FinancialAccount {
+  id         String      @id @default(cuid())
+  businessId String
+  kind       AccountKind
+  currency   String      @db.VarChar(3)
+  name       String
+  createdAt  DateTime    @default(now())
+
+  business Business      @relation(fields: [businessId], references: [id])
+  entries  LedgerEntry[]
+
+  @@unique([businessId, kind, currency])
+  @@index([businessId])
+}
+
+// Immutable once posted. Status never changes; a reversal is a new row pointing here.
+model LedgerTransaction {
+  id                    String                   @id @default(cuid())
+  businessId            String
+  currency              String                   @db.VarChar(3)
+  type                  LedgerTransactionType
+  status                LedgerTransactionStatus  @default(POSTED)
+  idempotencyKey        String
+  externalRef           String?
+  metadata              Json?
+  reversesTransactionId String?                  @unique
+  postedAt              DateTime                 @default(now())
+  createdAt             DateTime                 @default(now())
+
+  business  Business           @relation(fields: [businessId], references: [id])
+  reverses  LedgerTransaction? @relation("LedgerReversal", fields: [reversesTransactionId], references: [id])
+  reversedBy LedgerTransaction? @relation("LedgerReversal")
+  entries   LedgerEntry[]
+
+  payments             Payment[]
+  refunds              Refund[]
+  budgetAuthorizations BudgetAuthorization[]
+  adSpends             AdSpend[]             @relation("AdSpendPosted")
+  adSpendSettlements   AdSpend[]             @relation("AdSpendSettled")
+  commissions          Commission[]
+  payouts              Payout[]
+
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId, postedAt])
+  @@index([businessId, externalRef])
+}
+
+model LedgerEntry {
+  id            String          @id @default(cuid())
+  businessId    String
+  transactionId String
+  accountId     String
+  campaignId    String?
+  direction     LedgerDirection
+  amountMinor   Int
+  currency      String          @db.VarChar(3)
+  createdAt     DateTime        @default(now())
+
+  business    Business          @relation(fields: [businessId], references: [id])
+  transaction LedgerTransaction @relation(fields: [transactionId], references: [id])
+  account     FinancialAccount  @relation(fields: [accountId], references: [id])
+  campaign    Campaign?         @relation(fields: [campaignId], references: [id])
+
+  @@index([businessId, accountId])
+  @@index([transactionId])
+  @@index([campaignId])
+}
+
+model Payment {
+  id                  String        @id @default(cuid())
+  businessId          String
+  amountMinor         Int
+  currency            String        @db.VarChar(3)
+  status              PaymentStatus @default(POSTED)
+  processor           String?
+  externalRef         String?
+  idempotencyKey      String
+  ledgerTransactionId String
+  metadata            Json?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  business          Business          @relation(fields: [businessId], references: [id])
+  ledgerTransaction LedgerTransaction @relation(fields: [ledgerTransactionId], references: [id])
+  refunds           Refund[]
+
+  @@unique([businessId, idempotencyKey])
+  @@unique([businessId, externalRef])
+  @@index([businessId, createdAt])
+  @@index([ledgerTransactionId])
+}
+
+model Refund {
+  id                  String       @id @default(cuid())
+  businessId          String
+  paymentId           String?
+  amountMinor         Int
+  currency            String       @db.VarChar(3)
+  status              RefundStatus @default(POSTED)
+  reason              String?
+  idempotencyKey      String
+  ledgerTransactionId String
+  createdAt           DateTime     @default(now())
+
+  business          Business          @relation(fields: [businessId], references: [id])
+  payment           Payment?          @relation(fields: [paymentId], references: [id])
+  ledgerTransaction LedgerTransaction @relation(fields: [ledgerTransactionId], references: [id])
+
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId])
+  @@index([paymentId])
+  @@index([ledgerTransactionId])
+}
+
+model BudgetAuthorization {
+  id                     String                    @id @default(cuid())
+  businessId             String
+  campaignId             String
+  currency               String                    @db.VarChar(3)
+  authorizedAmountMinor  Int
+  status                 BudgetAuthorizationStatus @default(ACTIVE)
+  idempotencyKey         String
+  ledgerTransactionId    String
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+
+  business          Business          @relation(fields: [businessId], references: [id])
+  campaign          Campaign          @relation(fields: [campaignId], references: [id])
+  ledgerTransaction LedgerTransaction @relation(fields: [ledgerTransactionId], references: [id])
+  adSpends          AdSpend[]
+
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId])
+  @@index([campaignId])
+  @@index([ledgerTransactionId])
+}
+
+model AdSpend {
+  id                       String                  @id @default(cuid())
+  businessId               String
+  campaignId               String
+  budgetAuthorizationId    String?
+  deploymentId             String?
+  adUnitId                 String?
+  platform                 Platform
+  externalChargeId         String
+  periodStart              DateTime
+  periodEnd                DateTime
+  currency                 String                  @db.VarChar(3)
+  reportedAmountMinor      Int
+  settledAmountMinor       Int                     @default(0)
+  settlementStatus         AdSpendSettlementStatus @default(REPORTED)
+  idempotencyKey           String
+  ledgerTransactionId      String
+  settlementTransactionId  String?
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
+
+  business               Business           @relation(fields: [businessId], references: [id])
+  campaign               Campaign           @relation(fields: [campaignId], references: [id])
+  budgetAuthorization    BudgetAuthorization? @relation(fields: [budgetAuthorizationId], references: [id])
+  deployment             Deployment?        @relation(fields: [deploymentId], references: [id])
+  adUnit                 AdUnit?            @relation(fields: [adUnitId], references: [id])
+  ledgerTransaction      LedgerTransaction  @relation("AdSpendPosted", fields: [ledgerTransactionId], references: [id])
+  settlementTransaction  LedgerTransaction? @relation("AdSpendSettled", fields: [settlementTransactionId], references: [id])
+  reconciliations        Reconciliation[]
+
+  @@unique([businessId, idempotencyKey])
+  @@unique([businessId, externalChargeId])
+  @@index([businessId, campaignId])
+  @@index([deploymentId])
+  @@index([adUnitId])
+  @@index([ledgerTransactionId])
+  @@index([settlementTransactionId])
+}
+
+model Commission {
+  id                  String           @id @default(cuid())
+  businessId          String
+  payeeRef            String
+  amountMinor         Int
+  currency            String           @db.VarChar(3)
+  status              CommissionStatus @default(PENDING)
+  sourceRef           String?
+  idempotencyKey      String
+  ledgerTransactionId String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  business          Business           @relation(fields: [businessId], references: [id])
+  ledgerTransaction LedgerTransaction? @relation(fields: [ledgerTransactionId], references: [id])
+  payoutItem        PayoutItem?
+
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId, status])
+  @@index([ledgerTransactionId])
+}
+
+model Payout {
+  id                  String       @id @default(cuid())
+  businessId          String
+  payeeRef            String
+  amountMinor         Int
+  currency            String       @db.VarChar(3)
+  status              PayoutStatus @default(PAID)
+  idempotencyKey      String
+  ledgerTransactionId String
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  business          Business          @relation(fields: [businessId], references: [id])
+  ledgerTransaction LedgerTransaction @relation(fields: [ledgerTransactionId], references: [id])
+  items             PayoutItem[]
+
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId])
+  @@index([ledgerTransactionId])
+}
+
+model PayoutItem {
+  id           String   @id @default(cuid())
+  payoutId     String
+  commissionId String   @unique
+  amountMinor  Int
+  createdAt    DateTime @default(now())
+
+  payout     Payout     @relation(fields: [payoutId], references: [id])
+  commission Commission @relation(fields: [commissionId], references: [id])
+
+  @@index([payoutId])
+}
+
+model Reconciliation {
+  id                           String                @id @default(cuid())
+  businessId                   String
+  campaignId                   String?
+  adSpendId                    String?
+  currency                     String                @db.VarChar(3)
+  trackedAmountMinor           Int
+  platformReportedAmountMinor  Int
+  settledAmountMinor           Int
+  discrepancyMinor             Int
+  status                       ReconciliationStatus
+  notes                        String?
+  idempotencyKey               String
+  createdAt                    DateTime              @default(now())
+  updatedAt                    DateTime              @updatedAt
+
+  business Business  @relation(fields: [businessId], references: [id])
+  campaign Campaign? @relation(fields: [campaignId], references: [id])
+  adSpend  AdSpend?  @relation(fields: [adSpendId], references: [id])
+
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId])
+  @@index([campaignId])
+  @@index([adSpendId])
 }

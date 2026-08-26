@@ -233,3 +233,41 @@ describe('updateDeployment', () => {
     await validateResponse('updateDeployment', 200, res.json())
   })
 })
+
+describe('authorizeCampaignBudget', () => {
+  it('requires auth', async () => {
+    const res = await app.inject({ method: 'POST', url: '/campaigns/00000000-0000-0000-0000-000000000001/budget-authorizations' })
+    expect(res.statusCode).toBe(401)
+  })
+
+  it('POST /campaigns/{campaignId}/budget-authorizations', async () => {
+    // TODO: seed domain data (test users are pre-seeded by buildTestApp)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/campaigns/00000000-0000-0000-0000-000000000001/budget-authorizations',
+      headers: asAuth(testUserId),
+      // payload: {},
+    })
+    expect(res.statusCode).toBe(201)
+    await validateResponse('authorizeCampaignBudget', 201, res.json())
+  })
+})
+
+describe('getCampaignFunding', () => {
+  it('requires auth', async () => {
+    const res = await app.inject({ method: 'GET', url: '/campaigns/00000000-0000-0000-0000-000000000001/funding' })
+    expect(res.statusCode).toBe(401)
+  })
+
+  it('GET /campaigns/{campaignId}/funding', async () => {
+    // TODO: seed domain data (test users are pre-seeded by buildTestApp)
+    const res = await app.inject({
+      method: 'GET',
+      url: '/campaigns/00000000-0000-0000-0000-000000000001/funding',
+      headers: asAuth(testUserId),
+      // payload: {},
+    })
+    expect(res.statusCode).toBe(200)
+    await validateResponse('getCampaignFunding', 200, res.json())
+  })
+})

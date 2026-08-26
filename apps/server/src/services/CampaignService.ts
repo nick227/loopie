@@ -3,6 +3,9 @@ import type { Prisma } from '@prisma/client'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { requireCreatives } from '../lib/ownership'
 import { createCampaignInventory } from '../lib/campaignInventory'
+import { FinanceService } from './FinanceService'
+
+const financeService = new FinanceService()
 
 const INCLUDE = { creativeLinks: true }
 
@@ -341,6 +344,20 @@ export class CampaignService {
         }
       }),
     )
+  }
+
+  async authorizeBudget(businessId: string, campaignId: string, data: Parameters<FinanceService['authorizeCampaignBudget']>[2]) {
+    await this._find(businessId, campaignId)
+    return financeService.authorizeCampaignBudget(businessId, campaignId, data)
+  }
+
+  async funding(businessId: string, campaignId: string) {
+    await this._find(businessId, campaignId)
+    return financeService.getCampaignFunding(businessId, campaignId)
+  }
+
+  async recordAdSpend(businessId: string, data: Parameters<FinanceService['recordAdSpend']>[1]) {
+    return financeService.recordAdSpend(businessId, data)
   }
 
   async _find(businessId: string, campaignId: string) {

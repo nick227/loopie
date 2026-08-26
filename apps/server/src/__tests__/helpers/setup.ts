@@ -5,6 +5,17 @@ import { afterEach } from 'vitest'
 // LandingPage <-> PublishedPageVersion is a genuine cycle (each has a FK to the other), so
 // LandingPage.publishedVersionId is nulled out before PublishedPageVersion rows are deleted.
 afterEach(async () => {
+  await db.payoutItem.deleteMany()
+  await db.payout.deleteMany()
+  await db.commission.deleteMany()
+  await db.reconciliation.deleteMany()
+  await db.adSpend.deleteMany()
+  await db.refund.deleteMany()
+  await db.payment.deleteMany()
+  await db.budgetAuthorization.deleteMany()
+  await db.ledgerEntry.deleteMany()
+  await db.ledgerTransaction.deleteMany()
+  await db.financialAccount.deleteMany()
   await db.automationLog.deleteMany()
   await db.formSubmission.deleteMany()
   await db.pageView.deleteMany()
