@@ -1,0 +1,2803 @@
+openapi: 3.0.3
+info:
+  title: LOOPIE API
+  version: 0.0.1
+  description: >
+    Unified messaging + advertising platform. Contract mirrors docs/00-unified-data-model.md:
+    Campaign (paid) and Message (owned) are separate acquisition mechanisms that both feed one
+    Contact -> Lead -> Sale -> Interaction spine via a source_type/source_id pointer.
+
+servers:
+  - url: http://localhost:3001
+    description: Local dev
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+  parameters:
+    Cursor:
+      in: query
+      name: cursor
+      schema: { type: string }
+      description: Opaque cursor returned by the previous page.
+    Limit:
+      in: query
+      name: limit
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    SearchQuery:
+      in: query
+      name: q
+      schema: { type: string, minLength: 1, maxLength: 200 }
+    ContactId:
+      in: path
+      name: contactId
+      required: true
+      schema: { type: string }
+    AudienceId:
+      in: path
+      name: audienceId
+      required: true
+      schema: { type: string }
+    AssetId:
+      in: path
+      name: assetId
+      required: true
+      schema: { type: string }
+    TemplateId:
+      in: path
+      name: templateId
+      required: true
+      schema: { type: string }
+    CreativeId:
+      in: path
+      name: creativeId
+      required: true
+      schema: { type: string }
+    MessageId:
+      in: path
+      name: messageId
+      required: true
+      schema: { type: string }
+    AutomationId:
+      in: path
+      name: automationId
+      required: true
+      schema: { type: string }
+    CampaignId:
+      in: path
+      name: campaignId
+      required: true
+      schema: { type: string }
+    DeploymentId:
+      in: path
+      name: deploymentId
+      required: true
+      schema: { type: string }
+    LeadId:
+      in: path
+      name: leadId
+      required: true
+      schema: { type: string }
+    SaleId:
+      in: path
+      name: saleId
+      required: true
+      schema: { type: string }
+    LandingPageTemplateId:
+      in: path
+      name: templateId
+      required: true
+      schema: { type: string }
+    LandingPageId:
+      in: path
+      name: landingPageId
+      required: true
+      schema: { type: string }
+    Slug:
+      in: path
+      name: slug
+      required: true
+      schema: { type: string }
+    FormId:
+      in: path
+      name: formId
+      required: true
+      schema: { type: string }
+    AdUnitId:
+      in: path
+      name: adUnitId
+      required: true
+      schema: { type: string }
+
+  schemas:
+    PaginatedMeta:
+      type: object
+      required: [hasMore, nextCursor]
+      properties:
+        hasMore: { type: boolean }
+        nextCursor: { type: string, nullable: true }
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        code: { type: string }
+
+    # ---------- Auth ----------
+    User:
+      type: object
+      required: [id, email, businessId, createdAt]
+      properties:
+        id: { type: string }
+        email: { type: string }
+        businessId: { type: string }
+        businessName: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    RegisterInput:
+      type: object
+      required: [email, password, businessName]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        businessName: { type: string, minLength: 1, maxLength: 120 }
+
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+
+    AuthResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/User' }
+
+    # ---------- Contact ----------
+    ChannelEligibility:
+      type: object
+      properties:
+        emailEligible: { type: boolean }
+        smsEligible: { type: boolean }
+
+    Contact:
+      type: object
+      required: [id, businessId, name, createdAt, emailEligible, smsEligible]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        name: { type: string }
+        email: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        company: { type: string, nullable: true }
+        source: { type: string, nullable: true }
+        tags:
+          type: array
+          items: { type: string }
+        emailEligible: { type: boolean }
+        smsEligible: { type: boolean }
+        lastContactedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        # Derived, not stored: Lead / Customer / Past Customer — computed from Lead + Sale history.
+        lifecycleStatus: { type: string, enum: [LEAD, CUSTOMER, PAST_CUSTOMER, NONE] }
+
+    CreateContactInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        email: { type: string, format: email }
+        phone: { type: string }
+        company: { type: string }
+        source: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        emailEligible: { type: boolean, default: true }
+        smsEligible: { type: boolean, default: true }
+
+    UpdateContactInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        email: { type: string, format: email, nullable: true }
+        phone: { type: string, nullable: true }
+        company: { type: string, nullable: true }
+        tags:
+          type: array
+          items: { type: string }
+        emailEligible: { type: boolean }
+        smsEligible: { type: boolean }
+
+    ImportContactsInput:
+      type: object
+      required: [contacts]
+      properties:
+        contacts:
+          type: array
+          items: { $ref: '#/components/schemas/CreateContactInput' }
+          maxItems: 5000
+
+    ImportContactsResult:
+      type: object
+      required: [created, skipped]
+      properties:
+        created: { type: integer }
+        skipped: { type: integer }
+
+    # ---------- Audience ----------
+    Audience:
+      type: object
+      required: [id, businessId, name, type, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        name: { type: string }
+        type: { type: string, enum: [PREDEFINED, SAVED_FILTER, MANUAL_LIST, IMPORTED_LIST] }
+        filter:
+          type: object
+          description: >
+            Free-form filter used when type = SAVED_FILTER. Keys mirror
+            docs/05-audience-segmentation-spec.md (leadStatus, hasEmail, hasMobile, tag,
+            lastPurchaseBeforeDays, sourceCampaignId, sourceDeploymentId, ...).
+          additionalProperties: true
+          nullable: true
+        memberCount: { type: integer }
+        eligibleCount:
+          type: integer
+          description: Count respecting channel opt-out for the audience's intended channel.
+        createdAt: { type: string, format: date-time }
+
+    CreateAudienceInput:
+      type: object
+      required: [name, type]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        type: { type: string, enum: [SAVED_FILTER, MANUAL_LIST, IMPORTED_LIST] }
+        filter:
+          type: object
+          additionalProperties: true
+        contactIds:
+          type: array
+          items: { type: string }
+          description: Used when type = MANUAL_LIST or IMPORTED_LIST.
+
+    UpdateAudienceInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        filter:
+          type: object
+          additionalProperties: true
+
+    # ---------- Asset ----------
+    Asset:
+      type: object
+      required: [id, businessId, type, name, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        type: { type: string, enum: [IMAGE, TEXT, VIDEO, AUDIO] }
+        name: { type: string }
+        url: { type: string, nullable: true }
+        textContent: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    CreateAssetInput:
+      type: object
+      required: [type, name]
+      properties:
+        type: { type: string, enum: [IMAGE, TEXT, VIDEO, AUDIO] }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        url: { type: string }
+        textContent: { type: string }
+
+    # ---------- Template ----------
+    Template:
+      type: object
+      required: [id, businessId, name, channel, body, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        name: { type: string }
+        channel: { type: string, enum: [EMAIL, TEXT, SOCIAL] }
+        purpose: { type: string, nullable: true }
+        subject: { type: string, nullable: true }
+        body: { type: string }
+        mediaAssetId: { type: string, nullable: true }
+        cta: { type: string, nullable: true }
+        personalizationTokens:
+          type: array
+          items: { type: string }
+        suggestedAudienceId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    CreateTemplateInput:
+      type: object
+      required: [name, channel, body]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        channel: { type: string, enum: [EMAIL, TEXT, SOCIAL] }
+        purpose: { type: string }
+        subject: { type: string }
+        body: { type: string, minLength: 1 }
+        mediaAssetId: { type: string }
+        cta: { type: string }
+        personalizationTokens:
+          type: array
+          items: { type: string }
+        suggestedAudienceId: { type: string }
+
+    UpdateTemplateInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        subject: { type: string, nullable: true }
+        body: { type: string, minLength: 1 }
+        cta: { type: string, nullable: true }
+
+    # ---------- Creative ----------
+    Creative:
+      type: object
+      required: [id, businessId, name, version, assetIds, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        name: { type: string }
+        hostedUrl: { type: string, nullable: true }
+        version: { type: integer }
+        previousVersionId: { type: string, nullable: true }
+        assetIds:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    CreateCreativeInput:
+      type: object
+      required: [name, assetIds]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        assetIds:
+          type: array
+          items: { type: string }
+          minItems: 1
+
+    UpdateCreativeInput:
+      type: object
+      required: [assetIds]
+      description: >
+        Any change creates a new immutable Creative version (docs/02-campaign-model-spec.md)
+        rather than overwriting history; the response is the new version, chained via previousVersionId.
+      properties:
+        name: { type: string }
+        assetIds:
+          type: array
+          items: { type: string }
+          minItems: 1
+
+    # ---------- Message ----------
+    Message:
+      type: object
+      required: [id, businessId, channel, body, audienceId, status, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        channel: { type: string, enum: [EMAIL, TEXT, SOCIAL] }
+        subject: { type: string, nullable: true }
+        body: { type: string }
+        audienceId: { type: string }
+        templateId: { type: string, nullable: true }
+        automationId: { type: string, nullable: true }
+        status: { type: string, enum: [DRAFT, SCHEDULED, SENT, FAILED] }
+        scheduledAt: { type: string, format: date-time, nullable: true }
+        sentAt: { type: string, format: date-time, nullable: true }
+        recipientCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+
+    CreateMessageInput:
+      type: object
+      required: [channel, body, audienceId]
+      properties:
+        channel: { type: string, enum: [EMAIL, TEXT, SOCIAL] }
+        subject: { type: string }
+        body: { type: string, minLength: 1 }
+        audienceId: { type: string }
+        templateId: { type: string }
+        automationId: { type: string }
+        scheduledAt: { type: string, format: date-time }
+
+    UpdateMessageInput:
+      type: object
+      properties:
+        subject: { type: string, nullable: true }
+        body: { type: string, minLength: 1 }
+        audienceId: { type: string }
+        scheduledAt: { type: string, format: date-time, nullable: true }
+
+    TestSendInput:
+      type: object
+      required: [toEmailOrPhone]
+      properties:
+        toEmailOrPhone: { type: string }
+
+    MessagePerformance:
+      type: object
+      properties:
+        sent: { type: integer }
+        delivered: { type: integer }
+        opened: { type: integer }
+        clicked: { type: integer }
+        replied: { type: integer }
+        unsubscribed: { type: integer }
+        leads: { type: integer }
+        sales: { type: integer }
+        revenue: { type: number }
+
+    # ---------- Automation ----------
+    Automation:
+      type: object
+      required: [id, businessId, name, trigger, action, isActive, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        name: { type: string }
+        trigger:
+          type: string
+          enum: [MESSAGE_SENT, CONTACT_REPLIES, LEAD_CREATED, LEAD_STATUS_CHANGED, SALE_RECORDED, DATE_REACHED]
+          description: >
+            LEAD_CREATED fires regardless of source_type (message reply or campaign deployment) —
+            see docs/00-unified-data-model.md "Resolved: Campaign and Message Stay Distinct Domain Concepts".
+        waitDays: { type: integer, nullable: true }
+        condition:
+          type: string
+          nullable: true
+          enum: [HAS_REPLIED, HAS_NOT_REPLIED, LEAD_STILL_OPEN, LEAD_REACHED_STAGE, CUSTOMER_STATUS, CHANNEL_ELIGIBILITY]
+        conditionValue:
+          type: object
+          additionalProperties: true
+          nullable: true
+        action:
+          type: string
+          enum: [SEND_EMAIL, SEND_TEXT, CREATE_REMINDER, CHANGE_LEAD_STATUS, NOTIFY_USER, STOP_SEQUENCE]
+        actionTemplateId: { type: string, nullable: true }
+        actionValue:
+          type: object
+          additionalProperties: true
+          nullable: true
+        isActive: { type: boolean }
+        pausedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    CreateAutomationInput:
+      type: object
+      required: [name, trigger, action]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        trigger:
+          type: string
+          enum: [MESSAGE_SENT, CONTACT_REPLIES, LEAD_CREATED, LEAD_STATUS_CHANGED, SALE_RECORDED, DATE_REACHED]
+        waitDays: { type: integer, minimum: 0, maximum: 30 }
+        condition:
+          type: string
+          enum: [HAS_REPLIED, HAS_NOT_REPLIED, LEAD_STILL_OPEN, LEAD_REACHED_STAGE, CUSTOMER_STATUS, CHANNEL_ELIGIBILITY]
+        conditionValue:
+          type: object
+          additionalProperties: true
+        action:
+          type: string
+          enum: [SEND_EMAIL, SEND_TEXT, CREATE_REMINDER, CHANGE_LEAD_STATUS, NOTIFY_USER, STOP_SEQUENCE]
+        actionTemplateId: { type: string }
+        actionValue:
+          type: object
+          additionalProperties: true
+
+    UpdateAutomationInput:
+      type: object
+      properties:
+        name: { type: string }
+        waitDays: { type: integer, minimum: 0, maximum: 30 }
+        actionTemplateId: { type: string, nullable: true }
+
+    AutomationLog:
+      type: object
+      required: [id, automationId, contactId, action, outcome, triggeredAt]
+      properties:
+        id: { type: string }
+        automationId: { type: string }
+        contactId: { type: string }
+        action: { type: string }
+        outcome: { type: string, enum: [SENT, SKIPPED, FAILED] }
+        reasonSkipped: { type: string, nullable: true }
+        triggeredAt: { type: string, format: date-time }
+
+    # ---------- Campaign / Deployment ----------
+    Campaign:
+      type: object
+      required: [id, businessId, name, budget, startDate, status, platforms, creativeIds, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        name: { type: string }
+        budget: { type: number }
+        startDate: { type: string, format: date-time }
+        endDate: { type: string, format: date-time, nullable: true }
+        destinationUrl: { type: string, nullable: true }
+        status: { type: string, enum: [DRAFT, ACTIVE, PAUSED, ENDED] }
+        platforms:
+          type: array
+          items: { type: string, enum: [META, GOOGLE, TIKTOK, LOOPIE] }
+        creativeIds:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    CreateCampaignInput:
+      type: object
+      required: [name, budget, startDate, platforms, creativeIds]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        budget: { type: number, minimum: 0 }
+        startDate: { type: string, format: date-time }
+        endDate: { type: string, format: date-time }
+        destinationUrl: { type: string }
+        platforms:
+          type: array
+          items: { type: string, enum: [META, GOOGLE, TIKTOK, LOOPIE] }
+          minItems: 1
+          description: >
+            LOOPIE creates first-party AdUnit rows (served by apps/ad-server), not
+            Deployment rows. META/GOOGLE/TIKTOK create Deployment rows.
+        creativeIds:
+          type: array
+          items: { type: string }
+          minItems: 1
+
+    UpdateCampaignInput:
+      type: object
+      properties:
+        name: { type: string }
+        budget: { type: number, minimum: 0 }
+        endDate: { type: string, format: date-time, nullable: true }
+        destinationUrl: { type: string }
+        creativeIds:
+          type: array
+          items: { type: string }
+
+    Deployment:
+      type: object
+      required: [id, campaignId, creativeId, platform, status, spend, impressions, clicks, conversions, createdAt]
+      properties:
+        id: { type: string }
+        campaignId: { type: string }
+        creativeId: { type: string }
+        platform: { type: string, enum: [META, GOOGLE, TIKTOK] }
+        externalCampaignId: { type: string, nullable: true }
+        externalAdSetId: { type: string, nullable: true }
+        externalAdId: { type: string, nullable: true }
+        status: { type: string, enum: [PENDING, ACTIVE, PAUSED, ENDED] }
+        spend: { type: number }
+        impressions: { type: integer }
+        clicks: { type: integer }
+        conversions: { type: integer }
+        lastSyncedAt: { type: string, format: date-time, nullable: true }
+        destinationLandingPageId:
+          type: string
+          nullable: true
+          description: When set, GET /r/{deploymentId} redirects here instead of the campaign's destinationUrl.
+        trackedUrl:
+          type: string
+          description: Redirect URL for this deployment — GET /r/{deploymentId}.
+        createdAt: { type: string, format: date-time }
+
+    CreateDeploymentInput:
+      type: object
+      required: [creativeId, platform]
+      properties:
+        creativeId: { type: string }
+        platform: { type: string, enum: [META, GOOGLE, TIKTOK] }
+        externalCampaignId: { type: string }
+        externalAdSetId: { type: string }
+        externalAdId: { type: string }
+        destinationLandingPageId: { type: string }
+
+    UpdateDeploymentInput:
+      description: V1 has no live platform sync — spend/status/metrics are entered manually (Parking lot — see MVP Definition).
+      type: object
+      properties:
+        status: { type: string, enum: [PENDING, ACTIVE, PAUSED, ENDED] }
+        spend: { type: number, minimum: 0 }
+        impressions: { type: integer, minimum: 0 }
+        clicks: { type: integer, minimum: 0 }
+        conversions: { type: integer, minimum: 0 }
+        destinationLandingPageId: { type: string, nullable: true }
+
+    CampaignPerformance:
+      type: object
+      properties:
+        spend: { type: number }
+        views: { type: integer }
+        clicks: { type: integer }
+        leads: { type: integer }
+        sales: { type: integer }
+        revenue: { type: number }
+        cpl: { type: number, nullable: true }
+        byCreative:
+          type: array
+          items:
+            type: object
+            properties:
+              creativeId: { type: string }
+              creativeName: { type: string }
+              views: { type: integer }
+              clicks: { type: integer }
+              leads: { type: integer }
+              sales: { type: integer }
+        byPlatform:
+          type: array
+          description: Includes a LOOPIE row whenever the campaign has AdUnits with recorded activity, alongside external platforms.
+          items:
+            type: object
+            properties:
+              platform: { type: string }
+              spend: { type: number }
+              leads: { type: integer }
+              sales: { type: integer }
+        byLandingPage:
+          type: array
+          description: Landing Page → Creative → Campaign → Platform rollup, scoped to this campaign's pages.
+          items:
+            type: object
+            properties:
+              landingPageId: { type: string }
+              landingPageName: { type: string }
+              views: { type: integer }
+              uniqueSessions: { type: integer }
+              submissions: { type: integer }
+              conversionRate: { type: number, nullable: true }
+              leads: { type: integer }
+              sales: { type: integer }
+
+    # ---------- Landing Pages ----------
+    LandingPageTemplate:
+      type: object
+      required: [id, isSystem, name, formatVersion, schema, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string, nullable: true, description: "null = system template, shippable by a future external catalog." }
+        isSystem: { type: boolean }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        category: { type: string, nullable: true }
+        formatVersion: { type: string }
+        previewImageUrl: { type: string, nullable: true }
+        schema:
+          type: object
+          additionalProperties: true
+          description: >
+            { sections: [{ key, type, order, hideable, editable: string[] }], themeTokens: string[] } —
+            a structured manifest of what an author may edit, not markup. Versioned by formatVersion,
+            independent of LOOPIE's own release, so an external template catalog can supply one LOOPIE imports.
+        createdAt: { type: string, format: date-time }
+
+    LandingPage:
+      type: object
+      required: [id, businessId, templateId, name, slug, status, content, formStartCount, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        templateId: { type: string }
+        formId: { type: string, nullable: true }
+        name: { type: string }
+        slug: { type: string }
+        customDomain: { type: string, nullable: true }
+        status: { type: string, enum: [DRAFT, PUBLISHED, ARCHIVED] }
+        content:
+          type: object
+          additionalProperties: true
+          description: Draft working copy, shaped per the template's schema.
+        theme: { type: object, nullable: true, additionalProperties: true }
+        publishedVersionId: { type: string, nullable: true }
+        hostedUrl: { type: string, description: "LOOPIE-hosted URL — GET /p/{slug}." }
+        formStartCount: { type: integer, description: "Approximate — not deduplicated by session." }
+        createdAt: { type: string, format: date-time }
+
+    CreateLandingPageInput:
+      type: object
+      required: [templateId, name, slug]
+      properties:
+        templateId: { type: string }
+        name: { type: string, minLength: 1, maxLength: 150 }
+        slug: { type: string, minLength: 1, maxLength: 80, pattern: '^[a-z0-9-]+$' }
+        formId: { type: string }
+        content: { type: object, additionalProperties: true }
+        theme: { type: object, additionalProperties: true }
+
+    UpdateLandingPageInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        slug: { type: string, minLength: 1, maxLength: 80, pattern: '^[a-z0-9-]+$' }
+        customDomain: { type: string, nullable: true }
+        formId: { type: string, nullable: true }
+        content: { type: object, additionalProperties: true }
+        theme: { type: object, nullable: true, additionalProperties: true }
+
+    PublishedPageVersion:
+      type: object
+      required: [id, landingPageId, version, content, publishedAt]
+      properties:
+        id: { type: string }
+        landingPageId: { type: string }
+        version: { type: integer }
+        content: { type: object, additionalProperties: true }
+        theme: { type: object, nullable: true, additionalProperties: true }
+        formId: { type: string, nullable: true }
+        publishedAt: { type: string, format: date-time }
+        archivedAt: { type: string, format: date-time, nullable: true }
+
+    LandingPageExport:
+      type: object
+      required: [filename, html]
+      properties:
+        filename: { type: string }
+        html: { type: string, description: "Self-contained, downloadable HTML page." }
+
+    LandingPagePerformance:
+      type: object
+      properties:
+        views: { type: integer }
+        uniqueSessions: { type: integer }
+        formStarts: { type: integer }
+        submissions: { type: integer }
+        conversionRate: { type: number, nullable: true, description: "submissions / uniqueSessions" }
+        leads: { type: integer }
+        sales: { type: integer }
+        revenue: { type: number }
+
+    SubmitLandingPageFormInput:
+      type: object
+      required: [data]
+      properties:
+        sessionId: { type: string, description: Anonymous session id captured by the hosted page. }
+        data:
+          type: object
+          additionalProperties: true
+          description: Field values keyed by FormField.fieldKey.
+        utmSource: { type: string }
+        utmMedium: { type: string }
+        utmCampaign: { type: string }
+        utmContent: { type: string }
+        utmTerm: { type: string }
+
+    SubmitLandingPageFormResult:
+      type: object
+      required: [submissionId]
+      properties:
+        submissionId: { type: string }
+        contactId: { type: string, nullable: true }
+        leadId: { type: string, nullable: true }
+        successMessage: { type: string, nullable: true }
+
+    # ---------- Forms ----------
+    FormFieldSchema:
+      type: object
+      required: [label, fieldKey, type]
+      properties:
+        id: { type: string }
+        label: { type: string }
+        fieldKey: { type: string, pattern: '^[a-z0-9_]+$' }
+        type: { type: string, enum: [TEXT, EMAIL, PHONE, TEXTAREA, SELECT, CHECKBOX, HIDDEN] }
+        required: { type: boolean, default: false }
+        options:
+          type: array
+          items: { type: string }
+          nullable: true
+        order: { type: integer, default: 0 }
+
+    Form:
+      type: object
+      required: [id, businessId, name, submitLabel, fields, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        name: { type: string }
+        submitLabel: { type: string }
+        successMessage: { type: string, nullable: true }
+        fields:
+          type: array
+          items: { $ref: '#/components/schemas/FormFieldSchema' }
+        createdAt: { type: string, format: date-time }
+
+    CreateFormInput:
+      type: object
+      required: [name, fields]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        submitLabel: { type: string }
+        successMessage: { type: string }
+        fields:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/FormFieldSchema' }
+
+    UpdateFormInput:
+      type: object
+      properties:
+        name: { type: string }
+        submitLabel: { type: string }
+        successMessage: { type: string, nullable: true }
+        fields:
+          type: array
+          items: { $ref: '#/components/schemas/FormFieldSchema' }
+
+    FormSubmission:
+      type: object
+      required: [id, businessId, formId, data, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        formId: { type: string }
+        landingPageId: { type: string, nullable: true }
+        contactId: { type: string, nullable: true }
+        leadId: { type: string, nullable: true }
+        data: { type: object, additionalProperties: true }
+        sessionId: { type: string, nullable: true }
+        sourceDeploymentId: { type: string, nullable: true }
+        sourceAdUnitId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    # ---------- Ad Units (first-party) ----------
+    AdUnit:
+      type: object
+      required: [id, businessId, campaignId, creativeId, format, status, impressions, clicks, conversions, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        campaignId: { type: string }
+        creativeId: { type: string }
+        format: { type: string, enum: [DISPLAY_BANNER, NATIVE, EMBED] }
+        status: { type: string, enum: [DRAFT, ACTIVE, PAUSED, ENDED] }
+        destinationLandingPageId: { type: string, nullable: true }
+        destinationUrl: { type: string, nullable: true }
+        servingConfig: { type: object, nullable: true, additionalProperties: true }
+        impressions: { type: integer }
+        clicks: { type: integer }
+        conversions: { type: integer }
+        lastServedAt: { type: string, format: date-time, nullable: true }
+        serveUrl:
+          type: string
+          description: Ad-server embed endpoint for this unit (apps/ad-server — a separate deployable service).
+        createdAt: { type: string, format: date-time }
+
+    CreateAdUnitInput:
+      type: object
+      required: [campaignId, creativeId, format]
+      properties:
+        campaignId: { type: string }
+        creativeId: { type: string }
+        format: { type: string, enum: [DISPLAY_BANNER, NATIVE, EMBED] }
+        destinationLandingPageId: { type: string }
+        destinationUrl: { type: string }
+        servingConfig: { type: object, additionalProperties: true }
+
+    UpdateAdUnitInput:
+      type: object
+      properties:
+        status: { type: string, enum: [DRAFT, ACTIVE, PAUSED, ENDED] }
+        destinationLandingPageId: { type: string, nullable: true }
+        destinationUrl: { type: string, nullable: true }
+        servingConfig: { type: object, additionalProperties: true }
+
+    # ---------- Lead / Sale / Interaction ----------
+    Lead:
+      type: object
+      required: [id, businessId, contactId, stage, sourceType, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        contactId: { type: string }
+        stage: { type: string, enum: [NEW, CONTACTED, QUALIFIED, QUOTED, WON, LOST] }
+        owner: { type: string, nullable: true }
+        estimatedValue: { type: number, nullable: true }
+        sourceType: { type: string, enum: [MESSAGE, DEPLOYMENT, AD_UNIT, MANUAL, IMPORT] }
+        sourceMessageId: { type: string, nullable: true }
+        sourceDeploymentId: { type: string, nullable: true }
+        sourceAdUnitId: { type: string, nullable: true }
+        clickId: { type: string, nullable: true }
+        landingSessionId: { type: string, nullable: true }
+        openedAt: { type: string, format: date-time }
+        closedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    UpdateLeadInput:
+      type: object
+      properties:
+        stage: { type: string, enum: [NEW, CONTACTED, QUALIFIED, QUOTED, WON, LOST] }
+        owner: { type: string, nullable: true }
+        estimatedValue: { type: number, nullable: true }
+
+    Sale:
+      type: object
+      required: [id, businessId, contactId, amount, date, sourceType, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        contactId: { type: string }
+        leadId: { type: string, nullable: true }
+        amount: { type: number }
+        date: { type: string, format: date-time }
+        productOrService: { type: string, nullable: true }
+        sourceType: { type: string, enum: [MESSAGE, DEPLOYMENT, AD_UNIT, MANUAL, IMPORT] }
+        sourceMessageId: { type: string, nullable: true }
+        sourceDeploymentId: { type: string, nullable: true }
+        sourceAdUnitId: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    CreateSaleInput:
+      type: object
+      required: [contactId, amount, date]
+      properties:
+        contactId: { type: string }
+        leadId: { type: string }
+        amount: { type: number, minimum: 0 }
+        date: { type: string, format: date-time }
+        productOrService: { type: string }
+        notes: { type: string }
+
+    Interaction:
+      type: object
+      required: [id, contactId, type, occurredAt]
+      properties:
+        id: { type: string }
+        contactId: { type: string }
+        type:
+          type: string
+          enum: [EMAIL_SENT, TEXT_SENT, SOCIAL_POST_SENT, REPLY, CALL_LOGGED, NOTE, STATUS_CHANGE, QUOTE_SENT, SALE_RECORDED, AD_CLICK, FORM_SUBMITTED, PAGE_VIEWED]
+        sourceType: { type: string, enum: [MESSAGE, DEPLOYMENT, AD_UNIT, MANUAL, IMPORT], nullable: true }
+        sourceMessageId: { type: string, nullable: true }
+        sourceDeploymentId: { type: string, nullable: true }
+        sourceAdUnitId: { type: string, nullable: true }
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+        occurredAt: { type: string, format: date-time }
+
+    # ---------- Attribution ----------
+    SubmitFormInput:
+      type: object
+      required: [sessionId, name]
+      properties:
+        sessionId: { type: string, description: Anonymous session id captured by the website tracker. }
+        name: { type: string, minLength: 1 }
+        email: { type: string, format: email }
+        phone: { type: string }
+
+    SubmitFormResult:
+      type: object
+      properties:
+        contactId: { type: string }
+        leadId: { type: string }
+
+    # ---------- Dashboards ----------
+    HomeSummary:
+      type: object
+      properties:
+        newLeads: { type: integer }
+        unansweredReplies: { type: integer }
+        followUpsDue: { type: integer }
+        failedSends: { type: integer }
+        automationErrors: { type: integer }
+
+    ResultsSummary:
+      type: object
+      properties:
+        totalSpend: { type: number }
+        totalLeads: { type: integer }
+        totalSales: { type: integer }
+        totalRevenue: { type: number }
+        blendedCpl: { type: number, nullable: true }
+        funnel:
+          type: object
+          properties:
+            views: { type: integer }
+            clicks: { type: integer }
+            leads: { type: integer }
+            sales: { type: integer }
+        bySource:
+          type: array
+          items:
+            type: object
+            properties:
+              sourceType: { type: string, enum: [MESSAGE, DEPLOYMENT, AD_UNIT] }
+              sourceId: { type: string }
+              label: { type: string }
+              leads: { type: integer }
+              sales: { type: integer }
+              revenue: { type: number }
+              spend: { type: number, nullable: true }
+
+paths:
+  # ---------- Auth ----------
+  /auth/register:
+    post:
+      operationId: register
+      summary: Register
+      security: []
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterInput' }
+      responses:
+        '201':
+          description: Registered — session token delivered via Set-Cookie (httpOnly)
+          headers:
+            Set-Cookie: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+
+  /auth/login:
+    post:
+      operationId: login
+      summary: Login
+      security: []
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginInput' }
+      responses:
+        '200':
+          description: Authenticated — session token delivered via Set-Cookie (httpOnly)
+          headers:
+            Set-Cookie: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: Logout
+      tags: [auth]
+      responses:
+        '200':
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, nullable: true }
+
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      summary: Get current user
+      tags: [auth]
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+
+  # ---------- Contacts ----------
+  /contacts:
+    get:
+      operationId: listContacts
+      summary: List contacts
+      tags: [contacts]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/SearchQuery'
+        - in: query
+          name: tag
+          schema: { type: string }
+        - in: query
+          name: lifecycleStatus
+          schema: { type: string, enum: [LEAD, CUSTOMER, PAST_CUSTOMER, NONE] }
+      responses:
+        '200':
+          description: Paginated contacts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Contact' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createContact
+      summary: Create contact
+      tags: [contacts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateContactInput' }
+      responses:
+        '201':
+          description: Contact created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Contact' }
+
+  /contacts/import:
+    post:
+      operationId: importContacts
+      summary: Import contacts
+      tags: [contacts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ImportContactsInput' }
+      responses:
+        '200':
+          description: Import result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ImportContactsResult' }
+
+  /contacts/{contactId}:
+    get:
+      operationId: getContact
+      summary: Get contact
+      tags: [contacts]
+      parameters:
+        - $ref: '#/components/parameters/ContactId'
+      responses:
+        '200':
+          description: Contact
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Contact' }
+    patch:
+      operationId: updateContact
+      summary: Update contact
+      tags: [contacts]
+      parameters:
+        - $ref: '#/components/parameters/ContactId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateContactInput' }
+      responses:
+        '200':
+          description: Updated contact
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Contact' }
+    delete:
+      operationId: deleteContact
+      summary: Delete contact
+      tags: [contacts]
+      parameters:
+        - $ref: '#/components/parameters/ContactId'
+      responses:
+        '200':
+          description: Contact deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, nullable: true }
+
+  /contacts/{contactId}/interactions:
+    get:
+      operationId: listContactInteractions
+      summary: List contact interactions
+      tags: [contacts]
+      parameters:
+        - $ref: '#/components/parameters/ContactId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated interaction timeline
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Interaction' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+
+  # ---------- Audiences ----------
+  /audiences:
+    get:
+      operationId: listAudiences
+      summary: List audiences
+      tags: [audiences]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated audiences
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Audience' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createAudience
+      summary: Create audience
+      tags: [audiences]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAudienceInput' }
+      responses:
+        '201':
+          description: Audience created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Audience' }
+
+  /audiences/{audienceId}:
+    get:
+      operationId: getAudience
+      summary: Get audience
+      tags: [audiences]
+      parameters:
+        - $ref: '#/components/parameters/AudienceId'
+      responses:
+        '200':
+          description: Audience with live member/eligible counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Audience' }
+    patch:
+      operationId: updateAudience
+      summary: Update audience
+      tags: [audiences]
+      parameters:
+        - $ref: '#/components/parameters/AudienceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAudienceInput' }
+      responses:
+        '200':
+          description: Updated audience
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Audience' }
+    delete:
+      operationId: deleteAudience
+      summary: Delete audience
+      tags: [audiences]
+      parameters:
+        - $ref: '#/components/parameters/AudienceId'
+      responses:
+        '200':
+          description: Audience deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, nullable: true }
+
+  /audiences/{audienceId}/contacts:
+    get:
+      operationId: listAudienceContacts
+      summary: List audience contacts
+      tags: [audiences]
+      parameters:
+        - $ref: '#/components/parameters/AudienceId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated contacts resolved for this audience
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Contact' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+
+  # ---------- Assets ----------
+  /assets:
+    get:
+      operationId: listAssets
+      summary: List assets
+      tags: [assets]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: type
+          schema: { type: string, enum: [IMAGE, TEXT, VIDEO, AUDIO] }
+      responses:
+        '200':
+          description: Paginated assets
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Asset' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createAsset
+      summary: Create asset
+      tags: [assets]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAssetInput' }
+      responses:
+        '201':
+          description: Asset created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Asset' }
+
+  /assets/{assetId}:
+    get:
+      operationId: getAsset
+      summary: Get asset
+      tags: [assets]
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+      responses:
+        '200':
+          description: Asset
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Asset' }
+    delete:
+      operationId: deleteAsset
+      summary: Delete asset
+      tags: [assets]
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+      responses:
+        '200':
+          description: Asset deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, nullable: true }
+
+  # ---------- Templates ----------
+  /templates:
+    get:
+      operationId: listTemplates
+      summary: List templates
+      tags: [templates]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: channel
+          schema: { type: string, enum: [EMAIL, TEXT, SOCIAL] }
+      responses:
+        '200':
+          description: Paginated templates
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Template' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createTemplate
+      summary: Create template
+      tags: [templates]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTemplateInput' }
+      responses:
+        '201':
+          description: Template created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Template' }
+
+  /templates/{templateId}:
+    get:
+      operationId: getTemplate
+      summary: Get template
+      tags: [templates]
+      parameters:
+        - $ref: '#/components/parameters/TemplateId'
+      responses:
+        '200':
+          description: Template
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Template' }
+    patch:
+      operationId: updateTemplate
+      summary: Update template
+      tags: [templates]
+      parameters:
+        - $ref: '#/components/parameters/TemplateId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateTemplateInput' }
+      responses:
+        '200':
+          description: Updated template
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Template' }
+    delete:
+      operationId: deleteTemplate
+      summary: Delete template
+      tags: [templates]
+      parameters:
+        - $ref: '#/components/parameters/TemplateId'
+      responses:
+        '200':
+          description: Template deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, nullable: true }
+
+  # ---------- Creatives ----------
+  /creatives:
+    get:
+      operationId: listCreatives
+      summary: List creatives
+      tags: [creatives]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated creatives (latest version per creative lineage)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Creative' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createCreative
+      summary: Create creative
+      tags: [creatives]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCreativeInput' }
+      responses:
+        '201':
+          description: Creative created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Creative' }
+
+  /creatives/{creativeId}:
+    get:
+      operationId: getCreative
+      summary: Get creative
+      tags: [creatives]
+      parameters:
+        - $ref: '#/components/parameters/CreativeId'
+      responses:
+        '200':
+          description: Creative
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Creative' }
+    patch:
+      operationId: updateCreative
+      summary: Update creative
+      tags: [creatives]
+      parameters:
+        - $ref: '#/components/parameters/CreativeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateCreativeInput' }
+      responses:
+        '200':
+          description: New immutable creative version
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Creative' }
+    delete:
+      operationId: deleteCreative
+      summary: Delete creative
+      tags: [creatives]
+      parameters:
+        - $ref: '#/components/parameters/CreativeId'
+      responses:
+        '200':
+          description: Creative archived
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, nullable: true }
+
+  # ---------- Messages ----------
+  /messages:
+    get:
+      operationId: listMessages
+      summary: List messages
+      tags: [messages]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: status
+          schema: { type: string, enum: [DRAFT, SCHEDULED, SENT, FAILED] }
+        - in: query
+          name: channel
+          schema: { type: string, enum: [EMAIL, TEXT, SOCIAL] }
+      responses:
+        '200':
+          description: Paginated messages
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Message' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createMessage
+      summary: Create message
+      tags: [messages]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateMessageInput' }
+      responses:
+        '201':
+          description: Message created as draft
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Message' }
+
+  /messages/{messageId}:
+    get:
+      operationId: getMessage
+      summary: Get message
+      tags: [messages]
+      parameters:
+        - $ref: '#/components/parameters/MessageId'
+      responses:
+        '200':
+          description: Message
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Message' }
+    patch:
+      operationId: updateMessage
+      summary: Update message
+      tags: [messages]
+      parameters:
+        - $ref: '#/components/parameters/MessageId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateMessageInput' }
+      responses:
+        '200':
+          description: Updated message
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Message' }
+    delete:
+      operationId: deleteMessage
+      summary: Delete message
+      tags: [messages]
+      parameters:
+        - $ref: '#/components/parameters/MessageId'
+      responses:
+        '200':
+          description: Draft message deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, nullable: true }
+
+  /messages/{messageId}/send:
+    post:
+      operationId: sendMessage
+      summary: Send message
+      tags: [messages]
+      parameters:
+        - $ref: '#/components/parameters/MessageId'
+      responses:
+        '200':
+          description: Message sent (or scheduled if scheduledAt is set)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Message' }
+
+  /messages/{messageId}/test-send:
+    post:
+      operationId: testSendMessage
+      summary: Test send message
+      tags: [messages]
+      parameters:
+        - $ref: '#/components/parameters/MessageId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TestSendInput' }
+      responses:
+        '200':
+          description: Test send accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, nullable: true }
+
+  /messages/{messageId}/performance:
+    get:
+      operationId: getMessagePerformance
+      summary: Get message performance
+      tags: [messages]
+      parameters:
+        - $ref: '#/components/parameters/MessageId'
+      responses:
+        '200':
+          description: Message results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/MessagePerformance' }
+
+  # ---------- Automations ----------
+  /automations:
+    get:
+      operationId: listAutomations
+      summary: List automations
+      tags: [automations]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated automations
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Automation' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createAutomation
+      summary: Create automation
+      tags: [automations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAutomationInput' }
+      responses:
+        '201':
+          description: Automation created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Automation' }
+
+  /automations/{automationId}:
+    get:
+      operationId: getAutomation
+      summary: Get automation
+      tags: [automations]
+      parameters:
+        - $ref: '#/components/parameters/AutomationId'
+      responses:
+        '200':
+          description: Automation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Automation' }
+    patch:
+      operationId: updateAutomation
+      summary: Update automation
+      tags: [automations]
+      parameters:
+        - $ref: '#/components/parameters/AutomationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAutomationInput' }
+      responses:
+        '200':
+          description: Updated automation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Automation' }
+
+  /automations/{automationId}/pause:
+    post:
+      operationId: pauseAutomation
+      summary: Pause automation
+      tags: [automations]
+      parameters:
+        - $ref: '#/components/parameters/AutomationId'
+      responses:
+        '200':
+          description: Automation paused
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Automation' }
+
+  /automations/{automationId}/resume:
+    post:
+      operationId: resumeAutomation
+      summary: Resume automation
+      tags: [automations]
+      parameters:
+        - $ref: '#/components/parameters/AutomationId'
+      responses:
+        '200':
+          description: Automation resumed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Automation' }
+
+  /automations/{automationId}/logs:
+    get:
+      operationId: listAutomationLogs
+      summary: List automation logs
+      tags: [automations]
+      parameters:
+        - $ref: '#/components/parameters/AutomationId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated automation logs
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AutomationLog' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+
+  # ---------- Campaigns ----------
+  /campaigns:
+    get:
+      operationId: listCampaigns
+      summary: List campaigns
+      tags: [campaigns]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: status
+          schema: { type: string, enum: [DRAFT, ACTIVE, PAUSED, ENDED] }
+      responses:
+        '200':
+          description: Paginated campaigns
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Campaign' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createCampaign
+      summary: Create campaign
+      tags: [campaigns]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCampaignInput' }
+      responses:
+        '201':
+          description: Campaign created as draft; one Deployment per platform is created automatically
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Campaign' }
+
+  /campaigns/{campaignId}:
+    get:
+      operationId: getCampaign
+      summary: Get campaign
+      tags: [campaigns]
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+      responses:
+        '200':
+          description: Campaign
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Campaign' }
+    patch:
+      operationId: updateCampaign
+      summary: Update campaign
+      tags: [campaigns]
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateCampaignInput' }
+      responses:
+        '200':
+          description: Updated campaign
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Campaign' }
+
+  /campaigns/{campaignId}/pause:
+    post:
+      operationId: pauseCampaign
+      summary: Pause campaign
+      tags: [campaigns]
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+      responses:
+        '200':
+          description: Campaign paused
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Campaign' }
+
+  /campaigns/{campaignId}/resume:
+    post:
+      operationId: resumeCampaign
+      summary: Resume campaign
+      tags: [campaigns]
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+      responses:
+        '200':
+          description: Campaign resumed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Campaign' }
+
+  /campaigns/{campaignId}/end:
+    post:
+      operationId: endCampaign
+      summary: End campaign
+      tags: [campaigns]
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+      responses:
+        '200':
+          description: Campaign ended and frozen for historical reporting
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Campaign' }
+
+  /campaigns/{campaignId}/duplicate:
+    post:
+      operationId: duplicateCampaign
+      summary: Duplicate campaign
+      tags: [campaigns]
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+      responses:
+        '201':
+          description: New campaign with its own identity and empty performance history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Campaign' }
+
+  /campaigns/{campaignId}/performance:
+    get:
+      operationId: getCampaignPerformance
+      summary: Get campaign performance
+      tags: [campaigns]
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+      responses:
+        '200':
+          description: Campaign performance, by creative and by platform
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/CampaignPerformance' }
+
+  /campaigns/{campaignId}/deployments:
+    get:
+      operationId: listDeployments
+      summary: List deployments
+      tags: [campaigns]
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated deployments for this campaign
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Deployment' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createDeployment
+      summary: Create deployment
+      tags: [campaigns]
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateDeploymentInput' }
+      responses:
+        '201':
+          description: Deployment created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Deployment' }
+
+  /deployments/{deploymentId}:
+    patch:
+      operationId: updateDeployment
+      summary: Update deployment
+      tags: [campaigns]
+      parameters:
+        - $ref: '#/components/parameters/DeploymentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateDeploymentInput' }
+      responses:
+        '200':
+          description: Updated deployment
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Deployment' }
+
+  # ---------- Attribution (public) ----------
+  /r/{deploymentId}:
+    get:
+      operationId: trackDeploymentClick
+      summary: Track deployment click
+      tags: [attribution]
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/DeploymentId'
+        - in: query
+          name: sid
+          schema: { type: string }
+          description: Anonymous session id, generated client-side if absent.
+      responses:
+        '302':
+          description: Records an AttributionEvent and redirects to the campaign destination URL
+          headers:
+            Location: { schema: { type: string } }
+
+  /attribution/form-submit:
+    post:
+      operationId: submitLeadForm
+      summary: Submit lead form
+      tags: [attribution]
+      security: []
+      description: >
+        The identity-transition moment (docs/05-attribution-funnel-spec.md): resolves an
+        anonymous sessionId into a Contact + Lead with sourceType = DEPLOYMENT.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubmitFormInput' }
+      responses:
+        '201':
+          description: Contact and Lead created/matched
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/SubmitFormResult' }
+
+  # ---------- Landing Pages ----------
+  /landing-page-templates:
+    get:
+      operationId: listLandingPageTemplates
+      summary: List landing page templates
+      tags: [landing-pages]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated templates (system templates plus this business's own)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/LandingPageTemplate' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+
+  /landing-page-templates/{templateId}:
+    get:
+      operationId: getLandingPageTemplate
+      summary: Get landing page template
+      tags: [landing-pages]
+      parameters:
+        - $ref: '#/components/parameters/LandingPageTemplateId'
+      responses:
+        '200':
+          description: Template
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/LandingPageTemplate' }
+
+  /landing-pages:
+    get:
+      operationId: listLandingPages
+      summary: List landing pages
+      tags: [landing-pages]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: status
+          schema: { type: string, enum: [DRAFT, PUBLISHED, ARCHIVED] }
+      responses:
+        '200':
+          description: Paginated landing pages
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/LandingPage' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createLandingPage
+      summary: Create landing page
+      tags: [landing-pages]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateLandingPageInput' }
+      responses:
+        '201':
+          description: Landing page created as a draft
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/LandingPage' }
+
+  /landing-pages/{landingPageId}:
+    get:
+      operationId: getLandingPage
+      summary: Get landing page
+      tags: [landing-pages]
+      parameters:
+        - $ref: '#/components/parameters/LandingPageId'
+      responses:
+        '200':
+          description: Landing page draft state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/LandingPage' }
+    patch:
+      operationId: updateLandingPage
+      summary: Update landing page
+      tags: [landing-pages]
+      parameters:
+        - $ref: '#/components/parameters/LandingPageId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateLandingPageInput' }
+      responses:
+        '200':
+          description: Updated draft — does not affect the currently published version
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/LandingPage' }
+    delete:
+      operationId: deleteLandingPage
+      summary: Delete landing page
+      tags: [landing-pages]
+      parameters:
+        - $ref: '#/components/parameters/LandingPageId'
+      responses:
+        '200':
+          description: Landing page deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, nullable: true }
+
+  /landing-pages/{landingPageId}/publish:
+    post:
+      operationId: publishLandingPage
+      summary: Publish landing page
+      tags: [landing-pages]
+      parameters:
+        - $ref: '#/components/parameters/LandingPageId'
+      responses:
+        '201':
+          description: New immutable PublishedPageVersion created and set as current
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/PublishedPageVersion' }
+
+  /landing-pages/{landingPageId}/versions:
+    get:
+      operationId: listLandingPageVersions
+      summary: List published versions
+      tags: [landing-pages]
+      parameters:
+        - $ref: '#/components/parameters/LandingPageId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated published versions, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/PublishedPageVersion' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+
+  /landing-pages/{landingPageId}/export:
+    get:
+      operationId: exportLandingPage
+      summary: Export landing page as HTML
+      tags: [landing-pages]
+      parameters:
+        - $ref: '#/components/parameters/LandingPageId'
+      responses:
+        '200':
+          description: Downloadable, self-contained HTML package of the current draft
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/LandingPageExport' }
+
+  /landing-pages/{landingPageId}/performance:
+    get:
+      operationId: getLandingPagePerformance
+      summary: Get landing page performance
+      tags: [landing-pages]
+      parameters:
+        - $ref: '#/components/parameters/LandingPageId'
+      responses:
+        '200':
+          description: Page-level funnel metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/LandingPagePerformance' }
+
+  /landing-pages/{landingPageId}/form-start:
+    post:
+      operationId: recordLandingPageFormStart
+      summary: Record a form start
+      tags: [landing-pages]
+      security: []
+      description: Lightweight, public, approximate signal — not deduplicated by session (see LandingPage.formStartCount).
+      parameters:
+        - $ref: '#/components/parameters/LandingPageId'
+      responses:
+        '200':
+          description: Counter incremented
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, nullable: true }
+
+  /landing-pages/{landingPageId}/submissions:
+    post:
+      operationId: submitLandingPageForm
+      summary: Submit a landing page form
+      tags: [landing-pages]
+      security: []
+      description: >
+        The canonical identity transition for hosted landing pages: anonymous session ->
+        FormSubmission -> resolve/create Contact -> create Lead, preserving attribution from
+        whichever Deployment/AdUnit produced the click (matched by sessionId), plus UTMs.
+      parameters:
+        - $ref: '#/components/parameters/LandingPageId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubmitLandingPageFormInput' }
+      responses:
+        '201':
+          description: Submission recorded; Contact and Lead created/matched
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/SubmitLandingPageFormResult' }
+
+  /p/{slug}:
+    get:
+      operationId: servePublishedLandingPage
+      summary: Serve hosted landing page
+      tags: [landing-pages]
+      security: []
+      description: Renders the current PublishedPageVersion and records a PageView. 404 if unpublished.
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+        - in: query
+          name: sid
+          schema: { type: string }
+        - in: query
+          name: utm_source
+          schema: { type: string }
+        - in: query
+          name: utm_medium
+          schema: { type: string }
+        - in: query
+          name: utm_campaign
+          schema: { type: string }
+      responses:
+        '200':
+          description: Rendered HTML page
+          content:
+            text/html:
+              schema: { type: string }
+
+  # ---------- Forms ----------
+  /forms:
+    get:
+      operationId: listForms
+      summary: List forms
+      tags: [forms]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated forms
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Form' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createForm
+      summary: Create form
+      tags: [forms]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateFormInput' }
+      responses:
+        '201':
+          description: Form created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Form' }
+
+  /forms/{formId}:
+    get:
+      operationId: getForm
+      summary: Get form
+      tags: [forms]
+      parameters:
+        - $ref: '#/components/parameters/FormId'
+      responses:
+        '200':
+          description: Form
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Form' }
+    patch:
+      operationId: updateForm
+      summary: Update form
+      tags: [forms]
+      parameters:
+        - $ref: '#/components/parameters/FormId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateFormInput' }
+      responses:
+        '200':
+          description: >
+            Updated form. Field changes apply immediately to this reusable Form; already-published
+            pages freeze content/theme in PublishedPageVersion but not form structure — see the
+            Form model comment in schema.prisma.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Form' }
+    delete:
+      operationId: deleteForm
+      summary: Delete form
+      tags: [forms]
+      parameters:
+        - $ref: '#/components/parameters/FormId'
+      responses:
+        '200':
+          description: Form deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, nullable: true }
+
+  # ---------- Ad Units (first-party) ----------
+  /ad-units:
+    get:
+      operationId: listAdUnits
+      summary: List ad units
+      tags: [ad-units]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: campaignId
+          schema: { type: string }
+      responses:
+        '200':
+          description: Paginated ad units
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdUnit' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createAdUnit
+      summary: Create ad unit
+      tags: [ad-units]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAdUnitInput' }
+      responses:
+        '201':
+          description: Ad unit created as a draft; serving itself happens on apps/ad-server, a separate deployable service
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdUnit' }
+
+  /ad-units/{adUnitId}:
+    get:
+      operationId: getAdUnit
+      summary: Get ad unit
+      tags: [ad-units]
+      parameters:
+        - $ref: '#/components/parameters/AdUnitId'
+      responses:
+        '200':
+          description: Ad unit
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdUnit' }
+    patch:
+      operationId: updateAdUnit
+      summary: Update ad unit
+      tags: [ad-units]
+      parameters:
+        - $ref: '#/components/parameters/AdUnitId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAdUnitInput' }
+      responses:
+        '200':
+          description: Updated ad unit
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdUnit' }
+
+  # ---------- Leads / Sales ----------
+  /leads:
+    get:
+      operationId: listLeads
+      summary: List leads
+      tags: [leads]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: stage
+          schema: { type: string, enum: [NEW, CONTACTED, QUALIFIED, QUOTED, WON, LOST] }
+        - in: query
+          name: sourceType
+          schema: { type: string, enum: [MESSAGE, DEPLOYMENT, MANUAL, IMPORT] }
+      responses:
+        '200':
+          description: Paginated leads
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Lead' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+
+  /leads/{leadId}:
+    get:
+      operationId: getLead
+      summary: Get lead
+      tags: [leads]
+      parameters:
+        - $ref: '#/components/parameters/LeadId'
+      responses:
+        '200':
+          description: Lead
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Lead' }
+    patch:
+      operationId: updateLead
+      summary: Update lead
+      tags: [leads]
+      parameters:
+        - $ref: '#/components/parameters/LeadId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateLeadInput' }
+      responses:
+        '200':
+          description: >
+            Updated lead. Setting stage=WON prompts sale capture client-side and stops active
+            follow-up automation (docs/07-sales-flow-spec.md); Customer status is derived, not stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Lead' }
+
+  /sales:
+    get:
+      operationId: listSales
+      summary: List sales
+      tags: [sales]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated sales
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Sale' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createSale
+      summary: Create sale
+      tags: [sales]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSaleInput' }
+      responses:
+        '201':
+          description: Sale recorded; contact lifecycle becomes CUSTOMER and linked Lead (if any) moves to WON
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Sale' }
+
+  /sales/{saleId}:
+    get:
+      operationId: getSale
+      summary: Get sale
+      tags: [sales]
+      parameters:
+        - $ref: '#/components/parameters/SaleId'
+      responses:
+        '200':
+          description: Sale
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Sale' }
+
+  # ---------- Dashboards ----------
+  /home:
+    get:
+      operationId: getHomeSummary
+      summary: Get home summary
+      tags: [dashboard]
+      responses:
+        '200':
+          description: Operational exceptions — what needs attention today (docs/00-unified-ia-navigation.md)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/HomeSummary' }
+
+  /results:
+    get:
+      operationId: getResultsSummary
+      summary: Get results summary
+      tags: [dashboard]
+      responses:
+        '200':
+          description: >
+            Retrospective, blended funnel across Advertising spend and organic Messages
+            (docs/00-unified-ia-navigation.md)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ResultsSummary' }

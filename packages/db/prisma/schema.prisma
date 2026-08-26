@@ -1,0 +1,891 @@
+// Mirrors docs/00-unified-data-model.md. Source is represented as a discriminant
+// (sourceType) plus typed nullable FKs (sourceMessageId / sourceDeploymentId / sourceAdUnitId)
+// rather than a true polymorphic relation, so referential integrity is preserved
+// on both sides while Lead/Sale/Interaction still read as "one pointer, several origins."
+//
+// Acquisition chain (2026-08-26 extension): Campaign -> Creative -> external Deployment
+// OR first-party AdUnit -> LandingPage -> Form -> FormSubmission -> Contact -> Lead.
+// AdUnit is deliberately a separate model from Deployment (see AdUnit section) — first-party
+// serving lives in apps/ad-server, a standalone deployable service that shares this schema.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Auth / Tenant ----------
+
+model Business {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users        User[]
+  contacts     Contact[]
+  audiences    Audience[]
+  assets       Asset[]
+  templates    Template[]
+  creatives    Creative[]
+  messages     Message[]
+  automations  Automation[]
+  campaigns    Campaign[]
+  leads        Lead[]
+  sales        Sale[]
+  interactions Interaction[]
+
+  landingPageTemplates LandingPageTemplate[]
+  landingPages         LandingPage[]
+  forms                Form[]
+  formSubmissions      FormSubmission[]
+  adUnits              AdUnit[]
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  businessId   String
+  isVerified   Boolean   @default(false)
+  suspendedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  business Business  @relation(fields: [businessId], references: [id])
+  sessions Session[]
+
+  @@index([businessId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([token])
+  @@index([userId])
+}
+
+// ---------- Contact / Audience ----------
+
+model Contact {
+  id              String    @id @default(cuid())
+  businessId      String
+  name            String
+  email           String?
+  phone           String?
+  company         String?
+  source          String?
+  tags            Json? // string[] — see docs/00-unified-data-model.md Contact.tags
+  emailEligible   Boolean   @default(true)
+  smsEligible     Boolean   @default(true)
+  emailOptOutAt   DateTime?
+  smsOptOutAt     DateTime?
+  lastContactedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  business            Business         @relation(fields: [businessId], references: [id])
+  leads               Lead[]
+  sales               Sale[]
+  interactions        Interaction[]
+  audienceMemberships AudienceMember[]
+  formSubmissions     FormSubmission[]
+
+  @@unique([businessId, email])
+  @@unique([businessId, phone])
+  @@index([businessId])
+  @@index([businessId, email])
+  @@index([businessId, createdAt])
+}
+
+enum AudienceType {
+  PREDEFINED
+  SAVED_FILTER
+  MANUAL_LIST
+  IMPORTED_LIST
+}
+
+model Audience {
+  id         String       @id @default(cuid())
+  businessId String
+  name       String
+  type       AudienceType
+  filter     Json? // free-form filter, used when type = SAVED_FILTER
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  business             Business         @relation(fields: [businessId], references: [id])
+  members              AudienceMember[] // used when type = MANUAL_LIST / IMPORTED_LIST
+  messages             Message[]
+  suggestedByTemplates Template[]
+
+  @@index([businessId])
+}
+
+model AudienceMember {
+  id         String   @id @default(cuid())
+  audienceId String
+  contactId  String
+  createdAt  DateTime @default(now())
+
+  audience Audience @relation(fields: [audienceId], references: [id])
+  contact  Contact  @relation(fields: [contactId], references: [id])
+
+  @@unique([audienceId, contactId])
+  @@index([contactId])
+}
+
+// ---------- Asset / Template / Creative ----------
+
+enum AssetType {
+  IMAGE
+  TEXT
+  VIDEO
+  AUDIO
+}
+
+model Asset {
+  id          String    @id @default(cuid())
+  businessId  String
+  type        AssetType
+  name        String
+  url         String?
+  textContent String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  business  Business        @relation(fields: [businessId], references: [id])
+  templates TemplateMedia[]
+  creatives CreativeAsset[]
+
+  @@index([businessId, type])
+}
+
+enum MessageChannel {
+  EMAIL
+  TEXT
+  SOCIAL
+}
+
+model Template {
+  id                    String         @id @default(cuid())
+  businessId            String
+  name                  String
+  channel               MessageChannel
+  purpose               String?
+  subject               String?
+  body                  String         @db.Text
+  cta                   String?
+  personalizationTokens Json? // string[]
+  suggestedAudienceId   String?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  deletedAt             DateTime?
+
+  business          Business        @relation(fields: [businessId], references: [id])
+  suggestedAudience Audience?       @relation(fields: [suggestedAudienceId], references: [id])
+  media             TemplateMedia[]
+  messages          Message[]
+
+  @@index([businessId, channel])
+}
+
+// Explicit join instead of a single mediaAssetId FK, so a template can pull more
+// than one shared Asset later without a schema change (matches Creative's join shape).
+model TemplateMedia {
+  id         String   @id @default(cuid())
+  templateId String
+  assetId    String
+  createdAt  DateTime @default(now())
+
+  template Template @relation(fields: [templateId], references: [id])
+  asset    Asset    @relation(fields: [assetId], references: [id])
+
+  @@unique([templateId, assetId])
+  @@index([assetId])
+}
+
+model Creative {
+  id                String    @id @default(cuid())
+  businessId        String
+  name              String
+  hostedUrl         String?
+  version           Int       @default(1)
+  previousVersionId String?   @unique
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  business        Business           @relation(fields: [businessId], references: [id])
+  previousVersion Creative?          @relation("CreativeVersionChain", fields: [previousVersionId], references: [id])
+  nextVersion     Creative?          @relation("CreativeVersionChain")
+  assets          CreativeAsset[]
+  campaignLinks   CampaignCreative[]
+  deployments     Deployment[]
+  adUnits         AdUnit[]
+
+  @@index([businessId])
+}
+
+model CreativeAsset {
+  id         String   @id @default(cuid())
+  creativeId String
+  assetId    String
+  createdAt  DateTime @default(now())
+
+  creative Creative @relation(fields: [creativeId], references: [id])
+  asset    Asset    @relation(fields: [assetId], references: [id])
+
+  @@unique([creativeId, assetId])
+  @@index([assetId])
+}
+
+// ---------- Message ----------
+
+enum MessageStatus {
+  DRAFT
+  SCHEDULED
+  SENT
+  FAILED
+}
+
+model Message {
+  id           String         @id @default(cuid())
+  businessId   String
+  channel      MessageChannel
+  subject      String?
+  body         String         @db.Text
+  audienceId   String
+  templateId   String?
+  automationId String?
+  status       MessageStatus  @default(DRAFT)
+  scheduledAt  DateTime?
+  sentAt       DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  business   Business    @relation(fields: [businessId], references: [id])
+  audience   Audience    @relation(fields: [audienceId], references: [id])
+  template   Template?   @relation(fields: [templateId], references: [id])
+  automation Automation? @relation(fields: [automationId], references: [id])
+
+  leadsSourced Lead[]        @relation("LeadSourceMessage")
+  salesSourced Sale[]        @relation("SaleSourceMessage")
+  interactions Interaction[] @relation("InteractionSourceMessage")
+
+  @@index([businessId, status])
+  @@index([businessId, channel])
+}
+
+// ---------- Automation ----------
+
+enum AutomationTrigger {
+  MESSAGE_SENT
+  CONTACT_REPLIES
+  LEAD_CREATED // fires regardless of source_type — see docs/00-unified-data-model.md
+  LEAD_STATUS_CHANGED
+  SALE_RECORDED
+  DATE_REACHED
+}
+
+enum AutomationCondition {
+  HAS_REPLIED
+  HAS_NOT_REPLIED
+  LEAD_STILL_OPEN
+  LEAD_REACHED_STAGE
+  CUSTOMER_STATUS
+  CHANNEL_ELIGIBILITY
+}
+
+enum AutomationAction {
+  SEND_EMAIL
+  SEND_TEXT
+  CREATE_REMINDER
+  CHANGE_LEAD_STATUS
+  NOTIFY_USER
+  STOP_SEQUENCE
+}
+
+model Automation {
+  id               String               @id @default(cuid())
+  businessId       String
+  name             String
+  trigger          AutomationTrigger
+  waitDays         Int?
+  condition        AutomationCondition?
+  conditionValue   Json?
+  action           AutomationAction
+  actionTemplateId String?
+  actionValue      Json?
+  isActive         Boolean              @default(true)
+  pausedAt         DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  business Business        @relation(fields: [businessId], references: [id])
+  messages Message[]
+  logs     AutomationLog[]
+
+  @@index([businessId, trigger])
+}
+
+enum AutomationOutcome {
+  SENT
+  SKIPPED
+  FAILED
+}
+
+model AutomationLog {
+  id            String            @id @default(cuid())
+  automationId  String
+  contactId     String
+  action        AutomationAction
+  outcome       AutomationOutcome
+  reasonSkipped String?
+  triggeredAt   DateTime          @default(now())
+
+  automation Automation @relation(fields: [automationId], references: [id])
+
+  @@index([automationId, triggeredAt])
+  @@index([contactId])
+}
+
+// ---------- Campaign / Deployment ----------
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+// LOOPIE = first-party inventory served by apps/ad-server (AdUnit), reported alongside
+// external platforms so campaign performance stays one blended view — see AdUnit section.
+enum Platform {
+  META
+  GOOGLE
+  TIKTOK
+  LOOPIE
+}
+
+model Campaign {
+  id               String         @id @default(cuid())
+  businessId       String
+  name             String
+  budget           Decimal        @db.Decimal(12, 2)
+  startDate        DateTime
+  endDate          DateTime?
+  destinationUrl   String?
+  status           CampaignStatus @default(DRAFT)
+  platforms        Json // Platform[] — MySQL has no native array column
+  duplicatedFromId String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  business       Business           @relation(fields: [businessId], references: [id])
+  duplicatedFrom Campaign?          @relation("CampaignDuplicate", fields: [duplicatedFromId], references: [id])
+  duplicates     Campaign[]         @relation("CampaignDuplicate")
+  creativeLinks  CampaignCreative[]
+  deployments    Deployment[]
+  adUnits        AdUnit[]
+
+  @@index([businessId, status])
+}
+
+model CampaignCreative {
+  id         String   @id @default(cuid())
+  campaignId String
+  creativeId String
+  createdAt  DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+  creative Creative @relation(fields: [creativeId], references: [id])
+
+  @@unique([campaignId, creativeId])
+  @@index([creativeId])
+}
+
+enum DeploymentStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+model Deployment {
+  id                       String           @id @default(cuid())
+  campaignId               String
+  creativeId               String
+  platform                 Platform
+  externalCampaignId       String?
+  externalAdSetId          String?
+  externalAdId             String?
+  status                   DeploymentStatus @default(PENDING)
+  spend                    Decimal          @default(0) @db.Decimal(12, 2)
+  impressions              Int              @default(0)
+  clicks                   Int              @default(0)
+  conversions              Int              @default(0)
+  lastSyncedAt             DateTime?
+  destinationLandingPageId String? // when set, the tracked redirect resolves here instead of campaign.destinationUrl
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+
+  campaign               Campaign     @relation(fields: [campaignId], references: [id])
+  creative               Creative     @relation(fields: [creativeId], references: [id])
+  destinationLandingPage LandingPage? @relation(fields: [destinationLandingPageId], references: [id])
+
+  attributionEvents AttributionEvent[]
+  leadsSourced      Lead[]             @relation("LeadSourceDeployment")
+  salesSourced      Sale[]             @relation("SaleSourceDeployment")
+  interactions      Interaction[]      @relation("InteractionSourceDeployment")
+
+  @@index([campaignId])
+  @@index([creativeId])
+  @@index([destinationLandingPageId])
+}
+
+// Pre-identity click/session tracking. Either deploymentId (external platform) or adUnitId
+// (first-party, written by apps/ad-server against this same table) is set, never both —
+// enforced in application code, not a DB constraint, to keep both nullable and independent.
+model AttributionEvent {
+  id            String    @id @default(cuid())
+  campaignId    String?
+  creativeId    String?
+  deploymentId  String?
+  adUnitId      String?
+  landingPageId String? // set when the click's destination was a LOOPIE-hosted landing page
+  platform      Platform?
+  sessionId     String
+  clickId       String?
+  utmSource     String?
+  utmMedium     String?
+  utmCampaign   String?
+  utmContent    String?
+  utmTerm       String?
+  createdAt     DateTime  @default(now())
+
+  deployment  Deployment?  @relation(fields: [deploymentId], references: [id])
+  adUnit      AdUnit?      @relation(fields: [adUnitId], references: [id])
+  landingPage LandingPage? @relation(fields: [landingPageId], references: [id])
+
+  @@index([deploymentId])
+  @@index([adUnitId])
+  @@index([sessionId])
+}
+
+// ---------- Lead / Sale / Interaction (the shared spine) ----------
+
+enum SourceType {
+  MESSAGE
+  DEPLOYMENT
+  AD_UNIT
+  MANUAL
+  IMPORT
+}
+
+enum LeadStage {
+  NEW
+  CONTACTED
+  QUALIFIED
+  QUOTED
+  WON
+  LOST
+}
+
+model Lead {
+  id                 String     @id @default(cuid())
+  businessId         String
+  contactId          String
+  stage              LeadStage  @default(NEW)
+  owner              String?
+  estimatedValue     Decimal?   @db.Decimal(12, 2)
+  sourceType         SourceType
+  sourceMessageId    String?
+  sourceDeploymentId String?
+  sourceAdUnitId     String?
+  clickId            String?
+  landingSessionId   String?
+  // 'OPEN' while stage is not WON/LOST; null once closed. Unique with contactId so
+  // concurrent form submits cannot insert a second active lead for the same person.
+  openSlot           String?
+  openedAt           DateTime   @default(now())
+  closedAt           DateTime?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  business         Business    @relation(fields: [businessId], references: [id])
+  contact          Contact     @relation(fields: [contactId], references: [id])
+  sourceMessage    Message?    @relation("LeadSourceMessage", fields: [sourceMessageId], references: [id])
+  sourceDeployment Deployment? @relation("LeadSourceDeployment", fields: [sourceDeploymentId], references: [id])
+  sourceAdUnit     AdUnit?     @relation("LeadSourceAdUnit", fields: [sourceAdUnitId], references: [id])
+  sales            Sale[]
+  formSubmissions  FormSubmission[]
+
+  @@unique([contactId, openSlot])
+  @@index([businessId, stage])
+  @@index([contactId])
+  @@index([sourceMessageId])
+  @@index([sourceDeploymentId])
+  @@index([sourceAdUnitId])
+}
+
+model Sale {
+  id                 String     @id @default(cuid())
+  businessId         String
+  contactId          String
+  leadId             String?
+  amount             Decimal    @db.Decimal(12, 2)
+  date               DateTime
+  productOrService   String?
+  sourceType         SourceType
+  sourceMessageId    String?
+  sourceDeploymentId String?
+  sourceAdUnitId     String?
+  notes              String?    @db.Text
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  business         Business    @relation(fields: [businessId], references: [id])
+  contact          Contact     @relation(fields: [contactId], references: [id])
+  lead             Lead?       @relation(fields: [leadId], references: [id])
+  sourceMessage    Message?    @relation("SaleSourceMessage", fields: [sourceMessageId], references: [id])
+  sourceDeployment Deployment? @relation("SaleSourceDeployment", fields: [sourceDeploymentId], references: [id])
+  sourceAdUnit     AdUnit?     @relation("SaleSourceAdUnit", fields: [sourceAdUnitId], references: [id])
+
+  @@index([businessId, date])
+  @@index([contactId])
+  @@index([sourceMessageId])
+  @@index([sourceDeploymentId])
+  @@index([sourceAdUnitId])
+}
+
+enum InteractionType {
+  EMAIL_SENT
+  TEXT_SENT
+  SOCIAL_POST_SENT
+  REPLY
+  CALL_LOGGED
+  NOTE
+  STATUS_CHANGE
+  QUOTE_SENT
+  SALE_RECORDED
+  AD_CLICK
+  FORM_SUBMITTED
+  PAGE_VIEWED
+}
+
+model Interaction {
+  id                 String           @id @default(cuid())
+  businessId         String
+  contactId          String
+  type               InteractionType
+  sourceType         SourceType?
+  sourceMessageId    String?
+  sourceDeploymentId String?
+  sourceAdUnitId     String?
+  metadata           Json?
+  occurredAt         DateTime         @default(now())
+  createdAt          DateTime         @default(now())
+
+  business         Business    @relation(fields: [businessId], references: [id])
+  contact          Contact     @relation(fields: [contactId], references: [id])
+  sourceMessage    Message?    @relation("InteractionSourceMessage", fields: [sourceMessageId], references: [id])
+  sourceDeployment Deployment? @relation("InteractionSourceDeployment", fields: [sourceDeploymentId], references: [id])
+  sourceAdUnit     AdUnit?     @relation("InteractionSourceAdUnit", fields: [sourceAdUnitId], references: [id])
+
+  @@index([contactId, occurredAt])
+  @@index([businessId, occurredAt])
+}
+
+// ---------- Landing Pages ----------
+//
+// Authoring is intentionally constrained to a structured, template-driven model — not a
+// freeform builder. LandingPageTemplate.schema and LandingPage.content/theme share one
+// versioned JSON shape (see LandingPageTemplate doc comment below) so a future external
+// template catalog ("Formerly") can supply templates LOOPIE imports without a schema change.
+//
+// LandingPageTemplate -> LandingPage (draft working copy) -> PublishedPageVersion (immutable).
+
+model LandingPageTemplate {
+  id              String   @id @default(cuid())
+  businessId      String? // null = system template (ships with LOOPIE or imported from a catalog)
+  isSystem        Boolean  @default(false)
+  name            String
+  description     String?
+  category        String? // free-form for V1: "lead-gen", "event", "promo", ...
+  formatVersion   String   @default("1.0") // versions the schema shape below, independent of LOOPIE's own release
+  previewImageUrl String?
+  // { sections: [{ key, type, order, hideable, editable: string[] }], themeTokens: string[] }
+  // — a structured manifest of what an author may edit, not markup. Rendering (hosted page
+  // and export) walks this against LandingPage.content/theme; see LandingPageRenderer.
+  schema          Json
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  business Business?     @relation(fields: [businessId], references: [id])
+  pages    LandingPage[]
+
+  @@index([businessId])
+}
+
+enum PageStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model LandingPage {
+  id                 String     @id @default(cuid())
+  businessId         String
+  templateId         String
+  formId             String?
+  name               String // internal name
+  slug               String     @unique // hosted at /p/{slug}; globally unique so custom domains can map 1:1 later
+  customDomain       String? // domain-ready: DNS/cert provisioning is out of scope for V1, field exists so the mapping has somewhere to live
+  status             PageStatus @default(DRAFT)
+  content            Json // current draft working copy, shaped per template.schema
+  theme              Json? // theme tokens (brand colors, fonts) — kept distinct from content per the brief's "theme tokens/branding" callout
+  publishedVersionId String?    @unique
+  formStartCount     Int        @default(0) // approximate, not deduplicated by session — see LandingPageService
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  deletedAt          DateTime?
+
+  business         Business               @relation(fields: [businessId], references: [id])
+  template         LandingPageTemplate    @relation(fields: [templateId], references: [id])
+  form             Form?                  @relation(fields: [formId], references: [id])
+  publishedVersion PublishedPageVersion?  @relation("CurrentPublished", fields: [publishedVersionId], references: [id])
+  versions         PublishedPageVersion[] @relation("PageVersions")
+
+  deployments       Deployment[]
+  adUnits           AdUnit[]
+  attributionEvents AttributionEvent[]
+  pageViews         PageView[]
+  formSubmissions   FormSubmission[]
+
+  @@index([businessId, status])
+}
+
+// Immutable snapshot written on every publish — content/theme/formId frozen at that moment,
+// so editing a draft after publishing never changes what's already live or already reported on.
+model PublishedPageVersion {
+  id          String    @id @default(cuid())
+  landingPageId String
+  version     Int
+  content     Json
+  theme       Json?
+  formId      String?
+  publishedAt DateTime  @default(now())
+  publishedBy String? // userId — no admin/RBAC in V1, kept optional
+  archivedAt  DateTime? // set when a newer version supersedes this one; row is kept for history
+
+  landingPage LandingPage  @relation("PageVersions", fields: [landingPageId], references: [id])
+  currentFor  LandingPage? @relation("CurrentPublished")
+
+  formSubmissions FormSubmission[]
+
+  @@unique([landingPageId, version])
+  @@index([landingPageId])
+}
+
+// One row per page view. Lower-volume than ad impressions (which use counters on
+// AdUnit/Deployment instead — see AdUnit), and unique-session counting needs distinct rows.
+model PageView {
+  id                     String   @id @default(cuid())
+  landingPageId          String
+  publishedPageVersionId String?
+  sessionId              String?
+  referrer                String?
+  utmSource              String?
+  utmMedium              String?
+  utmCampaign            String?
+  occurredAt             DateTime @default(now())
+
+  landingPage LandingPage @relation(fields: [landingPageId], references: [id])
+
+  @@index([landingPageId, occurredAt])
+  @@index([sessionId])
+}
+
+// ---------- Forms ----------
+//
+// First-class and reusable — not JSON embedded in a page — so the same Form can be reused
+// across landing pages, and a submission always resolves through one canonical path.
+
+model Form {
+  id             String   @id @default(cuid())
+  businessId     String
+  name           String
+  submitLabel    String   @default("Submit")
+  successMessage String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  business    Business         @relation(fields: [businessId], references: [id])
+  fields      FormField[]
+  pages       LandingPage[]
+  submissions FormSubmission[]
+
+  @@index([businessId])
+}
+
+enum FormFieldType {
+  TEXT
+  EMAIL
+  PHONE
+  TEXTAREA
+  SELECT
+  CHECKBOX
+  HIDDEN
+}
+
+model FormField {
+  id        String        @id @default(cuid())
+  formId    String
+  label     String
+  fieldKey  String // stable key used in submission payloads, e.g. "email"
+  type      FormFieldType
+  required  Boolean       @default(false)
+  options   Json? // string[] of choices, used when type = SELECT
+  order     Int           @default(0)
+  createdAt DateTime      @default(now())
+
+  form Form @relation(fields: [formId], references: [id])
+
+  @@unique([formId, fieldKey])
+  @@index([formId])
+}
+
+// The raw capture record. Submitting also creates/updates a Lead (and Contact if new) through
+// the same identity-transition path as attribution/form-submit — see AttributionService /
+// LandingPageService.submit. Preserves everything needed to attribute the resulting Lead:
+// session, click, UTMs, and whichever of Deployment/AdUnit/LandingPage produced the visit.
+model FormSubmission {
+  id                     String   @id @default(cuid())
+  businessId             String
+  formId                 String
+  landingPageId          String?
+  publishedPageVersionId String?
+  contactId              String?
+  leadId                 String?
+  data                   Json // raw field values keyed by fieldKey
+  sessionId              String?
+  clickId                String?
+  utmSource              String?
+  utmMedium              String?
+  utmCampaign            String?
+  utmContent             String?
+  utmTerm                String?
+  sourceDeploymentId     String?
+  sourceAdUnitId         String?
+  createdAt              DateTime @default(now())
+
+  business             Business              @relation(fields: [businessId], references: [id])
+  form                 Form                  @relation(fields: [formId], references: [id])
+  landingPage          LandingPage?          @relation(fields: [landingPageId], references: [id])
+  publishedPageVersion PublishedPageVersion? @relation(fields: [publishedPageVersionId], references: [id])
+  contact              Contact?              @relation(fields: [contactId], references: [id])
+  lead                 Lead?                 @relation(fields: [leadId], references: [id])
+
+  @@unique([landingPageId, sessionId])
+  @@index([businessId, createdAt])
+  @@index([formId])
+  @@index([sessionId])
+}
+
+// ---------- First-party advertising (AdUnit) ----------
+//
+// A Deployment represents creative running on an EXTERNAL ad platform (Meta/Google/TikTok) —
+// we don't control serving, only sync status/spend/metrics back in. An AdUnit is creative WE
+// serve ourselves via apps/ad-server: a genuinely different delivery mechanism, so it is a
+// separate model rather than an overloaded Deployment. Both point at the same Creative and
+// both feed the same Lead/Sale/attribution spine through the SourceType.AD_UNIT arm.
+
+enum AdUnitFormat {
+  DISPLAY_BANNER
+  NATIVE
+  EMBED
+}
+
+enum AdUnitStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+model AdUnit {
+  id                       String       @id @default(cuid())
+  businessId               String
+  campaignId               String
+  creativeId               String
+  format                   AdUnitFormat
+  status                   AdUnitStatus @default(DRAFT)
+  destinationLandingPageId String? // preferred destination when set
+  destinationUrl           String? // fallback external destination when no landing page is set
+  servingConfig            Json? // format-specific serving options (dimensions, autoplay, ...) — free-form like Audience.filter
+  impressions              Int          @default(0) // counter, incremented by apps/ad-server on every impression — cheap, no per-row write
+  clicks                   Int          @default(0)
+  conversions              Int          @default(0)
+  lastServedAt             DateTime?
+  createdAt                DateTime     @default(now())
+  updatedAt                DateTime     @updatedAt
+
+  business               Business     @relation(fields: [businessId], references: [id])
+  campaign               Campaign     @relation(fields: [campaignId], references: [id])
+  creative               Creative     @relation(fields: [creativeId], references: [id])
+  destinationLandingPage LandingPage? @relation(fields: [destinationLandingPageId], references: [id])
+
+  attributionEvents AttributionEvent[]
+  leadsSourced      Lead[]             @relation("LeadSourceAdUnit")
+  salesSourced      Sale[]             @relation("SaleSourceAdUnit")
+  interactions      Interaction[]      @relation("InteractionSourceAdUnit")
+
+  @@index([businessId])
+  @@index([campaignId])
+  @@index([creativeId])
+  @@index([destinationLandingPageId])
+}
+
+// ---------- Reporting rollups (populated opportunistically; Results also computes live) ----------
+
+enum PerformanceEntityType {
+  MESSAGE
+  CAMPAIGN
+  CREATIVE
+  DEPLOYMENT
+  LANDING_PAGE
+  AD_UNIT
+}
+
+model PerformanceSnapshot {
+  id             String                @id @default(cuid())
+  businessId     String
+  entityType     PerformanceEntityType
+  entityId       String
+  period         String // e.g. "2026-08" or "2026-08-25" bucket key
+  sentOrViews    Int                   @default(0)
+  openedOrClicks Int                   @default(0)
+  replied        Int                   @default(0)
+  leads          Int                   @default(0)
+  sales          Int                   @default(0)
+  revenue        Decimal               @default(0) @db.Decimal(12, 2)
+  spend          Decimal?              @db.Decimal(12, 2)
+  createdAt      DateTime              @default(now())
+
+  @@unique([entityType, entityId, period])
+  @@index([businessId, entityType])
+}

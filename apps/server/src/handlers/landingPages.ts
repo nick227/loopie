@@ -1,0 +1,84 @@
+import { LandingPageTemplateService } from '../services/LandingPageTemplateService'
+import { LandingPageService } from '../services/LandingPageService'
+
+const templateService = new LandingPageTemplateService()
+const landingPageService = new LandingPageService()
+
+export async function listLandingPageTemplates(request: any, reply: any) {
+  const data = await templateService.list(request.user.businessId, request.query)
+  return reply.send(data)
+}
+
+export async function getLandingPageTemplate(request: any, reply: any) {
+  const template = await templateService.get(request.user.businessId, request.params.templateId)
+  return reply.send({ data: template })
+}
+
+export async function listLandingPages(request: any, reply: any) {
+  const data = await landingPageService.list(request.user.businessId, request.query)
+  return reply.send(data)
+}
+
+export async function createLandingPage(request: any, reply: any) {
+  const page = await landingPageService.create(request.user.businessId, request.body)
+  return reply.status(201).send({ data: page })
+}
+
+export async function getLandingPage(request: any, reply: any) {
+  const page = await landingPageService.get(request.user.businessId, request.params.landingPageId)
+  return reply.send({ data: page })
+}
+
+export async function updateLandingPage(request: any, reply: any) {
+  const page = await landingPageService.update(request.user.businessId, request.params.landingPageId, request.body)
+  return reply.send({ data: page })
+}
+
+export async function deleteLandingPage(request: any, reply: any) {
+  await landingPageService.delete(request.user.businessId, request.params.landingPageId)
+  return reply.send({ data: null })
+}
+
+export async function publishLandingPage(request: any, reply: any) {
+  const version = await landingPageService.publish(request.user.businessId, request.params.landingPageId, request.user.id)
+  return reply.status(201).send({ data: version })
+}
+
+export async function listLandingPageVersions(request: any, reply: any) {
+  const data = await landingPageService.listVersions(request.user.businessId, request.params.landingPageId, request.query)
+  return reply.send(data)
+}
+
+export async function exportLandingPage(request: any, reply: any) {
+  const result = await landingPageService.export(request.user.businessId, request.params.landingPageId)
+  return reply.send({ data: result })
+}
+
+export async function getLandingPagePerformance(request: any, reply: any) {
+  const data = await landingPageService.performance(request.user.businessId, request.params.landingPageId)
+  return reply.send({ data })
+}
+
+// Public — no request.user.
+export async function recordLandingPageFormStart(request: any, reply: any) {
+  await landingPageService.recordFormStart(request.params.landingPageId)
+  return reply.send({ data: null })
+}
+
+// Public — no request.user.
+export async function submitLandingPageForm(request: any, reply: any) {
+  const result = await landingPageService.submit(request.params.landingPageId, request.body)
+  return reply.status(201).send({ data: result })
+}
+
+// Public — no request.user. Returns raw HTML, not the { data } JSON envelope.
+export async function servePublishedLandingPage(request: any, reply: any) {
+  const html = await landingPageService.serve(request.params.slug, {
+    sessionId: request.query.sid,
+    referrer: request.headers.referer,
+    utmSource: request.query.utm_source,
+    utmMedium: request.query.utm_medium,
+    utmCampaign: request.query.utm_campaign,
+  })
+  return reply.type('text/html').send(html)
+}
