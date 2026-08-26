@@ -38,5 +38,8 @@ EXPOSE 4173
 # client-side with no server-side route awareness. Binds to $PORT, not a hardcoded port — Railway
 # assigns its own port per service and routes traffic there (confirmed live: it expected 8080,
 # not this file's original hardcoded 4173, which would have made the deploy unreachable even on
-# a successful build). Shell form (not exec-array) so ${PORT} actually expands.
-CMD serve -s dist -l ${PORT:-4173}
+# a successful build). Shell form (not exec-array) so ${PORT} actually expands. -p (plain port
+# number), not -l/--listen — that flag wants a full URI with a scheme (tcp://host:port) and
+# throws "Unknown --listen endpoint scheme (protocol): undefined" on a bare number, confirmed
+# live via a real crashed deploy.
+CMD serve -s dist -p ${PORT:-4173}
