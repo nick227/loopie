@@ -35,5 +35,8 @@ COPY --from=builder /app/apps/web/dist ./dist
 EXPOSE 4173
 # -s enables SPA fallback (unknown paths serve index.html, so react-router's client-side routes
 # work on a hard refresh/direct link) — required, since this app renders 100% of its routes
-# client-side with no server-side route awareness.
-CMD ["serve", "-s", "dist", "-l", "4173"]
+# client-side with no server-side route awareness. Binds to $PORT, not a hardcoded port — Railway
+# assigns its own port per service and routes traffic there (confirmed live: it expected 8080,
+# not this file's original hardcoded 4173, which would have made the deploy unreachable even on
+# a successful build). Shell form (not exec-array) so ${PORT} actually expands.
+CMD serve -s dist -l ${PORT:-4173}
