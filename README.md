@@ -1,60 +1,140 @@
-# Midnight Creative Platform
+# LOOPIE
 
-A campaign-first marketing management platform designed for small to mid-sized businesses, agencies, and internal marketing teams. It provides a simple, unified surface for managing creative assets and paid media without the need to navigate multiple ad-platform dashboards.
+LOOPIE is Midnight Creative’s **Creative to Close** operating system: one place for a business to run paid campaigns, owned messaging, hosted landing pages, first-party ads, and a shared CRM pipeline, with every lead and sale landing in the same Contact → Lead → Sale spine.
 
-## Core Loop
-1. **Make or upload creative:** Centralized asset management.
-2. **Create a campaign:** Combine creative direction, platforms, budget, and dates.
-3. **Deploy creative:** Push to various ad platforms.
-4. **Track performance:** Monitor spend, outcomes, and CRM-lite metrics.
-5. **Compare effectiveness:** Analyze creative and platform results.
-6. **Iterate:** Use data to improve the next creative batch.
+The product direction is the full lifecycle. **V1 is the spine plus the slices below** — not live Meta/Google connectors, not a unified inbox, and not native quoting/invoicing.
 
----
+## Core loop
 
-## Core Features
-
-*   **Platform Integrations & Access**: Platform-specific complexity is handled internally, allowing users to create normalized campaigns. Deployments link internal creatives directly to external ad-platform objects to track impressions, clicks, spend, and conversions.
-    *   **Phase 1 Priority (Active)**:
-        *   Meta Ads
-        *   Google Ads
-        *   TikTok Ads
-    *   **Planned Candidates (Future)**:
-        *   LinkedIn Ads
-        *   Microsoft Ads
-        *   Reddit Ads
-        *   Pinterest Ads
-        *   Snapchat Ads
-        *   YouTube-specific flows
-*   **Landing Pages & Forms**: Built using structured, versioned manifests instead of freeform builders. Forms are first-class, reusable entities that can capture data across multiple landing pages.
-*   **Click-Through Lifecycles**: Full attribution funnel tracking from an initial anonymous session (view → click) to a form submission (lead generation) and ultimately, a sale. The system seamlessly transitions anonymous click events into trackable contacts the moment a form is submitted.
-*   **Automations**: Powerful rule-based engines (`Trigger → Wait → Condition → Action → Stop`). Triggers (e.g., `lead_created`, `message_sent`) fire regardless of the acquisition source, ensuring that a lead from a paid Meta ad can receive the same automated follow-up sequence as an organic lead.
-*   **Unified CRM-Lite**: Integrated Contact, Lead, and Sale management tracking all interactions and timeline events in one place, avoiding the need for an external CRM for core acquisition paths.
+1. **Make or upload creative** into a shared asset library.
+2. **Create a campaign** (creative, platforms, budget, dates) and deploy — external platforms as `Deployment` records, LOOPIE inventory as `AdUnit`s.
+3. **Capture leads** on LOOPIE-hosted landing pages and reusable forms. Anonymous click → form submit → Contact + Lead, with attribution preserved.
+4. **Nurture** with email/text (and social drafts), audiences, templates, and source-agnostic automations.
+5. **Close** by recording a Sale on the same contact. Affiliate credit, if any, is separate from how the lead was acquired.
+6. **Track & iterate** from Home (what needs attention today) and per-surface Performance — not a standalone Reports nav.
 
 ---
 
-## Architecture Overview (For Developers)
+## What’s in V1
 
-The platform is built on a **Unified Data Model** designed around one core principle: *Acquisition is plural, everything downstream is singular.*
+### Campaigns
 
-### Key Concepts
+Top-level nav is **Home · Campaigns · Messages** (Affiliates is ADMIN-only). Campaign detail is **Overview → Budget → Creatives → Ad Units → Leads**.
 
-*   **Unified Spine (`Contact → Lead → Sale → Interaction`)**: A business reaches people through paid media (Campaigns) and owned outreach (Messaging). Regardless of the channel, there is only one Contact record, one Lead pipeline, and one Automation engine per account.
-*   **Source Abstraction**: A polymorphic pointer linking leads and interactions to their origin (`source_type: message | deployment | ad_unit`). 
-*   **Unified Asset Library**: Atomic, reusable source material (images, text, video) shared by both **Templates** (Message-oriented) and **Creatives** (Campaign-oriented).
-*   **Campaigns vs. Messages**:
-    *   **Campaign**: A paid-media run (creatives, platforms, budget, deployments).
-    *   **Message**: An owned/organic send (recipients, scheduling, templates).
-*   **Landing Pages & Forms**: Built with a structured manifest. Forms are first-class, reusable entities. Form submissions resolve contacts and transition anonymous sessions into trackable leads.
+- Campaigns hold creatives, platforms, planning budget, and dates.
+- **Meta / Google / TikTok** are real `Deployment` rows. V1 does **not** call those platform APIs. Status and spend are entered manually (`PATCH /deployments/{id}`).
+- **LOOPIE** as a platform creates first-party `AdUnit`s, served by `apps/ad-server` (`/serve`, `/embed`, `/impression`, `/click`).
+- Changing a campaign’s creatives or platforms **reconciles inventory**: dropped combos are `ENDED` (never deleted), new combos are created or revived as drafts/pending.
+- **Budget** funds a client ad wallet, authorizes campaign budget, and records platform spend through a double-entry ledger. Planning `Campaign.budget` is operational; authorized / reserved / reported / settled / available are derived from ledger entries.
+- **Leads** on a campaign are outcomes (contact, source, stage, value). Click opens Contact timeline, not a campaign-specific lead editor.
+
+### Landing pages & forms
+
+- Template-driven authoring, not a freeform builder: `LandingPageTemplate → LandingPage` (draft) → `PublishedPageVersion` (immutable).
+- Hosted at `/p/{slug}`, HTML export, draft/publish lifecycle.
+- Forms are first-class reusable entities. Submitting a form is the identity transition: anonymous session → Contact → Lead, keeping Deployment / AdUnit / UTM attribution.
+- Publishing freezes form fields, submit label, and success copy into the page version. Editing the live Form later does not change an already-published page. Soft-deleting a Form still stops serve/submit everywhere immediately.
+
+### Messaging & automations
+
+- Contacts, audiences, templates, and compose/send for email and text. Social posts are **compose/draft only** — no live publishing.
+- Channel delivery plugins (transactional email / SMS) are not installed; a “send” records the same `Interaction` the rest of the app uses.
+- Automations are `Trigger → Wait → Condition → Action`. They **run**: a scheduler creates internal `AutomationRun` rows; a poller evaluates due runs. The user-visible history is `AutomationLog` (`GET /automations/{id}/logs`).
+- Wired triggers: `LEAD_CREATED`, `MESSAGE_SENT`, `LEAD_STATUS_CHANGED`, `SALE_RECORDED`. **Not wired:** `CONTACT_REPLIES` (no inbound reply webhook) and `DATE_REACHED` (under-specified). Those rules can be saved and paused; they never fire.
+- The UI shows trigger, action, Active/Paused, last run, and logs as **Executed / Skipped / Failed**, including the skip/fail reason when the log has one. Internal `AutomationRun` is not an API.
+
+### CRM-lite
+
+One Contact, one Lead pipeline (`NEW → CONTACTED → QUALIFIED → QUOTED → WON/LOST`), one Sale, one Interaction timeline — regardless of whether the source was a message, an external deployment, a LOOPIE ad unit, an affiliate referral, or a manual/import path.
+
+`sourceType` answers “how they arrived.” Affiliate credit is a separate field (`referringAffiliateId`), first-touch only, stamped at genuine lead creation.
+
+### Money & Stripe
+
+Two different money paths. They must not be mixed.
+
+| Path                  | What it is                                                                                                                                                                                                                                                                                             | What it is not                                                                                |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| **LOOPIE billing**    | Stripe Checkout + Customer Portal for the LOOPIE subscription. Posts `PROCESSOR_CLEARING` / `LOOPIE_REVENUE`. UI shows plan name, plain-language status, and `?checkout=success\|cancel`. If Stripe env is unset, `GET /billing` still returns 200 with `configured: false` — no ugly 503 on the page. | Not ad spend. Never credits `CLIENT_AD_FUNDS`.                                                |
+| **Client ad funds**   | Double-entry ledger (`FinanceService` is the only writer). Wallet deposit, campaign authorization, platform spend, fees, credits, refunds. Balances are derived; old entries are never edited.                                                                                                         | Not charged through Stripe in V1. Funding is recorded, not pulled from a card.                |
+| **Affiliate payouts** | Commissions from frozen sale splits → payable queue. Connect Express onboarding. Connect-ready pay: `PAYABLE` → payout **Sending** (`PENDING`) → Stripe **Transfer** → **Transferred** (ledger posts here) → connected-account bank payout → **Paid**.                                                 | **Transferred is not “arrived at the bank.”** Manual (non-Connect) payees still jump to Paid. |
+
+### Affiliates
+
+- Referral link/code → tracked session (`GET /r/affiliate/{affiliateId}`) → Contact/Lead → Sale → Commission → Payout.
+- Policy lives on **class → deal** (percentage or fixed, cap, eligibility window from the actual click, payout cadence/threshold, manager share). Assignment + optional rate overrides. A sale freezes `SaleAffiliateSplit`; changing a deal later does not rewrite history. Manager share is a split of gross, not extra cost.
+- ADMIN tools: directory, destination, payable queue (Payable / Sending / Transferred / Paid / Failed), class/deal assignment.
+- Affiliates get a small portal (home, team, payouts) — not an agency/multi-account layer.
 
 ---
 
-## Documentation Links (For the Team)
+## Not in V1
 
-Comprehensive project documentation is organized in the `/docs` directory:
+- Live Meta / Google / TikTok API sync (create, pause, import spend).
+- Social publishing to live networks.
+- Unified omnichannel inbox, native quotes/invoices, or a live payment processor for client ad custody.
+- Branching/visual automation builder, sequences longer than two steps, or the unwired `CONTACT_REPLIES` / `DATE_REACHED` triggers.
+- A/B/n statistical testing, members-only communities, cross-advertising portals, automated budget pacing.
+- Agency / white-label / multi-account. Drag-and-drop landing-page builder. Custom-domain DNS/cert provisioning.
+- Salesforce / HubSpot / Zapier-style CRM sync.
 
-*   [**Architecture**](./docs/architecture): Unified data model, IA, and platform design specs.
-*   [**Features**](./docs/features): Campaign models, creative asset systems, automation rules, attribution funnels, and CRM-lite requirements.
-*   [**Operations**](./docs/operations): SLA metrics, daily account operations, and client communication workflows.
-*   [**Strategy**](./docs/strategy): Product vision, roadmap, scope, and business plans.
-*   [**Sales & Marketing**](./docs/sales-marketing): Sales materials and marketing guidelines.
+Those belong in product vision and later phases, not in “currently active.”
+
+---
+
+## Architecture
+
+**Acquisition is plural, everything downstream is singular.** Campaigns and Messages are two sources feeding one Contact → Lead → Sale → Interaction model.
+
+```text
+pnpm workspace
+  apps/server      Fastify, contract-first OpenAPI 3.0.3, Prisma + MySQL
+  apps/ad-server   Fastify, public first-party ad serving (not on the OpenAPI contract)
+  apps/web         Vite + React + Tailwind SPA
+  packages/db      Prisma schema + shared DB helpers (sessions, rate limit, …)
+  packages/api-spec  Canonical openapi.yaml
+  packages/sdk     Generated types + React Query hooks (openapi-fetch)
+```
+
+- `FinanceService` is the only writer of ledger rows. Reverse with a new `REVERSAL`; never mutate posted entries.
+- Public capture uses signed visitor sessions (`?sid=`). Rate limits are DB-backed (`RateLimitBucket`) so they work across processes.
+- Both services ship with `Dockerfile` + `railway.json`. Production start uses `tsx` (plain `node dist/` cannot load `@project/db` TypeScript).
+
+### Contract-first workflow
+
+1. Model in `packages/db/prisma/schema.prisma` → `pnpm db:push`
+2. Routes and schemas in `packages/api-spec/openapi.yaml`
+3. Handler + service in `apps/server`
+4. `pnpm sdk:generate`
+5. Pages in `apps/web` consume the typed hooks
+
+Do not destructure `{ data, error, response }` off an awaited SDK call or narrow on `error` inside `if` — TS 5.9 + openapi-fetch collapses inference to `never`.
+
+---
+
+## Local development
+
+```bash
+pnpm install
+# set DATABASE_URL (see .env). Prisma CLI loads packages/db/.env; the server does not.
+export DATABASE_URL='mysql://…'
+pnpm db:push
+pnpm db:seed
+pnpm --filter server dev    # default PORT=3001; /docs is the OpenAPI UI
+pnpm --filter web dev       # Vite, default 5173; VITE_API_URL must match the API
+```
+
+- Seed login: `demo@loopie.app` / `password123` (ADMIN).
+- `apps/server`’s `tsx watch` **does not load `.env`**. Export `DATABASE_URL` (and Stripe keys when you want Checkout/Connect) in the shell that starts it.
+- Tests never use whatever `DATABASE_URL` happens to be in the shell. `pnpm --filter server test` / `pnpm --filter ad-server test` default to a dedicated `loopie_test` database. Do not point that suite at the shared `loopie` DB — the suite wipes tables.
+- On a shared machine, check what is actually bound to a port before assuming it is LOOPIE. This repo’s Playwright runs have collided with other projects on **3001**.
+
+---
+
+## Docs
+
+- [Architecture](./docs/architecture) — data model, IA, design rules
+- [Features](./docs/features) — campaigns, creatives, messaging, automations, attribution, CRM-lite
+- [Operations](./docs/operations) — how the service is run day to day
+- [Strategy](./docs/strategy) — vision and roadmap (treat “phase 1 in scope” there as direction; this README is what V1 actually does)
+- [Sales & marketing](./docs/sales-marketing)
