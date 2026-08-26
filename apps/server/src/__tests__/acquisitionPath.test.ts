@@ -9,7 +9,7 @@
 // the next verification step once DATABASE_URL points at a real database.
 import { describe, it, expect } from 'vitest'
 import { buildTestApp, asAuth, testUserId, testBusinessId } from './helpers'
-import { db } from '@project/db'
+import { db, issueSid, verifySid } from '@project/db'
 
 const app = buildTestApp()
 
@@ -99,7 +99,7 @@ describe('acquisition path: Campaign -> Creative -> Deployment -> LandingPage ->
     expect(sidFromRedirect).toBeTruthy()
 
     const event = await db.attributionEvent.findFirstOrThrow({ where: { deploymentId: deployment.id } })
-    expect(event.sessionId).toBe(sidFromRedirect)
+    expect(verifySid(sidFromRedirect)?.sessionId).toBe(event.sessionId)
 
     // Same session, later: the visitor fills out the form on the hosted page, submitting the
     // sid exactly as a real browser would have read it off the redirected URL.
@@ -161,7 +161,7 @@ describe('acquisition path: Campaign -> Creative -> Deployment -> LandingPage ->
       const submitRes = await app.inject({
         method: 'POST',
         url: `/landing-pages/${page.id}/submissions`,
-        payload: { data: { email: 'organic@example.com' } },
+        payload: { sessionId: issueSid().token, data: { email: 'organic@example.com' } },
       })
     expect(submitRes.statusCode).toBe(201)
 

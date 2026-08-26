@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import { buildTestApp, asAuth, testUserId, testBusinessId, testOtherBusinessId } from './helpers'
-import { db } from '@project/db'
+import { db, issueSid } from '@project/db'
 
 const app = buildTestApp()
+
+function visitorSid() {
+  return issueSid().token
+}
 
 async function publishedPage(fields: Array<{ label: string; fieldKey: string; type: string; required: boolean }>) {
   const template = await db.landingPageTemplate.create({
@@ -46,12 +50,12 @@ describe('backend hardening', () => {
     const first = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { data: { email: 'Same.Person@example.com' } },
+      payload: { sessionId: visitorSid(), data: { email: 'Same.Person@example.com' } },
     })
     const second = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { data: { email: 'same.person@example.com' } },
+      payload: { sessionId: visitorSid(), data: { email: 'same.person@example.com' } },
     })
     expect(first.statusCode).toBe(201)
     expect(second.statusCode).toBe(201)
@@ -114,7 +118,7 @@ describe('backend hardening', () => {
     const submit = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { data: { email: 'gone@example.com' } },
+      payload: { sessionId: visitorSid(), data: { email: 'gone@example.com' } },
     })
     expect(submit.statusCode).toBe(404)
   })
@@ -148,7 +152,7 @@ describe('backend hardening', () => {
     const unpublished = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { data: { email: 'early@example.com' } },
+      payload: { sessionId: visitorSid(), data: { email: 'early@example.com' } },
     })
     expect(unpublished.statusCode).toBe(404)
 
@@ -160,7 +164,7 @@ describe('backend hardening', () => {
     const missing = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { data: {} },
+      payload: { sessionId: visitorSid(), data: {} },
     })
     expect(missing.statusCode).toBe(400)
   })

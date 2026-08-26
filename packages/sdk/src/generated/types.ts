@@ -1567,8 +1567,8 @@ export interface components {
             revenue?: number;
         };
         SubmitLandingPageFormInput: {
-            /** @description Anonymous session id captured by the hosted page. */
-            sessionId?: string;
+            /** @description HMAC-signed visitor session token issued on click or hosted page serve. */
+            sessionId: string;
             /** @description Field values keyed by FormField.fieldKey. */
             data: {
                 [key: string]: unknown;
@@ -1751,7 +1751,7 @@ export interface components {
             occurredAt: string;
         };
         SubmitFormInput: {
-            /** @description Anonymous session id captured by the website tracker. */
+            /** @description HMAC-signed visitor session token issued on click. */
             sessionId: string;
             name: string;
             /** Format: email */

@@ -4,7 +4,7 @@
 // -contained (creates and tears down its own rows) since this small service has no shared test
 // -helpers module the way apps/server does.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { db } from '@project/db'
+import { db, verifySid } from '@project/db'
 import { AdServeService } from '../services/AdServeService'
 
 const service = new AdServeService()
@@ -41,7 +41,14 @@ beforeAll(async () => {
   templateId = template.id
 
   const landingPage = await db.landingPage.create({
-    data: { businessId, templateId, name: 'Ad Unit Destination', slug: `ad-unit-dest-${Date.now()}`, content: { sections: {} } },
+    data: {
+      businessId,
+      templateId,
+      name: 'Ad Unit Destination',
+      slug: `ad-unit-dest-${Date.now()}`,
+      content: { sections: {} },
+      status: 'PUBLISHED',
+    },
   })
   landingPageId = landingPage.id
 })
@@ -94,7 +101,7 @@ describe('AdServeService', () => {
     expect(event.campaignId).toBe(campaignId)
     expect(event.creativeId).toBe(creativeId)
     expect(event.landingPageId).toBe(landingPageId)
-    expect(event.sessionId).toBe(sessionId)
+    expect(verifySid(sessionId)?.sessionId).toBe(event.sessionId)
 
     const updated = await db.adUnit.findUniqueOrThrow({ where: { id: adUnit.id } })
     expect(updated.clicks).toBe(1)
@@ -109,7 +116,8 @@ describe('AdServeService', () => {
     // The redirect carries ?sid= forward (see AdServeService.withSid) so a real visitor's
     // landing-page view/submission can link back to this click — found via live-DB testing.
     expect(redirectUrl.startsWith('https://fallback.example.com')).toBe(true)
-    expect(redirectUrl).toContain(`sid=${sessionId}`)
+    expect(redirectUrl).toContain('sid=')
+    expect(verifySid(sessionId)).toBeTruthy()
   })
 
   it('does not serve a paused ad unit', async () => {
@@ -120,6 +128,33 @@ describe('AdServeService', () => {
     await expect(service.getServePayload(adUnit.id)).rejects.toMatchObject({ statusCode: 404 })
     await expect(service.recordImpression(adUnit.id)).rejects.toMatchObject({ statusCode: 404 })
     await expect(service.recordClick(adUnit.id)).rejects.toMatchObject({ statusCode: 404 })
+  })
+
+  it('does not record a click whose landing page is unpublished', async () => {
+    const draftPage = await db.landingPage.create({
+      data: {
+        businessId,
+        templateId,
+        name: 'Unpublished dest',
+        slug: `ad-draft-dest-${Date.now()}`,
+        content: { sections: {} },
+        status: 'DRAFT',
+      },
+    })
+    const adUnit = await db.adUnit.create({
+      data: {
+        businessId,
+        campaignId,
+        creativeId,
+        format: 'NATIVE',
+        status: 'ACTIVE',
+        destinationLandingPageId: draftPage.id,
+      },
+    })
+
+    await expect(service.recordClick(adUnit.id)).rejects.toMatchObject({ statusCode: 404 })
+    const updated = await db.adUnit.findUniqueOrThrow({ where: { id: adUnit.id } })
+    expect(updated.clicks).toBe(0)
   })
 
   it('escapes creative text in embed HTML', async () => {

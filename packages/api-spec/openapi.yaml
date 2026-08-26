@@ -765,9 +765,11 @@ components:
 
     SubmitLandingPageFormInput:
       type: object
-      required: [data]
+      required: [data, sessionId]
       properties:
-        sessionId: { type: string, description: Anonymous session id captured by the hosted page. }
+        sessionId:
+          type: string
+          description: HMAC-signed visitor session token issued on click or hosted page serve.
         data:
           type: object
           additionalProperties: true
@@ -978,7 +980,7 @@ components:
       type: object
       required: [sessionId, name]
       properties:
-        sessionId: { type: string, description: Anonymous session id captured by the website tracker. }
+        sessionId: { type: string, description: HMAC-signed visitor session token issued on click. }
         name: { type: string, minLength: 1 }
         email: { type: string, format: email }
         phone: { type: string }

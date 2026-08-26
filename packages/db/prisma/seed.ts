@@ -1,6 +1,6 @@
 import { db } from '../src/client'
+import { hashSessionToken, randomSessionToken } from '../src/sessionToken'
 import bcrypt from 'bcryptjs'
-import { randomUUID } from 'crypto'
 
 async function main() {
   console.log('Seeding...')
@@ -21,7 +21,10 @@ async function main() {
       passwordHash: hash,
       businessId: business.id,
       sessions: {
-        create: { token: randomUUID(), expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
+        create: {
+          token: hashSessionToken(randomSessionToken()),
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        },
       },
     },
   })

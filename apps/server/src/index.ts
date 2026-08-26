@@ -29,9 +29,10 @@ async function main() {
   // cookies — must register before glue so request.cookies is populated
   await server.register(cookie)
 
-  // live swagger UI at /docs in dev
-  await server.register(swagger, { openapi: spec })
-  await server.register(swaggerUi, { routePrefix: '/docs' })
+  if (process.env.NODE_ENV !== 'production') {
+    await server.register(swagger, { openapi: spec })
+    await server.register(swaggerUi, { routePrefix: '/docs' })
+  }
 
   server.addHook('onRequest', publicRateLimit)
 

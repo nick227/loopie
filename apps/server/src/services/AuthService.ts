@@ -1,6 +1,6 @@
-import { db } from '@project/db'
+import { db, hashSessionToken, randomSessionToken } from '@project/db'
 import bcrypt from 'bcryptjs'
-import { randomUUID } from 'crypto'
+import { normalizeEmail } from '../lib/identityResolution'
 
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
 
@@ -26,10 +26,12 @@ export function toUserDTO(user: UserWithBusiness) {
 
 export class AuthService {
   async register(data: { email: string; password: string; businessName: string }) {
+    const email = normalizeEmail(data.email)
+    if (!email) throw { statusCode: 400, message: 'Email is required' }
     const hash = await bcrypt.hash(data.password, 12)
     const user = await db.user.create({
       data: {
-        email: data.email,
+        email,
         passwordHash: hash,
         business: { create: { name: data.businessName } },
       },
@@ -40,11 +42,13 @@ export class AuthService {
   }
 
   async login(data: { email: string; password: string }) {
+    const email = normalizeEmail(data.email)
+    if (!email) throw { statusCode: 401, message: 'Invalid credentials' }
     const user = await db.user.findUnique({
-      where: { email: data.email },
+      where: { email },
       include: { business: true },
     })
-    if (!user) throw { statusCode: 401, message: 'Invalid credentials' }
+    if (!user || user.deletedAt) throw { statusCode: 401, message: 'Invalid credentials' }
 
     const valid = await bcrypt.compare(data.password, user.passwordHash)
     if (!valid) throw { statusCode: 401, message: 'Invalid credentials' }
@@ -56,16 +60,18 @@ export class AuthService {
   }
 
   async logout(token: string) {
-    await db.session.deleteMany({ where: { token } })
+    await db.session.deleteMany({ where: { token: hashSessionToken(token) } })
   }
 
   private async _createSession(userId: string) {
-    return db.session.create({
+    const token = randomSessionToken()
+    await db.session.create({
       data: {
         userId,
-        token: randomUUID(),
+        token: hashSessionToken(token),
         expiresAt: new Date(Date.now() + SESSION_TTL_MS),
       },
     })
+    return { token }
   }
 }

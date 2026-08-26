@@ -1,4 +1,4 @@
-import { db } from '@project/db'
+import { db, resolveVisitorSid, verifySid } from '@project/db'
 import type { Prisma, SourceType } from '@prisma/client'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { hostedPageUrl, landingPageSubmitUrl } from '../lib/urls'
@@ -39,7 +39,10 @@ function toVersionDTO(version: any) {
 
 async function loadFormForRender(formId: string | null) {
   if (!formId) return null
-  const form = await db.form.findUnique({ where: { id: formId }, include: { fields: { orderBy: { order: 'asc' } } } })
+  const form = await db.form.findFirst({
+    where: { id: formId, deletedAt: null },
+    include: { fields: { orderBy: { order: 'asc' } } },
+  })
   if (!form) return null
   return { id: form.id, submitLabel: form.submitLabel, fields: form.fields }
 }
@@ -271,11 +274,12 @@ export class LandingPageService {
       throw { statusCode: 404, message: 'Page not found' }
     }
 
+    const visitor = resolveVisitorSid(opts.sessionId)
     await db.pageView.create({
       data: {
         landingPageId: page.id,
         publishedPageVersionId: page.publishedVersion.id,
-        sessionId: opts.sessionId,
+        sessionId: visitor.sessionId,
         referrer: opts.referrer,
         utmSource: opts.utmSource,
         utmMedium: opts.utmMedium,
@@ -284,14 +288,18 @@ export class LandingPageService {
     })
 
     const form = await loadFormForRender(page.publishedVersion.formId)
-    return renderLandingPageHtml({
-      pageName: page.name,
-      templateSchema: page.template.schema as any,
-      content: page.publishedVersion.content as any,
-      theme: page.publishedVersion.theme as any,
-      form,
-      submitActionUrl: landingPageSubmitUrl(page.id),
-    })
+    return {
+      sidToken: visitor.token,
+      html: renderLandingPageHtml({
+        pageName: page.name,
+        templateSchema: page.template.schema as any,
+        content: page.publishedVersion.content as any,
+        theme: page.publishedVersion.theme as any,
+        form,
+        submitActionUrl: landingPageSubmitUrl(page.id),
+        sessionToken: visitor.token,
+      }),
+    }
   }
 
   // The canonical identity transition for hosted landing pages: anonymous session ->
@@ -313,6 +321,9 @@ export class LandingPageService {
       utmTerm?: string
     },
   ) {
+    const sessionId = verifySid(input.sessionId)?.sessionId
+    if (!sessionId) throw { statusCode: 400, message: 'Invalid session' }
+
     const page = await db.landingPage.findUnique({
       where: { id: landingPageId },
       include: { form: { include: { fields: true } } },
@@ -320,7 +331,9 @@ export class LandingPageService {
     if (!page || page.deletedAt || page.status !== 'PUBLISHED') {
       throw { statusCode: 404, message: 'Landing page not found' }
     }
-    if (!page.form) throw { statusCode: 409, message: 'This landing page has no form configured' }
+    if (!page.form || page.form.deletedAt) {
+      throw { statusCode: 409, message: 'This landing page has no form configured' }
+    }
 
     for (const field of page.form.fields) {
       if (!field.required) continue
@@ -331,27 +344,23 @@ export class LandingPageService {
     }
 
     return db.$transaction(async (tx) => {
-      if (input.sessionId) {
-        const existing = await tx.formSubmission.findFirst({
-          where: { landingPageId: page.id, sessionId: input.sessionId },
-        })
-        if (existing?.contactId && existing.leadId) {
-          return {
-            submissionId: existing.id,
-            contactId: existing.contactId,
-            leadId: existing.leadId,
-            successMessage: page.form!.successMessage,
-          }
+      const existing = await tx.formSubmission.findFirst({
+        where: { landingPageId: page.id, sessionId },
+      })
+      if (existing?.contactId && existing.leadId) {
+        return {
+          submissionId: existing.id,
+          contactId: existing.contactId,
+          leadId: existing.leadId,
+          successMessage: page.form!.successMessage,
         }
       }
 
-      const event = input.sessionId
-        ? await tx.attributionEvent.findFirst({
-            where: { sessionId: input.sessionId },
-            orderBy: { createdAt: 'desc' },
-            include: { deployment: { include: { campaign: true } }, adUnit: true },
-          })
-        : null
+      const event = await tx.attributionEvent.findFirst({
+        where: { sessionId },
+        orderBy: { createdAt: 'desc' },
+        include: { deployment: { include: { campaign: true } }, adUnit: true },
+      })
       const eventBusinessId = event?.deployment?.campaign.businessId ?? event?.adUnit?.businessId
       const attributed = event && eventBusinessId === page.businessId ? event : null
 
@@ -369,7 +378,7 @@ export class LandingPageService {
           landingPageId: page.id,
           publishedPageVersionId: page.publishedVersionId,
           data: input.data as Prisma.InputJsonValue,
-          sessionId: input.sessionId,
+          sessionId,
           clickId: attributed?.clickId,
           utmSource: input.utmSource ?? attributed?.utmSource,
           utmMedium: input.utmMedium ?? attributed?.utmMedium,
@@ -395,7 +404,7 @@ export class LandingPageService {
           sourceDeploymentId: attributed?.deploymentId,
           sourceAdUnitId: attributed?.adUnitId,
           clickId: attributed?.clickId,
-          landingSessionId: input.sessionId,
+          landingSessionId: sessionId,
         },
       )
 

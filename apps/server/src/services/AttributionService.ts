@@ -1,5 +1,4 @@
-import { db } from '@project/db'
-import { randomUUID } from 'crypto'
+import { db, resolveVisitorSid, verifySid } from '@project/db'
 import { hostedPageUrl } from '../lib/urls'
 import { resolveContactAndLead } from '../lib/identityResolution'
 
@@ -7,6 +6,18 @@ function withSid(url: string, sid: string): string {
   const u = new URL(url)
   u.searchParams.set('sid', sid)
   return u.toString()
+}
+
+function clickRedirectUrl(
+  page: { slug: string; status: string; deletedAt: Date | null } | null,
+  fallbackUrl: string | null,
+): string | null {
+  if (page) {
+    if (page.deletedAt || page.status !== 'PUBLISHED') return null
+    return hostedPageUrl(page.slug)
+  }
+  if (fallbackUrl && /^https?:\/\//.test(fallbackUrl)) return fallbackUrl
+  return null
 }
 
 export class AttributionService {
@@ -19,7 +30,13 @@ export class AttributionService {
       throw { statusCode: 404, message: 'Deployment not found' }
     }
 
-    const sid = sessionId ?? randomUUID()
+    const redirectBase = clickRedirectUrl(
+      deployment.destinationLandingPage,
+      deployment.campaign.destinationUrl,
+    )
+    if (!redirectBase) throw { statusCode: 404, message: 'Deployment not found' }
+
+    const visitor = resolveVisitorSid(sessionId)
     await db.attributionEvent.create({
       data: {
         campaignId: deployment.campaignId,
@@ -27,23 +44,21 @@ export class AttributionService {
         deploymentId: deployment.id,
         landingPageId: deployment.destinationLandingPageId,
         platform: deployment.platform,
-        sessionId: sid,
+        sessionId: visitor.sessionId,
       },
     })
     await db.deployment.update({ where: { id: deployment.id }, data: { clicks: { increment: 1 } } })
 
-    const baseUrl = deployment.destinationLandingPage
-      ? hostedPageUrl(deployment.destinationLandingPage.slug)
-      : (deployment.campaign.destinationUrl ?? '/')
-    const redirectUrl = /^https?:\/\//.test(baseUrl) ? withSid(baseUrl, sid) : baseUrl
-
-    return { redirectUrl, sessionId: sid }
+    return { redirectUrl: withSid(redirectBase, visitor.token), sessionId: visitor.token }
   }
 
   async submitForm(data: { sessionId: string; name: string; email?: string; phone?: string }) {
+    const sessionId = verifySid(data.sessionId)?.sessionId
+    if (!sessionId) throw { statusCode: 400, message: 'Invalid session' }
+
     return db.$transaction(async (tx) => {
       const existingLead = await tx.lead.findFirst({
-        where: { landingSessionId: data.sessionId },
+        where: { landingSessionId: sessionId },
         orderBy: { createdAt: 'desc' },
       })
       if (existingLead) {
@@ -51,7 +66,7 @@ export class AttributionService {
       }
 
       const event = await tx.attributionEvent.findFirst({
-        where: { sessionId: data.sessionId },
+        where: { sessionId },
         orderBy: { createdAt: 'desc' },
         include: {
           deployment: { include: { campaign: true } },

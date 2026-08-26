@@ -12,5 +12,7 @@ export default defineConfig({
     // bugs. Force serial file execution until/unless test isolation moves to per-file schemas
     // or transactional rollback.
     fileParallelism: false,
+    pool: 'forks',
+    poolOptions: { forks: { singleFork: true } },
   },
 })

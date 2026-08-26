@@ -1,4 +1,4 @@
-import { db } from '@project/db'
+import { db, hashSessionToken } from '@project/db'
 
 // No adminAuth variant — V1 has no admin routes (see CLAUDE.md Parking lot).
 export async function bearerAuth(request: any, _reply: any, _params: any) {
@@ -10,11 +10,11 @@ export async function bearerAuth(request: any, _reply: any, _params: any) {
   if (!token) throw { statusCode: 401, message: 'Unauthorized' }
 
   const session = await db.session.findUnique({
-    where: { token },
+    where: { token: hashSessionToken(token) },
     include: { user: { include: { business: true } } },
   })
 
-  if (!session || session.expiresAt < new Date()) {
+  if (!session || session.expiresAt < new Date() || session.user.deletedAt) {
     throw { statusCode: 401, message: 'Session expired' }
   }
 

@@ -73,12 +73,19 @@ export async function submitLandingPageForm(request: any, reply: any) {
 
 // Public — no request.user. Returns raw HTML, not the { data } JSON envelope.
 export async function servePublishedLandingPage(request: any, reply: any) {
-  const html = await landingPageService.serve(request.params.slug, {
-    sessionId: request.query.sid,
+  const htmlResult = await landingPageService.serve(request.params.slug, {
+    sessionId: request.query.sid ?? request.cookies?.lp_sid,
     referrer: request.headers.referer,
     utmSource: request.query.utm_source,
     utmMedium: request.query.utm_medium,
     utmCampaign: request.query.utm_campaign,
   })
-  return reply.type('text/html').send(html)
+  reply.setCookie('lp_sid', htmlResult.sidToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60,
+  })
+  return reply.type('text/html').send(htmlResult.html)
 }

@@ -40,7 +40,7 @@ function escapeHtml(value: unknown): string {
     .replace(/"/g, '&quot;')
 }
 
-function renderFormHtml(form: RenderForm, submitActionUrl: string): string {
+function renderFormHtml(form: RenderForm, submitActionUrl: string, sessionToken?: string): string {
   if (!form) return ''
 
   const fieldsHtml = form.fields
@@ -68,6 +68,8 @@ function renderFormHtml(form: RenderForm, submitActionUrl: string): string {
     })
     .join('\n')
 
+  const issuedSid = sessionToken ? JSON.stringify(sessionToken) : 'null'
+
   return `<form class="lp-form-el" data-submit-url="${escapeHtml(submitActionUrl)}">
 ${fieldsHtml}
 <button type="submit">${escapeHtml(form.submitLabel)}</button>
@@ -84,7 +86,7 @@ ${fieldsHtml}
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sessionId: params.get('sid') || null,
+        sessionId: params.get('sid') || ${issuedSid},
         data: data,
         utmSource: params.get('utm_source') || undefined,
         utmMedium: params.get('utm_medium') || undefined,
@@ -133,9 +135,10 @@ export function renderLandingPageHtml(input: {
   theme: PageTheme
   form: RenderForm
   submitActionUrl: string
+  sessionToken?: string
 }): string {
   const sections = [...(input.templateSchema.sections ?? [])].sort((a, b) => a.order - b.order)
-  const formHtml = renderFormHtml(input.form, input.submitActionUrl)
+  const formHtml = renderFormHtml(input.form, input.submitActionUrl, input.sessionToken)
   const bodyHtml = sections
     .map((section) => renderSection(section, input.content.sections?.[section.key] ?? {}, formHtml))
     .join('\n')

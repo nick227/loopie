@@ -1,5 +1,4 @@
-import { db } from '@project/db'
-import { randomUUID } from 'crypto'
+import { db, resolveVisitorSid } from '@project/db'
 import { escapeHtml } from '../lib/html'
 
 const PRIMARY_APP_URL = process.env.PRIMARY_APP_URL ?? 'http://localhost:3001'
@@ -9,13 +8,22 @@ function hostedPageUrl(slug: string) {
   return `${PRIMARY_APP_URL}/p/${slug}`
 }
 
-// The redirect must carry the session id forward — same fix as apps/server's
-// AttributionService.trackClick (see its comment); without it a real visitor's landing-page
-// view/submission never links back to the click that produced it.
 function withSid(url: string, sid: string): string {
   const u = new URL(url)
   u.searchParams.set('sid', sid)
   return u.toString()
+}
+
+function clickRedirectUrl(
+  page: { slug: string; status: string; deletedAt: Date | null } | null,
+  fallbackUrl: string | null,
+): string | null {
+  if (page) {
+    if (page.deletedAt || page.status !== 'PUBLISHED') return null
+    return hostedPageUrl(page.slug)
+  }
+  if (fallbackUrl && /^https?:\/\//.test(fallbackUrl)) return fallbackUrl
+  return null
 }
 
 export class AdServeService {
@@ -47,14 +55,12 @@ export class AdServeService {
     }
   }
 
-  // Lightweight, self-contained HTML for an <iframe> embed — the whole unit is one click-through
-  // link, per the "lightweight public embed endpoints" requirement.
   async renderEmbed(adUnitId: string, sessionId?: string) {
     const payload = await this.getServePayload(adUnitId)
     await this.recordImpression(adUnitId)
 
-    const sid = sessionId ?? randomUUID()
-    const clickUrl = `${payload.clickUrl}?sid=${encodeURIComponent(sid)}`
+    const visitor = resolveVisitorSid(sessionId)
+    const clickUrl = `${payload.clickUrl}?sid=${encodeURIComponent(visitor.token)}`
     const image = payload.creative?.assets.find((a) => a.type === 'IMAGE')
     const headline = payload.creative?.assets.find((a) => a.type === 'TEXT')
     const alt = escapeHtml(payload.creative?.name ?? '')
@@ -71,8 +77,6 @@ ${headlineText ? `<div style="padding:8px;font-family:system-ui,sans-serif">${he
 </body></html>`
   }
 
-  // Counter increment only, no per-row write — impressions are orders of magnitude higher
-  // volume than clicks or page views, so this is the cheapest possible write on the hot path.
   async recordImpression(adUnitId: string) {
     await this._findServable(adUnitId)
     await db.adUnit.update({
@@ -81,9 +85,6 @@ ${headlineText ? `<div style="padding:8px;font-family:system-ui,sans-serif">${he
     })
   }
 
-  // A click carries session identity a later landing-page form submission needs to attribute
-  // back to — so unlike an impression, it gets a full AttributionEvent row (shared with the
-  // primary server's Deployment click path — see AttributionService.trackClick there).
   async recordClick(adUnitId: string, sessionId?: string) {
     const adUnit = await db.adUnit.findUnique({
       where: { id: adUnitId },
@@ -91,7 +92,13 @@ ${headlineText ? `<div style="padding:8px;font-family:system-ui,sans-serif">${he
     })
     if (!adUnit || adUnit.status !== 'ACTIVE') throw { statusCode: 404, message: 'Ad unit not available' }
 
-    const sid = sessionId ?? randomUUID()
+    const redirectBase = clickRedirectUrl(
+      adUnit.destinationLandingPage,
+      adUnit.destinationUrl ?? adUnit.campaign.destinationUrl,
+    )
+    if (!redirectBase) throw { statusCode: 404, message: 'Ad unit not available' }
+
+    const visitor = resolveVisitorSid(sessionId)
     await db.attributionEvent.create({
       data: {
         campaignId: adUnit.campaignId,
@@ -99,7 +106,7 @@ ${headlineText ? `<div style="padding:8px;font-family:system-ui,sans-serif">${he
         adUnitId: adUnit.id,
         landingPageId: adUnit.destinationLandingPageId,
         platform: 'LOOPIE',
-        sessionId: sid,
+        sessionId: visitor.sessionId,
       },
     })
     await db.adUnit.update({
@@ -107,12 +114,7 @@ ${headlineText ? `<div style="padding:8px;font-family:system-ui,sans-serif">${he
       data: { clicks: { increment: 1 }, lastServedAt: new Date() },
     })
 
-    const baseUrl = adUnit.destinationLandingPage
-      ? hostedPageUrl(adUnit.destinationLandingPage.slug)
-      : (adUnit.destinationUrl ?? adUnit.campaign.destinationUrl ?? '/')
-    const redirectUrl = /^https?:\/\//.test(baseUrl) ? withSid(baseUrl, sid) : baseUrl
-
-    return { redirectUrl, sessionId: sid }
+    return { redirectUrl: withSid(redirectBase, visitor.token), sessionId: visitor.token }
   }
 
   private async _findServable(adUnitId: string) {
