@@ -46,6 +46,7 @@ import { ResumeCampaignPage } from '@/pages/ResumeCampaignPage'
 import { EndCampaignPage } from '@/pages/EndCampaignPage'
 import { DuplicateCampaignPage } from '@/pages/DuplicateCampaignPage'
 import { CampaignPerformancePage } from '@/pages/CampaignPerformancePage'
+import { CampaignBudgetPage } from '@/pages/CampaignBudgetPage'
 import { DeploymentsPage } from '@/pages/DeploymentsPage'
 import { CreateDeploymentPage } from '@/pages/CreateDeploymentPage'
 import { UpdateDeploymentPage } from '@/pages/UpdateDeploymentPage'
@@ -91,76 +92,77 @@ export function App() {
           <Route element={<Shell />}>
           <Route index element={<Navigate to="/home" replace />} />
           <Route path="/contacts" element={<ContactsPage />} />
-          <Route path="/contacts" element={<CreateContactPage />} />
-          <Route path="/contacts/import" element={<ImportContactsPage />} />
+          <Route path="/contacts/new" element={<CreateContactPage />} />
+          <Route path="/contacts/import/new" element={<ImportContactsPage />} />
           <Route path="/contacts/:contactId" element={<ContactPage />} />
-          <Route path="/contacts/:contactId" element={<UpdateContactPage />} />
+          <Route path="/contacts/:contactId/edit" element={<UpdateContactPage />} />
           <Route path="/contacts/:contactId/interactions" element={<ContactInteractionsPage />} />
           <Route path="/audiences" element={<AudiencesPage />} />
-          <Route path="/audiences" element={<CreateAudiencePage />} />
+          <Route path="/audiences/new" element={<CreateAudiencePage />} />
           <Route path="/audiences/:audienceId" element={<AudiencePage />} />
-          <Route path="/audiences/:audienceId" element={<UpdateAudiencePage />} />
+          <Route path="/audiences/:audienceId/edit" element={<UpdateAudiencePage />} />
           <Route path="/audiences/:audienceId/contacts" element={<AudienceContactsPage />} />
           <Route path="/assets" element={<AssetsPage />} />
-          <Route path="/assets" element={<CreateAssetPage />} />
+          <Route path="/assets/new" element={<CreateAssetPage />} />
           <Route path="/assets/:assetId" element={<AssetPage />} />
           <Route path="/templates" element={<TemplatesPage />} />
-          <Route path="/templates" element={<CreateTemplatePage />} />
+          <Route path="/templates/new" element={<CreateTemplatePage />} />
           <Route path="/templates/:templateId" element={<TemplatePage />} />
-          <Route path="/templates/:templateId" element={<UpdateTemplatePage />} />
+          <Route path="/templates/:templateId/edit" element={<UpdateTemplatePage />} />
           <Route path="/creatives" element={<CreativesPage />} />
-          <Route path="/creatives" element={<CreateCreativePage />} />
+          <Route path="/creatives/new" element={<CreateCreativePage />} />
           <Route path="/creatives/:creativeId" element={<CreativePage />} />
-          <Route path="/creatives/:creativeId" element={<UpdateCreativePage />} />
+          <Route path="/creatives/:creativeId/edit" element={<UpdateCreativePage />} />
           <Route path="/messages" element={<MessagesPage />} />
-          <Route path="/messages" element={<CreateMessagePage />} />
+          <Route path="/messages/new" element={<CreateMessagePage />} />
           <Route path="/messages/:messageId" element={<MessagePage />} />
-          <Route path="/messages/:messageId" element={<UpdateMessagePage />} />
+          <Route path="/messages/:messageId/edit" element={<UpdateMessagePage />} />
           <Route path="/messages/:messageId/send" element={<SendMessagePage />} />
-          <Route path="/messages/:messageId/test-send" element={<TestSendMessagePage />} />
+          <Route path="/messages/:messageId/test-send/new" element={<TestSendMessagePage />} />
           <Route path="/messages/:messageId/performance" element={<MessagePerformancePage />} />
           <Route path="/automations" element={<AutomationsPage />} />
-          <Route path="/automations" element={<CreateAutomationPage />} />
+          <Route path="/automations/new" element={<CreateAutomationPage />} />
           <Route path="/automations/:automationId" element={<AutomationPage />} />
-          <Route path="/automations/:automationId" element={<UpdateAutomationPage />} />
+          <Route path="/automations/:automationId/edit" element={<UpdateAutomationPage />} />
           <Route path="/automations/:automationId/pause" element={<PauseAutomationPage />} />
           <Route path="/automations/:automationId/resume" element={<ResumeAutomationPage />} />
           <Route path="/automations/:automationId/logs" element={<AutomationLogsPage />} />
           <Route path="/campaigns" element={<CampaignsPage />} />
-          <Route path="/campaigns" element={<CreateCampaignPage />} />
+          <Route path="/campaigns/new" element={<CreateCampaignPage />} />
           <Route path="/campaigns/:campaignId" element={<CampaignPage />} />
-          <Route path="/campaigns/:campaignId" element={<UpdateCampaignPage />} />
+          <Route path="/campaigns/:campaignId/edit" element={<UpdateCampaignPage />} />
           <Route path="/campaigns/:campaignId/pause" element={<PauseCampaignPage />} />
           <Route path="/campaigns/:campaignId/resume" element={<ResumeCampaignPage />} />
           <Route path="/campaigns/:campaignId/end" element={<EndCampaignPage />} />
           <Route path="/campaigns/:campaignId/duplicate" element={<DuplicateCampaignPage />} />
           <Route path="/campaigns/:campaignId/performance" element={<CampaignPerformancePage />} />
+          <Route path="/campaigns/:campaignId/budget" element={<CampaignBudgetPage />} />
           <Route path="/campaigns/:campaignId/deployments" element={<DeploymentsPage />} />
-          <Route path="/campaigns/:campaignId/deployments" element={<CreateDeploymentPage />} />
-          <Route path="/deployments/:deploymentId" element={<UpdateDeploymentPage />} />
+          <Route path="/campaigns/:campaignId/deployments/new" element={<CreateDeploymentPage />} />
+          <Route path="/deployments/:deploymentId/edit" element={<UpdateDeploymentPage />} />
           <Route path="/landing-page-templates" element={<LandingPageTemplatesPage />} />
           <Route path="/landing-page-templates/:templateId" element={<LandingPageTemplatePage />} />
           <Route path="/landing-pages" element={<LandingPagesPage />} />
-          <Route path="/landing-pages" element={<CreateLandingPage />} />
+          <Route path="/landing-pages/new" element={<CreateLandingPage />} />
           <Route path="/landing-pages/:landingPageId" element={<LandingPage />} />
-          <Route path="/landing-pages/:landingPageId" element={<UpdateLandingPage />} />
+          <Route path="/landing-pages/:landingPageId/edit" element={<UpdateLandingPage />} />
           <Route path="/landing-pages/:landingPageId/publish" element={<PublishLandingPage />} />
           <Route path="/landing-pages/:landingPageId/versions" element={<LandingPageVersionsPage />} />
           <Route path="/landing-pages/:landingPageId/export" element={<ExportLandingPage />} />
           <Route path="/landing-pages/:landingPageId/performance" element={<LandingPagePerformancePage />} />
           <Route path="/forms" element={<FormsPage />} />
-          <Route path="/forms" element={<CreateFormPage />} />
+          <Route path="/forms/new" element={<CreateFormPage />} />
           <Route path="/forms/:formId" element={<FormPage />} />
-          <Route path="/forms/:formId" element={<UpdateFormPage />} />
+          <Route path="/forms/:formId/edit" element={<UpdateFormPage />} />
           <Route path="/ad-units" element={<AdUnitsPage />} />
-          <Route path="/ad-units" element={<CreateAdUnitPage />} />
+          <Route path="/ad-units/new" element={<CreateAdUnitPage />} />
           <Route path="/ad-units/:adUnitId" element={<AdUnitPage />} />
-          <Route path="/ad-units/:adUnitId" element={<UpdateAdUnitPage />} />
+          <Route path="/ad-units/:adUnitId/edit" element={<UpdateAdUnitPage />} />
           <Route path="/leads" element={<LeadsPage />} />
           <Route path="/leads/:leadId" element={<LeadPage />} />
-          <Route path="/leads/:leadId" element={<UpdateLeadPage />} />
+          <Route path="/leads/:leadId/edit" element={<UpdateLeadPage />} />
           <Route path="/sales" element={<SalesPage />} />
-          <Route path="/sales" element={<CreateSalePage />} />
+          <Route path="/sales/new" element={<CreateSalePage />} />
           <Route path="/sales/:saleId" element={<SalePage />} />
           <Route path="/home" element={<HomeSummaryPage />} />
           <Route path="/results" element={<ResultsSummaryPage />} />
