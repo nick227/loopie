@@ -855,7 +855,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Get deployment */
+        get: operations["getDeployment"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1573,6 +1574,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/billing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Current business subscription status */
+        get: operations["getBilling"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/billing/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a Stripe Checkout session for the LOOPIE subscription */
+        post: operations["createBillingCheckout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/billing/portal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a Stripe Customer Portal session */
+        post: operations["createBillingPortal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1592,6 +1644,7 @@ export interface components {
             businessName?: string;
             /** @enum {string} */
             role: "USER" | "ADMIN" | "AFFILIATE";
+            subscriptionStatus?: string | null;
             /** Format: date-time */
             createdAt: string;
         };
@@ -1608,6 +1661,13 @@ export interface components {
         };
         AuthResponse: {
             data: components["schemas"]["User"];
+        };
+        Billing: {
+            subscriptionStatus: string | null;
+            stripeCustomerId?: string | null;
+        };
+        CheckoutSession: {
+            url: string;
         };
         ChannelEligibility: {
             emailEligible?: boolean;
@@ -2085,6 +2145,8 @@ export interface components {
             endDate?: string | null;
             destinationUrl?: string;
             creativeIds?: string[];
+            /** @description Changing this (or creativeIds) reconciles live Deployment/AdUnit inventory: newly-desired platform x creative combos are created (or revived if previously retired), and combos no longer desired are retired (status: ENDED), never deleted — see lib/campaignInventory.ts. Use POST /campaigns/{id}/end to stop everything instead of clearing this to an empty list. */
+            platforms?: ("META" | "GOOGLE" | "TIKTOK" | "LOOPIE")[];
         };
         Deployment: {
             id: string;
@@ -2241,6 +2303,13 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             formId?: string | null;
+            /** @description The form's submitLabel/successMessage/fields exactly as they were at the moment this version was published — frozen so that editing the live Form's fields afterward cannot change what an already-published page renders or validates submissions against. Null for versions published before this snapshot existed, and for pages with no form attached. */
+            formSnapshot?: {
+                id: string;
+                submitLabel: string;
+                successMessage: string | null;
+                fields: components["schemas"]["FormFieldSchema"][];
+            } | null;
             /** Format: date-time */
             publishedAt: string;
             /** Format: date-time */
@@ -2515,11 +2584,13 @@ export interface components {
             businessId: string;
             currency: string;
             /** @enum {string} */
-            type: "CLIENT_FUNDING" | "CREDIT" | "REFUND" | "REVERSAL" | "BUDGET_RESERVE" | "AD_SPEND" | "AD_SPEND_SETTLEMENT" | "LOOPIE_FEE" | "COMMISSION" | "PAYOUT" | "ADJUSTMENT";
+            type: "CLIENT_FUNDING" | "CREDIT" | "REFUND" | "REVERSAL" | "BUDGET_RESERVE" | "AD_SPEND" | "AD_SPEND_SETTLEMENT" | "LOOPIE_FEE" | "SERVICE_PAYMENT" | "COMMISSION" | "PAYOUT" | "ADJUSTMENT";
             /** @enum {string} */
             status: "POSTED";
             idempotencyKey: string;
             externalRef?: string | null;
+            /** @description STRIPE, META, GOOGLE, or MANUAL. A reference, not the books. */
+            externalProvider?: string | null;
             metadata?: components["schemas"]["MoneyMetadata"];
             reversesTransactionId?: string | null;
             /** Format: date-time */
@@ -2546,7 +2617,10 @@ export interface components {
             /** @enum {string} */
             status: "POSTED" | "REFUNDED" | "FAILED";
             processor?: string | null;
+            /** @description Canonical processor payment id. For Stripe subscriptions this is the invoice id. */
             externalRef?: string | null;
+            stripePaymentIntentId?: string | null;
+            stripeChargeId?: string | null;
             idempotencyKey: string;
             ledgerTransactionId: string;
             /** Format: date-time */
@@ -2575,7 +2649,7 @@ export interface components {
             /** @enum {string} */
             status: "ACTIVE" | "RELEASED";
             idempotencyKey: string;
-            ledgerTransactionId: string;
+            ledgerTransactionId?: string | null;
             /** Format: date-time */
             createdAt: string;
         };
@@ -2634,7 +2708,7 @@ export interface components {
             /** @enum {string} */
             settlementStatus: "REPORTED" | "RECONCILED" | "SETTLED" | "DISPUTED";
             idempotencyKey: string;
-            ledgerTransactionId: string;
+            ledgerTransactionId?: string | null;
             settlementTransactionId?: string | null;
             /** Format: date-time */
             createdAt: string;
@@ -2660,9 +2734,13 @@ export interface components {
             amountMinor: number;
             currency: string;
             /** @enum {string} */
-            status: "PENDING" | "PAID" | "FAILED";
+            status: "PENDING" | "TRANSFERRED" | "PAID" | "FAILED" | "REVERSED";
             idempotencyKey: string;
             ledgerTransactionId: string;
+            /** @description Connect Transfer to the affiliate's Stripe account. TRANSFERRED is this movement. */
+            stripeTransferId?: string | null;
+            /** @description Connected-account Payout to bank. PAID is this movement, not the Transfer. */
+            stripePayoutId?: string | null;
             commissionIds: string[];
             /** Format: date-time */
             createdAt: string;
@@ -4782,6 +4860,30 @@ export interface operations {
             };
         };
     };
+    getDeployment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deploymentId: components["parameters"]["DeploymentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deployment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["Deployment"];
+                    };
+                };
+            };
+        };
+    };
     updateDeployment: {
         parameters: {
             query?: never;
@@ -5361,7 +5463,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Updated form. Field changes apply immediately to this reusable Form; already-published pages freeze content/theme in PublishedPageVersion but not form structure — see the Form model comment in schema.prisma. */
+            /** @description Updated form. Field changes apply immediately to this reusable Form and to any landing page draft or future publish that uses it — but an already-published page keeps rendering and validating against the field list frozen onto its PublishedPageVersion at the moment it was published (PublishedPageVersion.formSnapshot), so this update has no effect on it until that page is republished. See the Form model comment in schema.prisma. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6096,6 +6198,72 @@ export interface operations {
                 content: {
                     "application/json": {
                         data?: components["schemas"]["Reconciliation"];
+                    };
+                };
+            };
+        };
+    };
+    getBilling: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stripe subscription references for this business. Not the ledger. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Billing"];
+                    };
+                };
+            };
+        };
+    };
+    createBillingCheckout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect the browser to url. Does not post the ledger. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CheckoutSession"];
+                    };
+                };
+            };
+        };
+    };
+    createBillingPortal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect the browser to url */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CheckoutSession"];
                     };
                 };
             };

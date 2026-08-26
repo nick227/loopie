@@ -162,8 +162,9 @@ describe('affiliate deal freeze and manager split', () => {
     const sale = await referredSale(affRes.json().data.id, 500)
     const commissions = await db.commission.findMany({ where: { sourceRef: sale.id } })
     expect(commissions).toHaveLength(1)
-    expect(commissions[0].payeeRef).toBe(`affiliate:${affRes.json().data.id}`)
-    expect(commissions[0].amountMinor).toBe(5000)
+    const commission = commissions[0]!
+    expect(commission.payeeRef).toBe(`affiliate:${affRes.json().data.id}`)
+    expect(commission.amountMinor).toBe(5000)
     const split = await db.saleAffiliateSplit.findUniqueOrThrow({ where: { saleId: sale.id } })
     expect(split.managerAffiliateId).toBeNull()
     expect(split.managerCommissionMinor).toBe(0)

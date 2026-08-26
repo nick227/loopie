@@ -60,6 +60,11 @@ export async function createDeployment(request: any, reply: any) {
   return reply.status(201).send({ data: deployment })
 }
 
+export async function getDeployment(request: any, reply: any) {
+  const deployment = await deploymentService.get(request.user.businessId, request.params.deploymentId)
+  return reply.send({ data: deployment })
+}
+
 export async function updateDeployment(request: any, reply: any) {
   const deployment = await deploymentService.update(request.user.businessId, request.params.deploymentId, request.body)
   return reply.send({ data: deployment })

@@ -71,6 +71,14 @@ export class DeploymentService {
     return toDeploymentDTO(deployment)
   }
 
+  async get(businessId: string, deploymentId: string) {
+    const deployment = await db.deployment.findFirst({
+      where: { id: deploymentId, campaign: { businessId } },
+    })
+    if (!deployment) throw { statusCode: 404, message: 'Deployment not found' }
+    return toDeploymentDTO(deployment)
+  }
+
   // V1 has no live ad-platform sync (see CLAUDE.md Parking lot) — spend/status/metrics are
   // entered here manually until a real Meta/Google/TikTok connector exists.
   async update(businessId: string, deploymentId: string, data: any) {

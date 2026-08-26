@@ -81,6 +81,7 @@ import { CreateSalePage } from '@/pages/CreateSalePage'
 import { SalePage } from '@/pages/SalePage'
 import { ResultsSummaryPage } from '@/pages/ResultsSummaryPage'
 import { AuthGuard } from '@/lib/AuthGuard'
+import { BillingPage } from '@/pages/core/BillingPage'
 import { RequireRole, HomeRoute } from '@/lib/RequireRole'
 import { Shell } from '@/components/layout/Shell'
 import { AffiliatesPage } from '@/pages/affiliates/AffiliatesPage'
@@ -184,6 +185,7 @@ export function App() {
           <Route path="/sales/:saleId" element={<SalePage />} />
           <Route path="/home" element={<HomeRoute />} />
           <Route path="/results" element={<ResultsSummaryPage />} />
+          <Route path="/billing" element={<RequireRole role="ADMIN"><BillingPage /></RequireRole>} />
           <Route path="/affiliates" element={<RequireRole role="ADMIN"><AffiliatesPage /></RequireRole>} />
           <Route path="/affiliates/new" element={<RequireRole role="ADMIN"><CreateAffiliatePage /></RequireRole>} />
           <Route path="/affiliates/classes" element={<RequireRole role="ADMIN"><AffiliateClassesPage /></RequireRole>} />

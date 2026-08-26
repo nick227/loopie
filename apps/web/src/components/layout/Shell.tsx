@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Home, Megaphone, Mail, LogOut, Handshake, type LucideIcon } from 'lucide-react'
+import { Home, Megaphone, Mail, LogOut, Handshake, CreditCard, type LucideIcon } from 'lucide-react'
 import { useCurrentUser, useLogout } from '@project/sdk'
 import { cn } from '@/lib/utils'
 
@@ -11,7 +11,11 @@ const SHOP_NAV: NavItem[] = [
   { to: '/messages', label: 'Messages', icon: Mail },
 ]
 
-const ADMIN_NAV: NavItem[] = [...SHOP_NAV, { to: '/affiliates', label: 'Affiliates', icon: Handshake }]
+const ADMIN_NAV: NavItem[] = [
+  ...SHOP_NAV,
+  { to: '/affiliates', label: 'Affiliates', icon: Handshake },
+  { to: '/billing', label: 'Billing', icon: CreditCard },
+]
 
 const AFFILIATE_NAV: NavItem[] = [
   { to: '/portal', label: 'Home', icon: Home, end: true },

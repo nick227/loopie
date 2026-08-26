@@ -57,6 +57,7 @@ type PostArgs = {
   type: LedgerTransactionType
   idempotencyKey: string
   externalRef?: string | null
+  externalProvider?: string | null
   reversesTransactionId?: string | null
   metadata?: Prisma.InputJsonValue
   campaignId?: string | null
@@ -84,6 +85,7 @@ export async function postLedger(tx: Prisma.TransactionClient, args: PostArgs) {
       type: args.type,
       idempotencyKey: args.idempotencyKey,
       externalRef: args.externalRef ?? null,
+      externalProvider: args.externalProvider ?? null,
       reversesTransactionId: args.reversesTransactionId ?? null,
       metadata: args.metadata ?? undefined,
       entries: {

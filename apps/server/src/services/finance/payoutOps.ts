@@ -150,6 +150,9 @@ export async function createPayout(businessId: string, input: CreatePayoutInput)
         metadata: input.metadata,
         entries: balancedPair(chart.AFFILIATE_PAYABLE.id, chart.LOOPIE_CASH.id, amountMinor),
       })
+      // Manual payouts post cash immediately and land on PAID. Connect payouts (next slice)
+      // will create PENDING, move to TRANSFERRED when the Transfer hits the connected
+      // account, and PAID only when Stripe reports the bank payout — those are not the same event.
       const payout = await tx.payout.create({
         data: {
           businessId,

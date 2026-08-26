@@ -6,6 +6,8 @@ import { requireMoney } from '../../lib/finance/money'
 import type { CreditInput, FundingInput, RefundInput, ReverseInput } from '../../lib/finance/types'
 
 export async function recordClientFunding(businessId: string, input: FundingInput) {
+  // Custodial ad-wallet deposit. Stripe billing webhooks must never call this —
+  // subscription money goes through recordServicePayment.
   const { amountMinor, currency, idempotencyKey } = requireMoney(input)
   const existing = await db.payment.findUnique({
     where: { businessId_idempotencyKey: { businessId, idempotencyKey } },

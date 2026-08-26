@@ -8,6 +8,7 @@ export function toTransactionDTO(row: {
   status: string
   idempotencyKey: string
   externalRef: string | null
+  externalProvider?: string | null
   metadata: unknown
   reversesTransactionId: string | null
   postedAt: Date
@@ -29,6 +30,7 @@ export function toTransactionDTO(row: {
     status: row.status,
     idempotencyKey: row.idempotencyKey,
     externalRef: row.externalRef,
+    externalProvider: row.externalProvider ?? null,
     metadata: row.metadata,
     reversesTransactionId: row.reversesTransactionId,
     postedAt: row.postedAt.toISOString(),
@@ -52,6 +54,8 @@ export function toPaymentDTO(row: {
   status: string
   processor: string | null
   externalRef: string | null
+  stripePaymentIntentId?: string | null
+  stripeChargeId?: string | null
   idempotencyKey: string
   ledgerTransactionId: string
   createdAt: Date
@@ -64,6 +68,8 @@ export function toPaymentDTO(row: {
     status: row.status,
     processor: row.processor,
     externalRef: row.externalRef,
+    stripePaymentIntentId: row.stripePaymentIntentId ?? null,
+    stripeChargeId: row.stripeChargeId ?? null,
     idempotencyKey: row.idempotencyKey,
     ledgerTransactionId: row.ledgerTransactionId,
     createdAt: row.createdAt.toISOString(),

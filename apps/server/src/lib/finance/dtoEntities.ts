@@ -62,6 +62,8 @@ export function toPayoutDTO(row: Payout & { items?: { commissionId: string; amou
     status: row.status,
     idempotencyKey: row.idempotencyKey,
     ledgerTransactionId: row.ledgerTransactionId,
+    stripeTransferId: row.stripeTransferId,
+    stripePayoutId: row.stripePayoutId,
     commissionIds: row.items?.map((item) => item.commissionId) ?? [],
     createdAt: row.createdAt.toISOString(),
   }

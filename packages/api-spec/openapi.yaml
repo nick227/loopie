@@ -170,6 +170,7 @@ components:
         businessId: { type: string }
         businessName: { type: string }
         role: { type: string, enum: [USER, ADMIN, AFFILIATE] }
+        subscriptionStatus: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
 
     RegisterInput:
@@ -192,6 +193,19 @@ components:
       required: [data]
       properties:
         data: { $ref: '#/components/schemas/User' }
+
+    Billing:
+      type: object
+      required: [subscriptionStatus]
+      properties:
+        subscriptionStatus: { type: string, nullable: true }
+        stripeCustomerId: { type: string, nullable: true }
+
+    CheckoutSession:
+      type: object
+      required: [url]
+      properties:
+        url: { type: string }
 
     # ---------- Contact ----------
     ChannelEligibility:
@@ -784,6 +798,16 @@ components:
         creativeIds:
           type: array
           items: { type: string }
+        platforms:
+          type: array
+          items: { type: string, enum: [META, GOOGLE, TIKTOK, LOOPIE] }
+          minItems: 1
+          description: >
+            Changing this (or creativeIds) reconciles live Deployment/AdUnit inventory:
+            newly-desired platform x creative combos are created (or revived if previously
+            retired), and combos no longer desired are retired (status: ENDED), never deleted —
+            see lib/campaignInventory.ts. Use POST /campaigns/{id}/end to stop everything instead
+            of clearing this to an empty list.
 
     Deployment:
       type: object
@@ -954,6 +978,23 @@ components:
         content: { type: object, additionalProperties: true }
         theme: { type: object, nullable: true, additionalProperties: true }
         formId: { type: string, nullable: true }
+        formSnapshot:
+          type: object
+          nullable: true
+          description: >
+            The form's submitLabel/successMessage/fields exactly as they were at the moment this
+            version was published — frozen so that editing the live Form's fields afterward
+            cannot change what an already-published page renders or validates submissions
+            against. Null for versions published before this snapshot existed, and for pages
+            with no form attached.
+          required: [id, submitLabel, successMessage, fields]
+          properties:
+            id: { type: string }
+            submitLabel: { type: string }
+            successMessage: { type: string, nullable: true }
+            fields:
+              type: array
+              items: { $ref: '#/components/schemas/FormFieldSchema' }
         publishedAt: { type: string, format: date-time }
         archivedAt: { type: string, format: date-time, nullable: true }
 
@@ -1285,10 +1326,11 @@ components:
         currency: { type: string }
         type:
           type: string
-          enum: [CLIENT_FUNDING, CREDIT, REFUND, REVERSAL, BUDGET_RESERVE, AD_SPEND, AD_SPEND_SETTLEMENT, LOOPIE_FEE, COMMISSION, PAYOUT, ADJUSTMENT]
+          enum: [CLIENT_FUNDING, CREDIT, REFUND, REVERSAL, BUDGET_RESERVE, AD_SPEND, AD_SPEND_SETTLEMENT, LOOPIE_FEE, SERVICE_PAYMENT, COMMISSION, PAYOUT, ADJUSTMENT]
         status: { type: string, enum: [POSTED] }
         idempotencyKey: { type: string }
         externalRef: { type: string, nullable: true }
+        externalProvider: { type: string, nullable: true, description: "STRIPE, META, GOOGLE, or MANUAL. A reference, not the books." }
         metadata: { $ref: '#/components/schemas/MoneyMetadata' }
         reversesTransactionId: { type: string, nullable: true }
         postedAt: { type: string, format: date-time }
@@ -1320,7 +1362,9 @@ components:
         currency: { type: string }
         status: { type: string, enum: [POSTED, REFUNDED, FAILED] }
         processor: { type: string, nullable: true }
-        externalRef: { type: string, nullable: true }
+        externalRef: { type: string, nullable: true, description: Canonical processor payment id. For Stripe subscriptions this is the invoice id. }
+        stripePaymentIntentId: { type: string, nullable: true }
+        stripeChargeId: { type: string, nullable: true }
         idempotencyKey: { type: string }
         ledgerTransactionId: { type: string }
         createdAt: { type: string, format: date-time }
@@ -1342,7 +1386,7 @@ components:
 
     BudgetAuthorization:
       type: object
-      required: [id, businessId, campaignId, currency, authorizedAmountMinor, status, idempotencyKey, ledgerTransactionId, createdAt]
+      required: [id, businessId, campaignId, currency, authorizedAmountMinor, status, idempotencyKey, createdAt]
       properties:
         id: { type: string }
         businessId: { type: string }
@@ -1351,7 +1395,7 @@ components:
         authorizedAmountMinor: { type: integer }
         status: { type: string, enum: [ACTIVE, RELEASED] }
         idempotencyKey: { type: string }
-        ledgerTransactionId: { type: string }
+        ledgerTransactionId: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
 
     CampaignFunding:
@@ -1390,7 +1434,7 @@ components:
 
     AdSpend:
       type: object
-      required: [id, businessId, campaignId, platform, externalChargeId, periodStart, periodEnd, currency, reportedAmountMinor, settledAmountMinor, settlementStatus, idempotencyKey, ledgerTransactionId, createdAt]
+      required: [id, businessId, campaignId, platform, externalChargeId, periodStart, periodEnd, currency, reportedAmountMinor, settledAmountMinor, settlementStatus, idempotencyKey, createdAt]
       properties:
         id: { type: string }
         businessId: { type: string }
@@ -1407,7 +1451,7 @@ components:
         settledAmountMinor: { type: integer }
         settlementStatus: { type: string, enum: [REPORTED, RECONCILED, SETTLED, DISPUTED] }
         idempotencyKey: { type: string }
-        ledgerTransactionId: { type: string }
+        ledgerTransactionId: { type: string, nullable: true }
         settlementTransactionId: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
 
@@ -1435,9 +1479,11 @@ components:
         payeeRef: { type: string }
         amountMinor: { type: integer }
         currency: { type: string }
-        status: { type: string, enum: [PENDING, PAID, FAILED] }
+        status: { type: string, enum: [PENDING, TRANSFERRED, PAID, FAILED, REVERSED] }
         idempotencyKey: { type: string }
         ledgerTransactionId: { type: string }
+        stripeTransferId: { type: string, nullable: true, description: "Connect Transfer to the affiliate's Stripe account. TRANSFERRED is this movement." }
+        stripePayoutId: { type: string, nullable: true, description: "Connected-account Payout to bank. PAID is this movement, not the Transfer." }
         commissionIds:
           type: array
           items: { type: string }
@@ -3036,6 +3082,21 @@ paths:
                   data: { $ref: '#/components/schemas/Deployment' }
 
   /deployments/{deploymentId}:
+    get:
+      operationId: getDeployment
+      summary: Get deployment
+      tags: [campaigns]
+      parameters:
+        - $ref: '#/components/parameters/DeploymentId'
+      responses:
+        '200':
+          description: Deployment
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Deployment' }
     patch:
       operationId: updateDeployment
       summary: Update deployment
@@ -3476,9 +3537,12 @@ paths:
       responses:
         '200':
           description: >
-            Updated form. Field changes apply immediately to this reusable Form; already-published
-            pages freeze content/theme in PublishedPageVersion but not form structure — see the
-            Form model comment in schema.prisma.
+            Updated form. Field changes apply immediately to this reusable Form and to any
+            landing page draft or future publish that uses it — but an already-published page
+            keeps rendering and validating against the field list frozen onto its
+            PublishedPageVersion at the moment it was published (PublishedPageVersion.formSnapshot),
+            so this update has no effect on it until that page is republished. See the Form model
+            comment in schema.prisma.
           content:
             application/json:
               schema:
@@ -4069,3 +4133,51 @@ paths:
                 type: object
                 properties:
                   data: { $ref: '#/components/schemas/Reconciliation' }
+
+  /billing:
+    get:
+      operationId: getBilling
+      summary: Current business subscription status
+      tags: [billing]
+      responses:
+        '200':
+          description: Stripe subscription references for this business. Not the ledger.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Billing' }
+
+  /billing/checkout:
+    post:
+      operationId: createBillingCheckout
+      summary: Create a Stripe Checkout session for the LOOPIE subscription
+      tags: [billing]
+      responses:
+        '201':
+          description: Redirect the browser to url. Does not post the ledger.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/CheckoutSession' }
+
+  /billing/portal:
+    post:
+      operationId: createBillingPortal
+      summary: Create a Stripe Customer Portal session
+      tags: [billing]
+      responses:
+        '201':
+          description: Redirect the browser to url
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/CheckoutSession' }

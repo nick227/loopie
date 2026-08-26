@@ -1,6 +1,6 @@
 /**
- * Campaign detail → Budget: fund client wallet, authorize campaign, record platform spend.
- * Uses the ledger, not Campaign.budget minus spend.
+ * Campaign Budget: spend plan / limit / reported / settled.
+ * Client wallet deposit is hidden in Phase 1 (non-custodial). Spend limit does not require LOOPIE-held funds.
  */
 import { test, expect, type Page } from '@playwright/test'
 
@@ -19,18 +19,8 @@ function metric(page: Page, label: string) {
   return page.getByText(label, { exact: true }).locator('..')
 }
 
-function usd(amount: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
-}
-
-async function metricDollars(page: Page, label: string) {
-  const text = await metric(page, label).innerText()
-  const match = text.match(/\$([\d,]+\.\d{2})/)
-  return Number(match![1].replace(/,/g, ''))
-}
-
 test.describe('campaign budget ledger slice', () => {
-  test('fund → authorize → record spend updates derived balances', async ({ page }) => {
+  test('spend limit then reported spend without a client wallet deposit', async ({ page }) => {
     const apiOrigin = process.env.PLAYWRIGHT_API_URL ?? 'http://localhost:3001'
     await loginAs(page)
 
@@ -49,30 +39,17 @@ test.describe('campaign budget ledger slice', () => {
 
     await page.getByRole('link', { name: 'Budget' }).click()
     await page.waitForURL(/\/budget$/)
-    await expect(page.getByText('Client wallet', { exact: true })).toBeVisible()
-    await expect(page.getByText('This campaign', { exact: true })).toBeVisible()
+    await expect(page.getByText('Client wallet', { exact: true })).toHaveCount(0)
+    await expect(page.getByText('Spend Limit', { exact: true }).first()).toBeVisible()
+    await expect(metric(page, 'Spend Plan')).toContainText('$800.00')
 
-    const availableBefore = await metricDollars(page, 'Client available balance')
-
-    await page.getByLabel('Amount to deposit').fill('1000')
-    await page.getByRole('button', { name: 'Add funds to wallet' }).click()
-    await expect(page.getByRole('status')).toContainText('does not authorize this campaign')
-    await page.getByRole('button', { name: 'Confirm: add to wallet' }).click()
-    await expect(metric(page, 'Client available balance')).toContainText(usd(availableBefore + 1000))
-
-    await page.getByLabel('Amount to allocate').fill('800')
-    await page.getByRole('button', { name: 'Authorize campaign funds' }).click()
-    await expect(page.getByRole('status')).toContainText('does not add new money')
-    await page.getByRole('button', { name: 'Confirm: authorize campaign' }).click()
-    await expect(metric(page, 'Authorized funds')).toContainText('$800.00')
-    await expect(metric(page, 'Reserved funds')).toContainText('$800.00')
-    await expect(metric(page, 'Client available balance')).toContainText(usd(availableBefore + 200))
+    await page.getByLabel('Spend limit').fill('800')
+    await page.getByRole('button', { name: 'Set spend limit' }).click()
+    await page.getByRole('button', { name: 'Confirm: set spend limit' }).click()
+    await expect(metric(page, 'Spend Limit')).toContainText('$800.00')
 
     await page.getByLabel('Reported spend').fill('125.37')
     await page.getByRole('button', { name: 'Record spend' }).click()
-    await expect(metric(page, 'Platform-reported spend')).toContainText('$125.37')
-    await expect(metric(page, 'Reserved funds')).toContainText('$674.63')
-    await expect(metric(page, 'Client available balance')).toContainText(usd(availableBefore + 200))
-    await expect(metric(page, 'Planning budget')).toContainText('$800.00')
+    await expect(metric(page, 'Reported')).toContainText('$125.37')
   })
 })

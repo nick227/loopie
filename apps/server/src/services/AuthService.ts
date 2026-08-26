@@ -10,7 +10,7 @@ type UserWithBusiness = {
   businessId: string
   role: string
   createdAt: Date
-  business: { name: string }
+  business: { name: string; subscriptionStatus: string | null }
 }
 
 export function toUserDTO(user: UserWithBusiness) {
@@ -20,6 +20,7 @@ export function toUserDTO(user: UserWithBusiness) {
     businessId: user.businessId,
     businessName: user.business.name,
     role: user.role,
+    subscriptionStatus: user.business.subscriptionStatus,
     createdAt: user.createdAt.toISOString(),
   }
 }

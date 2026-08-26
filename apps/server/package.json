@@ -19,7 +19,8 @@
     "bcryptjs": "^2.4.3",
     "fastify": "^4.0.0",
     "fastify-openapi-glue": "^4.0.0",
-    "js-yaml": "^4.0.0"
+    "js-yaml": "^4.0.0",
+    "stripe": "^22.5.0"
   },
   "devDependencies": {
     "@apidevtools/swagger-parser": "^10.0.0",

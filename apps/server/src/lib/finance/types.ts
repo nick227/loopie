@@ -93,3 +93,19 @@ export type ReconcileInput = {
   idempotencyKey: string
   notes?: string
 }
+
+export type ServicePaymentInput = {
+  amountMinor: number
+  currency: string
+  idempotencyKey: string
+  externalRef: string
+  stripePaymentIntentId?: string | null
+  stripeChargeId?: string | null
+  metadata?: AuditMetadata
+}
+
+export type ServiceRefundInput = {
+  paymentId: string
+  idempotencyKey: string
+  reason?: string
+}

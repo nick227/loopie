@@ -50,6 +50,30 @@ async function main() {
   // health check — not in spec, always public
   server.get('/health', async () => ({ status: 'ok' }))
 
+  await server.register(async (stripeApp) => {
+    stripeApp.addContentTypeParser('application/json', { parseAs: 'buffer' }, (_req, body, done) => {
+      done(null, body)
+    })
+    stripeApp.post('/stripe/webhook', async (request, reply) => {
+      const { StripeWebhookService } = await import('./services/StripeWebhookService')
+      const { getStripe } = await import('./lib/stripe')
+      const secret = process.env.STRIPE_WEBHOOK_SECRET
+      if (!secret) throw { statusCode: 503, message: 'Stripe is not configured' }
+      const signature = request.headers['stripe-signature']
+      if (typeof signature !== 'string') throw { statusCode: 400, message: 'Missing Stripe-Signature' }
+      const raw = request.body
+      if (!Buffer.isBuffer(raw)) throw { statusCode: 400, message: 'Webhook body must be raw' }
+      let event
+      try {
+        event = getStripe().webhooks.constructEvent(raw, signature, secret)
+      } catch {
+        throw { statusCode: 400, message: 'Invalid Stripe signature' }
+      }
+      await new StripeWebhookService().handleVerifiedEvent(event)
+      return reply.send({ received: true })
+    })
+  })
+
   // Automation execution poller — no queue/worker infra exists, so this is a plain interval on
   // the one server process (matches the existing single-process Railway deployment). Guarded
   // out of NODE_ENV=test so tests (which don't import this file at all today, but might via a
