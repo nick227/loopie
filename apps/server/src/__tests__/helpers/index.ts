@@ -14,6 +14,7 @@ import { mapErrorToReply } from '../../plugins/errorHandler'
 // cross-user permission tests (e.g. "user A cannot see user B's contact")
 export const testUserId = '00000000-0000-0000-0000-000000000001'
 export const testOtherUserId = '00000000-0000-0000-0000-000000000002'
+export const testShopUserId = '00000000-0000-0000-0000-000000000003'
 export const testBusinessId = '00000000-0000-0000-0000-000000000011'
 export const testOtherBusinessId = '00000000-0000-0000-0000-000000000012'
 
@@ -42,6 +43,7 @@ async function seedTestUsers() {
     data: [
       { id: testUserId, email: 'alice@test.local', passwordHash: 'x', businessId: testBusinessId, role: 'ADMIN' },
       { id: testOtherUserId, email: 'bob@test.local', passwordHash: 'x', businessId: testOtherBusinessId, role: 'ADMIN' },
+      { id: testShopUserId, email: 'shop@test.local', passwordHash: 'x', businessId: testBusinessId, role: 'USER' },
     ],
     skipDuplicates: true,
   })

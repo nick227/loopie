@@ -1,5 +1,6 @@
 import { useLocation, useParams } from 'react-router-dom'
 import { useAffiliate, useAffiliateEarnings, usePauseAffiliate, useResumeAffiliate } from '@project/sdk'
+import { AffiliateAssignmentForm } from '@/components/affiliates/AffiliateAssignmentForm'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -34,6 +35,7 @@ export function AffiliateDetailPage() {
           <p className="text-xs text-muted-foreground">{affiliate.payoutCadence} payouts</p>
         </CardContent>
       </Card>
+      <AffiliateAssignmentForm affiliate={affiliate} />
       {earnings && (
         <Card>
           <CardContent className="py-4 text-sm space-y-1">

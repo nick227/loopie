@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildTestApp, asAuth, testUserId, testBusinessId, testOtherUserId } from './helpers'
+import { buildTestApp, asAuth, testUserId, testBusinessId, testOtherUserId, testShopUserId } from './helpers'
 import { seedClassAndDeal } from './helpers/affiliateSeed'
 import { db } from '@project/db'
 
@@ -70,11 +70,18 @@ describe('affiliate deal freeze and manager split', () => {
       headers: asAuth(testUserId),
       payload: { name: '15 percent', classId, affiliateRateBps: 1500, managerShareBps: 2000 },
     })
+    const managerY = await app.inject({
+      method: 'POST',
+      url: '/affiliates',
+      headers: asAuth(testUserId),
+      payload: { name: 'Manager Y', classId, dealId },
+    })
+    expect(managerY.statusCode).toBe(201)
     await app.inject({
       method: 'PATCH',
       url: `/affiliates/${affiliate.id}`,
       headers: asAuth(testUserId),
-      payload: { dealId: richer.json().data.id, managerId: null },
+      payload: { dealId: richer.json().data.id, managerId: managerY.json().data.id },
     })
 
     const earnings = await app.inject({
@@ -91,22 +98,77 @@ describe('affiliate deal freeze and manager split', () => {
       headers: asAuth(testUserId),
     })
     expect(managerEarnings.json().data.pendingMinor).toBe(1000)
+
+    const yEarnings = await app.inject({
+      method: 'GET',
+      url: `/affiliates/${managerY.json().data.id}/earnings`,
+      headers: asAuth(testUserId),
+    })
+    expect(yEarnings.json().data.pendingMinor).toBe(0)
+    const stillX = await db.commission.findFirst({
+      where: { sourceRef: sale.id, payeeRef: `affiliate:${manager.id}` },
+    })
+    expect(stillX?.amountMinor).toBe(1000)
+  })
+
+  it('resolves live DTO rates from class default, assigned deal, then admin override', async () => {
+    const { classId } = await seedClassAndDeal(app)
+    const created = await app.inject({
+      method: 'POST',
+      url: '/affiliates',
+      headers: asAuth(testUserId),
+      payload: { name: 'Default Deal Rep', classId },
+    })
+    expect(created.statusCode).toBe(201)
+    expect(created.json().data.commissionRateBps).toBe(1000)
+
+    const assigned = await app.inject({
+      method: 'POST',
+      url: '/affiliate-deals',
+      headers: asAuth(testUserId),
+      payload: { name: '12 percent', classId, affiliateRateBps: 1200, managerShareBps: 0 },
+    })
+    const patched = await app.inject({
+      method: 'PATCH',
+      url: `/affiliates/${created.json().data.id}`,
+      headers: asAuth(testUserId),
+      payload: { dealId: assigned.json().data.id },
+    })
+    expect(patched.json().data.commissionRateBps).toBe(1200)
+
+    const overridden = await app.inject({
+      method: 'PATCH',
+      url: `/affiliates/${created.json().data.id}`,
+      headers: asAuth(testUserId),
+      payload: { affiliateRateOverrideBps: 800 },
+    })
+    expect(overridden.json().data.commissionRateBps).toBe(800)
+  })
+
+  it('creates one commission and a zero manager split when there is no manager', async () => {
+    const { classId, dealId } = await seedClassAndDeal(app)
+    const affRes = await app.inject({
+      method: 'POST',
+      url: '/affiliates',
+      headers: asAuth(testUserId),
+      payload: { name: 'Solo Rep', classId, dealId },
+    })
+    const sale = await referredSale(affRes.json().data.id, 500)
+    const commissions = await db.commission.findMany({ where: { sourceRef: sale.id } })
+    expect(commissions).toHaveLength(1)
+    expect(commissions[0].payeeRef).toBe(`affiliate:${affRes.json().data.id}`)
+    expect(commissions[0].amountMinor).toBe(5000)
+    const split = await db.saleAffiliateSplit.findUniqueOrThrow({ where: { saleId: sale.id } })
+    expect(split.managerAffiliateId).toBeNull()
+    expect(split.managerCommissionMinor).toBe(0)
+    expect(split.affiliateCommissionMinor).toBe(split.grossCommissionMinor)
   })
 
   it('rejects USER access and other-tenant class reads', async () => {
-    await db.user.create({
-      data: {
-        id: '00000000-0000-0000-0000-000000000099',
-        email: 'shop@test.local',
-        passwordHash: 'x',
-        businessId: testBusinessId,
-        role: 'USER',
-      },
-    })
     const denied = await app.inject({
       method: 'GET',
       url: '/affiliates',
-      headers: asAuth('00000000-0000-0000-0000-000000000099'),
+      headers: asAuth(testShopUserId),
     })
     expect(denied.statusCode).toBe(403)
 
