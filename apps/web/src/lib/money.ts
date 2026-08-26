@@ -9,6 +9,10 @@ export function formatUsd(amountMinor: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amountMinor / 100)
 }
 
+export function formatDollars(amount: number): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
+}
+
 export function newIdempotencyKey(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`
 }

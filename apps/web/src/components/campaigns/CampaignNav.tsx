@@ -7,6 +7,7 @@ const TABS = [
   { suffix: '/budget', label: 'Budget', end: true },
   { suffix: '/creatives', label: 'Creatives', end: false },
   { suffix: '/ad-units', label: 'Ad Units', end: false },
+  { suffix: '/leads', label: 'Leads', end: true },
 ] as const
 
 export function CampaignNav({

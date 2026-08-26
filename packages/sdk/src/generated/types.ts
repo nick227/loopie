@@ -637,6 +637,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/campaigns/{campaignId}/leads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List leads attributed to this campaign */
+        get: operations["listCampaignLeads"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/campaigns/{campaignId}/deployments": {
         parameters: {
             query?: never;
@@ -2165,13 +2182,37 @@ export interface components {
         CampaignFunding: {
             campaignId: string;
             currency: string;
-            /** @description Campaign.budget — operational planning only */
+            /** @description Campaign.budget is operational planning only, not the financial source of truth. */
             planningBudget: number;
             authorizedAmountMinor: number;
             reservedAmountMinor: number;
             platformReportedAmountMinor: number;
             settledAmountMinor: number;
             clientAvailableAmountMinor: number;
+        };
+        /** @description Campaign-scoped outcome row. Not a second CRM — clicking through goes to Contact detail. */
+        CampaignLead: {
+            id: string;
+            contactId: string;
+            contactName: string;
+            /** Format: date-time */
+            acquiredAt: string;
+            /** @enum {string} */
+            stage: "NEW" | "CONTACTED" | "QUALIFIED" | "QUOTED" | "WON" | "LOST";
+            /** @enum {string} */
+            sourceType: "DEPLOYMENT" | "AD_UNIT";
+            /** @enum {string|null} */
+            platform?: "META" | "GOOGLE" | "TIKTOK" | "LOOPIE" | null;
+            creativeName?: string | null;
+            sourceLabel: string;
+            attributedValue?: number | null;
+            lastInteractionType?: string | null;
+            /** Format: date-time */
+            lastInteractionAt?: string | null;
+            /** @enum {string} */
+            followUpStatus: "NONE" | "SCHEDULED" | "DUE" | "SENT" | "STOPPED";
+            /** Format: date-time */
+            followUpAt?: string | null;
         };
         AdSpend: {
             id: string;
@@ -3838,6 +3879,35 @@ export interface operations {
                 content: {
                     "application/json": {
                         data?: components["schemas"]["CampaignFunding"];
+                    };
+                };
+            };
+        };
+    };
+    listCampaignLeads: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor returned by the previous page. */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path: {
+                campaignId: components["parameters"]["CampaignId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated campaign-attributed leads (deployment or ad unit source) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CampaignLead"][];
+                        meta: components["schemas"]["PaginatedMeta"];
                     };
                 };
             };

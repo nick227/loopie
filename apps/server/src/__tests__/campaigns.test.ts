@@ -271,3 +271,22 @@ describe('getCampaignFunding', () => {
     await validateResponse('getCampaignFunding', 200, res.json())
   })
 })
+
+describe('listCampaignLeads', () => {
+  it('requires auth', async () => {
+    const res = await app.inject({ method: 'GET', url: '/campaigns/00000000-0000-0000-0000-000000000001/leads' })
+    expect(res.statusCode).toBe(401)
+  })
+
+  it('GET /campaigns/{campaignId}/leads', async () => {
+    // TODO: seed domain data (test users are pre-seeded by buildTestApp)
+    const res = await app.inject({
+      method: 'GET',
+      url: '/campaigns/00000000-0000-0000-0000-000000000001/leads',
+      headers: asAuth(testUserId),
+      // payload: {},
+    })
+    expect(res.statusCode).toBe(200)
+    await validateResponse('listCampaignLeads', 200, res.json())
+  })
+})

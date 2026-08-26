@@ -51,6 +51,7 @@ import { CampaignCreativesPage } from '@/pages/CampaignCreativesPage'
 import { CampaignCreateCreativePage } from '@/pages/CampaignCreateCreativePage'
 import { CampaignAdUnitsPage } from '@/pages/CampaignAdUnitsPage'
 import { CampaignCreateAdUnitPage } from '@/pages/CampaignCreateAdUnitPage'
+import { CampaignLeadsPage } from '@/pages/CampaignLeadsPage'
 import { DeploymentsPage } from '@/pages/DeploymentsPage'
 import { CreateDeploymentPage } from '@/pages/CreateDeploymentPage'
 import { UpdateDeploymentPage } from '@/pages/UpdateDeploymentPage'
@@ -145,6 +146,7 @@ export function App() {
           <Route path="/campaigns/:campaignId/creatives" element={<CampaignCreativesPage />} />
           <Route path="/campaigns/:campaignId/ad-units/new" element={<CampaignCreateAdUnitPage />} />
           <Route path="/campaigns/:campaignId/ad-units" element={<CampaignAdUnitsPage />} />
+          <Route path="/campaigns/:campaignId/leads" element={<CampaignLeadsPage />} />
           <Route path="/campaigns/:campaignId/deployments" element={<DeploymentsPage />} />
           <Route path="/campaigns/:campaignId/deployments/new" element={<CreateDeploymentPage />} />
           <Route path="/deployments/:deploymentId/edit" element={<UpdateDeploymentPage />} />

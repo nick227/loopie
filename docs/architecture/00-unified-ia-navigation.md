@@ -23,7 +23,7 @@ Campaigns
     Budget            (ledger: planning / authorized / reserved / reported / settled / client available)
     Creatives         (attached to this campaign; links out to the full reusable library)
     Ad Units          (scoped to this campaign)
-    Leads             (leads attributed to this campaign)
+    Leads             (campaign-scoped outcomes; click opens Contact timeline)
     Landing Pages     (reusable library, reached from overview destination)
     Platforms / Deployments
     Performance       (this campaign's funnel: views → clicks → leads → sales)

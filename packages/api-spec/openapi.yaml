@@ -1152,6 +1152,27 @@ components:
         settledAmountMinor: { type: integer }
         clientAvailableAmountMinor: { type: integer }
 
+    CampaignLead:
+      type: object
+      required: [id, contactId, contactName, acquiredAt, stage, sourceType, sourceLabel, followUpStatus]
+      description: >
+        Campaign-scoped outcome row. Not a second CRM — clicking through goes to Contact detail.
+      properties:
+        id: { type: string }
+        contactId: { type: string }
+        contactName: { type: string }
+        acquiredAt: { type: string, format: date-time }
+        stage: { type: string, enum: [NEW, CONTACTED, QUALIFIED, QUOTED, WON, LOST] }
+        sourceType: { type: string, enum: [DEPLOYMENT, AD_UNIT] }
+        platform: { type: string, enum: [META, GOOGLE, TIKTOK, LOOPIE], nullable: true }
+        creativeName: { type: string, nullable: true }
+        sourceLabel: { type: string }
+        attributedValue: { type: number, nullable: true }
+        lastInteractionType: { type: string, nullable: true }
+        lastInteractionAt: { type: string, format: date-time, nullable: true }
+        followUpStatus: { type: string, enum: [NONE, SCHEDULED, DUE, SENT, STOPPED] }
+        followUpAt: { type: string, format: date-time, nullable: true }
+
     AdSpend:
       type: object
       required: [id, businessId, campaignId, platform, externalChargeId, periodStart, periodEnd, currency, reportedAmountMinor, settledAmountMinor, settlementStatus, idempotencyKey, ledgerTransactionId, createdAt]
@@ -2434,6 +2455,29 @@ paths:
                 type: object
                 properties:
                   data: { $ref: '#/components/schemas/CampaignFunding' }
+
+  /campaigns/{campaignId}/leads:
+    get:
+      operationId: listCampaignLeads
+      summary: List leads attributed to this campaign
+      tags: [campaigns]
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated campaign-attributed leads (deployment or ad unit source)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/CampaignLead' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
 
   /campaigns/{campaignId}/deployments:
     get:

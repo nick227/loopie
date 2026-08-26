@@ -1,5 +1,6 @@
 import { CampaignService } from '../services/CampaignService'
 import { DeploymentService } from '../services/DeploymentService'
+import { listCampaignLeadOutcomes } from '../services/campaignLeads'
 
 const campaignService = new CampaignService()
 const deploymentService = new DeploymentService()
@@ -72,4 +73,9 @@ export async function authorizeCampaignBudget(request: any, reply: any) {
 export async function getCampaignFunding(request: any, reply: any) {
   const data = await campaignService.funding(request.user.businessId, request.params.campaignId)
   return reply.send({ data })
+}
+
+export async function listCampaignLeads(request: any, reply: any) {
+  const data = await listCampaignLeadOutcomes(request.user.businessId, request.params.campaignId, request.query)
+  return reply.send(data)
 }
