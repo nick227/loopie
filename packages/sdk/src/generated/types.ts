@@ -1699,6 +1699,11 @@ export interface components {
     Billing: {
       subscriptionStatus: string | null
       stripeCustomerId?: string | null
+      /** @description True when Stripe billing env is set. Checkout is available. */
+      configured: boolean
+      planName: string
+      /** @description Human-readable price from the Stripe Price, e.g. $29.00 / month. */
+      planPriceLabel?: string | null
     }
     CheckoutSession: {
       url: string

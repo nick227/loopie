@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   useAffiliateClasses,
   useAffiliateDeals,
@@ -14,12 +14,30 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { AffiliateNav } from '@/components/affiliates/AffiliateNav'
 import { SELECT_CLASS } from '@/components/affiliates/DestinationPicker'
 import { formatBps } from '@/lib/money'
+import { useFlatPages } from '@/hooks/useFlatPages'
 
 export function AffiliateClassesPage() {
   const classesQuery = useAffiliateClasses({ limit: 100 })
   const dealsQuery = useAffiliateDeals({ limit: 100 })
-  const classes = classesQuery.data?.pages.flatMap((p) => p.data) ?? []
-  const deals = dealsQuery.data?.pages.flatMap((p) => p.data) ?? []
+  const classes = useFlatPages(classesQuery)
+  const deals = useFlatPages(dealsQuery)
+
+  const { dealsByClass, unscopedDeals } = useMemo(() => {
+    const map = new Map<string, typeof deals>()
+    const unscoped: typeof deals = []
+    for (const deal of deals) {
+      if (!deal.classId) unscoped.push(deal)
+      else {
+        let list = map.get(deal.classId)
+        if (!list) {
+          list = []
+          map.set(deal.classId, list)
+        }
+        list.push(deal)
+      }
+    }
+    return { dealsByClass: map, unscopedDeals: unscoped }
+  }, [deals])
 
   if (classesQuery.isLoading || dealsQuery.isLoading) return <Skeleton className="h-48 w-full" />
 
@@ -27,26 +45,34 @@ export function AffiliateClassesPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">Classes & Deals</h1>
       <AffiliateNav />
-      <p className="text-sm text-muted-foreground">Named packages. Setting a default is explicit — creating a deal does not change it.</p>
+      <p className="text-sm text-muted-foreground">
+        Named packages. Setting a default is explicit — creating a deal does not change it.
+      </p>
       <NewClassForm />
       <NewDealForm classes={classes} />
       {classes.map((cls) => (
         <Card key={cls.id}>
           <CardContent className="py-4 space-y-3">
             <p className="text-sm font-medium">
-              {cls.name} · cap {formatBps(cls.maxAffiliateRateBps)} / {formatBps(cls.maxManagerShareBps)} manager
+              {cls.name} · cap {formatBps(cls.maxAffiliateRateBps)} /{' '}
+              {formatBps(cls.maxManagerShareBps)} manager
             </p>
-            {deals.filter((deal) => deal.classId === cls.id).map((deal) => (
-              <DealRow key={deal.id} deal={deal} isDefault={cls.defaultDealId === deal.id} classId={cls.id} />
+            {(dealsByClass.get(cls.id) || []).map((deal) => (
+              <DealRow
+                key={deal.id}
+                deal={deal}
+                isDefault={cls.defaultDealId === deal.id}
+                classId={cls.id}
+              />
             ))}
           </CardContent>
         </Card>
       ))}
-      {deals.filter((deal) => !deal.classId).length > 0 && (
+      {unscopedDeals.length > 0 && (
         <Card>
           <CardContent className="py-4 space-y-3">
             <p className="text-sm font-medium">Unscoped deals</p>
-            {deals.filter((deal) => !deal.classId).map((deal) => (
+            {unscopedDeals.map((deal) => (
               <DealRow key={deal.id} deal={deal} isDefault={false} />
             ))}
           </CardContent>
@@ -67,7 +93,11 @@ function NewClassForm() {
         <p className="text-sm font-medium">New class</p>
         <Input value={name} onChange={(e) => setName(e.target.value)} />
         <Input value={cap} onChange={(e) => setCap(e.target.value)} placeholder="Max % of sale" />
-        <Input value={share} onChange={(e) => setShare(e.target.value)} placeholder="Max manager % of commission" />
+        <Input
+          value={share}
+          onChange={(e) => setShare(e.target.value)}
+          placeholder="Max manager % of commission"
+        />
         <Button
           size="sm"
           onClick={() =>
@@ -97,11 +127,21 @@ function NewDealForm({ classes }: { classes: { id: string; name: string }[] }) {
         <p className="text-sm font-medium">New deal</p>
         <Input value={name} onChange={(e) => setName(e.target.value)} />
         <Input value={rate} onChange={(e) => setRate(e.target.value)} placeholder="% of sale" />
-        <Input value={share} onChange={(e) => setShare(e.target.value)} placeholder="Manager % of that commission" />
-        <select className={SELECT_CLASS} value={classId} onChange={(e) => setClassId(e.target.value)}>
+        <Input
+          value={share}
+          onChange={(e) => setShare(e.target.value)}
+          placeholder="Manager % of that commission"
+        />
+        <select
+          className={SELECT_CLASS}
+          value={classId}
+          onChange={(e) => setClassId(e.target.value)}
+        >
           <option value="">Class</option>
           {classes.map((row) => (
-            <option key={row.id} value={row.id}>{row.name}</option>
+            <option key={row.id} value={row.id}>
+              {row.name}
+            </option>
           ))}
         </select>
         <Button
@@ -133,7 +173,9 @@ function DealRow({
 }) {
   const updateDeal = useUpdateAffiliateDeal()
   const updateClass = useUpdateAffiliateClass()
-  const [rate, setRate] = useState(deal.affiliateRateBps != null ? String(deal.affiliateRateBps / 100) : '10')
+  const [rate, setRate] = useState(
+    deal.affiliateRateBps != null ? String(deal.affiliateRateBps / 100) : '10',
+  )
   const [share, setShare] = useState(String(deal.managerShareBps / 100))
   return (
     <div className="space-y-2 border-t pt-3">
@@ -160,7 +202,11 @@ function DealRow({
           Save
         </Button>
         {classId && !isDefault && (
-          <Button size="sm" variant="ghost" onClick={() => updateClass.mutate({ classId, defaultDealId: deal.id })}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => updateClass.mutate({ classId, defaultDealId: deal.id })}
+          >
             Make default
           </Button>
         )}

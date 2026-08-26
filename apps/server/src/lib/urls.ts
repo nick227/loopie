@@ -9,6 +9,10 @@ export function trackedDeploymentUrl(deploymentId: string) {
   return `${PUBLIC_SERVER_URL}/r/${deploymentId}`
 }
 
+export function trackedAffiliateUrl(affiliateId: string) {
+  return `${PUBLIC_SERVER_URL}/r/affiliate/${affiliateId}`
+}
+
 export function hostedPageUrl(slug: string) {
   return `${PUBLIC_SERVER_URL}/p/${slug}`
 }

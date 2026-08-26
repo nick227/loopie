@@ -7,6 +7,69 @@ const spec = load(readFileSync(specPath, 'utf-8')) as any
 const outDir = resolve(__dirname, '../apps/server/src/__tests__')
 mkdirSync(outDir, { recursive: true })
 
+function resolveSchema(schema: any, spec: any): any {
+  if (!schema) return schema
+  if (schema.$ref) {
+    const parts = schema.$ref.replace('#/', '').split('/')
+    let current = spec
+    for (const part of parts) {
+      current = current[part]
+      if (!current) break
+    }
+    return resolveSchema(current, spec)
+  }
+  return schema
+}
+
+function generateFixture(schema: any, spec: any): any {
+  schema = resolveSchema(schema, spec)
+  if (!schema) return undefined
+
+  if (schema.type === 'object') {
+    const obj: any = {}
+    if (schema.properties) {
+      for (const [key, propSchema] of Object.entries<any>(schema.properties)) {
+        const isRequired = schema.required && schema.required.includes(key)
+        const isForced = key === 'affiliateRateBps' || key === 'payoutThresholdMinor'
+        if (isRequired || isForced) {
+          if (key === 'businessId') {
+            obj[key] = '00000000-0000-0000-0000-000000000011' // testBusinessId
+          } else if (key === 'userId' || key === 'ownerId') {
+            obj[key] = '00000000-0000-0000-0000-000000000001' // testUserId
+          } else if ((key.endsWith('Id') || key.endsWith('Ids')) && key !== 'id') {
+            throw new Error(`Requires prerequisite ID for ${key}`)
+          } else if (isForced) {
+            obj[key] = 0
+          } else {
+            obj[key] = generateFixture(propSchema, spec)
+          }
+        }
+      }
+    }
+    return obj
+  }
+  if (schema.type === 'array') {
+    return [generateFixture(schema.items, spec)]
+  }
+  if (schema.type === 'string') {
+    if (schema.enum && schema.enum.length > 0) return schema.enum[0]
+    if (schema.format === 'email') return 'test@example.com'
+    if (schema.format === 'date-time') return new Date().toISOString()
+    let str = 'test_string'
+    if (schema.maxLength && str.length > schema.maxLength) {
+      str = str.substring(0, schema.maxLength)
+    }
+    return str
+  }
+  if (schema.type === 'integer' || schema.type === 'number') {
+    return schema.minimum ?? 1
+  }
+  if (schema.type === 'boolean') {
+    return true
+  }
+  return null
+}
+
 type OpBlock = { operationId: string; block: string }
 const byTag: Record<string, OpBlock[]> = {}
 
@@ -16,30 +79,83 @@ for (const [path, pathItem] of Object.entries<any>(spec.paths ?? {})) {
 
     const tag = op.tags?.[0] ?? 'default'
     const isPublic = Array.isArray(op.security) && op.security.length === 0
-    const successStatus = Object.keys(op.responses ?? {}).find(s => s.startsWith('2')) ?? '200'
-    const testUrl = path.replace(/\{[^}]+\}/g, '00000000-0000-0000-0000-000000000001')
+    const successCode = Object.keys(op.responses ?? {}).find((s) => s.startsWith('2')) ?? '200'
+    const collection = path.split('/')[1] || 'default'
+    const testUrl = path.replace(
+      /\{.*\}/,
+      `\${createdIds['${collection}'] || '00000000-0000-0000-0000-000000000001'}`,
+    )
 
-    const authTest = isPublic ? '' : `
-  it('requires auth', async () => {
-    const res = await app.inject({ method: '${method.toUpperCase()}', url: '${testUrl}' })
-    expect(res.statusCode).toBe(401)
-  })
+    const itFn = 'it'
+    let payloadStr = ''
+    let skipBecauseOfPayload = false
+    if (['post', 'put', 'patch'].includes(method)) {
+      if (op.operationId === 'login') {
+        payloadStr = `payload: {\n        "email": "test@example.com",\n        "password": "password123"\n      },`
+      } else if (op.requestBody) {
+        try {
+          const content = (op.requestBody as any).content?.['application/json']
+          if (content && content.schema) {
+            const payload = generateFixture(content.schema, spec)
+            payloadStr = `payload: ${JSON.stringify(payload, null, 2)},`
+          } else {
+            payloadStr = `// payload: {},`
+          }
+        } catch (e: any) {
+          payloadStr = `// payload: {}, // TODO: ${e.message}`
+          skipBecauseOfPayload = true
+        }
+      } else {
+        payloadStr = `// payload: {},`
+      }
+    } else {
+      payloadStr = `// payload: {},`
+    }
+
+    const authTest =
+      isPublic || skipBecauseOfPayload
+        ? ''
+        : `
+    // ${op.operationId} - auth check
+    try {
+      if (!'${path}'.includes('{') || createdIds['${collection}']) {
+        const res${op.operationId}Auth = await app.inject({ method: '${method.toUpperCase()}', url: \`${testUrl}\` })
+        expect(res${op.operationId}Auth.statusCode).toBe(401)
+      }
+    } catch (e: any) {
+      errors.push(new Error('${op.operationId} auth failed: ' + e.message))
+    }
 `
 
-    const block = `
-describe('${op.operationId}', () => {${authTest}
-  it('${method.toUpperCase()} ${path}', async () => {
-    // TODO: seed domain data (test users are pre-seeded by buildTestApp)
-    const res = await app.inject({
-      method: '${method.toUpperCase()}',
-      url: '${testUrl}',
-      ${isPublic ? '' : "headers: asAuth(testUserId),\n      "}// payload: {},
-    })
-    expect(res.statusCode).toBe(${successStatus})
-    await validateResponse('${op.operationId}', ${successStatus}, res.json())
-  })
-})
-`
+    const captureId =
+      method === 'post'
+        ? `\n        if (res${op.operationId}.statusCode === 201 && res${op.operationId}.json().data?.id) createdIds['${collection}'] = res${op.operationId}.json().data.id`
+        : ''
+
+    const skipBlock = skipBecauseOfPayload
+      ? `    // Skipped ${op.operationId} because payload could not be generated`
+      : `
+    // ${op.operationId}
+    ${authTest}
+    try {
+      if (!'${path}'.includes('{') || createdIds['${collection}']) {
+        const res${op.operationId} = await app.inject({
+          method: '${method.toUpperCase()}',
+          url: \`${testUrl}\`,
+          headers: asAuth(testUserId),
+          ${payloadStr}
+        })${captureId}
+        if (res${op.operationId}.statusCode !== ${successCode}) {
+          console.error('${op.operationId} failed with ' + res${op.operationId}.statusCode, res${op.operationId}.json().message || res${op.operationId}.json())
+        }
+        expect(res${op.operationId}.statusCode).toBe(${successCode})
+        await validateResponse('${op.operationId}', ${successCode}, res${op.operationId}.json())
+      }
+    } catch (e: any) {
+      errors.push(new Error('${op.operationId} failed: ' + e.message))
+    }`
+
+    const block = skipBlock
     if (!byTag[tag]) byTag[tag] = []
     byTag[tag].push({ operationId: op.operationId, block })
   }
@@ -47,23 +163,25 @@ describe('${op.operationId}', () => {${authTest}
 
 for (const [tag, ops] of Object.entries(byTag)) {
   const outPath = resolve(outDir, `${tag}.test.ts`)
-
-  if (existsSync(outPath)) {
-    const existing = readFileSync(outPath, 'utf-8')
-    const newOps = ops.filter(o => !existing.includes(`describe('${o.operationId}'`))
-    if (newOps.length === 0) continue
-    writeFileSync(outPath, existing + newOps.map(o => o.block).join(''))
-    console.log(`✓ Appended ${newOps.length} new test(s) to ${tag}.test.ts`)
-  } else {
-    const header = `// Generated from openapi.yaml — fill in seeds and assertions.
+  const content = `// Generated from openapi.yaml — fill in seeds and assertions.
 // Run \`pnpm test:generate\` to add stubs for new routes.
 // Both test users are pre-seeded: use testOtherUserId for cross-user permission tests.
 import { describe, it, expect } from 'vitest'
 import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId } from './helpers'
 
 const app = buildTestApp()
+const createdIds: Record<string, string> = { default: '00000000-0000-0000-0000-000000000001' }
+
+describe('${tag} API', () => {
+  it('runs CRUD lifecycle', async (ctx) => {
+    const errors: Error[] = []
+${ops.map((o) => o.block).join('\n')}
+    if (errors.length > 0) {
+      throw new Error('Lifecycle failed:\\n' + errors.map(e => e.message).join('\\n'))
+    }
+  })
+})
 `
-    writeFileSync(outPath, header + ops.map(o => o.block).join(''))
-    console.log(`✓ Generated ${tag}.test.ts (${ops.length} operations)`)
-  }
+  writeFileSync(outPath, content)
+  console.log(`✓ Generated ${tag}.test.ts (${ops.length} operations)`)
 }

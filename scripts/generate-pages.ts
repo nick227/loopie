@@ -44,7 +44,7 @@ interface InferredField {
 // collapsing every property to z.string() — see "Known Gap" in CLAUDE.md.
 function inferFieldType(
   name: string,
-  rawSchema: any
+  rawSchema: any,
 ): { type: FieldType; voice: boolean; options?: string[]; jsonArray?: boolean } {
   const schema = resolveSchema(rawSchema) ?? rawSchema
   const n = name.toLowerCase()
@@ -56,7 +56,8 @@ function inferFieldType(
     const items = resolveSchema(schema.items) ?? schema.items ?? {}
     // Array of objects (nested schema, e.g. Form.fields, ImportContactsInput.contacts) has no
     // generic scalar UI — fall back to a JSON textarea rather than misrepresenting it as text.
-    if (items.type === 'object' || (!items.type && !items.enum)) return { type: 'json', voice: false, jsonArray: true }
+    if (items.type === 'object' || (!items.type && !items.enum))
+      return { type: 'json', voice: false, jsonArray: true }
     return { type: 'tags', voice: false, options: items.enum }
   }
 
@@ -64,20 +65,17 @@ function inferFieldType(
 
   if (Array.isArray(schema.enum)) return { type: 'select', voice: false, options: schema.enum }
 
-  if (schema.format === 'email' || n.includes('email'))
-    return { type: 'email', voice: false }
+  if (schema.format === 'email' || n.includes('email')) return { type: 'email', voice: false }
   if (schema.format === 'password' || /password|passwd/.test(n))
     return { type: 'password', voice: false }
-  if (/phone|tel|mobile/.test(n))
-    return { type: 'tel', voice: false }
+  if (/phone|tel|mobile/.test(n)) return { type: 'tel', voice: false }
   if (schema.format === 'uri' || /url|website|link|avatar|image|photo|cover/.test(n))
     return { type: 'url', voice: false }
 
   const longText =
     (schema.maxLength && schema.maxLength > 200) ||
     /bio|body|description|content|message|note|about|summary/.test(n)
-  if (longText)
-    return { type: 'textarea', voice: true }
+  if (longText) return { type: 'textarea', voice: true }
 
   const voiceText = /^name$|title|about|summary|bio|body|description|content|message|note/.test(n)
   return { type: 'text', voice: voiceText }
@@ -94,7 +92,7 @@ function buildZodExpr(
   schema: any,
   required: boolean,
   options?: string[],
-  jsonArray?: boolean
+  jsonArray?: boolean,
 ): string {
   let expr: string
   switch (type) {
@@ -141,7 +139,9 @@ function buildZodExpr(
       // the caller casts to `any` at the mutateAsync call for the rarer array-of-object case
       // (Form.fields, ImportContactsInput.contacts) where the SDK wants a fully-typed nested shape
       // this generic generator can't reproduce — see genCreateFormPage/genEditFormPage.
-      const inner = jsonArray ? 'z.array(z.record(z.string(), z.unknown()))' : 'z.record(z.string(), z.unknown())'
+      const inner = jsonArray
+        ? 'z.array(z.record(z.string(), z.unknown()))'
+        : 'z.record(z.string(), z.unknown())'
       expr = `z.preprocess((v) => { if (typeof v !== 'string') return v; if (v.trim() === '') return undefined; try { return JSON.parse(v) } catch { return v } }, ${inner})`
       break
     }
@@ -271,7 +271,7 @@ function toHookName(operationId: string, method: string): string {
   if (method === 'get') {
     // Strip leading get/list/fetch verb so: getFeed → useFeed, listUsers → useUsers
     const stripped = operationId.replace(/^(get|list|fetch)([A-Z])/, (_, _v, c: string) =>
-      c.toLowerCase()
+      c.toLowerCase(),
     )
     return 'use' + stripped.charAt(0).toUpperCase() + stripped.slice(1)
   }
@@ -282,7 +282,7 @@ function toPageName(operationId: string, method: string): string {
   if (method === 'get') {
     // Strip leading verb: getFeed → FeedPage, listUsers → UsersPage
     const stripped = operationId.replace(/^(get|list|fetch)([A-Z])/, (_, _v, c: string) =>
-      c.toLowerCase()
+      c.toLowerCase(),
     )
     const base = stripped.charAt(0).toUpperCase() + stripped.slice(1)
     return base.endsWith('Page') ? base : base + 'Page'
@@ -301,7 +301,16 @@ function toPageRoute(path: string, pattern: Pattern, operationId: string): strin
     if (/register|signup/i.test(operationId)) return '/register'
     if (/login|signin/i.test(operationId)) return '/login'
   }
-  return toRouteSegment(path)
+  const segment = toRouteSegment(path)
+  // A create-form (POST) and its sibling list/detail (GET) always share the same OpenAPI path
+  // (e.g. POST /landing-pages creates, GET /landing-pages lists) — and likewise an edit-form
+  // (PATCH/PUT) shares its path with the GET detail. Without disambiguation, App.tsx registers
+  // two <Route> siblings at the identical path; React Router silently renders only the first,
+  // making the second permanently unreachable by URL. Found live while wiring navigation for
+  // the Landing Page editor — not visible from typecheck, only from actually clicking through.
+  if (pattern === 'create-form') return `${segment}/new`
+  if (pattern === 'edit-form') return `${segment}/edit`
+  return segment
 }
 
 function firstPathParam(path: string): string {
@@ -334,7 +343,7 @@ function queryParamNames(op: any): Set<string> {
     (op.parameters ?? [])
       .map(resolveParameter)
       .filter((param: any) => param?.in === 'query')
-      .map((param: any) => param.name)
+      .map((param: any) => param.name),
   )
 }
 
@@ -343,8 +352,8 @@ function hasPaginatedEnvelope(op: any): boolean {
   const meta = resolveSchema(schema?.properties?.meta)
   return Boolean(
     schema?.properties?.data?.type === 'array' &&
-      meta?.properties?.nextCursor &&
-      meta?.properties?.hasMore
+    meta?.properties?.nextCursor &&
+    meta?.properties?.hasMore,
   )
 }
 
@@ -353,7 +362,10 @@ function hasPaginatedEnvelope(op: any): boolean {
 // ---------------------------------------------------------------------------
 
 function genListPage(name: string, hook: string, op: any): string {
-  const title = name.replace(/Page$/, '').replace(/([A-Z])/g, ' $1').trim()
+  const title = name
+    .replace(/Page$/, '')
+    .replace(/([A-Z])/g, ' $1')
+    .trim()
   const params = queryParamNames(op)
   const hasSearch = params.has('q')
   const isPaginated = params.has('cursor') || hasPaginatedEnvelope(op)
@@ -364,9 +376,7 @@ function genListPage(name: string, hook: string, op: any): string {
   const dataAccess = isPaginated
     ? 'data?.pages.flatMap((page) => page.data) ?? []'
     : 'data?.data ?? []'
-  const paginationBits = isPaginated
-    ? ', fetchNextPage, hasNextPage, isFetchingNextPage'
-    : ''
+  const paginationBits = isPaginated ? ', fetchNextPage, hasNextPage, isFetchingNextPage' : ''
   const searchBlock = hasSearch
     ? `
       <Input
@@ -441,7 +451,10 @@ ${loadMoreBlock}
 function genDetailPage(name: string, hook: string, _op: any, path: string): string {
   const hasParam = path.includes('{')
   const param = firstPathParam(path)
-  const title = name.replace(/Page$/, '').replace(/([A-Z])/g, ' $1').trim()
+  const title = name
+    .replace(/Page$/, '')
+    .replace(/([A-Z])/g, ' $1')
+    .trim()
   const importsLine = hasParam ? `import { useParams } from 'react-router-dom'\n` : ''
   const paramsLine = hasParam ? `  const { ${param} } = useParams<{ ${param}: string }>()\n` : ''
   const hookCall = hasParam ? `${hook}(${param}!)` : `${hook}()`
@@ -480,7 +493,10 @@ ${paramsLine}  const { data, isLoading } = ${hookCall}
 // see e.g. usePauseCampaign/usePublishLandingPage in packages/sdk/src/hooks/.
 function genActionPage(name: string, hook: string, path: string): string {
   const param = firstPathParam(path)
-  const title = name.replace(/Page$/, '').replace(/([A-Z])/g, ' $1').trim()
+  const title = name
+    .replace(/Page$/, '')
+    .replace(/([A-Z])/g, ' $1')
+    .trim()
   return `import { useParams, useNavigate } from 'react-router-dom'
 import { ${hook} } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
@@ -508,18 +524,42 @@ export function ${name}() {
 `
 }
 
-function genCreateFormPage(name: string, hook: string, fields: InferredField[], path: string): string {
-  const title = name.replace(/^Create/, '').replace(/Page$/, '').replace(/([A-Z])/g, ' $1').trim()
+function genCreateFormPage(
+  name: string,
+  hook: string,
+  fields: InferredField[],
+  path: string,
+  hasIdInResponse: boolean,
+): string {
+  const title = name
+    .replace(/^Create/, '')
+    .replace(/Page$/, '')
+    .replace(/([A-Z])/g, ' $1')
+    .trim()
   const fieldConfigs = renderFieldConfigs(fields)
   const schema = renderZodSchema(fields)
   const hasParam = path.includes('{')
   const param = firstPathParam(path)
   // Some create endpoints nest under a parent resource (e.g. POST /campaigns/{campaignId}/deployments)
   // whose mutation hook expects the path param merged into the body — same shape as genEditFormPage.
-  const importsLine = hasParam ? `import { useParams, useNavigate } from 'react-router-dom'\n` : `import { useNavigate } from 'react-router-dom'\n`
+  const importsLine = hasParam
+    ? `import { useParams, useNavigate } from 'react-router-dom'\n`
+    : `import { useNavigate } from 'react-router-dom'\n`
   const paramsLine = hasParam ? `  const { ${param} } = useParams<{ ${param}: string }>()\n` : ''
   const castSuffix = hasJsonArrayField(fields) ? ' as any' : ''
   const submitArg = (hasParam ? `{ ${param}: ${param}!, ...data }` : 'data') + castSuffix
+  // `navigate(-1)` depends on the SPA's in-memory history stack, which isn't there if the user
+  // reached this page by a direct URL (typed, bookmarked, or a test driving page.goto()) rather
+  // than clicking a <Link> — "back" then falls through to a real browser navigation instead of
+  // an SPA one. A top-level create (no parent path param) whose response is a single resource
+  // with an id (not e.g. ImportContactsResult's {created, skipped} bulk summary) always has a
+  // sibling detail route at `${path}/${id}`, so go there directly instead; a nested create (e.g.
+  // a deployment under a campaign) has no such standalone page, so it keeps "go back to parent".
+  const canNavigateToResource = !hasParam && hasIdInResponse
+  const afterSubmit = canNavigateToResource
+    ? `navigate(\`${path}/\${result.data!.id}\`)`
+    : `navigate(-1)`
+  const resultBinding = canNavigateToResource ? 'const result = ' : ''
   return `${importsLine}import { z } from 'zod'
 import { ${hook} } from '@project/sdk'
 import { Form } from '@/components/ui/Form'
@@ -541,8 +581,8 @@ ${paramsLine}  const navigate = useNavigate()
         fields={fields}
         schema={schema}
         onSubmit={async (data) => {
-          await mutation.mutateAsync(${submitArg})
-          navigate(-1)
+          ${resultBinding}await mutation.mutateAsync(${submitArg})
+          ${afterSubmit}
         }}
         isLoading={mutation.isPending}
         submitLabel="Create ${title}"
@@ -609,7 +649,12 @@ export function ${name}() {
 `
 }
 
-function genAuthPage(name: string, hook: string, fields: InferredField[], isLogin: boolean): string {
+function genAuthPage(
+  name: string,
+  hook: string,
+  fields: InferredField[],
+  isLogin: boolean,
+): string {
   const title = isLogin ? 'Sign In' : 'Create Account'
   const altText = isLogin ? "Don't have an account?" : 'Already have an account?'
   const altLink = isLogin ? '/register' : '/login'
@@ -678,14 +723,16 @@ interface PageEntry {
 function genAppTsx(pages: PageEntry[]): string {
   const authPages = pages.filter((p) => p.isAuth)
   const protectedPages = pages.filter((p) => !p.isAuth)
-  const firstProtectedRoute = protectedPages[0]?.route ?? '/'
+  // Prefer the app's actual landing screen (docs/00-unified-ia-navigation.md: Home) over
+  // whichever route happens to appear first in the OpenAPI spec — the earlier default
+  // (protectedPages[0]) landed on /contacts and was only caught by a failing Playwright test.
+  const firstProtectedRoute =
+    protectedPages.find((p) => p.route === '/home')?.route ?? protectedPages[0]?.route ?? '/'
   const rootIndexRoute = protectedPages.some((p) => p.route === '/')
     ? ''
     : `          <Route index element={<Navigate to="${firstProtectedRoute}" replace />} />\n`
 
-  const imports = pages
-    .map((p) => `import { ${p.name} } from '@/pages/${p.name}'`)
-    .join('\n')
+  const imports = pages.map((p) => `import { ${p.name} } from '@/pages/${p.name}'`).join('\n')
 
   const authRoutes = authPages
     .map((p) => `        <Route path="${p.route}" element={<${p.name} />} />`)
@@ -763,14 +810,21 @@ for (const [path, pathItem] of Object.entries<any>(spec.paths ?? {})) {
           content = genDetailPage(name, hook, op, path)
           break
         case 'create-form':
-          content = genCreateFormPage(name, hook, fields, path)
+          content = genCreateFormPage(
+            name,
+            hook,
+            fields,
+            path,
+            !!successResponseSchema(op)?.properties?.data?.properties?.id,
+          )
           break
         case 'action':
           content = genActionPage(name, hook, path)
           break
         case 'edit-form': {
           // Find the GET hook for this path so the edit form can pre-fill
-          const getOpId = getOpByPath[path] ?? op.operationId.replace(/^(update|edit|patch)/i, 'get')
+          const getOpId =
+            getOpByPath[path] ?? op.operationId.replace(/^(update|edit|patch)/i, 'get')
           const queryHook = toHookName(getOpId, 'get')
           content = genEditFormPage(name, queryHook, hook, fields, path)
           break

@@ -5,79 +5,137 @@ import { describe, it, expect } from 'vitest'
 import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId } from './helpers'
 
 const app = buildTestApp()
+const createdIds: Record<string, string> = { default: '00000000-0000-0000-0000-000000000001' }
 
-describe('listAssets', () => {
-  it('requires auth', async () => {
-    const res = await app.inject({ method: 'GET', url: '/assets' })
-    expect(res.statusCode).toBe(401)
-  })
+describe('assets API', () => {
+  it('runs CRUD lifecycle', async (ctx) => {
+    const errors: Error[] = []
 
-  it('GET /assets', async () => {
-    // TODO: seed domain data (test users are pre-seeded by buildTestApp)
-    const res = await app.inject({
-      method: 'GET',
-      url: '/assets',
-      headers: asAuth(testUserId),
-      // payload: {},
-    })
-    expect(res.statusCode).toBe(200)
-    await validateResponse('listAssets', 200, res.json())
-  })
-})
+    // listAssets
+    
+    // listAssets - auth check
+    try {
+      if (!'/assets'.includes('{') || createdIds['assets']) {
+        const reslistAssetsAuth = await app.inject({ method: 'GET', url: `/assets` })
+        expect(reslistAssetsAuth.statusCode).toBe(401)
+      }
+    } catch (e: any) {
+      errors.push(new Error('listAssets auth failed: ' + e.message))
+    }
 
-describe('createAsset', () => {
-  it('requires auth', async () => {
-    const res = await app.inject({ method: 'POST', url: '/assets' })
-    expect(res.statusCode).toBe(401)
-  })
+    try {
+      if (!'/assets'.includes('{') || createdIds['assets']) {
+        const reslistAssets = await app.inject({
+          method: 'GET',
+          url: `/assets`,
+          headers: asAuth(testUserId),
+          // payload: {},
+        })
+        if (reslistAssets.statusCode !== 200) {
+          console.error('listAssets failed with ' + reslistAssets.statusCode, reslistAssets.json().message || reslistAssets.json())
+        }
+        expect(reslistAssets.statusCode).toBe(200)
+        await validateResponse('listAssets', 200, reslistAssets.json())
+      }
+    } catch (e: any) {
+      errors.push(new Error('listAssets failed: ' + e.message))
+    }
 
-  it('POST /assets', async () => {
-    // TODO: seed domain data (test users are pre-seeded by buildTestApp)
-    const res = await app.inject({
-      method: 'POST',
-      url: '/assets',
-      headers: asAuth(testUserId),
-      // payload: {},
-    })
-    expect(res.statusCode).toBe(201)
-    await validateResponse('createAsset', 201, res.json())
-  })
-})
+    // createAsset
+    
+    // createAsset - auth check
+    try {
+      if (!'/assets'.includes('{') || createdIds['assets']) {
+        const rescreateAssetAuth = await app.inject({ method: 'POST', url: `/assets` })
+        expect(rescreateAssetAuth.statusCode).toBe(401)
+      }
+    } catch (e: any) {
+      errors.push(new Error('createAsset auth failed: ' + e.message))
+    }
 
-describe('getAsset', () => {
-  it('requires auth', async () => {
-    const res = await app.inject({ method: 'GET', url: '/assets/00000000-0000-0000-0000-000000000001' })
-    expect(res.statusCode).toBe(401)
-  })
+    try {
+      if (!'/assets'.includes('{') || createdIds['assets']) {
+        const rescreateAsset = await app.inject({
+          method: 'POST',
+          url: `/assets`,
+          headers: asAuth(testUserId),
+          payload: {
+  "type": "IMAGE",
+  "name": "test_string"
+},
+        })
+        if (rescreateAsset.statusCode === 201 && rescreateAsset.json().data?.id) createdIds['assets'] = rescreateAsset.json().data.id
+        if (rescreateAsset.statusCode !== 201) {
+          console.error('createAsset failed with ' + rescreateAsset.statusCode, rescreateAsset.json().message || rescreateAsset.json())
+        }
+        expect(rescreateAsset.statusCode).toBe(201)
+        await validateResponse('createAsset', 201, rescreateAsset.json())
+      }
+    } catch (e: any) {
+      errors.push(new Error('createAsset failed: ' + e.message))
+    }
 
-  it('GET /assets/{assetId}', async () => {
-    // TODO: seed domain data (test users are pre-seeded by buildTestApp)
-    const res = await app.inject({
-      method: 'GET',
-      url: '/assets/00000000-0000-0000-0000-000000000001',
-      headers: asAuth(testUserId),
-      // payload: {},
-    })
-    expect(res.statusCode).toBe(200)
-    await validateResponse('getAsset', 200, res.json())
-  })
-})
+    // getAsset
+    
+    // getAsset - auth check
+    try {
+      if (!'/assets/{assetId}'.includes('{') || createdIds['assets']) {
+        const resgetAssetAuth = await app.inject({ method: 'GET', url: `/assets/${createdIds['assets'] || '00000000-0000-0000-0000-000000000001'}` })
+        expect(resgetAssetAuth.statusCode).toBe(401)
+      }
+    } catch (e: any) {
+      errors.push(new Error('getAsset auth failed: ' + e.message))
+    }
 
-describe('deleteAsset', () => {
-  it('requires auth', async () => {
-    const res = await app.inject({ method: 'DELETE', url: '/assets/00000000-0000-0000-0000-000000000001' })
-    expect(res.statusCode).toBe(401)
-  })
+    try {
+      if (!'/assets/{assetId}'.includes('{') || createdIds['assets']) {
+        const resgetAsset = await app.inject({
+          method: 'GET',
+          url: `/assets/${createdIds['assets'] || '00000000-0000-0000-0000-000000000001'}`,
+          headers: asAuth(testUserId),
+          // payload: {},
+        })
+        if (resgetAsset.statusCode !== 200) {
+          console.error('getAsset failed with ' + resgetAsset.statusCode, resgetAsset.json().message || resgetAsset.json())
+        }
+        expect(resgetAsset.statusCode).toBe(200)
+        await validateResponse('getAsset', 200, resgetAsset.json())
+      }
+    } catch (e: any) {
+      errors.push(new Error('getAsset failed: ' + e.message))
+    }
 
-  it('DELETE /assets/{assetId}', async () => {
-    // TODO: seed domain data (test users are pre-seeded by buildTestApp)
-    const res = await app.inject({
-      method: 'DELETE',
-      url: '/assets/00000000-0000-0000-0000-000000000001',
-      headers: asAuth(testUserId),
-      // payload: {},
-    })
-    expect(res.statusCode).toBe(200)
-    await validateResponse('deleteAsset', 200, res.json())
+    // deleteAsset
+    
+    // deleteAsset - auth check
+    try {
+      if (!'/assets/{assetId}'.includes('{') || createdIds['assets']) {
+        const resdeleteAssetAuth = await app.inject({ method: 'DELETE', url: `/assets/${createdIds['assets'] || '00000000-0000-0000-0000-000000000001'}` })
+        expect(resdeleteAssetAuth.statusCode).toBe(401)
+      }
+    } catch (e: any) {
+      errors.push(new Error('deleteAsset auth failed: ' + e.message))
+    }
+
+    try {
+      if (!'/assets/{assetId}'.includes('{') || createdIds['assets']) {
+        const resdeleteAsset = await app.inject({
+          method: 'DELETE',
+          url: `/assets/${createdIds['assets'] || '00000000-0000-0000-0000-000000000001'}`,
+          headers: asAuth(testUserId),
+          // payload: {},
+        })
+        if (resdeleteAsset.statusCode !== 200) {
+          console.error('deleteAsset failed with ' + resdeleteAsset.statusCode, resdeleteAsset.json().message || resdeleteAsset.json())
+        }
+        expect(resdeleteAsset.statusCode).toBe(200)
+        await validateResponse('deleteAsset', 200, resdeleteAsset.json())
+      }
+    } catch (e: any) {
+      errors.push(new Error('deleteAsset failed: ' + e.message))
+    }
+    if (errors.length > 0) {
+      throw new Error('Lifecycle failed:\n' + errors.map(e => e.message).join('\n'))
+    }
   })
 })

@@ -2,6 +2,7 @@ import { db } from '@project/db'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { resolveAudienceWhere } from './AudienceService'
 import { requireAudience, requireAutomation, requireTemplate } from '../lib/ownership'
+import { scheduleAutomationRuns } from '../lib/automationScheduling'
 
 function toMessageDTO(message: any, recipientCount = 0) {
   return {
@@ -23,7 +24,9 @@ function toMessageDTO(message: any, recipientCount = 0) {
 
 // A switch (not a Record lookup) so noUncheckedIndexedAccess can't widen the
 // result to include `undefined` even though every MessageChannel is covered.
-function interactionTypeForChannel(channel: 'EMAIL' | 'TEXT' | 'SOCIAL'): 'EMAIL_SENT' | 'TEXT_SENT' | 'SOCIAL_POST_SENT' {
+function interactionTypeForChannel(
+  channel: 'EMAIL' | 'TEXT' | 'SOCIAL',
+): 'EMAIL_SENT' | 'TEXT_SENT' | 'SOCIAL_POST_SENT' {
   switch (channel) {
     case 'EMAIL':
       return 'EMAIL_SENT'
@@ -35,7 +38,10 @@ function interactionTypeForChannel(channel: 'EMAIL' | 'TEXT' | 'SOCIAL'): 'EMAIL
 }
 
 export class MessageService {
-  async list(businessId: string, opts: { cursor?: string; limit?: number; status?: string; channel?: string }) {
+  async list(
+    businessId: string,
+    opts: { cursor?: string; limit?: number; status?: string; channel?: string },
+  ) {
     const limit = normalizeLimit(opts.limit)
     const cursor = decodeCursor(opts.cursor)
     const AND: any[] = []
@@ -57,7 +63,10 @@ export class MessageService {
     const hasMore = messages.length > limit
     const items = hasMore ? messages.slice(0, limit) : messages
     const last = items[items.length - 1]
-    const nextCursor = hasMore && last ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id }) : null
+    const nextCursor =
+      hasMore && last
+        ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
+        : null
     const data = await Promise.all(items.map((m) => this._toDTOWithCount(m)))
     return { data, meta: { hasMore, nextCursor } }
   }
@@ -88,7 +97,8 @@ export class MessageService {
 
   async update(businessId: string, messageId: string, data: any) {
     const current = await this._find(businessId, messageId)
-    if (current.status === 'SENT') throw { statusCode: 409, message: 'Sent messages cannot be edited' }
+    if (current.status === 'SENT')
+      throw { statusCode: 409, message: 'Sent messages cannot be edited' }
     if (data.audienceId !== undefined) await requireAudience(businessId, data.audienceId)
     const message = await db.message.update({
       where: { id: messageId },
@@ -109,7 +119,8 @@ export class MessageService {
 
   async delete(businessId: string, messageId: string) {
     const message = await this._find(businessId, messageId)
-    if (message.status === 'SENT') throw { statusCode: 409, message: 'Sent messages cannot be deleted' }
+    if (message.status === 'SENT')
+      throw { statusCode: 409, message: 'Sent messages cannot be deleted' }
     await db.message.delete({ where: { id: messageId } })
   }
 
@@ -124,32 +135,67 @@ export class MessageService {
     if (!audience) throw { statusCode: 404, message: 'Audience not found' }
 
     const eligibilityField =
-      message.channel === 'EMAIL' ? 'emailEligible' : message.channel === 'TEXT' ? 'smsEligible' : null
+      message.channel === 'EMAIL'
+        ? 'emailEligible'
+        : message.channel === 'TEXT'
+          ? 'smsEligible'
+          : null
     const filterWhere = resolveAudienceWhere(audience)
-    const baseWhere =
-      filterWhere ?? { businessId, deletedAt: null, audienceMemberships: { some: { audienceId: audience.id } } }
+    const baseWhere = filterWhere ?? {
+      businessId,
+      deletedAt: null,
+      audienceMemberships: { some: { audienceId: audience.id } },
+    }
     const where = eligibilityField ? { ...baseWhere, [eligibilityField]: true } : baseWhere
 
     const recipients = await db.contact.findMany({ where, select: { id: true } })
     const interactionType = interactionTypeForChannel(message.channel)
 
+    // Atomic: a crash partway through must not leave the interaction/contact writes committed
+    // while status stays DRAFT/SCHEDULED — that would make a retry re-send to every recipient
+    // (the top-of-function status guard only protects against retrying an *already-completed*
+    // send). Wrapping all of it in one transaction means a retry after failure always starts
+    // from a clean, unsent state.
+    const sent = await db.$transaction(async (tx) => {
+      if (recipients.length) {
+        await tx.interaction.createMany({
+          data: recipients.map((r) => ({
+            businessId,
+            contactId: r.id,
+            type: interactionType,
+            sourceType: 'MESSAGE' as const,
+            sourceMessageId: message.id,
+          })),
+        })
+        await tx.contact.updateMany({
+          where: { id: { in: recipients.map((r) => r.id) } },
+          data: { lastContactedAt: new Date() },
+        })
+      }
+      return tx.message.update({
+        where: { id: messageId },
+        data: { status: 'SENT', sentAt: new Date() },
+      })
+    })
+
     if (recipients.length) {
-      await db.interaction.createMany({
-        data: recipients.map((r) => ({
-          businessId,
-          contactId: r.id,
-          type: interactionType,
-          sourceType: 'MESSAGE' as const,
-          sourceMessageId: message.id,
-        })),
-      })
-      await db.contact.updateMany({
-        where: { id: { in: recipients.map((r) => r.id) } },
-        data: { lastContactedAt: new Date() },
-      })
+      // triggerSourceId is synthesized (message.id:contactId), not a real row id — send() uses
+      // createMany for the interactions above (MySQL createMany doesn't return generated ids),
+      // and a bulk audience send has no single per-recipient row to point at anyway. Still
+      // unique per (message, contact), which is all scheduleAutomationRuns' idempotency needs.
+      await Promise.all(
+        recipients.map((r) =>
+          scheduleAutomationRuns(db, {
+            businessId,
+            trigger: 'MESSAGE_SENT',
+            contactId: r.id,
+            triggerSourceId: `${message.id}:${r.id}`,
+            triggerEventAt: sent.sentAt ?? new Date(),
+          }),
+        ),
+      )
     }
 
-    const sent = await db.message.update({ where: { id: messageId }, data: { status: 'SENT', sentAt: new Date() } })
     return this._toDTOWithCount(sent)
   }
 
@@ -162,12 +208,19 @@ export class MessageService {
     await this._find(businessId, messageId)
     const [sent, replied, leads, sales, revenue] = await Promise.all([
       db.interaction.count({
-        where: { businessId, sourceMessageId: messageId, type: { in: ['EMAIL_SENT', 'TEXT_SENT', 'SOCIAL_POST_SENT'] } },
+        where: {
+          businessId,
+          sourceMessageId: messageId,
+          type: { in: ['EMAIL_SENT', 'TEXT_SENT', 'SOCIAL_POST_SENT'] },
+        },
       }),
       db.interaction.count({ where: { businessId, sourceMessageId: messageId, type: 'REPLY' } }),
       db.lead.count({ where: { businessId, sourceMessageId: messageId } }),
       db.sale.count({ where: { businessId, sourceMessageId: messageId } }),
-      db.sale.aggregate({ where: { businessId, sourceMessageId: messageId }, _sum: { amount: true } }),
+      db.sale.aggregate({
+        where: { businessId, sourceMessageId: messageId },
+        _sum: { amount: true },
+      }),
     ])
     return {
       sent,
@@ -193,8 +246,11 @@ export class MessageService {
     let recipientCount = 0
     if (audience) {
       const filterWhere = resolveAudienceWhere(audience)
-      const where =
-        filterWhere ?? { businessId: message.businessId, deletedAt: null, audienceMemberships: { some: { audienceId: audience.id } } }
+      const where = filterWhere ?? {
+        businessId: message.businessId,
+        deletedAt: null,
+        audienceMemberships: { some: { audienceId: audience.id } },
+      }
       recipientCount = await db.contact.count({ where })
     }
     return toMessageDTO(message, recipientCount)

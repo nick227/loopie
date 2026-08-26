@@ -1,24 +1,13 @@
-import { db, resolveVisitorSid, verifySid } from '@project/db'
+import {
+  db,
+  verifySid,
+  clickRedirectUrl,
+  trackBaseClick,
+  withSid,
+  resolveVisitorSid,
+} from '@project/db'
 import { hostedPageUrl } from '../lib/urls'
 import { resolveContactAndLead } from '../lib/identityResolution'
-
-function withSid(url: string, sid: string): string {
-  const u = new URL(url)
-  u.searchParams.set('sid', sid)
-  return u.toString()
-}
-
-function clickRedirectUrl(
-  page: { slug: string; status: string; deletedAt: Date | null } | null,
-  fallbackUrl: string | null,
-): string | null {
-  if (page) {
-    if (page.deletedAt || page.status !== 'PUBLISHED') return null
-    return hostedPageUrl(page.slug)
-  }
-  if (fallbackUrl && /^https?:\/\//.test(fallbackUrl)) return fallbackUrl
-  return null
-}
 
 export class AttributionService {
   async trackClick(deploymentId: string, sessionId?: string) {
@@ -33,21 +22,56 @@ export class AttributionService {
     const redirectBase = clickRedirectUrl(
       deployment.destinationLandingPage,
       deployment.campaign.destinationUrl,
+      hostedPageUrl,
     )
     if (!redirectBase) throw { statusCode: 404, message: 'Deployment not found' }
 
+    const sidToken = await trackBaseClick({
+      campaignId: deployment.campaignId,
+      creativeId: deployment.creativeId,
+      deploymentId: deployment.id,
+      landingPageId: deployment.destinationLandingPageId,
+      platform: deployment.platform,
+      sessionId,
+      onRecord: async () => {
+        await db.deployment.update({
+          where: { id: deployment.id },
+          data: { clicks: { increment: 1 } },
+        })
+      },
+    })
+
+    return { redirectUrl: withSid(redirectBase, sidToken), sessionId: sidToken }
+  }
+
+  // Mirrors trackClick above exactly (same helpers, same redirect/session-mint shape) for an
+  // affiliate's referral link instead of an ad deployment. The actual "who gets credit" stamp
+  // happens later, in identityResolution.ts's resolveContactAndLead, keyed off this click's
+  // sessionId — nothing here touches Lead/sourceType directly.
+  async trackAffiliateClick(affiliateId: string, sessionId?: string) {
+    const affiliate = await db.affiliate.findUnique({
+      where: { id: affiliateId },
+      include: { destinationLandingPage: true },
+    })
+    if (!affiliate || !affiliate.isActive) {
+      throw { statusCode: 404, message: 'Affiliate not found' }
+    }
+
+    const redirectBase = clickRedirectUrl(
+      affiliate.destinationLandingPage,
+      affiliate.destinationUrl,
+      hostedPageUrl,
+    )
+    if (!redirectBase) throw { statusCode: 404, message: 'Affiliate not found' }
+
     const visitor = resolveVisitorSid(sessionId)
-    await db.attributionEvent.create({
+    await db.affiliateReferralClick.create({
       data: {
-        campaignId: deployment.campaignId,
-        creativeId: deployment.creativeId,
-        deploymentId: deployment.id,
-        landingPageId: deployment.destinationLandingPageId,
-        platform: deployment.platform,
+        affiliateId: affiliate.id,
+        landingPageId: affiliate.destinationLandingPageId,
         sessionId: visitor.sessionId,
       },
     })
-    await db.deployment.update({ where: { id: deployment.id }, data: { clicks: { increment: 1 } } })
 
     return { redirectUrl: withSid(redirectBase, visitor.token), sessionId: visitor.token }
   }

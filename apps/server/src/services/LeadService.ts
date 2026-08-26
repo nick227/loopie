@@ -1,5 +1,6 @@
 import { db } from '@project/db'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
+import { scheduleAutomationRuns } from '../lib/automationScheduling'
 
 function toLeadDTO(lead: any) {
   return {
@@ -15,6 +16,7 @@ function toLeadDTO(lead: any) {
     sourceAdUnitId: lead.sourceAdUnitId,
     clickId: lead.clickId,
     landingSessionId: lead.landingSessionId,
+    referringAffiliateId: lead.referringAffiliateId,
     openedAt: lead.openedAt.toISOString(),
     closedAt: lead.closedAt?.toISOString() ?? null,
     createdAt: lead.createdAt.toISOString(),
@@ -22,7 +24,10 @@ function toLeadDTO(lead: any) {
 }
 
 export class LeadService {
-  async list(businessId: string, opts: { cursor?: string; limit?: number; stage?: string; sourceType?: string }) {
+  async list(
+    businessId: string,
+    opts: { cursor?: string; limit?: number; stage?: string; sourceType?: string },
+  ) {
     const limit = normalizeLimit(opts.limit)
     const cursor = decodeCursor(opts.cursor)
     const AND: any[] = []
@@ -44,7 +49,10 @@ export class LeadService {
     const hasMore = leads.length > limit
     const items = hasMore ? leads.slice(0, limit) : leads
     const last = items[items.length - 1]
-    const nextCursor = hasMore && last ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id }) : null
+    const nextCursor =
+      hasMore && last
+        ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
+        : null
     return { data: items.map(toLeadDTO), meta: { hasMore, nextCursor } }
   }
 
@@ -58,19 +66,43 @@ export class LeadService {
     const current = await this._find(businessId, leadId)
     const closesNow = (data.stage === 'WON' || data.stage === 'LOST') && !current.closedAt
 
-    const lead = await db.lead.update({
-      where: { id: leadId },
-      data: {
-        ...(data.stage !== undefined ? { stage: data.stage } : {}),
-        ...(data.owner !== undefined ? { owner: data.owner } : {}),
-        ...(data.estimatedValue !== undefined ? { estimatedValue: data.estimatedValue } : {}),
-        ...(closesNow ? { closedAt: new Date(), openSlot: null } : {}),
-      },
+    const stageChanged = data.stage !== undefined && data.stage !== current.stage
+
+    // Atomic: a stage change must never commit without its STATUS_CHANGE interaction — that
+    // interaction's id is the idempotency key scheduleAutomationRuns keys off, so losing it to a
+    // partial write would silently drop the LEAD_STATUS_CHANGED trigger with no way to detect it
+    // later (the lead would just look like it changed stage with no audit trail).
+    const { lead, interaction } = await db.$transaction(async (tx) => {
+      const updated = await tx.lead.update({
+        where: { id: leadId },
+        data: {
+          ...(data.stage !== undefined ? { stage: data.stage } : {}),
+          ...(data.owner !== undefined ? { owner: data.owner } : {}),
+          ...(data.estimatedValue !== undefined ? { estimatedValue: data.estimatedValue } : {}),
+          ...(closesNow ? { closedAt: new Date(), openSlot: null } : {}),
+        },
+      })
+      const createdInteraction = stageChanged
+        ? await tx.interaction.create({
+            data: {
+              businessId,
+              contactId: current.contactId,
+              type: 'STATUS_CHANGE',
+              metadata: { stage: data.stage },
+            },
+          })
+        : null
+      return { lead: updated, interaction: createdInteraction }
     })
 
-    if (data.stage !== undefined && data.stage !== current.stage) {
-      await db.interaction.create({
-        data: { businessId, contactId: current.contactId, type: 'STATUS_CHANGE', metadata: { stage: data.stage } },
+    if (interaction) {
+      await scheduleAutomationRuns(db, {
+        businessId,
+        trigger: 'LEAD_STATUS_CHANGED',
+        contactId: current.contactId,
+        leadId: lead.id,
+        triggerSourceId: interaction.id,
+        triggerEventAt: interaction.occurredAt,
       })
     }
 

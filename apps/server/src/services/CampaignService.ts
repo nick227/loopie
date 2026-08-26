@@ -2,10 +2,12 @@ import { db } from '@project/db'
 import type { Prisma } from '@prisma/client'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { requireCreatives } from '../lib/ownership'
-import { createCampaignInventory } from '../lib/campaignInventory'
+import { reconcileCampaignInventory } from '../lib/campaignInventory'
 import { FinanceService } from './FinanceService'
+import { CampaignPerformanceService } from './CampaignPerformanceService'
 
 const financeService = new FinanceService()
+const performanceService = new CampaignPerformanceService()
 
 const INCLUDE = { creativeLinks: true }
 
@@ -48,7 +50,10 @@ export class CampaignService {
     const hasMore = campaigns.length > limit
     const items = hasMore ? campaigns.slice(0, limit) : campaigns
     const last = items[items.length - 1]
-    const nextCursor = hasMore && last ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id }) : null
+    const nextCursor =
+      hasMore && last
+        ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
+        : null
     return { data: items.map(toCampaignDTO), meta: { hasMore, nextCursor } }
   }
 
@@ -69,7 +74,7 @@ export class CampaignService {
         },
         include: INCLUDE,
       })
-      await createCampaignInventory(tx, {
+      await reconcileCampaignInventory(tx, {
         businessId,
         campaignId: campaign.id,
         platforms: data.platforms,
@@ -84,37 +89,78 @@ export class CampaignService {
     return toCampaignDTO(await this._find(businessId, campaignId))
   }
 
+  // Reconciles live Deployment/AdUnit inventory whenever creativeIds and/or platforms change —
+  // see lib/campaignInventory.ts. Always diffs against the *effective* post-update set (falling
+  // back to the campaign's current creatives/platforms for whichever field wasn't sent), so a
+  // platforms-only edit still reconciles correctly against the unchanged creative list and vice
+  // versa.
   async update(businessId: string, campaignId: string, data: any) {
     const current = await this._find(businessId, campaignId)
     if (current.status === 'ENDED') throw { statusCode: 409, message: 'Ended campaigns are frozen' }
 
     if (data.creativeIds !== undefined) {
       await requireCreatives(businessId, data.creativeIds)
-      await db.campaignCreative.deleteMany({ where: { campaignId } })
-      await db.campaignCreative.createMany({
-        data: data.creativeIds.map((creativeId: string) => ({ campaignId, creativeId })),
-      })
     }
 
-    const campaign = await db.campaign.update({
-      where: { id: campaignId },
-      data: {
-        ...(data.name !== undefined ? { name: data.name } : {}),
-        ...(data.budget !== undefined ? { budget: data.budget } : {}),
-        ...(data.endDate !== undefined ? { endDate: data.endDate ? new Date(data.endDate) : null } : {}),
-        ...(data.destinationUrl !== undefined ? { destinationUrl: data.destinationUrl } : {}),
-      },
-      include: INCLUDE,
+    const nextCreativeIds: string[] =
+      data.creativeIds !== undefined
+        ? data.creativeIds
+        : current.creativeLinks.map((c: any) => c.creativeId)
+    const nextPlatforms: string[] =
+      data.platforms !== undefined ? data.platforms : ((current.platforms as string[] | null) ?? [])
+    const nextDestinationUrl: string | null =
+      data.destinationUrl !== undefined ? data.destinationUrl : current.destinationUrl
+
+    const campaign = await db.$transaction(async (tx) => {
+      if (data.creativeIds !== undefined) {
+        await tx.campaignCreative.deleteMany({ where: { campaignId } })
+        await tx.campaignCreative.createMany({
+          data: data.creativeIds.map((creativeId: string) => ({ campaignId, creativeId })),
+        })
+      }
+      const updated = await tx.campaign.update({
+        where: { id: campaignId },
+        data: {
+          ...(data.name !== undefined ? { name: data.name } : {}),
+          ...(data.budget !== undefined ? { budget: data.budget } : {}),
+          ...(data.endDate !== undefined
+            ? { endDate: data.endDate ? new Date(data.endDate) : null }
+            : {}),
+          ...(data.destinationUrl !== undefined ? { destinationUrl: data.destinationUrl } : {}),
+          ...(data.platforms !== undefined ? { platforms: data.platforms } : {}),
+        },
+        include: INCLUDE,
+      })
+      if (data.creativeIds !== undefined || data.platforms !== undefined) {
+        await reconcileCampaignInventory(tx, {
+          businessId,
+          campaignId,
+          platforms: nextPlatforms,
+          creativeIds: nextCreativeIds,
+          destinationUrl: nextDestinationUrl,
+        })
+      }
+      return updated
     })
     return toCampaignDTO(campaign)
   }
 
+  // Deployment/AdUnit status cascades run in the same transaction as the campaign's own status
+  // write — a crash partway through must never leave live inventory in a status that disagrees
+  // with the campaign it belongs to (e.g. a "paused" campaign with deployments still ACTIVE).
   async pause(businessId: string, campaignId: string) {
     const current = await this._find(businessId, campaignId)
-    if (current.status !== 'ACTIVE') throw { statusCode: 409, message: 'Only active campaigns can be paused' }
-    await db.deployment.updateMany({ where: { campaignId }, data: { status: 'PAUSED' } })
-    await db.adUnit.updateMany({ where: { campaignId }, data: { status: 'PAUSED' } })
-    const campaign = await db.campaign.update({ where: { id: campaignId }, data: { status: 'PAUSED' }, include: INCLUDE })
+    if (current.status !== 'ACTIVE')
+      throw { statusCode: 409, message: 'Only active campaigns can be paused' }
+    const campaign = await db.$transaction(async (tx) => {
+      await tx.deployment.updateMany({ where: { campaignId }, data: { status: 'PAUSED' } })
+      await tx.adUnit.updateMany({ where: { campaignId }, data: { status: 'PAUSED' } })
+      return tx.campaign.update({
+        where: { id: campaignId },
+        data: { status: 'PAUSED' },
+        include: INCLUDE,
+      })
+    })
     return toCampaignDTO(campaign)
   }
 
@@ -125,21 +171,33 @@ export class CampaignService {
     if (current.status !== 'DRAFT' && current.status !== 'PAUSED') {
       throw { statusCode: 409, message: 'Only draft or paused campaigns can be activated' }
     }
-    await db.deployment.updateMany({ where: { campaignId }, data: { status: 'ACTIVE' } })
-    await db.adUnit.updateMany({
-      where: { campaignId, status: { in: ['DRAFT', 'PAUSED'] } },
-      data: { status: 'ACTIVE' },
+    const campaign = await db.$transaction(async (tx) => {
+      await tx.deployment.updateMany({ where: { campaignId }, data: { status: 'ACTIVE' } })
+      await tx.adUnit.updateMany({
+        where: { campaignId, status: { in: ['DRAFT', 'PAUSED'] } },
+        data: { status: 'ACTIVE' },
+      })
+      return tx.campaign.update({
+        where: { id: campaignId },
+        data: { status: 'ACTIVE' },
+        include: INCLUDE,
+      })
     })
-    const campaign = await db.campaign.update({ where: { id: campaignId }, data: { status: 'ACTIVE' }, include: INCLUDE })
     return toCampaignDTO(campaign)
   }
 
   async end(businessId: string, campaignId: string) {
     const current = await this._find(businessId, campaignId)
     if (current.status === 'ENDED') throw { statusCode: 409, message: 'Campaign already ended' }
-    await db.deployment.updateMany({ where: { campaignId }, data: { status: 'ENDED' } })
-    await db.adUnit.updateMany({ where: { campaignId }, data: { status: 'ENDED' } })
-    const campaign = await db.campaign.update({ where: { id: campaignId }, data: { status: 'ENDED' }, include: INCLUDE })
+    const campaign = await db.$transaction(async (tx) => {
+      await tx.deployment.updateMany({ where: { campaignId }, data: { status: 'ENDED' } })
+      await tx.adUnit.updateMany({ where: { campaignId }, data: { status: 'ENDED' } })
+      return tx.campaign.update({
+        where: { id: campaignId },
+        data: { status: 'ENDED' },
+        include: INCLUDE,
+      })
+    })
     return toCampaignDTO(campaign)
   }
 
@@ -163,7 +221,7 @@ export class CampaignService {
         },
         include: INCLUDE,
       })
-      await createCampaignInventory(tx, {
+      await reconcileCampaignInventory(tx, {
         businessId,
         campaignId: created.id,
         platforms,
@@ -181,7 +239,10 @@ export class CampaignService {
             status: 'DRAFT',
             destinationLandingPageId: unit.destinationLandingPageId,
             destinationUrl: unit.destinationUrl,
-            servingConfig: unit.servingConfig === null ? undefined : (unit.servingConfig as Prisma.InputJsonValue),
+            servingConfig:
+              unit.servingConfig === null
+                ? undefined
+                : (unit.servingConfig as Prisma.InputJsonValue),
           })),
         })
       }
@@ -195,158 +256,14 @@ export class CampaignService {
   // row (see the Platform enum) rather than requiring the business to add it to
   // campaign.platforms manually.
   async performance(businessId: string, campaignId: string) {
-    const campaign = await this._find(businessId, campaignId)
-    const [deployments, adUnits] = await Promise.all([
-      db.deployment.findMany({ where: { campaignId: campaign.id }, include: { creative: { select: { name: true } } } }),
-      db.adUnit.findMany({ where: { campaignId: campaign.id }, include: { creative: { select: { name: true } } } }),
-    ])
-
-    const spend = deployments.reduce((sum, d) => sum + Number(d.spend), 0)
-    const views = deployments.reduce((sum, d) => sum + d.impressions, 0) + adUnits.reduce((sum, a) => sum + a.impressions, 0)
-    const clicks = deployments.reduce((sum, d) => sum + d.clicks, 0) + adUnits.reduce((sum, a) => sum + a.clicks, 0)
-    const deploymentIds = deployments.map((d) => d.id)
-    const adUnitIds = adUnits.map((a) => a.id)
-
-    const [
-      leadsD, salesD, revenueD, leadsByDeployment, salesByDeployment,
-      leadsA, salesA, revenueA, leadsByAdUnit, salesByAdUnit,
-    ] = await Promise.all([
-      db.lead.count({ where: { businessId, sourceDeploymentId: { in: deploymentIds } } }),
-      db.sale.count({ where: { businessId, sourceDeploymentId: { in: deploymentIds } } }),
-      db.sale.aggregate({ where: { businessId, sourceDeploymentId: { in: deploymentIds } }, _sum: { amount: true } }),
-      db.lead.groupBy({ by: ['sourceDeploymentId'], where: { businessId, sourceDeploymentId: { in: deploymentIds } }, _count: { _all: true } }),
-      db.sale.groupBy({ by: ['sourceDeploymentId'], where: { businessId, sourceDeploymentId: { in: deploymentIds } }, _count: { _all: true } }),
-      db.lead.count({ where: { businessId, sourceAdUnitId: { in: adUnitIds } } }),
-      db.sale.count({ where: { businessId, sourceAdUnitId: { in: adUnitIds } } }),
-      db.sale.aggregate({ where: { businessId, sourceAdUnitId: { in: adUnitIds } }, _sum: { amount: true } }),
-      db.lead.groupBy({ by: ['sourceAdUnitId'], where: { businessId, sourceAdUnitId: { in: adUnitIds } }, _count: { _all: true } }),
-      db.sale.groupBy({ by: ['sourceAdUnitId'], where: { businessId, sourceAdUnitId: { in: adUnitIds } }, _count: { _all: true } }),
-    ])
-
-    const leads = leadsD + leadsA
-    const sales = salesD + salesA
-    const revenue = Number(revenueD._sum.amount ?? 0) + Number(revenueA._sum.amount ?? 0)
-    const cpl = leads > 0 ? spend / leads : null
-
-    const deploymentToCreative = new Map(deployments.map((d) => [d.id, { id: d.creativeId, name: d.creative.name }]))
-    const deploymentToPlatform = new Map(deployments.map((d) => [d.id, d.platform as string]))
-    const adUnitToCreative = new Map(adUnits.map((a) => [a.id, { id: a.creativeId, name: a.creative.name }]))
-
-    const byCreative = new Map<string, { creativeId: string; creativeName: string; views: number; clicks: number; leads: number; sales: number }>()
-    for (const d of deployments) {
-      const entry = byCreative.get(d.creativeId) ?? { creativeId: d.creativeId, creativeName: d.creative.name, views: 0, clicks: 0, leads: 0, sales: 0 }
-      entry.views += d.impressions
-      entry.clicks += d.clicks
-      byCreative.set(d.creativeId, entry)
-    }
-    for (const a of adUnits) {
-      const entry = byCreative.get(a.creativeId) ?? { creativeId: a.creativeId, creativeName: a.creative.name, views: 0, clicks: 0, leads: 0, sales: 0 }
-      entry.views += a.impressions
-      entry.clicks += a.clicks
-      byCreative.set(a.creativeId, entry)
-    }
-
-    const byPlatform = new Map<string, { platform: string; spend: number; leads: number; sales: number }>()
-    for (const d of deployments) {
-      const entry = byPlatform.get(d.platform) ?? { platform: d.platform, spend: 0, leads: 0, sales: 0 }
-      entry.spend += Number(d.spend)
-      byPlatform.set(d.platform, entry)
-    }
-    if (adUnits.length) {
-      // First-party inventory has no external spend concept — see AdUnit in schema.prisma.
-      byPlatform.set('LOOPIE', byPlatform.get('LOOPIE') ?? { platform: 'LOOPIE', spend: 0, leads: 0, sales: 0 })
-    }
-
-    for (const row of leadsByDeployment) {
-      if (!row.sourceDeploymentId) continue
-      const creative = deploymentToCreative.get(row.sourceDeploymentId)
-      if (creative) byCreative.get(creative.id)!.leads += row._count._all
-      const platform = deploymentToPlatform.get(row.sourceDeploymentId)
-      if (platform) byPlatform.get(platform)!.leads += row._count._all
-    }
-    for (const row of salesByDeployment) {
-      if (!row.sourceDeploymentId) continue
-      const creative = deploymentToCreative.get(row.sourceDeploymentId)
-      if (creative) byCreative.get(creative.id)!.sales += row._count._all
-      const platform = deploymentToPlatform.get(row.sourceDeploymentId)
-      if (platform) byPlatform.get(platform)!.sales += row._count._all
-    }
-    for (const row of leadsByAdUnit) {
-      if (!row.sourceAdUnitId) continue
-      const creative = adUnitToCreative.get(row.sourceAdUnitId)
-      if (creative) byCreative.get(creative.id)!.leads += row._count._all
-      byPlatform.get('LOOPIE')!.leads += row._count._all
-    }
-    for (const row of salesByAdUnit) {
-      if (!row.sourceAdUnitId) continue
-      const creative = adUnitToCreative.get(row.sourceAdUnitId)
-      if (creative) byCreative.get(creative.id)!.sales += row._count._all
-      byPlatform.get('LOOPIE')!.sales += row._count._all
-    }
-
-    const byLandingPage = await this._landingPagePerformanceForCampaign(businessId, deployments, adUnits)
-
-    return {
-      spend,
-      views,
-      clicks,
-      leads,
-      sales,
-      revenue,
-      cpl,
-      byCreative: Array.from(byCreative.values()),
-      byPlatform: Array.from(byPlatform.values()),
-      byLandingPage,
-    }
+    return performanceService.getPerformance(businessId, campaignId)
   }
 
-  private async _landingPagePerformanceForCampaign(
+  async authorizeBudget(
     businessId: string,
-    deployments: { destinationLandingPageId: string | null }[],
-    adUnits: { destinationLandingPageId: string | null }[],
+    campaignId: string,
+    data: Parameters<FinanceService['authorizeCampaignBudget']>[2],
   ) {
-    const landingPageIds = [
-      ...new Set(
-        [...deployments, ...adUnits]
-          .map((d) => d.destinationLandingPageId)
-          .filter((v): v is string => !!v),
-      ),
-    ]
-    if (!landingPageIds.length) return []
-
-    const pages = await db.landingPage.findMany({ where: { id: { in: landingPageIds }, businessId } })
-
-    return Promise.all(
-      pages.map(async (page) => {
-        const [views, uniqueSessionRows, submissionRows] = await Promise.all([
-          db.pageView.count({ where: { landingPageId: page.id } }),
-          db.pageView.findMany({
-            where: { landingPageId: page.id, sessionId: { not: null } },
-            distinct: ['sessionId'],
-            select: { sessionId: true },
-          }),
-          db.formSubmission.findMany({ where: { landingPageId: page.id }, select: { leadId: true } }),
-        ])
-        const uniqueSessions = uniqueSessionRows.length
-        const submissions = submissionRows.length
-        const leadIds = submissionRows.map((r) => r.leadId).filter((v): v is string => !!v)
-        const sales = await db.sale.count({ where: { businessId, leadId: { in: leadIds } } })
-
-        return {
-          landingPageId: page.id,
-          landingPageName: page.name,
-          views,
-          uniqueSessions,
-          submissions,
-          conversionRate: uniqueSessions > 0 ? submissions / uniqueSessions : null,
-          leads: leadIds.length,
-          sales,
-        }
-      }),
-    )
-  }
-
-  async authorizeBudget(businessId: string, campaignId: string, data: Parameters<FinanceService['authorizeCampaignBudget']>[2]) {
     await this._find(businessId, campaignId)
     return financeService.authorizeCampaignBudget(businessId, campaignId, data)
   }
@@ -361,7 +278,10 @@ export class CampaignService {
   }
 
   async _find(businessId: string, campaignId: string) {
-    const campaign = await db.campaign.findFirst({ where: { id: campaignId, businessId }, include: INCLUDE })
+    const campaign = await db.campaign.findFirst({
+      where: { id: campaignId, businessId },
+      include: INCLUDE,
+    })
     if (!campaign) throw { statusCode: 404, message: 'Campaign not found' }
     return campaign
   }

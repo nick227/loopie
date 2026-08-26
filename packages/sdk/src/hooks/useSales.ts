@@ -16,7 +16,9 @@ export function useSales(params?: { limit?: number }) {
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
       const client = getApiClient()
-      const result = await client.GET('/sales', { params: { query: { ...params, cursor: pageParam } } })
+      const result = await client.GET('/sales', {
+        params: { query: { ...params, cursor: pageParam } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -57,6 +59,29 @@ export function useCreateSale() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', 'list'] })
+      queryClient.invalidateQueries({ queryKey: ['leads', 'list'] })
+    },
+  })
+}
+
+export function useReverseSale() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ saleId, reason }: { saleId: string; reason?: string }) => {
+      const client = getApiClient()
+      const result = await client.POST('/sales/{saleId}/reverse', {
+        params: { path: { saleId } },
+        body: { reason },
+      })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as any).error)
+      return data!
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['sales', 'list'] })
+      queryClient.invalidateQueries({ queryKey: ['sale', variables.saleId] })
       queryClient.invalidateQueries({ queryKey: ['leads', 'list'] })
     },
   })

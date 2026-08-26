@@ -4,6 +4,7 @@ import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { hostedPageUrl, landingPageSubmitUrl } from '../lib/urls'
 import { renderLandingPageHtml, defaultContentFromSchema } from '../lib/renderLandingPage'
 import { resolveContactAndLead } from '../lib/identityResolution'
+import { snapshotForm, isFormLive, type FormSnapshot } from '../lib/formSnapshot'
 
 function toLandingPageDTO(page: any) {
   return {
@@ -32,12 +33,13 @@ function toVersionDTO(version: any) {
     content: version.content,
     theme: version.theme,
     formId: version.formId,
+    formSnapshot: version.formSnapshot ?? null,
     publishedAt: version.publishedAt.toISOString(),
     archivedAt: version.archivedAt?.toISOString() ?? null,
   }
 }
 
-async function loadFormForRender(formId: string | null) {
+export async function loadFormForRender(formId: string | null) {
   if (!formId) return null
   const form = await db.form.findFirst({
     where: { id: formId, deletedAt: null },
@@ -69,7 +71,10 @@ export class LandingPageService {
     const hasMore = pages.length > limit
     const items = hasMore ? pages.slice(0, limit) : pages
     const last = items[items.length - 1]
-    const nextCursor = hasMore && last ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id }) : null
+    const nextCursor =
+      hasMore && last
+        ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
+        : null
     return { data: items.map(toLandingPageDTO), meta: { hasMore, nextCursor } }
   }
 
@@ -83,7 +88,9 @@ export class LandingPageService {
     if (slugClash) throw { statusCode: 409, message: 'Slug already in use' }
 
     if (data.formId) {
-      const form = await db.form.findFirst({ where: { id: data.formId, businessId, deletedAt: null } })
+      const form = await db.form.findFirst({
+        where: { id: data.formId, businessId, deletedAt: null },
+      })
       if (!form) throw { statusCode: 404, message: 'Form not found' }
     }
 
@@ -112,7 +119,9 @@ export class LandingPageService {
       if (clash) throw { statusCode: 409, message: 'Slug already in use' }
     }
     if (data.formId) {
-      const form = await db.form.findFirst({ where: { id: data.formId, businessId, deletedAt: null } })
+      const form = await db.form.findFirst({
+        where: { id: data.formId, businessId, deletedAt: null },
+      })
       if (!form) throw { statusCode: 404, message: 'Form not found' }
     }
     const page = await db.landingPage.update({
@@ -156,6 +165,10 @@ export class LandingPageService {
         orderBy: { version: 'desc' },
       })
 
+      // Freeze the form's fields as they exist right now — this version must keep rendering and
+      // validating against exactly this snapshot even if the live Form is edited afterward.
+      const formSnapshot = await snapshotForm(tx, current.formId)
+
       const version = await tx.publishedPageVersion.create({
         data: {
           landingPageId,
@@ -163,6 +176,7 @@ export class LandingPageService {
           content: current.content as Prisma.InputJsonValue,
           theme: current.theme as Prisma.InputJsonValue | undefined,
           formId: current.formId,
+          formSnapshot: formSnapshot as unknown as Prisma.InputJsonValue | undefined,
           publishedBy,
         },
       })
@@ -176,7 +190,11 @@ export class LandingPageService {
     })
   }
 
-  async listVersions(businessId: string, landingPageId: string, opts: { cursor?: string; limit?: number }) {
+  async listVersions(
+    businessId: string,
+    landingPageId: string,
+    opts: { cursor?: string; limit?: number },
+  ) {
     await this._find(businessId, landingPageId)
     const limit = normalizeLimit(opts.limit)
     const cursor = decodeCursor(opts.cursor)
@@ -198,13 +216,17 @@ export class LandingPageService {
     const items = hasMore ? versions.slice(0, limit) : versions
     const last = items[items.length - 1]
     const nextCursor =
-      hasMore && last ? encodeCursor({ createdAt: last.publishedAt.toISOString(), id: last.id }) : null
+      hasMore && last
+        ? encodeCursor({ createdAt: last.publishedAt.toISOString(), id: last.id })
+        : null
     return { data: items.map(toVersionDTO), meta: { hasMore, nextCursor } }
   }
 
   async export(businessId: string, landingPageId: string) {
     const page = await this._find(businessId, landingPageId)
-    const template = await db.landingPageTemplate.findUniqueOrThrow({ where: { id: page.templateId } })
+    const template = await db.landingPageTemplate.findUniqueOrThrow({
+      where: { id: page.templateId },
+    })
     const form = await loadFormForRender(page.formId)
     const html = renderLandingPageHtml({
       pageName: page.name,
@@ -249,193 +271,12 @@ export class LandingPageService {
     }
   }
 
-  // Public, approximate, not deduplicated by session — a lightweight signal per the brief
-  // ("form starts if captured"), not a precise funnel stage.
-  async recordFormStart(landingPageId: string) {
-    const page = await db.landingPage.findUnique({ where: { id: landingPageId } })
-    if (!page || page.deletedAt || page.status !== 'PUBLISHED') {
-      throw { statusCode: 404, message: 'Landing page not found' }
-    }
-    await db.landingPage.update({ where: { id: landingPageId }, data: { formStartCount: { increment: 1 } } })
-  }
-
-  // The hosted rendering path (GET /p/{slug}). Records a PageView on every hit — the raw
-  // per-event table PageView.performance()/pageView reads back from, distinct from the
-  // counter-based approach used for ad impressions (see AdUnit — much higher volume there).
-  async serve(
-    slug: string,
-    opts: { sessionId?: string; referrer?: string; utmSource?: string; utmMedium?: string; utmCampaign?: string },
-  ) {
-    const page = await db.landingPage.findUnique({
-      where: { slug },
-      include: { publishedVersion: true, template: true },
-    })
-    if (!page || page.deletedAt || page.status !== 'PUBLISHED' || !page.publishedVersion) {
-      throw { statusCode: 404, message: 'Page not found' }
-    }
-
-    const visitor = resolveVisitorSid(opts.sessionId)
-    await db.pageView.create({
-      data: {
-        landingPageId: page.id,
-        publishedPageVersionId: page.publishedVersion.id,
-        sessionId: visitor.sessionId,
-        referrer: opts.referrer,
-        utmSource: opts.utmSource,
-        utmMedium: opts.utmMedium,
-        utmCampaign: opts.utmCampaign,
-      },
-    })
-
-    const form = await loadFormForRender(page.publishedVersion.formId)
-    return {
-      sidToken: visitor.token,
-      html: renderLandingPageHtml({
-        pageName: page.name,
-        templateSchema: page.template.schema as any,
-        content: page.publishedVersion.content as any,
-        theme: page.publishedVersion.theme as any,
-        form,
-        submitActionUrl: landingPageSubmitUrl(page.id),
-        sessionToken: visitor.token,
-      }),
-    }
-  }
-
-  // The canonical identity transition for hosted landing pages: anonymous session ->
-  // FormSubmission -> resolve/create Contact -> create Lead, via the same
-  // resolveContactAndLead() AttributionService.submitForm uses — one Contact/Lead model, two
-  // entry points. Enriches attribution from whichever Deployment/AdUnit click produced the
-  // session (matched by sessionId); falls back to MANUAL when the visit wasn't tracked (e.g.
-  // organic traffic, or a link with no prior click — a Message-originated visit is not yet
-  // distinguished from organic in V1, a documented scope limit).
-  async submit(
-    landingPageId: string,
-    input: {
-      sessionId?: string
-      data: Record<string, unknown>
-      utmSource?: string
-      utmMedium?: string
-      utmCampaign?: string
-      utmContent?: string
-      utmTerm?: string
-    },
-  ) {
-    const sessionId = verifySid(input.sessionId)?.sessionId
-    if (!sessionId) throw { statusCode: 400, message: 'Invalid session' }
-
-    const page = await db.landingPage.findUnique({
-      where: { id: landingPageId },
-      include: { form: { include: { fields: true } } },
-    })
-    if (!page || page.deletedAt || page.status !== 'PUBLISHED') {
-      throw { statusCode: 404, message: 'Landing page not found' }
-    }
-    if (!page.form || page.form.deletedAt) {
-      throw { statusCode: 409, message: 'This landing page has no form configured' }
-    }
-
-    for (const field of page.form.fields) {
-      if (!field.required) continue
-      const value = input.data[field.fieldKey]
-      if (value === undefined || value === null || String(value).trim() === '') {
-        throw { statusCode: 400, message: `Missing required field: ${field.fieldKey}` }
-      }
-    }
-
-    return db.$transaction(async (tx) => {
-      const existing = await tx.formSubmission.findFirst({
-        where: { landingPageId: page.id, sessionId },
-      })
-      if (existing?.contactId && existing.leadId) {
-        return {
-          submissionId: existing.id,
-          contactId: existing.contactId,
-          leadId: existing.leadId,
-          successMessage: page.form!.successMessage,
-        }
-      }
-
-      const event = await tx.attributionEvent.findFirst({
-        where: { sessionId },
-        orderBy: { createdAt: 'desc' },
-        include: { deployment: { include: { campaign: true } }, adUnit: true },
-      })
-      const eventBusinessId = event?.deployment?.campaign.businessId ?? event?.adUnit?.businessId
-      const attributed = event && eventBusinessId === page.businessId ? event : null
-
-      const emailField = page.form!.fields.find((f) => f.type === 'EMAIL')
-      const phoneField = page.form!.fields.find((f) => f.type === 'PHONE')
-      const nameValue =
-        (input.data['name'] as string) ?? (input.data['full_name'] as string) ?? 'Website visitor'
-      const emailValue = emailField ? (input.data[emailField.fieldKey] as string | undefined) : undefined
-      const phoneValue = phoneField ? (input.data[phoneField.fieldKey] as string | undefined) : undefined
-
-      const submission = await tx.formSubmission.create({
-        data: {
-          businessId: page.businessId,
-          formId: page.form!.id,
-          landingPageId: page.id,
-          publishedPageVersionId: page.publishedVersionId,
-          data: input.data as Prisma.InputJsonValue,
-          sessionId,
-          clickId: attributed?.clickId,
-          utmSource: input.utmSource ?? attributed?.utmSource,
-          utmMedium: input.utmMedium ?? attributed?.utmMedium,
-          utmCampaign: input.utmCampaign ?? attributed?.utmCampaign,
-          utmContent: input.utmContent ?? attributed?.utmContent,
-          utmTerm: input.utmTerm ?? attributed?.utmTerm,
-          sourceDeploymentId: attributed?.deploymentId,
-          sourceAdUnitId: attributed?.adUnitId,
-        },
-      })
-
-      const sourceType: SourceType = attributed?.deploymentId
-        ? 'DEPLOYMENT'
-        : attributed?.adUnitId
-          ? 'AD_UNIT'
-          : 'MANUAL'
-      const { contact, lead } = await resolveContactAndLead(
-        tx,
-        page.businessId,
-        { name: nameValue, email: emailValue, phone: phoneValue, source: 'landing-page' },
-        {
-          sourceType,
-          sourceDeploymentId: attributed?.deploymentId,
-          sourceAdUnitId: attributed?.adUnitId,
-          clickId: attributed?.clickId,
-          landingSessionId: sessionId,
-        },
-      )
-
-      await tx.formSubmission.update({
-        where: { id: submission.id },
-        data: { contactId: contact.id, leadId: lead.id },
-      })
-      if (attributed?.deploymentId) {
-        await tx.deployment.update({
-          where: { id: attributed.deploymentId },
-          data: { conversions: { increment: 1 } },
-        })
-      }
-      if (attributed?.adUnitId) {
-        await tx.adUnit.update({
-          where: { id: attributed.adUnitId },
-          data: { conversions: { increment: 1 } },
-        })
-      }
-
-      return {
-        submissionId: submission.id,
-        contactId: contact.id,
-        leadId: lead.id,
-        successMessage: page.form!.successMessage,
-      }
-    })
-  }
+  // `serve`, `submit`, and `recordFormStart` have been extracted to LandingPageRenderService and LandingPageSubmissionService.
 
   private async _find(businessId: string, landingPageId: string) {
-    const page = await db.landingPage.findFirst({ where: { id: landingPageId, businessId, deletedAt: null } })
+    const page = await db.landingPage.findFirst({
+      where: { id: landingPageId, businessId, deletedAt: null },
+    })
     if (!page) throw { statusCode: 404, message: 'Landing page not found' }
     return page
   }

@@ -4,6 +4,7 @@ import { toPayoutDTO } from '../../lib/finance/dtoEntities'
 import { balancedPair, postLedger, replayOnConflict } from '../../lib/finance/ledger'
 import { requireIdempotencyKey } from '../../lib/finance/money'
 import type { CreatePayoutInput } from '../../lib/finance/types'
+import { validateCommissionsForPayout } from './payoutOps'
 import { reverseTransaction } from './fundingOps'
 
 const IN_FLIGHT = ['PENDING', 'TRANSFERRED'] as const
@@ -36,29 +37,11 @@ export async function createConnectPayout(businessId: string, input: CreatePayou
   if (inFlight) return toPayoutDTO(inFlight)
   try {
     return await db.$transaction(async (tx) => {
-      const commissions = await tx.commission.findMany({
-        where: { id: { in: input.commissionIds }, businessId },
-      })
-      if (commissions.length !== input.commissionIds.length) {
-        throw { statusCode: 404, message: 'Commission not found' }
-      }
-      for (const commission of commissions) {
-        if (commission.status !== 'PAYABLE')
-          throw { statusCode: 409, message: 'Commission is not payable' }
-        if (commission.payeeRef !== input.payeeRef)
-          throw { statusCode: 409, message: 'Commission payee mismatch' }
-      }
-      const first = commissions[0]
-      if (!first) throw { statusCode: 400, message: 'Payout requires at least one commission' }
-      const currency = first.currency
-      if (commissions.some((row) => row.currency !== currency)) {
-        throw { statusCode: 409, message: 'Payout commissions must share a currency' }
-      }
-      const taken = await tx.payoutItem.findMany({
-        where: { commissionId: { in: commissions.map((row) => row.id) } },
-      })
-      if (taken.length > 0) throw { statusCode: 409, message: 'Commission already on a payout' }
-      const amountMinor = commissions.reduce((sum, row) => sum + row.amountMinor, 0)
+      const { commissions, currency, amountMinor } = await validateCommissionsForPayout(
+        tx,
+        businessId,
+        input,
+      )
       const payout = await tx.payout.create({
         data: {
           businessId,
@@ -68,7 +51,7 @@ export async function createConnectPayout(businessId: string, input: CreatePayou
           status: 'PENDING',
           idempotencyKey,
           items: {
-            create: commissions.map((row) => ({
+            create: commissions.map((row: any) => ({
               commissionId: row.id,
               amountMinor: row.amountMinor,
             })),

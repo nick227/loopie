@@ -14,25 +14,27 @@ const sizes = {
 }
 
 export function Avatar({ src, name, size = 'md', className }: AvatarProps) {
-  const initials = name
-    ?.split(' ')
-    .map(w => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase() ?? '?'
+  const initials =
+    name
+      ?.split(' ')
+      .map((w) => w[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase() ?? '?'
 
   return (
     <div
       className={cn(
         'rounded-full bg-muted flex items-center justify-center overflow-hidden shrink-0 font-medium',
         sizes[size],
-        className
+        className,
       )}
     >
-      {src
-        ? <img src={src} alt={name ?? ''} className="h-full w-full object-cover" />
-        : <span className="text-muted-foreground">{initials}</span>
-      }
+      {src ? (
+        <img src={src} alt={name ?? ''} className="h-full w-full object-cover" loading="lazy" />
+      ) : (
+        <span className="text-muted-foreground">{initials}</span>
+      )}
     </div>
   )
 }

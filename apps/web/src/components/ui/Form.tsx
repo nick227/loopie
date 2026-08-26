@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { ZodType, ZodTypeDef } from 'zod'
@@ -9,7 +10,18 @@ import { cn } from '@/lib/utils'
 export type FieldConfig = {
   name: string
   label: string
-  type: 'text' | 'email' | 'password' | 'textarea' | 'url' | 'tel' | 'number' | 'checkbox' | 'select' | 'tags' | 'json'
+  type:
+    | 'text'
+    | 'email'
+    | 'password'
+    | 'textarea'
+    | 'url'
+    | 'tel'
+    | 'number'
+    | 'checkbox'
+    | 'select'
+    | 'tags'
+    | 'json'
   placeholder?: string
   voice?: boolean
   required?: boolean
@@ -40,10 +52,18 @@ export function Form<T extends Record<string, unknown>>({
   isLoading = false,
   className,
 }: FormProps<T>) {
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const optionalFields = useMemo(() => {
+    const set = new Set<string>()
+    for (const f of fields) {
+      if (!f.required) set.add(f.name)
+    }
+    return set
+  }, [fields])
+
   function normalizeSubmitData(data: T) {
-    const optionalFields = new Set(fields.filter((field) => !field.required).map((field) => field.name))
     return Object.fromEntries(
-      Object.entries(data).filter(([key, value]) => !(optionalFields.has(key) && value === ''))
+      Object.entries(data).filter(([key, value]) => !(optionalFields.has(key) && value === '')),
     ) as T
   }
 
@@ -59,76 +79,82 @@ export function Form<T extends Record<string, unknown>>({
 
   return (
     <form
-      onSubmit={handleSubmit((data) => onSubmit(normalizeSubmitData(data)))}
+      onSubmit={handleSubmit(async (data) => {
+        setSubmitError(null)
+        try {
+          await onSubmit(normalizeSubmitData(data))
+        } catch (err) {
+          setSubmitError(err instanceof Error ? err.message : 'Request failed')
+        }
+      })}
       className={cn('flex flex-col gap-4', className)}
     >
-      {fields.map(field => {
+      {fields.map((field) => {
         const id = `field-${field.name}`
         return (
-        <div key={field.name} className="flex flex-col gap-1.5">
-          <label htmlFor={id} className="text-sm font-medium">
-            {field.label}
-            {field.required && <span className="text-destructive ml-0.5">*</span>}
-          </label>
+          <div key={field.name} className="flex flex-col gap-1.5">
+            <label htmlFor={id} className="text-sm font-medium">
+              {field.label}
+              {field.required && <span className="text-destructive ml-0.5">*</span>}
+            </label>
 
-          {field.type === 'textarea' ? (
-            <Textarea
-              {...register(field.name as any)}
-              id={id}
-              placeholder={field.placeholder}
-              rows={field.rows ?? 4}
-              voice={field.voice}
-              onVoiceResult={(t) => setValue(field.name as any, t as any)}
-            />
-          ) : field.type === 'select' ? (
-            <select
-              {...register(field.name as any)}
-              id={id}
-              className="flex h-9 w-full rounded border border-input-border bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              defaultValue=""
-            >
-              <option value="" disabled>
-                Select...
-              </option>
-              {field.options?.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
+            {field.type === 'textarea' || field.type === 'json' ? (
+              <Textarea
+                {...register(field.name as any)}
+                id={id}
+                placeholder={
+                  field.placeholder ?? (field.type === 'json' ? '{ "key": "value" }' : undefined)
+                }
+                rows={field.rows ?? (field.type === 'json' ? 6 : 4)}
+                voice={field.voice}
+                onVoiceResult={(t) => setValue(field.name as any, t as any)}
+                className={field.type === 'json' ? 'font-mono text-sm' : ''}
+              />
+            ) : field.type === 'select' ? (
+              <select
+                {...register(field.name as any)}
+                id={id}
+                className="flex h-9 w-full rounded border border-input-border bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                defaultValue=""
+              >
+                <option value="" disabled>
+                  Select...
                 </option>
-              ))}
-            </select>
-          ) : field.type === 'checkbox' ? (
-            <input
-              {...register(field.name as any)}
-              id={id}
-              type="checkbox"
-              className="h-4 w-4 rounded border-input-border"
-            />
-          ) : (
-            <Input
-              {...register(field.name as any)}
-              id={id}
-              type={field.type === 'tags' || field.type === 'json' ? 'text' : field.type}
-              placeholder={
-                field.placeholder ??
-                (field.type === 'tags'
-                  ? 'comma, separated, values'
-                  : field.type === 'json'
-                    ? '{ "key": "value" }'
-                    : undefined)
-              }
-              voice={field.voice}
-              onVoiceResult={(t) => setValue(field.name as any, t as any)}
-            />
-          )}
+                {field.options?.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            ) : field.type === 'checkbox' ? (
+              <input
+                {...register(field.name as any)}
+                id={id}
+                type="checkbox"
+                className="h-4 w-4 rounded border-input-border"
+              />
+            ) : (
+              <Input
+                {...register(field.name as any)}
+                id={id}
+                type={field.type === 'tags' ? 'text' : field.type}
+                placeholder={
+                  field.placeholder ??
+                  (field.type === 'tags' ? 'comma, separated, values' : undefined)
+                }
+                voice={field.voice}
+                onVoiceResult={(t) => setValue(field.name as any, t as any)}
+              />
+            )}
 
-          {errors[field.name] && (
-            <p className="text-xs text-destructive">
-              {errors[field.name]?.message as string}
-            </p>
-          )}
-        </div>
+            {errors[field.name] && (
+              <p className="text-xs text-destructive">{errors[field.name]?.message as string}</p>
+            )}
+          </div>
         )
       })}
+
+      {submitError && <p className="text-xs text-destructive">{submitError}</p>}
 
       <Button type="submit" loading={isSubmitting || isLoading} className="w-full">
         {submitLabel}

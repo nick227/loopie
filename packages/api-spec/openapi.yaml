@@ -508,7 +508,7 @@ components:
         condition:
           type: string
           nullable: true
-          enum: [HAS_REPLIED, HAS_NOT_REPLIED, LEAD_STILL_OPEN, LEAD_REACHED_STAGE, CUSTOMER_STATUS, CHANNEL_ELIGIBILITY]
+          enum: [HAS_REPLIED, HAS_NOT_REPLIED, LEAD_STILL_OPEN, LEAD_REACHED_STAGE, CUSTOMER_STATUS, CHANNEL_ELIGIBILITY, null]
         conditionValue:
           type: object
           additionalProperties: true
@@ -536,7 +536,7 @@ components:
         waitDays: { type: integer, minimum: 0, maximum: 30 }
         condition:
           type: string
-          enum: [HAS_REPLIED, HAS_NOT_REPLIED, LEAD_STILL_OPEN, LEAD_REACHED_STAGE, CUSTOMER_STATUS, CHANNEL_ELIGIBILITY]
+          enum: [HAS_REPLIED, HAS_NOT_REPLIED, LEAD_STILL_OPEN, LEAD_REACHED_STAGE, CUSTOMER_STATUS, CHANNEL_ELIGIBILITY, null]
         conditionValue:
           type: object
           additionalProperties: true
@@ -1546,7 +1546,7 @@ components:
 
     IssueRefundInput:
       type: object
-      required: [amountMinor, currency, idempotencyKey]
+      required: [amountMinor, currency, idempotencyKey, paymentId]
       properties:
         amountMinor: { type: integer, minimum: 1 }
         currency: { type: string, minLength: 3, maxLength: 3 }
@@ -1596,7 +1596,7 @@ components:
 
     RecordFeeInput:
       type: object
-      required: [amountMinor, currency, idempotencyKey]
+      required: [amountMinor, currency, idempotencyKey, campaignId]
       properties:
         amountMinor: { type: integer, minimum: 1 }
         currency: { type: string, minLength: 3, maxLength: 3 }

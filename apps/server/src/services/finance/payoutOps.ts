@@ -141,6 +141,40 @@ export async function reverseCommission(
   return toCommissionDTO(updated)
 }
 
+export async function validateCommissionsForPayout(
+  tx: any,
+  businessId: string,
+  input: { commissionIds: string[]; payeeRef: string },
+) {
+  const commissions = await tx.commission.findMany({
+    where: { id: { in: input.commissionIds }, businessId },
+  })
+  if (commissions.length !== input.commissionIds.length) {
+    throw { statusCode: 404, message: 'Commission not found' }
+  }
+  for (const commission of commissions) {
+    if (commission.status !== 'PAYABLE')
+      throw { statusCode: 409, message: 'Commission is not payable' }
+    if (commission.payeeRef !== input.payeeRef)
+      throw { statusCode: 409, message: 'Commission payee mismatch' }
+  }
+  const first = commissions[0]
+  if (!first) throw { statusCode: 400, message: 'Payout requires at least one commission' }
+  const currency = first.currency
+  if (commissions.some((row: any) => row.currency !== currency)) {
+    throw { statusCode: 409, message: 'Payout commissions must share a currency' }
+  }
+  const taken = await tx.payoutItem.findMany({
+    where: { commissionId: { in: commissions.map((row: any) => row.id) } },
+  })
+  if (taken.length > 0) throw { statusCode: 409, message: 'Commission already on a payout' }
+  return {
+    commissions,
+    currency,
+    amountMinor: commissions.reduce((sum: number, row: any) => sum + row.amountMinor, 0),
+  }
+}
+
 export async function createPayout(businessId: string, input: CreatePayoutInput) {
   const idempotencyKey = requireIdempotencyKey(input.idempotencyKey)
   const existing = await db.payout.findUnique({
@@ -150,25 +184,11 @@ export async function createPayout(businessId: string, input: CreatePayoutInput)
   if (existing) return toPayoutDTO(existing)
   try {
     return await db.$transaction(async (tx) => {
-      const commissions = await tx.commission.findMany({
-        where: { id: { in: input.commissionIds }, businessId },
-      })
-      if (commissions.length !== input.commissionIds.length) {
-        throw { statusCode: 404, message: 'Commission not found' }
-      }
-      for (const commission of commissions) {
-        if (commission.status !== 'PAYABLE')
-          throw { statusCode: 409, message: 'Commission is not payable' }
-        if (commission.payeeRef !== input.payeeRef)
-          throw { statusCode: 409, message: 'Commission payee mismatch' }
-      }
-      const first = commissions[0]
-      if (!first) throw { statusCode: 400, message: 'Payout requires at least one commission' }
-      const currency = first.currency
-      if (commissions.some((row) => row.currency !== currency)) {
-        throw { statusCode: 409, message: 'Payout commissions must share a currency' }
-      }
-      const amountMinor = commissions.reduce((sum, row) => sum + row.amountMinor, 0)
+      const { commissions, currency, amountMinor } = await validateCommissionsForPayout(
+        tx,
+        businessId,
+        input,
+      )
       const chart = await ensureChartOfAccounts(tx, businessId, currency)
       const posted = await postLedger(tx, {
         businessId,
@@ -188,7 +208,7 @@ export async function createPayout(businessId: string, input: CreatePayoutInput)
           idempotencyKey,
           ledgerTransactionId: posted.id,
           items: {
-            create: commissions.map((row) => ({
+            create: commissions.map((row: any) => ({
               commissionId: row.id,
               amountMinor: row.amountMinor,
             })),
@@ -197,7 +217,7 @@ export async function createPayout(businessId: string, input: CreatePayoutInput)
         include: { items: true },
       })
       await tx.commission.updateMany({
-        where: { id: { in: commissions.map((row) => row.id) } },
+        where: { id: { in: commissions.map((row: any) => row.id) } },
         data: { status: 'PAID' },
       })
       return toPayoutDTO(payout)

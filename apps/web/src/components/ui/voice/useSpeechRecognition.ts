@@ -43,12 +43,10 @@ function getSpeechRecognition(): SpeechRecognitionCtor | null {
 
 export function useSpeechRecognition({ continuous, onResult, onError }: Options = {}) {
   const [listening, setListening] = useState(false)
-  const [supported, setSupported] = useState(false)
+  // Lazy initializer, not an effect: getSpeechRecognition() is a pure sync check with no side
+  // effects, so there's no reason to pay for an extra render just to learn this on mount.
+  const [supported] = useState(() => Boolean(getSpeechRecognition()))
   const recognitionRef = useRef<SpeechRecognition | null>(null)
-
-  useEffect(() => {
-    setSupported(Boolean(getSpeechRecognition()))
-  }, [])
 
   const stop = useCallback(() => {
     recognitionRef.current?.stop()
@@ -69,7 +67,10 @@ export function useSpeechRecognition({ continuous, onResult, onError }: Options 
     recognition.continuous = Boolean(continuous)
     recognition.interimResults = false
     recognition.onresult = (event) => {
-      const transcript = Array.from({ length: event.results.length }, (_, index) => event.results[index])
+      const transcript = Array.from(
+        { length: event.results.length },
+        (_, index) => event.results[index],
+      )
         .map((result) => result?.[0]?.transcript ?? '')
         .join(' ')
       onResult?.(transcript)

@@ -1,5 +1,12 @@
-import { db } from '@project/db'
+import './env'
+import { db, assertTestDatabaseUrl } from '@project/db'
 import { afterEach } from 'vitest'
+
+// Hard safety net, not just a config default: this file's afterEach wipes EVERY table, so a
+// misconfigured DATABASE_URL (TEST_DATABASE_URL unset somewhere new, a future vitest.config.ts
+// refactor, an env file mistake) must fail loudly here rather than silently deleting real data —
+// see CLAUDE.md's "Shared Database Policy" incident, discovered only after the fact.
+assertTestDatabaseUrl(process.env.DATABASE_URL)
 
 // Clean between tests — order matters for FK constraints (children before parents).
 // LandingPage <-> PublishedPageVersion is a genuine cycle (each has a FK to the other), so
@@ -16,6 +23,7 @@ afterEach(async () => {
   await db.ledgerEntry.deleteMany()
   await db.ledgerTransaction.deleteMany()
   await db.financialAccount.deleteMany()
+  await db.automationRun.deleteMany()
   await db.automationLog.deleteMany()
   await db.saleAffiliateSplit.deleteMany()
   await db.affiliateReferralClick.deleteMany()
@@ -50,8 +58,13 @@ afterEach(async () => {
   await db.audience.deleteMany()
   await db.asset.deleteMany()
   await db.landingPageTemplate.deleteMany()
+  await db.performanceSnapshot.deleteMany()
   await db.contact.deleteMany()
   await db.session.deleteMany()
   await db.user.deleteMany()
   await db.business.deleteMany()
+
+  // Not FK-scoped to Business/User (rate limiting is per ip+route, not per tenant) — wiped
+  // separately so no test's rate-limit test can leak counters into another's.
+  await db.rateLimitBucket.deleteMany()
 })

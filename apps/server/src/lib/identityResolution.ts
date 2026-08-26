@@ -1,5 +1,6 @@
 import type { Prisma, SourceType } from '@prisma/client'
 import { isUniqueConflict } from './prismaError'
+import { scheduleAutomationRuns } from './automationScheduling'
 
 export const OPEN_SLOT = 'OPEN'
 
@@ -122,7 +123,25 @@ export async function resolveContactAndLead(
     source: contactInput.source,
   })
 
-  const { lead } = await insertOrReuseOpenLead(tx, businessId, contact.id, attribution)
+  const { lead, created } = await insertOrReuseOpenLead(tx, businessId, contact.id, attribution)
+
+  // Affiliate referral attribution is deliberately a separate dimension from sourceType/source*Id
+  // above — this stamps Lead.referringAffiliateId (who gets credit) without touching sourceType
+  // (how the lead reached us), which both existing submission paths already resolve independently.
+  // Only a genuinely new lead gets stamped — same "first touch, not retroactive" rule as the
+  // LEAD_CREATED automation trigger below.
+  if (created && attribution.landingSessionId) {
+    const click = await tx.affiliateReferralClick.findFirst({
+      where: { sessionId: attribution.landingSessionId },
+      orderBy: { clickedAt: 'desc' },
+    })
+    if (click) {
+      await tx.lead.update({
+        where: { id: lead.id },
+        data: { referringAffiliateId: click.affiliateId },
+      })
+    }
+  }
 
   await tx.interaction.create({
     data: {
@@ -134,6 +153,19 @@ export async function resolveContactAndLead(
       sourceAdUnitId: attribution.sourceAdUnitId ?? null,
     },
   })
+
+  // Only a genuinely new lead is a LEAD_CREATED trigger event — reusing an already-open lead
+  // (a repeat visit) isn't a new occurrence for automations to react to.
+  if (created) {
+    await scheduleAutomationRuns(tx, {
+      businessId,
+      trigger: 'LEAD_CREATED',
+      contactId: contact.id,
+      leadId: lead.id,
+      triggerSourceId: lead.id,
+      triggerEventAt: lead.openedAt,
+    })
+  }
 
   return { contact, lead }
 }

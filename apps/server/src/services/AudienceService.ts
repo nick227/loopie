@@ -44,7 +44,10 @@ function buildPredefinedWhere(businessId: string, name: string): any {
     case 'Recently contacted':
       return { ...base, lastContactedAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) } }
     case 'Past customers':
-      return { ...base, sales: { some: { date: { lt: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000) } } } }
+      return {
+        ...base,
+        sales: { some: { date: { lt: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000) } } },
+      }
     default:
       return base
   }
@@ -52,9 +55,16 @@ function buildPredefinedWhere(businessId: string, name: string): any {
 
 // Returns a Contact where-clause for SAVED_FILTER/PREDEFINED audiences, or null for
 // MANUAL_LIST/IMPORTED_LIST (those resolve via the AudienceMember join instead).
-function resolveAudienceWhere(audience: { businessId: string; type: string; name: string; filter: unknown }): any {
-  if (audience.type === 'SAVED_FILTER') return buildFilterWhere(audience.businessId, (audience.filter as AudienceFilter) ?? {})
-  if (audience.type === 'PREDEFINED') return buildPredefinedWhere(audience.businessId, audience.name)
+function resolveAudienceWhere(audience: {
+  businessId: string
+  type: string
+  name: string
+  filter: unknown
+}): any {
+  if (audience.type === 'SAVED_FILTER')
+    return buildFilterWhere(audience.businessId, (audience.filter as AudienceFilter) ?? {})
+  if (audience.type === 'PREDEFINED')
+    return buildPredefinedWhere(audience.businessId, audience.name)
   return null
 }
 
@@ -82,7 +92,10 @@ export class AudienceService {
     const hasMore = audiences.length > limit
     const items = hasMore ? audiences.slice(0, limit) : audiences
     const last = items[items.length - 1]
-    const nextCursor = hasMore && last ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id }) : null
+    const nextCursor =
+      hasMore && last
+        ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
+        : null
 
     const data = await Promise.all(items.map((a) => this._toDTO(a)))
     return { data, meta: { hasMore, nextCursor } }
@@ -92,15 +105,21 @@ export class AudienceService {
     if ((data.type === 'MANUAL_LIST' || data.type === 'IMPORTED_LIST') && data.contactIds?.length) {
       await requireContacts(businessId, data.contactIds)
     }
-    const audience = await db.audience.create({
-      data: { businessId, name: data.name, type: data.type, filter: data.filter ?? undefined },
-    })
-    if ((data.type === 'MANUAL_LIST' || data.type === 'IMPORTED_LIST') && data.contactIds?.length) {
-      await db.audienceMember.createMany({
-        data: data.contactIds.map((contactId: string) => ({ audienceId: audience.id, contactId })),
-        skipDuplicates: true,
+    const audience = await db.$transaction(async (tx) => {
+      const created = await tx.audience.create({
+        data: { businessId, name: data.name, type: data.type, filter: data.filter ?? undefined },
       })
-    }
+      if (
+        (data.type === 'MANUAL_LIST' || data.type === 'IMPORTED_LIST') &&
+        data.contactIds?.length
+      ) {
+        await tx.audienceMember.createMany({
+          data: data.contactIds.map((contactId: string) => ({ audienceId: created.id, contactId })),
+          skipDuplicates: true,
+        })
+      }
+      return created
+    })
     return this._toDTO(audience)
   }
 
@@ -122,11 +141,17 @@ export class AudienceService {
 
   async delete(businessId: string, audienceId: string) {
     await this._find(businessId, audienceId)
-    await db.audienceMember.deleteMany({ where: { audienceId } })
-    await db.audience.delete({ where: { id: audienceId } })
+    await db.$transaction(async (tx) => {
+      await tx.audienceMember.deleteMany({ where: { audienceId } })
+      await tx.audience.delete({ where: { id: audienceId } })
+    })
   }
 
-  async listContacts(businessId: string, audienceId: string, opts: { cursor?: string; limit?: number }) {
+  async listContacts(
+    businessId: string,
+    audienceId: string,
+    opts: { cursor?: string; limit?: number },
+  ) {
     const audience = await this._find(businessId, audienceId)
     const limit = normalizeLimit(opts.limit)
     const cursor = decodeCursor(opts.cursor)
@@ -143,7 +168,10 @@ export class AudienceService {
 
     const filterWhere = resolveAudienceWhere(audience)
     const where = filterWhere
-      ? { ...filterWhere, ...(cursorClause.length ? { AND: [...(filterWhere.AND ?? []), ...cursorClause] } : {}) }
+      ? {
+          ...filterWhere,
+          ...(cursorClause.length ? { AND: [...(filterWhere.AND ?? []), ...cursorClause] } : {}),
+        }
       : {
           businessId,
           deletedAt: null,
@@ -161,7 +189,10 @@ export class AudienceService {
     const hasMore = contacts.length > limit
     const items = hasMore ? contacts.slice(0, limit) : contacts
     const last = items[items.length - 1]
-    const nextCursor = hasMore && last ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id }) : null
+    const nextCursor =
+      hasMore && last
+        ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
+        : null
 
     return { data: items.map(toContactDTO), meta: { hasMore, nextCursor } }
   }
@@ -174,8 +205,11 @@ export class AudienceService {
 
   private async _toDTO(audience: any) {
     const filterWhere = resolveAudienceWhere(audience)
-    const memberWhere =
-      filterWhere ?? { businessId: audience.businessId, deletedAt: null, audienceMemberships: { some: { audienceId: audience.id } } }
+    const memberWhere = filterWhere ?? {
+      businessId: audience.businessId,
+      deletedAt: null,
+      audienceMemberships: { some: { audienceId: audience.id } },
+    }
     const memberCount = await db.contact.count({ where: memberWhere })
     const eligibleCount = await db.contact.count({
       where: { ...memberWhere, OR: [{ emailEligible: true }, { smsEligible: true }] },

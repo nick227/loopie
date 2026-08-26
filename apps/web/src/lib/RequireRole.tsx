@@ -2,15 +2,9 @@ import type { ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useCurrentUser } from '@project/sdk'
 import { PageSpinner } from '@/components/ui/Spinner'
-import { HomeSummaryPage } from '@/pages/HomeSummaryPage'
+import { HomeSummaryPage } from '@/pages/core/HomeSummaryPage'
 
-export function RequireRole({
-  role,
-  children,
-}: {
-  role: string | string[]
-  children: ReactNode
-}) {
+export function RequireRole({ role, children }: { role: string | string[]; children: ReactNode }) {
   const me = useCurrentUser()
   if (me.isLoading) return <PageSpinner />
   const current = me.data?.data?.role

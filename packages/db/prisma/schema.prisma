@@ -1476,3 +1476,21 @@ model Reconciliation {
   @@index([campaignId])
   @@index([adSpendId])
 }
+
+// ---------- Rate limiting ----------
+
+// A shared, DB-backed fixed-window counter for public-endpoint rate limiting — used by both
+// apps/server and apps/ad-server (see lib/rateLimit.ts in this package), which is why it lives
+// here rather than in either app: a process-local in-memory Map only limits traffic reaching that
+// one process, so it silently stops working the moment there's more than one instance (Railway
+// horizontal scaling) or after any restart. `key` already encodes the window boundary (see
+// consumeRateLimit), so a plain upsert is race-free without needing row locks or raw SQL.
+// `expiresAt` is one full window past the bucket's own window, kept for the periodic cleanup
+// sweep to know when it's safe to delete.
+model RateLimitBucket {
+  key       String   @id
+  count     Int      @default(1)
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}

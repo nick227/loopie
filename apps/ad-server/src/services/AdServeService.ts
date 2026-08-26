@@ -1,29 +1,12 @@
-import { db, resolveVisitorSid } from '@project/db'
+import { db, clickRedirectUrl, trackBaseClick, withSid } from '@project/db'
 import { escapeHtml } from '../lib/html'
 
 const PRIMARY_APP_URL = process.env.PRIMARY_APP_URL ?? 'http://localhost:3001'
-const AD_SERVER_URL = process.env.AD_SERVER_URL ?? `http://localhost:${process.env.AD_SERVER_PORT ?? 3002}`
+const AD_SERVER_URL =
+  process.env.AD_SERVER_URL ?? `http://localhost:${process.env.AD_SERVER_PORT ?? 3002}`
 
 function hostedPageUrl(slug: string) {
   return `${PRIMARY_APP_URL}/p/${slug}`
-}
-
-function withSid(url: string, sid: string): string {
-  const u = new URL(url)
-  u.searchParams.set('sid', sid)
-  return u.toString()
-}
-
-function clickRedirectUrl(
-  page: { slug: string; status: string; deletedAt: Date | null } | null,
-  fallbackUrl: string | null,
-): string | null {
-  if (page) {
-    if (page.deletedAt || page.status !== 'PUBLISHED') return null
-    return hostedPageUrl(page.slug)
-  }
-  if (fallbackUrl && /^https?:\/\//.test(fallbackUrl)) return fallbackUrl
-  return null
 }
 
 export class AdServeService {
@@ -59,8 +42,7 @@ export class AdServeService {
     const payload = await this.getServePayload(adUnitId)
     await this.recordImpression(adUnitId)
 
-    const visitor = resolveVisitorSid(sessionId)
-    const clickUrl = `${payload.clickUrl}?sid=${encodeURIComponent(visitor.token)}`
+    const clickUrl = `${payload.clickUrl}?sid=${encodeURIComponent(sessionId ?? '')}`
     const image = payload.creative?.assets.find((a) => a.type === 'IMAGE')
     const headline = payload.creative?.assets.find((a) => a.type === 'TEXT')
     const alt = escapeHtml(payload.creative?.name ?? '')
@@ -90,36 +72,38 @@ ${headlineText ? `<div style="padding:8px;font-family:system-ui,sans-serif">${he
       where: { id: adUnitId },
       include: { campaign: true, destinationLandingPage: true },
     })
-    if (!adUnit || adUnit.status !== 'ACTIVE') throw { statusCode: 404, message: 'Ad unit not available' }
+    if (!adUnit || adUnit.status !== 'ACTIVE')
+      throw { statusCode: 404, message: 'Ad unit not available' }
 
     const redirectBase = clickRedirectUrl(
       adUnit.destinationLandingPage,
       adUnit.destinationUrl ?? adUnit.campaign.destinationUrl,
+      hostedPageUrl,
     )
     if (!redirectBase) throw { statusCode: 404, message: 'Ad unit not available' }
 
-    const visitor = resolveVisitorSid(sessionId)
-    await db.attributionEvent.create({
-      data: {
-        campaignId: adUnit.campaignId,
-        creativeId: adUnit.creativeId,
-        adUnitId: adUnit.id,
-        landingPageId: adUnit.destinationLandingPageId,
-        platform: 'LOOPIE',
-        sessionId: visitor.sessionId,
+    const sidToken = await trackBaseClick({
+      campaignId: adUnit.campaignId,
+      creativeId: adUnit.creativeId,
+      adUnitId: adUnit.id,
+      landingPageId: adUnit.destinationLandingPageId,
+      platform: 'LOOPIE',
+      sessionId,
+      onRecord: async () => {
+        await db.adUnit.update({
+          where: { id: adUnit.id },
+          data: { clicks: { increment: 1 }, lastServedAt: new Date() },
+        })
       },
     })
-    await db.adUnit.update({
-      where: { id: adUnit.id },
-      data: { clicks: { increment: 1 }, lastServedAt: new Date() },
-    })
 
-    return { redirectUrl: withSid(redirectBase, visitor.token), sessionId: visitor.token }
+    return { redirectUrl: withSid(redirectBase, sidToken), sessionId: sidToken }
   }
 
   private async _findServable(adUnitId: string) {
     const adUnit = await db.adUnit.findUnique({ where: { id: adUnitId } })
-    if (!adUnit || adUnit.status !== 'ACTIVE') throw { statusCode: 404, message: 'Ad unit not available' }
+    if (!adUnit || adUnit.status !== 'ACTIVE')
+      throw { statusCode: 404, message: 'Ad unit not available' }
     return adUnit
   }
 }

@@ -49,7 +49,10 @@ export class FormService {
     const hasMore = forms.length > limit
     const items = hasMore ? forms.slice(0, limit) : forms
     const last = items[items.length - 1]
-    const nextCursor = hasMore && last ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id }) : null
+    const nextCursor =
+      hasMore && last
+        ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
+        : null
     return { data: items.map(toFormDTO), meta: { hasMore, nextCursor } }
   }
 
@@ -77,14 +80,19 @@ export class FormService {
   }
 
   async get(businessId: string, formId: string) {
-    const form = await db.form.findFirst({ where: { id: formId, businessId, deletedAt: null }, include: INCLUDE })
+    const form = await db.form.findFirst({
+      where: { id: formId, businessId, deletedAt: null },
+      include: INCLUDE,
+    })
     if (!form) throw { statusCode: 404, message: 'Form not found' }
     return toFormDTO(form)
   }
 
-  // Fields are replaced wholesale on update — simpler than diffing, and safe because Form
-  // structure is intentionally NOT frozen into PublishedPageVersion (see schema.prisma comment
-  // on Form): a form is a live, reusable entity, not a per-publish snapshot.
+  // Fields are replaced wholesale on update — simpler than diffing, and safe to do freely because
+  // a Form is a live, reusable entity shared across pages, not a per-publish snapshot: any
+  // already-published page keeps rendering/validating against the field list frozen onto its
+  // PublishedPageVersion at publish time (see LandingPageService.publish / lib/formSnapshot.ts),
+  // so editing a Form here only affects pages published (or republished) after this call.
   async update(businessId: string, formId: string, data: any) {
     await this.get(businessId, formId)
     return db.$transaction(async (tx) => {

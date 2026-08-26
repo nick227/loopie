@@ -1,8 +1,12 @@
 import { LandingPageTemplateService } from '../services/LandingPageTemplateService'
 import { LandingPageService } from '../services/LandingPageService'
+import { LandingPageSubmissionService } from '../services/LandingPageSubmissionService'
+import { LandingPageRenderService } from '../services/LandingPageRenderService'
 
 const templateService = new LandingPageTemplateService()
 const landingPageService = new LandingPageService()
+const submissionService = new LandingPageSubmissionService()
+const renderService = new LandingPageRenderService()
 
 export async function listLandingPageTemplates(request: any, reply: any) {
   const data = await templateService.list(request.user.businessId, request.query)
@@ -30,7 +34,11 @@ export async function getLandingPage(request: any, reply: any) {
 }
 
 export async function updateLandingPage(request: any, reply: any) {
-  const page = await landingPageService.update(request.user.businessId, request.params.landingPageId, request.body)
+  const page = await landingPageService.update(
+    request.user.businessId,
+    request.params.landingPageId,
+    request.body,
+  )
   return reply.send({ data: page })
 }
 
@@ -40,40 +48,54 @@ export async function deleteLandingPage(request: any, reply: any) {
 }
 
 export async function publishLandingPage(request: any, reply: any) {
-  const version = await landingPageService.publish(request.user.businessId, request.params.landingPageId, request.user.id)
+  const version = await landingPageService.publish(
+    request.user.businessId,
+    request.params.landingPageId,
+    request.user.id,
+  )
   return reply.status(201).send({ data: version })
 }
 
 export async function listLandingPageVersions(request: any, reply: any) {
-  const data = await landingPageService.listVersions(request.user.businessId, request.params.landingPageId, request.query)
+  const data = await landingPageService.listVersions(
+    request.user.businessId,
+    request.params.landingPageId,
+    request.query,
+  )
   return reply.send(data)
 }
 
 export async function exportLandingPage(request: any, reply: any) {
-  const result = await landingPageService.export(request.user.businessId, request.params.landingPageId)
+  const result = await landingPageService.export(
+    request.user.businessId,
+    request.params.landingPageId,
+  )
   return reply.send({ data: result })
 }
 
 export async function getLandingPagePerformance(request: any, reply: any) {
-  const data = await landingPageService.performance(request.user.businessId, request.params.landingPageId)
+  const data = await landingPageService.performance(
+    request.user.businessId,
+    request.params.landingPageId,
+  )
   return reply.send({ data })
 }
 
 // Public — no request.user.
 export async function recordLandingPageFormStart(request: any, reply: any) {
-  await landingPageService.recordFormStart(request.params.landingPageId)
+  await submissionService.recordFormStart(request.params.landingPageId)
   return reply.send({ data: null })
 }
 
 // Public — no request.user.
 export async function submitLandingPageForm(request: any, reply: any) {
-  const result = await landingPageService.submit(request.params.landingPageId, request.body)
+  const result = await submissionService.submit(request.params.landingPageId, request.body)
   return reply.status(201).send({ data: result })
 }
 
 // Public — no request.user. Returns raw HTML, not the { data } JSON envelope.
 export async function servePublishedLandingPage(request: any, reply: any) {
-  const htmlResult = await landingPageService.serve(request.params.slug, {
+  const htmlResult = await renderService.serve(request.params.slug, {
     sessionId: request.query.sid ?? request.cookies?.lp_sid,
     referrer: request.headers.referer,
     utmSource: request.query.utm_source,

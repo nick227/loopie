@@ -9,10 +9,13 @@ import { rateLabel } from '@/components/affiliates/AffiliateRow'
 import { connectStatusLabel } from '@/components/affiliates/ConnectStatusBadge'
 import { formatUsd } from '@/lib/money'
 import { Handshake, Plus } from 'lucide-react'
+import { useFlatPages } from '@/hooks/useFlatPages'
+import { VirtualInfiniteList } from '@/components/ui/VirtualInfiniteList'
 
 export function AffiliatesPage() {
   const query = useAffiliates()
-  const items = query.data?.pages.flatMap((page) => page.data) ?? []
+  const items = useFlatPages(query)
+  const { fetchNextPage, hasNextPage, isFetchingNextPage } = query
 
   if (query.isLoading) return <Skeleton className="h-48 w-full" />
 
@@ -28,31 +31,45 @@ export function AffiliatesPage() {
       </div>
       <AffiliateNav />
       {items.length === 0 ? (
-        <EmptyState icon={Handshake} title="No affiliates yet" description="Create a class and deal first, then add affiliates." />
+        <EmptyState
+          icon={Handshake}
+          title="No affiliates yet"
+          description="Create a class and deal first, then add affiliates."
+        />
       ) : (
-        items.map((item) => (
-          <Link key={item.id} to={`/affiliates/${item.id}`}>
-            <Card className="hover:bg-accent/50 transition-colors">
-              <CardContent className="py-4 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium">{item.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {item.className ?? 'No class'}
-                    {item.managerName ? ` · ${item.managerName}` : ''}
-                    {item.isActive ? '' : ' · Paused'}
-                  </p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-xs">{rateLabel(item.commissionRateBps, item.commissionRuleType)}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {item.payableMinor > 0 ? `${formatUsd(item.payableMinor)} payable` : formatUsd(item.pendingMinor) + ' pending'}
-                    {` · ${connectStatusLabel(item.connectStatus)}`}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))
+        <VirtualInfiniteList
+          items={items}
+          hasNextPage={!!hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+          fetchNextPage={fetchNextPage}
+          renderItem={(item: any) => (
+            <Link key={item.id} to={`/affiliates/${item.id}`}>
+              <Card className="hover:bg-accent/50 transition-colors">
+                <CardContent className="py-4 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.className ?? 'No class'}
+                      {item.managerName ? ` · ${item.managerName}` : ''}
+                      {item.isActive ? '' : ' · Paused'}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-xs">
+                      {rateLabel(item.commissionRateBps, item.commissionRuleType)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.payableMinor > 0
+                        ? `${formatUsd(item.payableMinor)} payable`
+                        : formatUsd(item.pendingMinor) + ' pending'}
+                      {` · ${connectStatusLabel(item.connectStatus)}`}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          )}
+        />
       )}
     </div>
   )

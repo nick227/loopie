@@ -7,7 +7,10 @@ type CreateCampaignInput = {
   startDate: string
   endDate?: string
   destinationUrl?: string
-  platforms: ('META' | 'GOOGLE' | 'TIKTOK')[]
+  // LOOPIE is a valid campaign platform selection (creates first-party AdUnit rows instead of
+  // a Deployment — see CreateCampaignInput.platforms in openapi.yaml) even though it's not a
+  // valid Deployment.platform value below; the two enums are related but not identical.
+  platforms: ('META' | 'GOOGLE' | 'TIKTOK' | 'LOOPIE')[]
   creativeIds: string[]
 }
 
@@ -18,6 +21,9 @@ type UpdateCampaignInput = {
   endDate?: string | null
   destinationUrl?: string
   creativeIds?: string[]
+  // Changing this (or creativeIds) reconciles live Deployment/AdUnit inventory — see
+  // UpdateCampaignInput.platforms in openapi.yaml.
+  platforms?: ('META' | 'GOOGLE' | 'TIKTOK' | 'LOOPIE')[]
 }
 
 type CreateDeploymentInput = {
@@ -46,7 +52,9 @@ export function useCampaigns(params?: { status?: string; limit?: number }) {
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
       const client = getApiClient()
-      const result = await client.GET('/campaigns', { params: { query: { ...params, cursor: pageParam } as any } })
+      const result = await client.GET('/campaigns', {
+        params: { query: { ...params, cursor: pageParam } as any },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -62,7 +70,9 @@ export function useCampaign(campaignId: string) {
     queryKey: ['campaign', campaignId],
     queryFn: async () => {
       const client = getApiClient()
-      const result = await client.GET('/campaigns/{campaignId}', { params: { path: { campaignId } } })
+      const result = await client.GET('/campaigns/{campaignId}', {
+        params: { path: { campaignId } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -78,7 +88,9 @@ export function useCampaignPerformance(campaignId: string) {
     queryKey: ['campaign', campaignId, 'performance'],
     queryFn: async () => {
       const client = getApiClient()
-      const result = await client.GET('/campaigns/{campaignId}/performance', { params: { path: { campaignId } } })
+      const result = await client.GET('/campaigns/{campaignId}/performance', {
+        params: { path: { campaignId } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -94,7 +106,9 @@ export function useDeployments(campaignId: string) {
     queryKey: ['campaign', campaignId, 'deployments'],
     queryFn: async () => {
       const client = getApiClient()
-      const result = await client.GET('/campaigns/{campaignId}/deployments', { params: { path: { campaignId } } })
+      const result = await client.GET('/campaigns/{campaignId}/deployments', {
+        params: { path: { campaignId } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -105,17 +119,23 @@ export function useDeployments(campaignId: string) {
   })
 }
 
-// KNOWN GAP: the API has no standalone GET /deployments/{deploymentId} — deployments are only
-// ever listed under a campaign (useDeployments(campaignId)). UpdateDeploymentPage's route only
-// carries deploymentId, not campaignId, so it can't call that hook either. This returns no data
-// (never fetches) rather than throwing; the edit page renders with an empty form until either
-// the route carries campaignId too or the API gains the missing GET. Add before real Phase 4
-// deployment-editing UI ships.
-export function useDeployment(_deploymentId: string) {
+// GET /deployments/{deploymentId} — standalone lookup, used by UpdateDeploymentPage whose route
+// only carries deploymentId, not campaignId, so useDeployments(campaignId) isn't reachable there.
+export function useDeployment(deploymentId: string) {
   return useQuery({
-    queryKey: ['deployment', _deploymentId],
-    queryFn: async () => undefined,
-    enabled: false,
+    queryKey: ['deployment', deploymentId],
+    queryFn: async () => {
+      const client = getApiClient()
+      const result = await client.GET('/deployments/{deploymentId}', {
+        params: { path: { deploymentId } },
+      })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as any).error)
+      return data!
+    },
+    enabled: !!deploymentId,
   })
 }
 
@@ -140,7 +160,10 @@ export function useUpdateCampaign() {
   return useMutation({
     mutationFn: async ({ campaignId, ...body }: UpdateCampaignInput) => {
       const client = getApiClient()
-      const result = await client.PATCH('/campaigns/{campaignId}', { params: { path: { campaignId } }, body })
+      const result = await client.PATCH('/campaigns/{campaignId}', {
+        params: { path: { campaignId } },
+        body,
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -159,7 +182,9 @@ export function usePauseCampaign() {
   return useMutation({
     mutationFn: async (campaignId: string) => {
       const client = getApiClient()
-      const result = await client.POST('/campaigns/{campaignId}/pause', { params: { path: { campaignId } } })
+      const result = await client.POST('/campaigns/{campaignId}/pause', {
+        params: { path: { campaignId } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -178,7 +203,9 @@ export function useResumeCampaign() {
   return useMutation({
     mutationFn: async (campaignId: string) => {
       const client = getApiClient()
-      const result = await client.POST('/campaigns/{campaignId}/resume', { params: { path: { campaignId } } })
+      const result = await client.POST('/campaigns/{campaignId}/resume', {
+        params: { path: { campaignId } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -197,7 +224,9 @@ export function useEndCampaign() {
   return useMutation({
     mutationFn: async (campaignId: string) => {
       const client = getApiClient()
-      const result = await client.POST('/campaigns/{campaignId}/end', { params: { path: { campaignId } } })
+      const result = await client.POST('/campaigns/{campaignId}/end', {
+        params: { path: { campaignId } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -216,7 +245,9 @@ export function useDuplicateCampaign() {
   return useMutation({
     mutationFn: async (campaignId: string) => {
       const client = getApiClient()
-      const result = await client.POST('/campaigns/{campaignId}/duplicate', { params: { path: { campaignId } } })
+      const result = await client.POST('/campaigns/{campaignId}/duplicate', {
+        params: { path: { campaignId } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -253,18 +284,22 @@ export function useUpdateDeployment() {
   return useMutation({
     mutationFn: async ({ deploymentId, ...body }: UpdateDeploymentInput) => {
       const client = getApiClient()
-      const result = await client.PATCH('/deployments/{deploymentId}', { params: { path: { deploymentId } }, body })
+      const result = await client.PATCH('/deployments/{deploymentId}', {
+        params: { path: { deploymentId } },
+        body,
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
       if (err) throw new ApiError(status, (err as any).error)
       return data!
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       // Deployment lists are cached per-campaign; without the campaignId in scope here, the
       // caller (which does have it, from useParams) should invalidate ['campaign', id,
       // 'deployments'] itself after a successful mutation.
       queryClient.invalidateQueries({ queryKey: ['campaigns', 'list'] })
+      queryClient.invalidateQueries({ queryKey: ['deployment', variables.deploymentId] })
     },
   })
 }

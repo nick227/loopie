@@ -41,9 +41,27 @@ async function seedTestUsers() {
   })
   await db.user.createMany({
     data: [
-      { id: testUserId, email: 'alice@test.local', passwordHash: 'x', businessId: testBusinessId, role: 'ADMIN' },
-      { id: testOtherUserId, email: 'bob@test.local', passwordHash: 'x', businessId: testOtherBusinessId, role: 'ADMIN' },
-      { id: testShopUserId, email: 'shop@test.local', passwordHash: 'x', businessId: testBusinessId, role: 'USER' },
+      {
+        id: testUserId,
+        email: 'alice@test.local',
+        passwordHash: 'x',
+        businessId: testBusinessId,
+        role: 'ADMIN',
+      },
+      {
+        id: testOtherUserId,
+        email: 'bob@test.local',
+        passwordHash: 'x',
+        businessId: testOtherBusinessId,
+        role: 'ADMIN',
+      },
+      {
+        id: testShopUserId,
+        email: 'shop@test.local',
+        passwordHash: 'x',
+        businessId: testBusinessId,
+        role: 'USER',
+      },
     ],
     skipDuplicates: true,
   })
@@ -56,7 +74,10 @@ export function buildTestApp() {
     await app.register(cookie, {
       secret: process.env.COOKIE_SECRET ?? 'test-cookie-secret-at-least-32-characters',
     })
-    app.setErrorHandler((error, request, reply) => mapErrorToReply(error, reply, request.log))
+    app.setErrorHandler((error, request, reply) => {
+      console.error('FASTIFY ERROR:', error)
+      return mapErrorToReply(error, reply, request.log)
+    })
     await app.register(openapiGlue, {
       specification: specPath,
       service: handlers,
@@ -102,7 +123,8 @@ export async function validateResponse(operationId: string, status: number, body
       const validate = ajv.compile(schema)
       if (!validate(body)) {
         throw new Error(
-          `${operationId} ${status} response does not match spec:\n` + JSON.stringify(validate.errors, null, 2),
+          `${operationId} ${status} response does not match spec:\n` +
+            JSON.stringify(validate.errors, null, 2),
         )
       }
       return
