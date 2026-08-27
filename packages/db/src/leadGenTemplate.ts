@@ -1,14 +1,17 @@
+export {
+  PAGE_THEME_PRESETS,
+  DEFAULT_PAGE_THEME,
+  themeFromPreset,
+  matchThemePreset,
+} from './pageThemes'
+export type { PageThemePreset } from './pageThemes'
+import { PAGE_THEME_PRESETS } from './pageThemes'
+
 export const SYSTEM_LEAD_GEN_TEMPLATE_ID = 'system-template-lead-gen'
 export const SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID = 'system-template-lead-gen-media'
 
 export const MOCK_STARTER_IMAGE =
   'https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=1600&q=80'
-
-export const DEFAULT_PAGE_THEME = {
-  primaryColor: '#0B3D91',
-  backgroundColor: '#E8EEF4',
-  fontFamily: '"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif',
-}
 
 export const MOCK_FEATURE_ITEMS = [
   {
@@ -24,8 +27,6 @@ export const MOCK_FEATURE_ITEMS = [
     body: 'The person who picks up the form is the person who shows up.',
   },
 ]
-
-const THEME_TOKENS = ['primaryColor', 'backgroundColor', 'fontFamily'] as const
 
 const HERO = {
   key: 'hero',
@@ -52,7 +53,8 @@ export const SYSTEM_LEAD_GEN_SCHEMA = {
     { ...FORM, order: 3 },
     { ...FOOTER, order: 4 },
   ],
-  themeTokens: [...THEME_TOKENS],
+  themeTokens: [],
+  themePresets: PAGE_THEME_PRESETS,
 }
 
 export const SYSTEM_MEDIA_LEAD_GEN_SCHEMA = {
@@ -70,7 +72,8 @@ export const SYSTEM_MEDIA_LEAD_GEN_SCHEMA = {
     { ...FORM, order: 4 },
     { ...FOOTER, order: 5 },
   ],
-  themeTokens: [...THEME_TOKENS],
+  themeTokens: [],
+  themePresets: PAGE_THEME_PRESETS,
 }
 
 export type TemplateSectionDef = {
@@ -84,6 +87,7 @@ export type TemplateSectionDef = {
 export type TemplateSchema = {
   sections?: TemplateSectionDef[]
   themeTokens?: string[]
+  themePresets?: typeof PAGE_THEME_PRESETS
 }
 
 export type SectionContent = Record<string, unknown> & { hidden?: boolean }

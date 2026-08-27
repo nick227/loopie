@@ -112,7 +112,12 @@ export function renderLandingPageHtml(input: {
   const theme = input.theme ?? {}
   const primaryColor = theme.primaryColor ?? '#0B3D91'
   const backgroundColor = theme.backgroundColor ?? '#E8EEF4'
+  const inkColor = theme.inkColor ?? '#122033'
+  const cardColor = theme.cardColor ?? '#FFFFFF'
   const fontFamily = theme.fontFamily ?? '"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif'
+  const headingFont = theme.headingFont ?? '"IBM Plex Serif", Georgia, serif'
+  const googleFonts =
+    theme.googleFonts ?? 'family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600'
 
   return `<!doctype html>
 <html lang="en">
@@ -122,26 +127,26 @@ export function renderLandingPageHtml(input: {
 <title>${escapeHtml(input.pageName)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,600;1,600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?${escapeHtml(googleFonts)}&display=swap" rel="stylesheet" />
 <style>
-:root { --lp-primary: ${escapeHtml(primaryColor)}; --lp-bg: ${escapeHtml(backgroundColor)}; --lp-ink: #122033; }
+:root { --lp-primary: ${escapeHtml(primaryColor)}; --lp-bg: ${escapeHtml(backgroundColor)}; --lp-ink: ${escapeHtml(inkColor)}; --lp-card: ${escapeHtml(cardColor)}; --lp-heading: ${escapeHtml(headingFont)}; }
 body { margin: 0; font-family: ${escapeHtml(fontFamily)}; background: var(--lp-bg); color: var(--lp-ink); }
 .lp-section { padding: 56px 28px; max-width: 1040px; margin: 0 auto; }
 .lp-kicker { margin: 0 0 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--lp-primary); }
-.lp-hero h1 { font-family: "IBM Plex Serif", Georgia, serif; font-size: clamp(2.1rem, 4vw, 3.15rem); line-height: 1.12; letter-spacing: -0.03em; margin: 0 0 1rem; font-weight: 600; }
-.lp-subheadline { color: #3d4a5c; font-size: 1.05rem; line-height: 1.55; max-width: 36rem; margin: 0; }
+.lp-hero h1 { font-family: var(--lp-heading); font-size: clamp(2.1rem, 4vw, 3.15rem); line-height: 1.12; letter-spacing: -0.03em; margin: 0 0 1rem; font-weight: 600; }
+.lp-subheadline { color: var(--lp-ink); opacity: 0.72; font-size: 1.05rem; line-height: 1.55; max-width: 36rem; margin: 0; }
 .lp-cta { display: inline-block; margin-top: 1.5rem; padding: 0.8rem 1.4rem; background: var(--lp-primary); color: white; text-decoration: none; border-radius: 6px; font-size: 0.92rem; font-weight: 500; letter-spacing: 0.02em; }
-.lp-feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1px; background: #d5dde6; border: 1px solid #d5dde6; border-radius: 8px; overflow: hidden; }
-.lp-feature { background: #fff; padding: 1.35rem 1.25rem; }
+.lp-feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1px; background: color-mix(in srgb, var(--lp-ink) 12%, var(--lp-bg)); border: 1px solid color-mix(in srgb, var(--lp-ink) 12%, var(--lp-bg)); border-radius: 8px; overflow: hidden; }
+.lp-feature { background: var(--lp-card); padding: 1.35rem 1.25rem; }
 .lp-feature h3 { margin: 0 0 0.4rem; font-size: 1rem; }
-.lp-feature p { margin: 0; color: #4b5563; font-size: 0.9rem; line-height: 1.45; }
-.lp-form-card { background: #fff; border: 1px solid #d5dde6; border-radius: 8px; padding: 1.75rem; }
-.lp-form-title { font-family: "IBM Plex Serif", Georgia, serif; font-size: 1.35rem; margin: 0 0 1.1rem; }
+.lp-feature p { margin: 0; opacity: 0.72; font-size: 0.9rem; line-height: 1.45; }
+.lp-form-card { background: var(--lp-card); border: 1px solid color-mix(in srgb, var(--lp-ink) 12%, var(--lp-bg)); border-radius: 8px; padding: 1.75rem; }
+.lp-form-title { font-family: var(--lp-heading); font-size: 1.35rem; margin: 0 0 1.1rem; }
 .lp-field { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.25rem; }
 .lp-field-checkbox { flex-direction: row; align-items: center; }
-input, textarea, select { padding: 0.55rem 0.65rem; border: 1px solid #c5ced8; border-radius: 6px; font: inherit; background: #fbfcfd; }
+input, textarea, select { padding: 0.55rem 0.65rem; border: 1px solid color-mix(in srgb, var(--lp-ink) 18%, var(--lp-card)); border-radius: 6px; font: inherit; background: var(--lp-card); color: var(--lp-ink); }
 button[type="submit"] { padding: 0.8rem 1.4rem; background: var(--lp-primary); color: white; border: none; border-radius: 6px; cursor: pointer; font: inherit; font-weight: 500; }
-.lp-footer { text-align: center; color: #5b6776; font-size: 0.875rem; }
+.lp-footer { text-align: center; opacity: 0.65; font-size: 0.875rem; }
 .lp-ad iframe { width: 100%; min-height: 280px; border: 0; display: block; }
 .lp-media img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; display: block; box-shadow: 0 12px 40px rgba(18, 32, 51, 0.12); }
 .lp-media audio { width: 100%; }

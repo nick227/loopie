@@ -26,9 +26,13 @@ export {
   SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID,
   SYSTEM_MEDIA_LEAD_GEN_SCHEMA,
   DEFAULT_PAGE_THEME,
+  PAGE_THEME_PRESETS,
   MOCK_FEATURE_ITEMS,
   MOCK_STARTER_IMAGE,
   defaultContentFromSchema,
   starterContentForTemplate,
+  themeFromPreset,
+  matchThemePreset,
 } from './leadGenTemplate'
+export type { PageThemePreset } from './leadGenTemplate'
 export { parseYoutubeId, youtubeEmbedUrl } from './youtube'

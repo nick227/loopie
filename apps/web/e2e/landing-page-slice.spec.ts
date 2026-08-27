@@ -55,10 +55,14 @@ test.describe('landing page vertical slice', () => {
     await expect(page.getByText('Saved')).toBeVisible({ timeout: 10000 })
     await expect(page.getByLabel('Headline', { exact: true })).toHaveValue('E2E Verified Headline')
 
-    await page.getByLabel('primaryColor', { exact: true }).fill('#ff0000')
+    await expect(page.getByLabel('Theme')).toBeVisible()
+    await expect(page.getByLabel('Accent')).toHaveCount(0)
+    await expect(page.getByLabel('presetId')).toHaveCount(0)
+    await expect(page.getByLabel('inkColor')).toHaveCount(0)
+    await page.getByLabel('Theme').selectOption({ label: 'Shopfront' })
     await expect(page.getByRole('button', { name: /save draft/i })).toBeEnabled()
     await page.getByRole('button', { name: /save draft/i }).click()
-    await expect(page.getByLabel('primaryColor', { exact: true })).toHaveValue('#ff0000')
+    await expect(page.getByLabel('Theme')).toHaveValue('shopfront')
 
     await page.getByRole('button', { name: /^publish$/i }).click()
     await expect(page.getByText(/^Live at /)).toBeVisible({ timeout: 10000 })

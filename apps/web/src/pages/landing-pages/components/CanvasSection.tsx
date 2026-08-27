@@ -36,8 +36,8 @@ export function CanvasSection({
           value={content.headline ?? ''}
           onChange={(headline) => set({ headline })}
           placeholder="Headline"
-          style={{ fontFamily: '"IBM Plex Serif", Georgia, serif' }}
-          className="text-[2.6rem] font-semibold leading-[1.12] tracking-tight text-zinc-900"
+          style={{ fontFamily: 'var(--lp-heading)' }}
+          className="text-[2.6rem] font-semibold leading-[1.12] tracking-tight"
         />
         <CanvasText
           ariaLabel="Subheadline"
@@ -111,7 +111,7 @@ export function CanvasSection({
         <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-[0_1px_0_rgba(12,28,54,0.04)]">
           <p
             className="mb-4 text-xl font-semibold text-zinc-900"
-            style={{ fontFamily: '"IBM Plex Serif", Georgia, serif' }}
+            style={{ fontFamily: 'var(--lp-heading)' }}
           >
             Tell us about the job
           </p>

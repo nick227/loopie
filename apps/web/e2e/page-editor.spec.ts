@@ -25,6 +25,9 @@ test.describe('page editor canvas', () => {
     await registerAndOpenHome(page)
 
     await expect(page).not.toHaveURL(/\/forms/)
+    await expect(page.getByLabel('Theme')).toBeVisible()
+    await expect(page.getByLabel('Accent')).toHaveCount(0)
+    await expect(page.getByLabel('presetId')).toHaveCount(0)
     await expect(page.getByLabel('Headline', { exact: true })).toBeVisible()
     await page.getByLabel('Headline', { exact: true }).fill('Canvas Verified Headline')
     await expect(page.getByLabel('Headline', { exact: true })).toHaveValue(
@@ -43,6 +46,7 @@ test.describe('page editor canvas', () => {
       layoutLabels.find((label) => label === 'Sales page' || label === 'Simple Lead Gen') ??
       layoutLabels[0]!
     await layout.selectOption({ label: layoutPick })
+    await page.getByLabel('Headline', { exact: true }).fill('Canvas Verified Headline')
     await expect(page.getByRole('button', { name: /save draft/i })).toBeEnabled()
     await page.getByRole('button', { name: /save draft/i }).click()
     await expect(page.getByText('Saved')).toBeVisible({ timeout: 10000 })

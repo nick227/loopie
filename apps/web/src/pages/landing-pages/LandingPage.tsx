@@ -43,7 +43,6 @@ export function LandingPage() {
   const sections: TemplateSection[] = [
     ...((template?.schema as { sections?: TemplateSection[] })?.sections ?? []),
   ].sort((a, b) => a.order - b.order)
-  const themeTokens: string[] = (template?.schema as { themeTokens?: string[] })?.themeTokens ?? []
 
   return (
     <div className="space-y-4">
@@ -81,8 +80,8 @@ export function LandingPage() {
 
       <PageToolbar
         templateId={templateId}
+        templateSchema={template?.schema}
         theme={theme}
-        themeTokens={themeTokens}
         published={page.status === 'PUBLISHED'}
         campaignId={campaignId}
         destinationPending={setDestinationMutation.isPending}
@@ -91,8 +90,8 @@ export function LandingPage() {
           setTemplateId(id)
           setDirty(true)
         }}
-        onTheme={(token, value) => {
-          setTheme((t) => ({ ...t, [token]: value }))
+        onTheme={(next) => {
+          setTheme(next)
           setDirty(true)
         }}
         onCampaign={setCampaignId}
