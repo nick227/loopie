@@ -3,13 +3,14 @@ import type { Prisma } from '@prisma/client'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { requireAssets } from '../lib/ownership'
 import { aspectRatio, matchPlacements } from '../lib/assetSpecs'
+import { advertisementSummary } from '../lib/advertisementSummary'
 
 // Advertisement is the "Media" layer's grouping entity in the Media -> Advertisement -> AdRun
 // model (see CLAUDE.md's Media/Advertisement/AdRun migration audit) — its content comes directly
 // from Asset via AdvertisementAsset, deliberately bypassing the old per-campaign Creative model.
 // Media selection lives here, once, rather than being re-specified on every AdRun: an AdRun
 // references its parent Advertisement's already-attached assets when it provisions on a platform.
-const INCLUDE = { assets: { include: { asset: true } } } as const
+const INCLUDE = { assets: { include: { asset: true } }, runs: true } as const
 
 type AdvertisementRow = Prisma.AdvertisementGetPayload<{ include: typeof INCLUDE }>
 
@@ -44,6 +45,7 @@ function toAdvertisementDTO(row: AdvertisementRow) {
     assetIds: row.assets.map((a) => a.assetId),
     assets: row.assets.map((a) => toNestedAsset(a.asset)),
     createdAt: row.createdAt.toISOString(),
+    ...advertisementSummary(row.runs),
   }
 }
 
