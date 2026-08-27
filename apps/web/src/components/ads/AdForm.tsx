@@ -80,7 +80,6 @@ export function AdForm({
 
       {open ? (
         <MediaPicker
-          assets={assets}
           selectedIds={assetIds}
           adding={pending}
           onToggle={onToggleAsset}

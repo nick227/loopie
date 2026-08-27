@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, type DragEvent } from 'react'
 import type { components } from '@project/sdk'
+import { Upload } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { fileToDataUrl, probeFile, probeImageUrl } from '@/lib/probeMedia'
 import { MEDIA_FILE_ACCEPT, mediaFileError } from '@/lib/media'
+import { cn } from '@/lib/utils'
 
 type Asset = components['schemas']['Asset']
 type AssetType = Asset['type']
@@ -34,20 +36,32 @@ function errorMessage(err: unknown) {
 export function AddMediaForm({
   adding,
   onAdd,
+  variant = 'page',
+  lockedType,
 }: {
   adding: boolean
   onAdd: (input: AddMediaInput) => Promise<void>
+  variant?: 'page' | 'rail'
+  lockedType?: AssetType
 }) {
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
   const [textContent, setTextContent] = useState('')
-  const [type, setType] = useState<AssetType>('IMAGE')
+  const [type, setType] = useState<AssetType>(lockedType ?? 'IMAGE')
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [over, setOver] = useState(false)
+  const rail = variant === 'rail'
 
   function onFile(next: File | null) {
     setFile(next)
     setError(next ? mediaFileError(next) : null)
+  }
+
+  function onDrop(event: DragEvent) {
+    event.preventDefault()
+    setOver(false)
+    onFile(event.dataTransfer.files[0] ?? null)
   }
 
   async function handleAdd() {
@@ -96,46 +110,73 @@ export function AddMediaForm({
   const ready = file ? true : type === 'TEXT' ? Boolean(name && textContent) : Boolean(name && url)
 
   return (
-    <div className="space-y-2">
-      <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Add</p>
+    <div className={cn('space-y-2', rail && 'flex h-full min-h-0 flex-col')}>
+      {rail ? (
+        <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          Upload
+        </p>
+      ) : (
+        <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Add</p>
+      )}
+      {type !== 'TEXT' ? (
+        <label
+          onDragOver={(event) => {
+            event.preventDefault()
+            setOver(true)
+          }}
+          onDragLeave={() => setOver(false)}
+          onDrop={onDrop}
+          className={cn(
+            'flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed px-3 py-6 text-center',
+            over ? 'border-foreground bg-muted' : 'border-input-border bg-muted/40',
+            rail && 'min-h-[8rem] flex-1',
+          )}
+        >
+          <Upload size={16} className="text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">
+            {file ? file.name : 'Drop a file or click to upload'}
+          </span>
+          <input
+            type="file"
+            accept={MEDIA_FILE_ACCEPT}
+            onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+            className="sr-only"
+          />
+        </label>
+      ) : null}
       <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
-      <select
-        value={type}
-        onChange={(e) => setType(e.target.value as AssetType)}
-        className="flex h-10 w-full rounded-lg border border-input-border bg-transparent px-3 text-sm"
-      >
-        {TYPES.map((row) => (
-          <option key={row.value} value={row.value}>
-            {row.label}
-          </option>
-        ))}
-      </select>
+      {lockedType ? null : (
+        <select
+          value={type}
+          onChange={(e) => setType(e.target.value as AssetType)}
+          className="flex h-10 w-full rounded-lg border border-input-border bg-transparent px-3 text-sm"
+        >
+          {TYPES.map((row) => (
+            <option key={row.value} value={row.value}>
+              {row.label}
+            </option>
+          ))}
+        </select>
+      )}
       {type === 'TEXT' ? (
         <textarea
           value={textContent}
           onChange={(e) => setTextContent(e.target.value)}
           placeholder="Copy"
-          rows={3}
+          rows={rail ? 4 : 3}
           className="flex w-full rounded-lg border border-input-border bg-transparent px-3 py-2 text-sm"
         />
       ) : (
-        <>
-          <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="URL" />
-          <input
-            type="file"
-            accept={MEDIA_FILE_ACCEPT}
-            onChange={(e) => onFile(e.target.files?.[0] ?? null)}
-            className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-zinc-900 file:text-zinc-50 file:text-xs file:px-3 file:py-1.5 dark:file:bg-zinc-100 dark:file:text-zinc-900"
-          />
-        </>
+        <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="URL" />
       )}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <Button
         type="button"
         size="sm"
-        variant="outline"
+        variant={rail ? 'default' : 'outline'}
         onClick={handleAdd}
         disabled={!ready || adding || Boolean(file && mediaFileError(file))}
+        className={rail ? 'mt-auto w-full' : undefined}
       >
         Add media
       </Button>

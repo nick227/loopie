@@ -33,11 +33,13 @@ export function MediaCard({
   selected,
   onSelect,
   to,
+  compact,
 }: {
   asset: Asset
   selected?: boolean
   onSelect?: () => void
   to?: string
+  compact?: boolean
 }) {
   const spec = [
     asset.widthPx && asset.heightPx ? `${asset.widthPx}×${asset.heightPx}` : null,
@@ -53,8 +55,11 @@ export function MediaCard({
       <div
         className="relative bg-zinc-100 dark:bg-zinc-900 overflow-hidden"
         style={{
-          aspectRatio:
-            asset.widthPx && asset.heightPx ? `${asset.widthPx} / ${asset.heightPx}` : '1 / 1',
+          aspectRatio: compact
+            ? '1 / 1'
+            : asset.widthPx && asset.heightPx
+              ? `${asset.widthPx} / ${asset.heightPx}`
+              : '1 / 1',
         }}
       >
         <Preview asset={asset} />
@@ -64,28 +69,34 @@ export function MediaCard({
           </span>
         ) : null}
       </div>
-      <div className="p-3 space-y-1.5">
-        <p className="text-sm font-medium truncate">{asset.name}</p>
-        {spec ? <p className="text-[11px] text-zinc-500 tabular-nums truncate">{spec}</p> : null}
-        {asset.placements.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            {asset.placements.map((id) => (
-              <span
-                key={id}
-                className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
-              >
-                {PLACEMENT_LABEL[id] ?? id}
-              </span>
-            ))}
-          </div>
-        ) : null}
-        <p className="text-[11px] text-zinc-500">
-          {asset.usedInAds} {asset.usedInAds === 1 ? 'ad' : 'ads'}
-          {asset.usedInTemplates > 0
-            ? ` · ${asset.usedInTemplates} ${asset.usedInTemplates === 1 ? 'template' : 'templates'}`
-            : ''}
-        </p>
-      </div>
+      {compact ? (
+        <div className="px-2 py-1.5">
+          <p className="truncate text-xs font-medium">{asset.name}</p>
+        </div>
+      ) : (
+        <div className="p-3 space-y-1.5">
+          <p className="text-sm font-medium truncate">{asset.name}</p>
+          {spec ? <p className="text-[11px] text-zinc-500 tabular-nums truncate">{spec}</p> : null}
+          {asset.placements.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {asset.placements.map((id) => (
+                <span
+                  key={id}
+                  className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
+                >
+                  {PLACEMENT_LABEL[id] ?? id}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <p className="text-[11px] text-zinc-500">
+            {asset.usedInAds} {asset.usedInAds === 1 ? 'ad' : 'ads'}
+            {asset.usedInTemplates > 0
+              ? ` · ${asset.usedInTemplates} ${asset.usedInTemplates === 1 ? 'template' : 'templates'}`
+              : ''}
+          </p>
+        </div>
+      )}
     </>
   )
 
@@ -96,7 +107,7 @@ export function MediaCard({
 
   if (onSelect) {
     return (
-      <button type="button" onClick={onSelect} className={frame}>
+      <button type="button" onClick={onSelect} aria-pressed={selected} className={frame}>
         {inner}
       </button>
     )

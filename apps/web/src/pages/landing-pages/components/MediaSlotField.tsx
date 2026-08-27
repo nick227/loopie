@@ -1,8 +1,7 @@
 import { useState } from 'react'
-import { useAssets, useCreateAsset } from '@project/sdk'
+import { useAsset, useCreateAsset } from '@project/sdk'
 import { MediaPicker } from '@/components/media/MediaPicker'
 import { mediaSrc } from '@/lib/media'
-import { useFlatPages } from '@/hooks/useFlatPages'
 
 export function MediaSlotField({
   assetId,
@@ -20,10 +19,9 @@ export function MediaSlotField({
 }) {
   const [open, setOpen] = useState(false)
   const [picked, setPicked] = useState<string | undefined>(assetId)
-  const assetsQuery = useAssets({ type: kind, limit: 100 })
-  const assets = useFlatPages(assetsQuery)
+  const assetQuery = useAsset(assetId ?? '')
   const createAsset = useCreateAsset()
-  const selected = assets.find((asset) => asset.id === assetId)
+  const selected = assetQuery.data?.data
   const src = (selected ? mediaSrc(selected.url) : null) ?? fallbackUrl ?? null
 
   function openPicker() {
@@ -73,7 +71,7 @@ export function MediaSlotField({
       </button>
       {open ? (
         <MediaPicker
-          assets={assets}
+          type={kind}
           selectedIds={picked ? [picked] : []}
           adding={createAsset.isPending}
           single

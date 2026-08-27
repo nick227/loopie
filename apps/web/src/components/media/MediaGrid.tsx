@@ -11,6 +11,7 @@ export function MediaGrid({
   hasNextPage,
   isFetchingNextPage,
   fetchNextPage,
+  compact,
 }: {
   assets: Asset[]
   selectedIds?: string[]
@@ -19,14 +20,22 @@ export function MediaGrid({
   hasNextPage?: boolean
   isFetchingNextPage?: boolean
   fetchNextPage?: () => void
+  compact?: boolean
 }) {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+      <div
+        className={
+          compact
+            ? 'grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6'
+            : 'grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4'
+        }
+      >
         {assets.map((asset) => (
           <MediaCard
             key={asset.id}
             asset={asset}
+            compact={compact}
             selected={selectedIds?.includes(asset.id)}
             onSelect={onToggle ? () => onToggle(asset.id) : undefined}
             to={linkTo ? linkTo(asset) : undefined}
