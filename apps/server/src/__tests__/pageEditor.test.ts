@@ -5,7 +5,7 @@ import {
   parseYoutubeId,
   issueSid,
 } from '@project/db'
-import { buildTestApp, asAuth, testUserId } from './helpers'
+import { buildTestApp, asAuth, testUserId, testOtherUserId } from './helpers'
 import { renderLandingPageHtml } from '../lib/renderLandingPage'
 
 const app = buildTestApp()
@@ -239,6 +239,86 @@ describe('page editor', () => {
     expect(after.body).toContain('class="lp-split"')
     expect(after.body).toContain('Draft pitch only')
     expect(after.body).not.toContain('class="lp-section lp-hero"')
+  })
+
+  it('serves an authenticated draft preview distinct from the live page', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/landing-pages',
+      headers: asAuth(testUserId),
+      payload: {
+        templateId: SYSTEM_LEAD_GEN_TEMPLATE_ID,
+        name: 'Preview Page',
+        slug: `preview-${Date.now()}`,
+      },
+    })
+    expect(created.statusCode).toBe(201)
+    const page = created.json().data
+    expect(page.status).toBe('DRAFT')
+    expect(page.previewUrl).toContain(`/landing-pages/${page.id}/preview`)
+
+    const unauth = await app.inject({ method: 'GET', url: `/landing-pages/${page.id}/preview` })
+    expect(unauth.statusCode).toBe(401)
+
+    const foreign = await app.inject({
+      method: 'GET',
+      url: `/landing-pages/${page.id}/preview`,
+      headers: asAuth(testOtherUserId),
+    })
+    expect(foreign.statusCode).toBe(404)
+
+    const liveBefore = await app.inject({ method: 'GET', url: `/p/${page.slug}` })
+    expect(liveBefore.statusCode).toBe(404)
+
+    await app.inject({
+      method: 'PATCH',
+      url: `/landing-pages/${page.id}`,
+      headers: asAuth(testUserId),
+      payload: {
+        content: {
+          sections: {
+            ...page.content.sections,
+            hero: { hidden: false, headline: 'Published headline' },
+          },
+        },
+      },
+    })
+    const firstPublish = await app.inject({
+      method: 'POST',
+      url: `/landing-pages/${page.id}/publish`,
+      headers: asAuth(testUserId),
+    })
+    expect(firstPublish.statusCode).toBe(201)
+
+    await app.inject({
+      method: 'PATCH',
+      url: `/landing-pages/${page.id}`,
+      headers: asAuth(testUserId),
+      payload: {
+        content: {
+          sections: {
+            ...page.content.sections,
+            hero: { hidden: false, headline: 'Draft-only headline' },
+          },
+        },
+      },
+    })
+
+    const preview = await app.inject({
+      method: 'GET',
+      url: `/landing-pages/${page.id}/preview`,
+      headers: asAuth(testUserId),
+    })
+    expect(preview.statusCode).toBe(200)
+    expect(preview.headers['content-type']).toContain('text/html')
+    expect(preview.headers['cache-control']).toBe('no-store')
+    expect(preview.body).toContain('Draft-only headline')
+    expect(preview.body).not.toContain('Published headline')
+
+    const live = await app.inject({ method: 'GET', url: `/p/${page.slug}` })
+    expect(live.statusCode).toBe(200)
+    expect(live.body).toContain('Published headline')
+    expect(live.body).not.toContain('Draft-only headline')
   })
 
   it('rejects a non-YouTube URL and does not render garbage as an iframe', async () => {

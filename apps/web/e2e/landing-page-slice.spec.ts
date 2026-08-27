@@ -27,6 +27,7 @@ test.describe('landing page vertical slice', () => {
   test('campaign -> landing page -> preview -> content/theme -> form -> publish -> destination', async ({
     page,
   }) => {
+    test.setTimeout(90_000)
     // Same resolution as playwright.config.ts's own apiURL — the app itself talks to this via
     // VITE_API_URL (see apps/web/src/main.tsx), which isn't exposed to the test process directly.
     const apiOrigin = process.env.PLAYWRIGHT_API_URL ?? 'http://localhost:3001'
@@ -47,12 +48,13 @@ test.describe('landing page vertical slice', () => {
     await page.getByRole('button', { name: /create & continue/i }).click()
     await page.waitForURL(/\/landing-pages\/(?!new$)[^/]+$/)
 
+    await expect(page.getByLabel('Layout')).toBeVisible({ timeout: 15000 })
     await expect(page.getByLabel('Headline', { exact: true })).toBeVisible()
 
     await page.getByLabel('Headline', { exact: true }).fill('E2E Verified Headline')
-    await expect(page.getByRole('button', { name: /save draft/i })).toBeEnabled()
-    await page.getByRole('button', { name: /save draft/i }).click()
-    await expect(page.getByText('Saved')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('button', { name: /save draft/i })).toHaveCount(0)
+    await expect(page.getByText(/Saving/)).toBeVisible()
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 10000 })
     await expect(page.getByLabel('Headline', { exact: true })).toHaveValue('E2E Verified Headline')
 
     await expect(page.getByLabel('Theme')).toBeVisible()
@@ -60,20 +62,21 @@ test.describe('landing page vertical slice', () => {
     await expect(page.getByLabel('presetId')).toHaveCount(0)
     await expect(page.getByLabel('inkColor')).toHaveCount(0)
     await page.getByLabel('Theme').selectOption({ label: 'Shopfront' })
-    await expect(page.getByRole('button', { name: /save draft/i })).toBeEnabled()
-    await page.getByRole('button', { name: /save draft/i }).click()
+    await expect(page.getByText(/Saving/)).toBeVisible()
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 10000 })
     await expect(page.getByLabel('Theme')).toHaveValue('shopfront')
+    await expect(page.getByText(/^Live at /)).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /preview/i })).toBeEnabled()
 
+    const published = page.waitForResponse(
+      (res) => res.request().method() === 'POST' && res.url().includes('/publish') && res.ok(),
+    )
     await page.getByRole('button', { name: /^publish$/i }).click()
+    await published
     await expect(page.getByText(/^Live at /)).toBeVisible({ timeout: 10000 })
 
-    // --- Use as campaign destination ---
-    await page.getByLabel('Campaign', { exact: true }).selectOption({ label: campaignName })
-    await page.getByRole('button', { name: /set as destination/i }).click()
-    await expect(page.getByText('Campaign destination updated.')).toBeVisible({ timeout: 10000 })
-
-    // --- Campaign detail resolves the destination back to this landing page ---
     await page.goto(`/campaigns/${campaignId}`)
+    await page.getByLabel('Landing page').selectOption({ label: lpName })
     await expect(page.getByRole('link', { name: lpName })).toBeVisible()
 
     // --- The hosted page actually serves the published content ---

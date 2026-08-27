@@ -76,6 +76,14 @@ export async function listLandingPageVersions(request: any, reply: any) {
   return reply.send(data)
 }
 
+export async function previewLandingPage(request: any, reply: any) {
+  const result = await landingPageService.export(
+    request.user.businessId,
+    request.params.landingPageId,
+  )
+  return reply.header('Cache-Control', 'no-store').type('text/html').send(result.html)
+}
+
 export async function exportLandingPage(request: any, reply: any) {
   const result = await landingPageService.export(
     request.user.businessId,

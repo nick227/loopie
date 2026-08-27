@@ -1,6 +1,4 @@
-import { useCampaigns, useLandingPageTemplates } from '@project/sdk'
-import { Button } from '@/components/ui/Button'
-import { ExternalLink } from 'lucide-react'
+import { useLandingPageTemplates } from '@project/sdk'
 import { useFlatPages } from '@/hooks/useFlatPages'
 import {
   matchThemePreset,
@@ -16,29 +14,16 @@ export function PageToolbar({
   templateId,
   templateSchema,
   theme,
-  published,
-  campaignId,
-  destinationPending,
-  destinationOk,
   onTemplate,
   onTheme,
-  onCampaign,
-  onSetDestination,
 }: {
   templateId: string
   templateSchema: unknown
   theme: Record<string, string>
-  published: boolean
-  campaignId: string
-  destinationPending: boolean
-  destinationOk: boolean
   onTemplate: (templateId: string) => void
   onTheme: (theme: Record<string, string>) => void
-  onCampaign: (campaignId: string) => void
-  onSetDestination: () => void
 }) {
   const templates = useFlatPages(useLandingPageTemplates())
-  const campaigns = useFlatPages(useCampaigns())
   const presets = presetsFromSchema(templateSchema)
   const selected = matchThemePreset(theme, presets)
 
@@ -77,40 +62,6 @@ export function PageToolbar({
           ))}
         </select>
       </label>
-      {published ? (
-        <div className="ml-auto flex flex-wrap items-end gap-2">
-          <label className="flex min-w-[12rem] flex-col gap-1 text-[11px] uppercase tracking-wider text-muted-foreground">
-            Campaign
-            <select
-              aria-label="Campaign"
-              value={campaignId}
-              onChange={(e) => onCampaign(e.target.value)}
-              className={selectClass}
-            >
-              <option value="">Set as destination…</option>
-              {campaigns.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onSetDestination}
-            loading={destinationPending}
-            disabled={!campaignId}
-          >
-            <ExternalLink size={14} /> Set as Destination
-          </Button>
-          {destinationOk ? (
-            <span className="pb-2 text-xs text-muted-foreground">
-              Campaign destination updated.
-            </span>
-          ) : null}
-        </div>
-      ) : null}
     </div>
   )
 }

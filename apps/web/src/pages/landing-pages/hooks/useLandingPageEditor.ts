@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   useLandingPage,
@@ -6,7 +6,6 @@ import {
   useUpdateLandingPage,
   usePublishLandingPage,
   useReplaceLandingPageAdSlots,
-  useUpdateCampaign,
   useForm,
   useUpdateForm,
 } from '@project/sdk'
@@ -53,7 +52,12 @@ function toApiFields(fields: FormFieldDraft[]) {
 export function useLandingPageEditor() {
   const { landingPageId } = useParams<{ landingPageId: string }>()
 
-  const { data: pageResult, isLoading: pageLoading } = useLandingPage(landingPageId!)
+  const {
+    data: pageResult,
+    isLoading: pageLoading,
+    isError: pageError,
+    refetch: refetchPage,
+  } = useLandingPage(landingPageId!)
   const page = pageResult?.data
   const [templateId, setTemplateId] = useState('')
   const { data: templateResult } = useLandingPageTemplate(templateId)
@@ -62,8 +66,10 @@ export function useLandingPageEditor() {
   const updateMutation = useUpdateLandingPage()
   const publishMutation = usePublishLandingPage()
   const replaceSlots = useReplaceLandingPageAdSlots(landingPageId!)
-  const setDestinationMutation = useUpdateCampaign()
   const updateForm = useUpdateForm()
+  const updatePage = updateMutation.mutateAsync
+  const saveSlots = replaceSlots.mutateAsync
+  const saveForm = updateForm.mutateAsync
 
   const [content, setContent] = useState<Record<string, SectionContent>>({})
   const [theme, setTheme] = useState<Record<string, string>>({})
@@ -72,8 +78,10 @@ export function useLandingPageEditor() {
   const [submitLabel, setSubmitLabel] = useState('Get in touch')
   const [slots, setSlots] = useState<AdSlotDraft[]>([])
   const [dirty, setDirty] = useState(false)
-  const [campaignId, setCampaignId] = useState('')
   const [savedAt, setSavedAt] = useState<number | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const writes = useRef(Promise.resolve())
+  const generation = useRef(0)
 
   const formQuery = useForm(formId)
   const hydratedPageId = useRef<string | null>(null)
@@ -82,8 +90,6 @@ export function useLandingPageEditor() {
   useEffect(() => {
     if (!page || hydratedPageId.current === page.id) return
     hydratedPageId.current = page.id
-    // Syncing local editable state from the async-loaded page, not derivable at render time —
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setContent(
       (page.content as { sections?: Record<string, SectionContent> } | null)?.sections ?? {},
     )
@@ -102,7 +108,6 @@ export function useLandingPageEditor() {
     const form = formQuery.data?.data
     if (!form || hydratedFormId.current === form.id) return
     hydratedFormId.current = form.id
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFields(toDrafts(form.fields ?? []))
     setSubmitLabel(form.submitLabel)
   }, [formQuery.data?.data])
@@ -110,69 +115,111 @@ export function useLandingPageEditor() {
   useEffect(() => {
     const sections = (template?.schema as { sections?: { key: string }[] } | undefined)?.sections
     if (!sections) return
-    // Merge newly visible template keys without rewriting existing section content —
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setContent((current) => hydratePageSections(current, sections))
   }, [template?.id, template?.schema])
 
-  async function handleSave() {
-    await updateMutation.mutateAsync({
-      landingPageId: landingPageId!,
-      content: { sections: content },
-      theme,
-      templateId: templateId || undefined,
-      formId: formId || null,
-    })
-    await replaceSlots.mutateAsync(slots)
-    if (formId) {
-      await updateForm.mutateAsync({
-        formId,
-        submitLabel,
-        fields: toApiFields(fields),
+  const persist = useCallback(async () => {
+    if (!landingPageId) return
+    setSaveError(null)
+    const mine = generation.current
+    const job = async () => {
+      await updatePage({
+        landingPageId,
+        content: { sections: content },
+        theme,
+        templateId: templateId || undefined,
+        formId: formId || null,
       })
+      await saveSlots(slots)
+      if (formId && hydratedFormId.current === formId) {
+        await saveForm({
+          formId,
+          submitLabel,
+          fields: toApiFields(fields),
+        })
+      }
+      if (generation.current !== mine) return
+      setDirty(false)
+      setSavedAt(Date.now())
     }
-    setDirty(false)
-    setSavedAt(Date.now())
+    const next = writes.current.then(job, job)
+    writes.current = next
+    try {
+      await next
+    } catch (cause) {
+      const message =
+        cause instanceof Error && cause.message
+          ? cause.message
+          : 'Your Page changes could not be saved. Check your connection and try again.'
+      setSaveError(message)
+      throw cause
+    }
+  }, [
+    landingPageId,
+    content,
+    theme,
+    templateId,
+    formId,
+    slots,
+    submitLabel,
+    fields,
+    updatePage,
+    saveSlots,
+    saveForm,
+  ])
+
+  useEffect(() => {
+    if (!dirty) return
+    const timer = window.setTimeout(() => {
+      void persist().catch(() => undefined)
+    }, 800)
+    return () => window.clearTimeout(timer)
+  }, [dirty, persist])
+
+  function markDirty(_dirty?: boolean) {
+    generation.current += 1
+    setDirty(true)
   }
 
   async function handlePublish() {
-    await handleSave()
-    await publishMutation.mutateAsync(landingPageId!)
-  }
-
-  async function handleSetDestination() {
-    if (!campaignId || !page) return
-    await setDestinationMutation.mutateAsync({ campaignId, destinationUrl: page.hostedUrl })
+    setSaveError(null)
+    try {
+      await persist()
+    } catch {
+      return
+    }
+    try {
+      await publishMutation.mutateAsync(landingPageId!)
+    } catch {
+      setSaveError('This Page could not be published. Your saved draft is still available.')
+    }
   }
 
   return {
-    landingPageId,
     page,
     pageLoading,
+    pageError,
+    refetchPage,
     template,
     templateId,
     setTemplateId,
-    updateMutation,
     publishMutation,
-    replaceSlots,
-    setDestinationMutation,
     content,
     setContent,
     theme,
     setTheme,
-    formId,
     fields,
     setFields,
     submitLabel,
+    formId,
+    setFormId,
     slots,
     setSlots,
     dirty,
-    setDirty,
-    campaignId,
-    setCampaignId,
+    setDirty: markDirty,
     savedAt,
-    handleSave,
+    saveError,
     handlePublish,
-    handleSetDestination,
   }
 }

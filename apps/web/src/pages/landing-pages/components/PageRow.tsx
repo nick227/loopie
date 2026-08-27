@@ -59,7 +59,9 @@ export function PageRow({ page }: { page: LandingPage }) {
                 <span className="inline-flex items-center rounded bg-zinc-100 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
                   {STATUS[page.status] ?? page.status}
                 </span>
-                <span className="truncate text-xs text-zinc-500">/p/{page.slug}</span>
+                {page.status === 'PUBLISHED' ? (
+                  <span className="truncate text-xs text-zinc-500">/p/{page.slug}</span>
+                ) : null}
               </div>
             </div>
             <Link

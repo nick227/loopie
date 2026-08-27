@@ -9,12 +9,20 @@ export function trackedDeploymentUrl(deploymentId: string) {
   return `${PUBLIC_SERVER_URL}/r/${deploymentId}`
 }
 
+export function trackedAdRunUrl(adRunId: string) {
+  return `${PUBLIC_SERVER_URL}/r/adrun/${adRunId}`
+}
+
 export function trackedAffiliateUrl(affiliateId: string) {
   return `${PUBLIC_SERVER_URL}/r/affiliate/${affiliateId}`
 }
 
 export function hostedPageUrl(slug: string) {
   return `${PUBLIC_SERVER_URL}/p/${slug}`
+}
+
+export function landingPagePreviewUrl(landingPageId: string) {
+  return `${PUBLIC_SERVER_URL}/landing-pages/${landingPageId}/preview`
 }
 
 export function landingPageSubmitUrl(landingPageId: string) {

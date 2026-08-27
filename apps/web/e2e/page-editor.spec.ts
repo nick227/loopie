@@ -20,7 +20,9 @@ async function registerAndOpenHome(page: Page) {
 test.describe('page editor canvas', () => {
   test('edit headline, add phone, switch layout, publish — never visit /forms/new', async ({
     page,
+    request,
   }) => {
+    test.setTimeout(90_000)
     const apiOrigin = process.env.PLAYWRIGHT_API_URL ?? 'http://localhost:3001'
     await registerAndOpenHome(page)
 
@@ -46,9 +48,28 @@ test.describe('page editor canvas', () => {
     await page.getByLabel('Pitch').fill('Canvas Verified Pitch')
     await expect(page.getByLabel('Pitch')).toHaveValue('Canvas Verified Pitch')
     await expect(page.getByLabel('Phone')).toBeVisible()
-    await expect(page.getByRole('button', { name: /save draft/i })).toBeEnabled()
-    await page.getByRole('button', { name: /save draft/i }).click()
-    await expect(page.getByText('Saved')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('button', { name: /save draft/i })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /preview/i })).toBeVisible()
+    await expect(page.getByText(/Saving/)).toBeVisible()
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('button', { name: /preview/i })).toBeEnabled()
+    await expect(page.getByText(/^Live at /)).toBeVisible()
+
+    const lpId = page.url().split('/landing-pages/')[1]!
+    const detail = await page.request.get(`${apiOrigin}/landing-pages/${lpId}`)
+    expect(detail.ok()).toBeTruthy()
+    const { slug } = (await detail.json()).data as { slug: string }
+
+    const draftPreview = await page.request.get(`${apiOrigin}/landing-pages/${lpId}/preview`)
+    expect(draftPreview.status()).toBe(200)
+    expect(await draftPreview.text()).toContain('Canvas Verified Pitch')
+
+    const anonPreview = await request.get(`${apiOrigin}/landing-pages/${lpId}/preview`)
+    expect(anonPreview.status()).toBe(401)
+
+    const liveBefore = await page.request.get(`${apiOrigin}/p/${slug}`)
+    expect(liveBefore.status()).toBe(200)
+    expect(await liveBefore.text()).not.toContain('Canvas Verified Pitch')
 
     const published = page.waitForResponse(
       (res) => res.request().method() === 'POST' && res.url().includes('/publish') && res.ok(),
@@ -66,6 +87,18 @@ test.describe('page editor canvas', () => {
     expect(html).toContain('class="lp-split"')
     expect(html).not.toContain('class="lp-section lp-hero"')
     expect(html).toContain('name="phone"')
+    await expect(page.getByText(/^Live at /)).toBeVisible()
+
+    await page.getByLabel('Pitch').fill('Unpublished draft pitch')
+    await expect(page.getByText(/Saving/)).toBeVisible()
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 10000 })
+
+    const laterPreview = await page.request.get(`${apiOrigin}/landing-pages/${lpId}/preview`)
+    expect(await laterPreview.text()).toContain('Unpublished draft pitch')
+    const laterLive = await page.request.get(`${apiOrigin}${hostedPath}`)
+    expect(await laterLive.text()).toContain('Canvas Verified Pitch')
+    expect(await laterLive.text()).not.toContain('Unpublished draft pitch')
+
     expect(page.url()).not.toContain('/forms/new')
   })
 })

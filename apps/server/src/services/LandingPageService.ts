@@ -6,7 +6,7 @@ import {
 } from '@project/db'
 import type { Prisma } from '@prisma/client'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
-import { hostedPageUrl, landingPageSubmitUrl } from '../lib/urls'
+import { hostedPageUrl, landingPagePreviewUrl, landingPageSubmitUrl } from '../lib/urls'
 import { renderLandingPageHtml } from '../lib/renderLandingPage'
 import { snapshotForm } from '../lib/formSnapshot'
 import { ACTIVE_SALE_WHERE } from '../lib/salePredicates'
@@ -46,6 +46,7 @@ function toLandingPageDTO(page: {
     theme: page.theme,
     publishedVersionId: page.publishedVersionId,
     hostedUrl: hostedPageUrl(page.slug),
+    previewUrl: landingPagePreviewUrl(page.id),
     formStartCount: page.formStartCount,
     adSlotCount: slots.length,
     slots,

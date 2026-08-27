@@ -94,6 +94,16 @@ components:
       name: deploymentId
       required: true
       schema: { type: string }
+    AdRunId:
+      in: path
+      name: adRunId
+      required: true
+      schema: { type: string }
+    AdvertisementId:
+      in: path
+      name: advertisementId
+      required: true
+      schema: { type: string }
     AdPlatform:
       in: path
       name: platform
@@ -944,6 +954,106 @@ components:
         conversions: { type: integer, minimum: 0 }
         destinationLandingPageId: { type: string, nullable: true }
 
+    # ---------- Media/Advertisement/AdRun (2026-08-27) — see CLAUDE.md's migration audit ----------
+    Advertisement:
+      type: object
+      required: [id, businessId, name, assetIds, createdAt]
+      description: >
+        The "Media" grouping entity in Media -> Advertisement -> AdRun — content comes directly
+        from Asset via AdvertisementAsset, not the older per-campaign Creative model. Media is
+        selected once here; every AdRun under it reuses the same attached assets when it
+        provisions on a platform.
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        name: { type: string }
+        assetIds:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    CreateAdvertisementInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1 }
+        assetIds:
+          type: array
+          items: { type: string }
+
+    UpdateAdvertisementInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        assetIds:
+          type: array
+          items: { type: string }
+          description: Wholesale replace, same convention as Campaign.creativeIds — omit to leave media unchanged.
+
+    AdRun:
+      type: object
+      required: [id, advertisementId, platform, status, budget, spend, impressions, clicks, conversions, trackedUrl, createdAt]
+      properties:
+        id: { type: string }
+        advertisementId: { type: string }
+        platform: { type: string, enum: [META, GOOGLE, TIKTOK] }
+        status: { type: string, enum: [PENDING, ACTIVE, PAUSED, ENDED, VALIDATION_FAILED] }
+        budget: { type: number, nullable: true }
+        spend: { type: number }
+        impressions: { type: integer }
+        clicks: { type: integer }
+        conversions: { type: integer }
+        startDate: { type: string, format: date-time, nullable: true }
+        endDate: { type: string, format: date-time, nullable: true }
+        externalCampaignId: { type: string, nullable: true }
+        externalAdSetId: { type: string, nullable: true }
+        externalAdId: { type: string, nullable: true }
+        previewUrl:
+          type: string
+          nullable: true
+          description: Populates only once the external platform object genuinely exists — never speculative.
+        destinationLandingPageId: { type: string, nullable: true }
+        trackedUrl:
+          type: string
+          description: Redirect URL for this ad run — GET /r/adrun/{adRunId}.
+        createdAt: { type: string, format: date-time }
+
+    CreateAdRunInput:
+      type: object
+      required: [platform, idempotencyKey]
+      description: >
+        The declarative "create and provision" command: state intent, LOOPIE owns validate ->
+        create AdRun -> call the platform connector (if one is registered, configured, and
+        connected for this business) -> persist external ids -> mark PENDING ("ready" — pushed as
+        a paused draft awaiting manual activation, same convention as Deployment) or
+        VALIDATION_FAILED. If no connector applies, the AdRun is created PENDING for manual entry,
+        exactly like a non-Meta Deployment today.
+      properties:
+        platform: { type: string, enum: [META, GOOGLE, TIKTOK] }
+        budget: { type: number, minimum: 0 }
+        startDate: { type: string, format: date-time }
+        endDate: { type: string, format: date-time }
+        destinationLandingPageId: { type: string }
+        idempotencyKey:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: >
+            Client-generated once per creation attempt and resent unchanged on any retry — a
+            retried request returns the same AdRun and never triggers a second connector push.
+
+    UpdateAdRunInput:
+      description: Manual metrics/status entry, same "no live platform sync in V1" model as Deployment. Cannot change platform or advertisementId — an AdRun's source identity is immutable once created.
+      type: object
+      properties:
+        status: { type: string, enum: [PENDING, ACTIVE, PAUSED, ENDED, VALIDATION_FAILED] }
+        spend: { type: number, minimum: 0 }
+        budget: { type: number, minimum: 0 }
+        impressions: { type: integer, minimum: 0 }
+        clicks: { type: integer, minimum: 0 }
+        conversions: { type: integer, minimum: 0 }
+        destinationLandingPageId: { type: string, nullable: true }
+
     PlatformCapabilities:
       type: object
       required: [oauth, mappingFields, pushDraft, pullSpend, activate]
@@ -1058,7 +1168,7 @@ components:
 
     LandingPage:
       type: object
-      required: [id, businessId, templateId, name, slug, status, content, formStartCount, createdAt]
+      required: [id, businessId, templateId, name, slug, status, content, formStartCount, createdAt, previewUrl]
       properties:
         id: { type: string }
         businessId: { type: string }
@@ -1074,7 +1184,8 @@ components:
           description: Draft working copy, shaped per the template's schema.
         theme: { type: object, nullable: true, additionalProperties: true }
         publishedVersionId: { type: string, nullable: true }
-        hostedUrl: { type: string, description: "LOOPIE-hosted URL — GET /p/{slug}." }
+        hostedUrl: { type: string, description: "Public live URL — GET /p/{slug}. 404 until the page is published." }
+        previewUrl: { type: string, description: "Authenticated draft preview — GET /landing-pages/{id}/preview." }
         formStartCount: { type: integer, description: "Approximate — not deduplicated by session." }
         adSlotCount: { type: integer }
         slots:
@@ -1323,9 +1434,10 @@ components:
         stage: { type: string, enum: [NEW, CONTACTED, QUALIFIED, QUOTED, WON, LOST] }
         owner: { type: string, nullable: true }
         estimatedValue: { type: number, nullable: true }
-        sourceType: { type: string, enum: [MESSAGE, DEPLOYMENT, AD_UNIT, MANUAL, IMPORT] }
+        sourceType: { type: string, enum: [MESSAGE, DEPLOYMENT, AD_RUN, AD_UNIT, MANUAL, IMPORT] }
         sourceMessageId: { type: string, nullable: true }
         sourceDeploymentId: { type: string, nullable: true }
+        sourceAdRunId: { type: string, nullable: true }
         sourceAdUnitId: { type: string, nullable: true }
         clickId: { type: string, nullable: true }
         landingSessionId: { type: string, nullable: true }
@@ -1358,9 +1470,10 @@ components:
         amount: { type: number }
         date: { type: string, format: date-time }
         productOrService: { type: string, nullable: true }
-        sourceType: { type: string, enum: [MESSAGE, DEPLOYMENT, AD_UNIT, MANUAL, IMPORT] }
+        sourceType: { type: string, enum: [MESSAGE, DEPLOYMENT, AD_RUN, AD_UNIT, MANUAL, IMPORT] }
         sourceMessageId: { type: string, nullable: true }
         sourceDeploymentId: { type: string, nullable: true }
+        sourceAdRunId: { type: string, nullable: true }
         sourceAdUnitId: { type: string, nullable: true }
         notes: { type: string, nullable: true }
         idempotencyKey:
@@ -1410,9 +1523,10 @@ components:
         type:
           type: string
           enum: [EMAIL_SENT, TEXT_SENT, SOCIAL_POST_SENT, REPLY, CALL_LOGGED, NOTE, STATUS_CHANGE, QUOTE_SENT, SALE_RECORDED, AD_CLICK, FORM_SUBMITTED, PAGE_VIEWED]
-        sourceType: { type: string, enum: [MESSAGE, DEPLOYMENT, AD_UNIT, MANUAL, IMPORT], nullable: true }
+        sourceType: { type: string, enum: [MESSAGE, DEPLOYMENT, AD_RUN, AD_UNIT, MANUAL, IMPORT], nullable: true }
         sourceMessageId: { type: string, nullable: true }
         sourceDeploymentId: { type: string, nullable: true }
+        sourceAdRunId: { type: string, nullable: true }
         sourceAdUnitId: { type: string, nullable: true }
         metadata:
           type: object
@@ -1466,7 +1580,7 @@ components:
           items:
             type: object
             properties:
-              sourceType: { type: string, enum: [MESSAGE, DEPLOYMENT, AD_UNIT] }
+              sourceType: { type: string, enum: [MESSAGE, DEPLOYMENT, AD_RUN, AD_UNIT] }
               sourceId: { type: string }
               label: { type: string }
               leads: { type: integer }
@@ -1560,11 +1674,16 @@ components:
 
     BudgetAuthorization:
       type: object
-      required: [id, businessId, campaignId, currency, authorizedAmountMinor, status, idempotencyKey, createdAt]
+      required: [id, businessId, currency, authorizedAmountMinor, status, idempotencyKey, createdAt]
+      description: >
+        Exactly one of campaignId/adRunId is set — campaignId is the legacy path (every existing
+        row), adRunId is the standalone-AdRun path added by the Media/Advertisement/AdRun
+        migration (see CLAUDE.md) so an AdRun can be funded without a parent Campaign.
       properties:
         id: { type: string }
         businessId: { type: string }
-        campaignId: { type: string }
+        campaignId: { type: string, nullable: true }
+        adRunId: { type: string, nullable: true }
         currency: { type: string }
         authorizedAmountMinor: { type: integer }
         status: { type: string, enum: [ACTIVE, RELEASED] }
@@ -1596,7 +1715,7 @@ components:
         contactName: { type: string }
         acquiredAt: { type: string, format: date-time }
         stage: { type: string, enum: [NEW, CONTACTED, QUALIFIED, QUOTED, WON, LOST] }
-        sourceType: { type: string, enum: [DEPLOYMENT, AD_UNIT] }
+        sourceType: { type: string, enum: [DEPLOYMENT, AD_RUN, AD_UNIT] }
         platform: { type: string, enum: [META, GOOGLE, TIKTOK, LOOPIE], nullable: true }
         creativeName: { type: string, nullable: true }
         sourceLabel: { type: string }
@@ -1608,11 +1727,13 @@ components:
 
     AdSpend:
       type: object
-      required: [id, businessId, campaignId, platform, externalChargeId, periodStart, periodEnd, currency, reportedAmountMinor, settledAmountMinor, settlementStatus, idempotencyKey, createdAt]
+      required: [id, businessId, platform, externalChargeId, periodStart, periodEnd, currency, reportedAmountMinor, settledAmountMinor, settlementStatus, idempotencyKey, createdAt]
+      description: Exactly one of campaignId/adRunId is set — see BudgetAuthorization's description.
       properties:
         id: { type: string }
         businessId: { type: string }
-        campaignId: { type: string }
+        campaignId: { type: string, nullable: true }
+        adRunId: { type: string, nullable: true }
         budgetAuthorizationId: { type: string, nullable: true }
         deploymentId: { type: string, nullable: true }
         adUnitId: { type: string, nullable: true }
@@ -1670,6 +1791,7 @@ components:
         id: { type: string }
         businessId: { type: string }
         campaignId: { type: string, nullable: true }
+        adRunId: { type: string, nullable: true }
         adSpendId: { type: string, nullable: true }
         currency: { type: string }
         trackedAmountMinor: { type: integer }
@@ -3365,6 +3487,238 @@ paths:
                 properties:
                   data: { $ref: '#/components/schemas/Deployment' }
 
+  # ---------- Media/Advertisement/AdRun (2026-08-27) — see CLAUDE.md's migration audit ----------
+  /advertisements:
+    get:
+      operationId: listAdvertisements
+      summary: List advertisements
+      tags: [advertisements]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated advertisements
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Advertisement' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createAdvertisement
+      summary: Create advertisement
+      tags: [advertisements]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAdvertisementInput' }
+      responses:
+        '201':
+          description: Advertisement created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Advertisement' }
+
+  /advertisements/{advertisementId}:
+    get:
+      operationId: getAdvertisement
+      summary: Get advertisement
+      tags: [advertisements]
+      parameters:
+        - $ref: '#/components/parameters/AdvertisementId'
+      responses:
+        '200':
+          description: Advertisement
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Advertisement' }
+    patch:
+      operationId: updateAdvertisement
+      summary: Update advertisement
+      tags: [advertisements]
+      parameters:
+        - $ref: '#/components/parameters/AdvertisementId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAdvertisementInput' }
+      responses:
+        '200':
+          description: Updated advertisement
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Advertisement' }
+
+  /advertisements/{advertisementId}/runs:
+    get:
+      operationId: listAdRuns
+      summary: List ad runs for this advertisement
+      tags: [advertisements]
+      parameters:
+        - $ref: '#/components/parameters/AdvertisementId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated ad runs
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdRun' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createAdRun
+      summary: Declaratively create and provision an ad run
+      tags: [advertisements]
+      parameters:
+        - $ref: '#/components/parameters/AdvertisementId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAdRunInput' }
+      responses:
+        '201':
+          description: >
+            Ad run created (and provisioned on the platform connector if one applies). Check
+            `status` — PENDING means ready (manual entry, or a paused draft pushed successfully);
+            VALIDATION_FAILED means the connector was attempted and failed, safe to retry with the
+            same idempotencyKey.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdRun' }
+
+  /ad-runs/{adRunId}:
+    get:
+      operationId: getAdRun
+      summary: Get ad run
+      tags: [advertisements]
+      parameters:
+        - $ref: '#/components/parameters/AdRunId'
+      responses:
+        '200':
+          description: Ad run
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdRun' }
+    patch:
+      operationId: updateAdRun
+      summary: Update ad run
+      tags: [advertisements]
+      parameters:
+        - $ref: '#/components/parameters/AdRunId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAdRunInput' }
+      responses:
+        '200':
+          description: Updated ad run
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdRun' }
+    delete:
+      operationId: deleteAdRun
+      summary: Delete ad run
+      description: Rejected (409) if the ad run has any ledger history, spend, or attributed Lead/Sale/Interaction activity — pause or end it instead.
+      tags: [advertisements]
+      parameters:
+        - $ref: '#/components/parameters/AdRunId'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      success: { type: boolean }
+
+  /ad-runs/{adRunId}/pause:
+    post:
+      operationId: pauseAdRun
+      summary: Pause ad run
+      tags: [advertisements]
+      parameters:
+        - $ref: '#/components/parameters/AdRunId'
+      responses:
+        '200':
+          description: Paused ad run
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdRun' }
+
+  /ad-runs/{adRunId}/resume:
+    post:
+      operationId: resumeAdRun
+      summary: Resume (activate) ad run
+      tags: [advertisements]
+      parameters:
+        - $ref: '#/components/parameters/AdRunId'
+      responses:
+        '200':
+          description: Activated ad run
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdRun' }
+
+  /ad-runs/{adRunId}/end:
+    post:
+      operationId: endAdRun
+      summary: End ad run
+      tags: [advertisements]
+      parameters:
+        - $ref: '#/components/parameters/AdRunId'
+      responses:
+        '200':
+          description: Ended ad run
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdRun' }
+
   /platforms/{platform}:
     get:
       operationId: getPlatformConnection
@@ -3504,6 +3858,35 @@ paths:
       responses:
         '302':
           description: Records an AttributionEvent and redirects to the campaign destination URL
+          headers:
+            Location: { schema: { type: string } }
+
+  /r/adrun/{adRunId}:
+    get:
+      operationId: trackAdRunClick
+      summary: Track AdRun click
+      tags: [attribution]
+      security: []
+      description: >
+        Mirrors GET /r/{deploymentId} exactly (same session-mint/redirect/click_id shape) for the
+        Advertisement/AdRun model — see CLAUDE.md's Media/Advertisement/AdRun migration audit.
+        Additive alongside /r/{deploymentId}, not a replacement: existing Deployments keep using
+        that route indefinitely, this one is for AdRuns.
+      parameters:
+        - $ref: '#/components/parameters/AdRunId'
+        - in: query
+          name: sid
+          schema: { type: string }
+          description: Anonymous session id, generated client-side if absent.
+        - in: query
+          name: click_id
+          schema: { type: string }
+          description: >
+            The originating ad platform's own click identifier, passed through unmodified into
+            AttributionEvent.clickId. Optional — omitted for platforms that don't append one.
+      responses:
+        '302':
+          description: Records an AttributionEvent and redirects to the AdRun's destination
           headers:
             Location: { schema: { type: string } }
 
@@ -3749,6 +4132,23 @@ paths:
                     type: array
                     items: { $ref: '#/components/schemas/PublishedPageVersion' }
                   meta: { $ref: '#/components/schemas/PaginatedMeta' }
+
+  /landing-pages/{landingPageId}/preview:
+    get:
+      operationId: previewLandingPage
+      summary: Preview current draft as HTML
+      tags: [landing-pages]
+      description: >
+        Authenticated. Renders the working draft (not the published version) as a full HTML page.
+        Does not record a PageView. 401 if the caller is not signed in.
+      parameters:
+        - $ref: '#/components/parameters/LandingPageId'
+      responses:
+        '200':
+          description: Draft HTML
+          content:
+            text/html:
+              schema: { type: string }
 
   /landing-pages/{landingPageId}/export:
     get:
