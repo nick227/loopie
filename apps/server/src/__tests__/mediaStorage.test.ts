@@ -3,13 +3,16 @@ import { mkdtemp, readFile, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import Fastify from 'fastify'
+import { db } from '@project/db'
+import { mapErrorToReply } from '../plugins/errorHandler'
+import { AssetService } from '../services/AssetService'
 
 const send = vi.hoisted(() => vi.fn())
 
 vi.mock('@aws-sdk/client-s3', () => ({
   S3Client: class {
-    send(command: unknown) {
-      return send(command)
+    send(command: unknown, options?: unknown) {
+      return send(command, options)
     }
   },
   PutObjectCommand: class {
@@ -21,6 +24,7 @@ vi.mock('@aws-sdk/client-s3', () => ({
 }))
 
 import { r2Enabled, registerUploadStatic, saveMediaFile } from '../lib/mediaStorage'
+import { assertSafeKey } from '../lib/mediaStorage/local'
 
 const PNG_1X1 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
@@ -35,6 +39,24 @@ const R2_ENV = {
 
 function stuffR2(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return { ...env, ...R2_ENV }
+}
+
+function enableR2() {
+  vi.stubEnv('NODE_ENV', 'production')
+  for (const [key, value] of Object.entries(R2_ENV)) vi.stubEnv(key, value)
+}
+
+function timeoutErr() {
+  const err = new Error('The operation was aborted')
+  err.name = 'TimeoutError'
+  return err
+}
+
+async function serveApp() {
+  const app = Fastify()
+  app.setErrorHandler((error, request, reply) => mapErrorToReply(error, reply, request.log))
+  await registerUploadStatic(app)
+  return app
 }
 
 describe('media storage', () => {
@@ -67,8 +89,7 @@ describe('media storage', () => {
   })
 
   it('still writes local when R2 put throws', async () => {
-    vi.stubEnv('NODE_ENV', 'production')
-    for (const [key, value] of Object.entries(R2_ENV)) vi.stubEnv(key, value)
+    enableR2()
     send.mockRejectedValue(new Error('R2 down'))
 
     const saved = await saveMediaFile({ mimeType: 'image/png', data: PNG_1X1 })
@@ -77,25 +98,39 @@ describe('media storage', () => {
     expect(send).toHaveBeenCalled()
   })
 
+  it('still creates an Asset when R2 put times out', async () => {
+    enableR2()
+    send.mockRejectedValue(timeoutErr())
+    const business = await db.business.create({ data: { name: 'R2 timeout biz' } })
+
+    const asset = await new AssetService().create(business.id, {
+      type: 'IMAGE',
+      name: 'Pixel',
+      file: { filename: 'pixel.png', mimeType: 'image/png', data: PNG_1X1 },
+    })
+
+    expect(asset.url).toMatch(/^\/uploads\/[0-9a-f-]{36}\.png$/)
+    expect(send.mock.calls[0]?.[1]).toMatchObject({ abortSignal: expect.any(AbortSignal) })
+  })
+
   it('streams from disk when R2 is disabled', async () => {
     const saved = await saveMediaFile({ mimeType: 'image/png', data: PNG_1X1 })
-    const app = Fastify()
-    await registerUploadStatic(app)
+    const app = await serveApp()
     const res = await app.inject({ method: 'GET', url: `/uploads/${saved.filename}` })
     expect(res.statusCode).toBe(200)
     expect(res.headers['content-type']).toMatch(/image\/png/)
+    expect(res.headers['cache-control']).toBe('public, max-age=31536000, immutable')
+    expect(res.headers['x-content-type-options']).toBe('nosniff')
     expect(res.rawPayload.length).toBeGreaterThan(0)
     await app.close()
   })
 
   it('redirects to R2 when the object exists, and streams disk when R2 errors', async () => {
-    vi.stubEnv('NODE_ENV', 'production')
-    for (const [key, value] of Object.entries(R2_ENV)) vi.stubEnv(key, value)
+    enableR2()
     send.mockResolvedValueOnce({})
 
     const saved = await saveMediaFile({ mimeType: 'image/png', data: PNG_1X1 })
-    const app = Fastify()
-    await registerUploadStatic(app)
+    const app = await serveApp()
 
     send.mockResolvedValueOnce({})
     const redirected = await app.inject({ method: 'GET', url: `/uploads/${saved.filename}` })
@@ -106,6 +141,51 @@ describe('media storage', () => {
     const fallback = await app.inject({ method: 'GET', url: `/uploads/${saved.filename}` })
     expect(fallback.statusCode).toBe(200)
     expect(fallback.rawPayload.length).toBeGreaterThan(0)
+    await app.close()
+  })
+
+  it('falls back to disk when R2 HEAD times out', async () => {
+    enableR2()
+    send.mockResolvedValueOnce({})
+    const saved = await saveMediaFile({ mimeType: 'image/png', data: PNG_1X1 })
+    const app = await serveApp()
+
+    send.mockRejectedValueOnce(timeoutErr())
+    const res = await app.inject({ method: 'GET', url: `/uploads/${saved.filename}` })
+    expect(res.statusCode).toBe(200)
+    expect(res.headers['cache-control']).toBe('public, max-age=31536000, immutable')
+    expect(res.rawPayload.length).toBeGreaterThan(0)
+    expect(send.mock.calls.at(-1)?.[1]).toMatchObject({ abortSignal: expect.any(AbortSignal) })
+    await app.close()
+  })
+
+  it('rejects malformed upload keys including "."', async () => {
+    for (const key of [
+      '.',
+      '..',
+      `${'-'.repeat(36)}.png`,
+      'not-a-uuid.png',
+      `${'0'.repeat(32)}.png`,
+    ]) {
+      try {
+        assertSafeKey(key)
+        expect.fail(`expected ${key} to be rejected`)
+      } catch (err) {
+        expect(err).toMatchObject({ statusCode: 400 })
+      }
+    }
+
+    const app = await serveApp()
+    const missing = await app.inject({
+      method: 'GET',
+      url: '/uploads/11111111-1111-1111-1111-111111111111.png',
+    })
+    expect(missing.statusCode).toBe(404)
+    for (const key of ['.', `${'-'.repeat(36)}.png`, 'not-a-uuid.png']) {
+      const res = await app.inject({ method: 'GET', url: `/uploads/${encodeURIComponent(key)}` })
+      expect(res.statusCode, key).toBeGreaterThanOrEqual(400)
+      expect(res.statusCode, key).toBeLessThan(500)
+    }
     await app.close()
   })
 })

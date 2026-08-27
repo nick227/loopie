@@ -3,6 +3,7 @@ import type { components } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { fileToDataUrl, probeFile, probeImageUrl } from '@/lib/probeMedia'
+import { MEDIA_FILE_ACCEPT, mediaFileError } from '@/lib/media'
 
 type Asset = components['schemas']['Asset']
 type AssetType = Asset['type']
@@ -26,6 +27,10 @@ const TYPES: { value: AssetType; label: string }[] = [
   { value: 'TEXT', label: 'Text' },
 ]
 
+function errorMessage(err: unknown) {
+  return err instanceof Error ? err.message : 'Could not add media'
+}
+
 export function AddMediaForm({
   adding,
   onAdd,
@@ -38,32 +43,49 @@ export function AddMediaForm({
   const [textContent, setTextContent] = useState('')
   const [type, setType] = useState<AssetType>('IMAGE')
   const [file, setFile] = useState<File | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  function onFile(next: File | null) {
+    setFile(next)
+    setError(next ? mediaFileError(next) : null)
+  }
 
   async function handleAdd() {
-    if (file) {
-      const probed = await probeFile(file)
-      const data = await fileToDataUrl(file)
-      await onAdd({
-        type: probed.type,
-        name: name || file.name,
-        mimeType: probed.mimeType,
-        sizeBytes: probed.sizeBytes,
-        widthPx: probed.widthPx,
-        heightPx: probed.heightPx,
-        durationMs: probed.durationMs,
-        file: { filename: file.name, mimeType: probed.mimeType, data },
-      })
-    } else if (type === 'TEXT') {
-      await onAdd({ type, name, textContent })
-    } else {
-      const probed = type === 'IMAGE' && url ? await probeImageUrl(url) : null
-      await onAdd({
-        type,
-        name,
-        url,
-        widthPx: probed?.widthPx,
-        heightPx: probed?.heightPx,
-      })
+    setError(null)
+    try {
+      if (file) {
+        const invalid = mediaFileError(file)
+        if (invalid) {
+          setError(invalid)
+          return
+        }
+        const probed = await probeFile(file)
+        const data = await fileToDataUrl(file)
+        await onAdd({
+          type: probed.type,
+          name: name || file.name,
+          mimeType: probed.mimeType,
+          sizeBytes: probed.sizeBytes,
+          widthPx: probed.widthPx,
+          heightPx: probed.heightPx,
+          durationMs: probed.durationMs,
+          file: { filename: file.name, mimeType: probed.mimeType, data },
+        })
+      } else if (type === 'TEXT') {
+        await onAdd({ type, name, textContent })
+      } else {
+        const probed = type === 'IMAGE' && url ? await probeImageUrl(url) : null
+        await onAdd({
+          type,
+          name,
+          url,
+          widthPx: probed?.widthPx,
+          heightPx: probed?.heightPx,
+        })
+      }
+    } catch (err) {
+      setError(errorMessage(err))
+      return
     }
     setName('')
     setUrl('')
@@ -101,18 +123,19 @@ export function AddMediaForm({
           <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="URL" />
           <input
             type="file"
-            accept="image/*,video/*,audio/*"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            accept={MEDIA_FILE_ACCEPT}
+            onChange={(e) => onFile(e.target.files?.[0] ?? null)}
             className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-zinc-900 file:text-zinc-50 file:text-xs file:px-3 file:py-1.5 dark:file:bg-zinc-100 dark:file:text-zinc-900"
           />
         </>
       )}
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <Button
         type="button"
         size="sm"
         variant="outline"
         onClick={handleAdd}
-        disabled={!ready || adding}
+        disabled={!ready || adding || Boolean(file && mediaFileError(file))}
       >
         Add media
       </Button>

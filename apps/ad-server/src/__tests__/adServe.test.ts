@@ -36,7 +36,11 @@ beforeAll(async () => {
   campaignId = campaign.id
 
   const template = await db.landingPageTemplate.create({
-    data: { name: 'Ad Server Test Template', isSystem: true, schema: { sections: [], themeTokens: [] } },
+    data: {
+      name: 'Ad Server Test Template',
+      isSystem: true,
+      schema: { sections: [], themeTokens: [] },
+    },
   })
   templateId = template.id
 
@@ -187,5 +191,40 @@ describe('AdServeService', () => {
     expect(html).not.toContain('<script>alert(1)</script>')
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
     expect(html).not.toContain('onerror=alert(1)')
+  })
+
+  it('returns uploaded creative assets as absolute origin URLs', async () => {
+    const asset = await db.asset.create({
+      data: {
+        businessId,
+        type: 'IMAGE',
+        name: 'Banner',
+        url: '/uploads/11111111-1111-1111-1111-111111111111.png',
+      },
+    })
+    const creative = await db.creative.create({
+      data: {
+        businessId,
+        name: 'Uploaded banner',
+        assets: { create: [{ assetId: asset.id }] },
+      },
+    })
+    const adUnit = await db.adUnit.create({
+      data: {
+        businessId,
+        campaignId,
+        creativeId: creative.id,
+        format: 'EMBED',
+        status: 'ACTIVE',
+      },
+    })
+
+    const absolute = 'http://localhost:3001/uploads/11111111-1111-1111-1111-111111111111.png'
+    const payload = await service.getServePayload(adUnit.id)
+    expect(payload.creative?.assets[0]?.url).toBe(absolute)
+
+    const html = await service.renderEmbed(adUnit.id)
+    expect(html).toContain(absolute)
+    expect(html).not.toContain('src="/uploads/')
   })
 })

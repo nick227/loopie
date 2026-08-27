@@ -11,12 +11,12 @@ import * as handlers from './handlers'
 import * as security from './plugins/security'
 import { mapErrorToReply } from './plugins/errorHandler'
 import { publicRateLimit } from './plugins/publicRateLimit'
-import { registerUploadStatic } from './lib/mediaStorage'
+import { BODY_LIMIT_BYTES, registerUploadStatic } from './lib/mediaStorage'
 import { runDueAutomations } from './services/AutomationExecutorService'
 import { runDuePayouts } from './services/AffiliatePayoutService'
 import { db, cleanupExpiredRateLimitBuckets } from '@project/db'
 
-const server = Fastify({ logger: true })
+const server = Fastify({ logger: true, bodyLimit: BODY_LIMIT_BYTES })
 
 const specPath = resolve(__dirname, '../../../packages/api-spec/openapi.yaml')
 const spec = load(readFileSync(specPath, 'utf-8')) as object

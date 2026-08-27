@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import type { FastifyInstance } from 'fastify'
 import {
+  BODY_LIMIT_BYTES,
   EXT_BY_MIME,
   MAX_BYTES,
   assertSafeKey,
@@ -10,6 +11,13 @@ import {
   writeLocal,
 } from './local'
 import { r2ObjectExists, r2PublicUrl, r2Put, readR2Config } from './r2'
+
+export { BODY_LIMIT_BYTES, MAX_BYTES } from './local'
+
+const DISK_HEADERS = {
+  'Cache-Control': 'public, max-age=31536000, immutable',
+  'X-Content-Type-Options': 'nosniff',
+}
 
 export function r2Enabled(env: NodeJS.ProcessEnv = process.env) {
   return env.NODE_ENV === 'production' && readR2Config(env) !== null
@@ -58,6 +66,6 @@ export async function registerUploadStatic(server: FastifyInstance) {
       }
     }
     if (!(await localExists(filename))) throw { statusCode: 404, message: 'Not found' }
-    return reply.type(mimeForKey(filename)).send(streamLocal(filename))
+    return reply.headers(DISK_HEADERS).type(mimeForKey(filename)).send(streamLocal(filename))
   })
 }

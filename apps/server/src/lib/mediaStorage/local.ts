@@ -3,6 +3,7 @@ import { createReadStream } from 'fs'
 import { resolve, extname } from 'path'
 
 export const MAX_BYTES = 4 * 1024 * 1024
+export const BODY_LIMIT_BYTES = 7 * 1024 * 1024
 
 export const EXT_BY_MIME: Record<string, string> = {
   'image/jpeg': '.jpg',
@@ -15,29 +16,29 @@ export const EXT_BY_MIME: Record<string, string> = {
   'audio/wav': '.wav',
 }
 
-const MIME_BY_EXT: Record<string, string> = {
-  '.jpg': 'image/jpeg',
-  '.png': 'image/png',
-  '.webp': 'image/webp',
-  '.gif': 'image/gif',
-  '.mp4': 'video/mp4',
-  '.webm': 'video/webm',
-  '.mp3': 'audio/mpeg',
-  '.wav': 'audio/wav',
-}
+const MIME_BY_EXT: Record<string, string> = Object.fromEntries(
+  Object.entries(EXT_BY_MIME).map(([mime, ext]) => [ext, mime]),
+)
+
+const KEY_PATTERN = new RegExp(
+  `^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(${Object.values(EXT_BY_MIME)
+    .map((ext) => ext.replace('.', '\\.'))
+    .join('|')})$`,
+  'i',
+)
 
 export function uploadDir() {
   return process.env.UPLOAD_DIR ?? resolve(process.cwd(), 'uploads')
 }
 
 export function assertSafeKey(filename: string) {
-  if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+  if (!KEY_PATTERN.test(filename)) {
     throw { statusCode: 400, message: 'Invalid filename' }
   }
 }
 
 export function mimeForKey(filename: string) {
-  return MIME_BY_EXT[extname(filename)] ?? 'application/octet-stream'
+  return MIME_BY_EXT[extname(filename).toLowerCase()] ?? 'application/octet-stream'
 }
 
 export function localPath(filename: string) {

@@ -9,6 +9,7 @@ import { resolve } from 'path'
 import { db } from '@project/db'
 import * as handlers from '../../handlers'
 import { mapErrorToReply } from '../../plugins/errorHandler'
+import { BODY_LIMIT_BYTES } from '../../lib/mediaStorage'
 
 // Two seeded users available in every test — use testOtherUserId for
 // cross-user permission tests (e.g. "user A cannot see user B's contact")
@@ -68,7 +69,7 @@ async function seedTestUsers() {
 }
 
 export function buildTestApp() {
-  const app: FastifyInstance = Fastify()
+  const app: FastifyInstance = Fastify({ bodyLimit: BODY_LIMIT_BYTES })
 
   beforeAll(async () => {
     await app.register(cookie, {

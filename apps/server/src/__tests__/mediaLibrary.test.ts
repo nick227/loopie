@@ -1,6 +1,10 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { mkdtemp, rm } from 'fs/promises'
+import { tmpdir } from 'os'
+import { join } from 'path'
 import { buildTestApp, asAuth, testUserId, testOtherUserId, testBusinessId } from './helpers'
 import { db } from '@project/db'
+import { MAX_BYTES } from '../lib/mediaStorage/local'
 
 const app = buildTestApp()
 
@@ -99,5 +103,52 @@ describe('media library', () => {
       headers: asAuth(testOtherUserId),
     })
     expect(other.statusCode).toBe(404)
+  })
+
+  describe('upload size through Fastify', () => {
+    let dir: string
+
+    beforeEach(async () => {
+      dir = await mkdtemp(join(tmpdir(), 'loopie-http-uploads-'))
+      vi.stubEnv('UPLOAD_DIR', dir)
+    })
+
+    afterEach(async () => {
+      vi.unstubAllEnvs()
+      await rm(dir, { recursive: true, force: true })
+    })
+
+    it('accepts a file just under 4 MB', async () => {
+      const data = Buffer.alloc(MAX_BYTES - 16).toString('base64')
+      const res = await app.inject({
+        method: 'POST',
+        url: '/assets',
+        headers: asAuth(testUserId),
+        payload: {
+          type: 'IMAGE',
+          name: 'Near limit',
+          file: { filename: 'near.png', mimeType: 'image/png', data },
+        },
+      })
+      expect(res.statusCode).toBe(201)
+      expect(res.json().data.url).toMatch(/^\/uploads\/.+\.png$/)
+      expect(res.json().data.sizeBytes).toBe(MAX_BYTES - 16)
+    }, 15_000)
+
+    it('rejects a file over 4 MB with an application 400, not Fastify 413', async () => {
+      const data = Buffer.alloc(MAX_BYTES + 1).toString('base64')
+      const res = await app.inject({
+        method: 'POST',
+        url: '/assets',
+        headers: asAuth(testUserId),
+        payload: {
+          type: 'IMAGE',
+          name: 'Too big',
+          file: { filename: 'big.png', mimeType: 'image/png', data },
+        },
+      })
+      expect(res.statusCode).toBe(400)
+      expect(res.json().error).toMatch(/4 MB/)
+    }, 15_000)
   })
 })

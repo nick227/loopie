@@ -1,3 +1,28 @@
+export const MAX_MEDIA_BYTES = 4 * 1024 * 1024
+
+export const ALLOWED_MEDIA_MIMES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'video/mp4',
+  'video/webm',
+  'audio/mpeg',
+  'audio/wav',
+] as const
+
+export const MEDIA_FILE_ACCEPT = ALLOWED_MEDIA_MIMES.join(',')
+
+export function mediaFileError(file: File): string | null {
+  if (file.size === 0 || file.size > MAX_MEDIA_BYTES) {
+    return 'File must be between 1 byte and 4 MB'
+  }
+  if (!(ALLOWED_MEDIA_MIMES as readonly string[]).includes(file.type)) {
+    return 'Unsupported file type'
+  }
+  return null
+}
+
 export function mediaSrc(url: string | null | undefined) {
   if (!url) return null
   if (/^(https?:|data:|blob:)/.test(url)) return url

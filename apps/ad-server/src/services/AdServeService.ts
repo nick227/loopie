@@ -1,4 +1,4 @@
-import { db, clickRedirectUrl, trackBaseClick, withSid } from '@project/db'
+import { db, clickRedirectUrl, trackBaseClick, withSid, absoluteMediaUrl } from '@project/db'
 import { escapeHtml } from '../lib/html'
 
 const PRIMARY_APP_URL = process.env.PRIMARY_APP_URL ?? 'http://localhost:3001'
@@ -28,7 +28,7 @@ export class AdServeService {
             assets: creative.assets.map((ca) => ({
               id: ca.asset.id,
               type: ca.asset.type,
-              url: ca.asset.url,
+              url: absoluteMediaUrl(ca.asset.url, PRIMARY_APP_URL),
               textContent: ca.asset.textContent,
             })),
           }

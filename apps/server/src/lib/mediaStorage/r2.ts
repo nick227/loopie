@@ -1,5 +1,7 @@
 import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 
+export const R2_TIMEOUT_MS = 2000
+
 export type R2Config = {
   endpoint: string
   accessKeyId: string
@@ -20,15 +22,27 @@ export function readR2Config(env: NodeJS.ProcessEnv = process.env): R2Config | n
   return { endpoint, accessKeyId, secretAccessKey, bucket, publicUrl }
 }
 
+let cached: { key: string; client: S3Client } | null = null
+
 function client(cfg: R2Config) {
-  return new S3Client({
-    region: 'auto',
-    endpoint: cfg.endpoint,
-    credentials: {
-      accessKeyId: cfg.accessKeyId,
-      secretAccessKey: cfg.secretAccessKey,
-    },
-  })
+  const key = `${cfg.endpoint}:${cfg.bucket}:${cfg.accessKeyId}`
+  if (cached?.key === key) return cached.client
+  cached = {
+    key,
+    client: new S3Client({
+      region: 'auto',
+      endpoint: cfg.endpoint,
+      credentials: {
+        accessKeyId: cfg.accessKeyId,
+        secretAccessKey: cfg.secretAccessKey,
+      },
+    }),
+  }
+  return cached.client
+}
+
+function abortSignal() {
+  return AbortSignal.timeout(R2_TIMEOUT_MS)
 }
 
 function isNotFound(err: unknown) {
@@ -59,6 +73,7 @@ export async function r2Put(
       Body: buffer,
       ContentType: mimeType,
     }),
+    { abortSignal: abortSignal() },
   )
 }
 
@@ -66,7 +81,9 @@ export async function r2ObjectExists(key: string, env: NodeJS.ProcessEnv = proce
   const cfg = readR2Config(env)
   if (!cfg) throw new Error('R2 is not configured')
   try {
-    await client(cfg).send(new HeadObjectCommand({ Bucket: cfg.bucket, Key: key }))
+    await client(cfg).send(new HeadObjectCommand({ Bucket: cfg.bucket, Key: key }), {
+      abortSignal: abortSignal(),
+    })
     return true
   } catch (err) {
     if (isNotFound(err)) return false
