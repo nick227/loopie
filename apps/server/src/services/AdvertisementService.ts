@@ -2,6 +2,7 @@ import { db } from '@project/db'
 import type { Prisma } from '@prisma/client'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { requireAssets } from '../lib/ownership'
+import { aspectRatio, matchPlacements } from '../lib/assetSpecs'
 
 // Advertisement is the "Media" layer's grouping entity in the Media -> Advertisement -> AdRun
 // model (see CLAUDE.md's Media/Advertisement/AdRun migration audit) — its content comes directly
@@ -12,13 +13,36 @@ const INCLUDE = { assets: { include: { asset: true } } } as const
 
 type AdvertisementRow = Prisma.AdvertisementGetPayload<{ include: typeof INCLUDE }>
 
+function toNestedAsset(asset: AdvertisementRow['assets'][number]['asset']) {
+  const widthPx = asset.widthPx
+  const heightPx = asset.heightPx
+  return {
+    id: asset.id,
+    businessId: asset.businessId,
+    type: asset.type,
+    name: asset.name,
+    url: asset.url,
+    textContent: asset.textContent,
+    mimeType: asset.mimeType,
+    sizeBytes: asset.sizeBytes,
+    widthPx,
+    heightPx,
+    durationMs: asset.durationMs,
+    aspectRatio: widthPx && heightPx ? aspectRatio(widthPx, heightPx) : null,
+    placements: widthPx && heightPx ? matchPlacements(widthPx, heightPx) : [],
+    usedInAds: 0,
+    usedInTemplates: 0,
+    createdAt: asset.createdAt.toISOString(),
+  }
+}
+
 function toAdvertisementDTO(row: AdvertisementRow) {
   return {
     id: row.id,
     businessId: row.businessId,
     name: row.name,
     assetIds: row.assets.map((a) => a.assetId),
-    assets: row.assets.map((a) => a.asset),
+    assets: row.assets.map((a) => toNestedAsset(a.asset)),
     createdAt: row.createdAt.toISOString(),
   }
 }

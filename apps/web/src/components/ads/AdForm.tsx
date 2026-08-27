@@ -1,38 +1,48 @@
 import { useState, type FormEvent } from 'react'
-import type { components } from '@project/sdk'
+import { useAsset } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { MediaPicker } from '@/components/media/MediaPicker'
 import type { AddMediaInput } from '@/components/media/AddMediaForm'
-import { mediaSrc } from '@/lib/media'
-
-type Asset = components['schemas']['Asset']
+import { AdMediaEmpty, AdMediaStage } from '@/components/ads/AdMediaStage'
+import { AdPostNow } from '@/components/ads/AdPostNow'
+import { POST_TARGETS, type PreviewFrameId } from '@/lib/adPreview'
 
 export function AdForm({
   name,
   assetIds,
-  assets,
   pending,
   error,
   submitLabel,
   onName,
-  onToggleAsset,
+  onAssetIds,
   onAddAsset,
   onSubmit,
+  onPostNow,
 }: {
   name: string
   assetIds: string[]
-  assets: Asset[]
   pending: boolean
   error: string | null
   submitLabel: string
   onName: (value: string) => void
-  onToggleAsset: (assetId: string) => void
+  onAssetIds: (ids: string[]) => void
   onAddAsset: (input: AddMediaInput) => Promise<void>
   onSubmit: () => Promise<void>
+  onPostNow?: (input: {
+    targets: Array<{ platform: 'META' | 'TIKTOK'; placement: string }>
+    budget: number
+  }) => Promise<void>
 }) {
   const [open, setOpen] = useState(false)
-  const selected = assets.filter((asset) => assetIds.includes(asset.id))
+  const [frameId, setFrameId] = useState<PreviewFrameId>('native')
+  const [scale, setScale] = useState(1)
+  const [postKeys, setPostKeys] = useState<string[]>([])
+  const [budget, setBudget] = useState(10)
+  const onDeckId = assetIds[0]
+  const assetQuery = useAsset(onDeckId ?? '')
+  const onDeck = assetQuery.data?.data
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -40,49 +50,73 @@ export function AdForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-lg">
+    <form onSubmit={handleSubmit} className="space-y-6 max-w-xl">
       <Input value={name} onChange={(e) => onName(e.target.value)} placeholder="Ad name" required />
 
       <div className="space-y-2">
         <p className="text-sm font-medium">Media</p>
-        {selected.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No media selected.</p>
+        {onDeck ? (
+          <AdMediaStage
+            asset={onDeck}
+            frameId={frameId}
+            scale={scale}
+            onFrame={setFrameId}
+            onScale={setScale}
+            onRemove={() => onAssetIds([])}
+          />
+        ) : onDeckId ? (
+          <Skeleton className="min-h-56 w-full rounded-xl" />
         ) : (
-          <ul className="space-y-2">
-            {selected.map((asset) => (
-              <li key={asset.id} className="flex items-center gap-2 text-sm">
-                {asset.type === 'IMAGE' && asset.url ? (
-                  <img
-                    src={mediaSrc(asset.url) ?? undefined}
-                    alt=""
-                    className="h-8 w-8 object-cover rounded"
-                  />
-                ) : null}
-                <span className="truncate">{asset.name}</span>
-              </li>
-            ))}
-          </ul>
+          <AdMediaEmpty onChoose={() => setOpen(true)} />
         )}
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="text-sm underline underline-offset-4"
-        >
-          Choose media
-        </button>
       </div>
+
+      {onPostNow && onDeck ? (
+        <AdPostNow
+          mediaType={onDeck.type === 'AUDIO' ? undefined : onDeck.type}
+          selected={postKeys}
+          budget={budget}
+          onToggle={(key) =>
+            setPostKeys((current) =>
+              current.includes(key) ? current.filter((row) => row !== key) : [...current, key],
+            )
+          }
+          onBudget={setBudget}
+        />
+      ) : null}
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      <Button type="submit" size="sm" disabled={pending || !name || assetIds.length === 0}>
-        {submitLabel}
-      </Button>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Button type="submit" disabled={pending || !name || assetIds.length === 0}>
+          {submitLabel}
+        </Button>
+        {onPostNow ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={pending || !name || assetIds.length === 0 || postKeys.length === 0}
+            onClick={() =>
+              onPostNow({
+                targets: POST_TARGETS.filter((row) => postKeys.includes(row.key)).map((row) => ({
+                  platform: row.platform,
+                  placement: row.placement,
+                })),
+                budget,
+              })
+            }
+          >
+            Post now
+          </Button>
+        ) : null}
+      </div>
 
       {open ? (
         <MediaPicker
           selectedIds={assetIds}
           adding={pending}
-          onToggle={onToggleAsset}
+          single
+          onToggle={(id) => onAssetIds(assetIds[0] === id ? [] : [id])}
           onAdd={onAddAsset}
           onConfirm={() => setOpen(false)}
           onClose={() => setOpen(false)}

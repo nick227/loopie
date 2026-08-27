@@ -12,7 +12,7 @@ async function loginAs(page: Page) {
 }
 
 test.describe('ads library', () => {
-  test('create an ad with media and attach it to a campaign', async ({ page }) => {
+  test('create an ad with media and post it', async ({ page }) => {
     await loginAs(page)
 
     const adName = `Library Ad ${Date.now()}`
@@ -37,26 +37,17 @@ test.describe('ads library', () => {
     await added
     await expect(page.getByRole('button', { name: 'Use selected' })).toBeEnabled()
     await page.getByRole('button', { name: 'Use selected' }).click()
-    await page.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('button', { name: 'Choose media' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Remove' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Native' })).toBeVisible()
+    await page.getByRole('button', { name: /Meta Feed 1:1/ }).click()
+    await expect(page.getByText('Fits')).toBeVisible()
+    await page.getByRole('button', { name: 'Meta Feed', exact: true }).click()
+    await page.getByRole('button', { name: 'Post now' }).click()
     await page.waitForURL(/\/ads\/(?!new$)[^/]+$/)
     await expect(page.getByRole('heading', { name: adName })).toBeVisible()
 
     await page.goto('/ads')
     await expect(page.getByRole('link', { name: adName })).toBeVisible()
-
-    await page.goto('/campaigns/new')
-    await page.locator('#field-name').fill(`Attach ${Date.now()}`)
-    await page.getByRole('checkbox', { name: 'LOOPIE' }).check()
-    await page.getByRole('button', { name: /create campaign/i }).click()
-    await page.waitForURL(/\/campaigns\/(?!new$)[^/]+$/)
-
-    const patched = page.waitForResponse(
-      (response) =>
-        response.url().includes('/campaigns/') && response.request().method() === 'PATCH',
-    )
-    await page.getByLabel('Attach an ad').selectOption({ label: adName })
-    await patched
-    await expect(page.getByRole('link', { name: adName })).toBeVisible()
-    await expect(page.getByRole('row', { name: new RegExp(adName) })).toHaveCount(1)
   })
 })

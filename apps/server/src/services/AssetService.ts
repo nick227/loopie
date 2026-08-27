@@ -62,10 +62,15 @@ async function usageByAssetIds(ids: string[]) {
   const map = new Map(ids.map((id) => [id, { ...empty }]))
   if (ids.length === 0) return map
 
-  const [ads, templates] = await Promise.all([
+  const [ads, advertisementAds, templates] = await Promise.all([
     db.creativeAsset.groupBy({
       by: ['assetId'],
       where: { assetId: { in: ids }, creative: { deletedAt: null } },
+      _count: { _all: true },
+    }),
+    db.advertisementAsset.groupBy({
+      by: ['assetId'],
+      where: { assetId: { in: ids } },
       _count: { _all: true },
     }),
     db.templateMedia.groupBy({
@@ -75,9 +80,9 @@ async function usageByAssetIds(ids: string[]) {
     }),
   ])
 
-  for (const row of ads) {
+  for (const row of [...ads, ...advertisementAds]) {
     const current = map.get(row.assetId)
-    if (current) current.usedInAds = row._count._all
+    if (current) current.usedInAds += row._count._all
   }
   for (const row of templates) {
     const current = map.get(row.assetId)

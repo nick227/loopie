@@ -1,19 +1,16 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useCreatives } from '@project/sdk'
-import { Button } from '@/components/ui/Button'
+import { useAdvertisements } from '@project/sdk'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Input } from '@/components/ui/Input'
 import { AdRow } from '@/components/ads/AdRow'
 import { Image, Plus, Search } from 'lucide-react'
-import { useFlatPages } from '@/hooks/useFlatPages'
-import { VirtualInfiniteList } from '@/components/ui/VirtualInfiniteList'
 
 export function AdsPage() {
   const [q, setQ] = useState('')
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useCreatives()
-  const items = useFlatPages({ data })
+  const { data, isLoading } = useAdvertisements()
+  const items = data?.data ?? []
   const visible = q
     ? items.filter((item) => item.name.toLowerCase().includes(q.toLowerCase()))
     : items
@@ -23,14 +20,13 @@ export function AdsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">Ads</h1>
-          <p className="text-sm text-zinc-500 mt-1">
-            Reusable library. Attach an ad to a campaign.
-          </p>
+          <p className="text-sm text-zinc-500 mt-1">Reusable library. Preview media, then post.</p>
         </div>
-        <Link to="/ads/new">
-          <Button>
-            <Plus size={16} className="mr-2" /> New ad
-          </Button>
+        <Link
+          to="/ads/new"
+          className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          <Plus size={16} /> New ad
         </Link>
       </div>
 
@@ -57,7 +53,7 @@ export function AdsPage() {
           icon={Image}
           title={q ? 'No matching ads' : 'No ads yet'}
           description={
-            q ? 'Try adjusting your search.' : 'Create an ad, then attach it to a campaign.'
+            q ? 'Try adjusting your search.' : 'Create an ad, then post it to a platform.'
           }
           action={
             q ? undefined : { label: 'New ad', onClick: () => (window.location.href = '/ads/new') }
@@ -65,18 +61,9 @@ export function AdsPage() {
         />
       ) : (
         <div className="space-y-4">
-          <VirtualInfiniteList
-            items={visible}
-            hasNextPage={!q && !!hasNextPage}
-            isFetchingNextPage={isFetchingNextPage}
-            fetchNextPage={fetchNextPage}
-            estimateSize={148}
-            renderItem={(item) => (
-              <div key={item.id} className="pb-3">
-                <AdRow ad={item} />
-              </div>
-            )}
-          />
+          {visible.map((item) => (
+            <AdRow key={item.id} ad={item} />
+          ))}
         </div>
       )}
     </div>
