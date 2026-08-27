@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Rocket } from 'lucide-react'
@@ -48,6 +49,12 @@ export function LandingPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
+          <Link
+            to="/landing-pages"
+            className="text-xs text-zinc-500 hover:text-zinc-900 hover:underline"
+          >
+            Pages
+          </Link>
           <h1 className="text-xl font-semibold">{page.name}</h1>
           <p className="text-xs text-muted-foreground">
             {page.status === 'PUBLISHED' ? 'Live at ' : 'Draft — will publish to '}

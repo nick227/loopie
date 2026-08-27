@@ -13,7 +13,7 @@ async function registerAndOpenHome(page: Page) {
   await page.getByRole('button', { name: /create account/i }).click()
   await page.waitForURL(/\/home/)
   await page.goto('/landing-pages')
-  await page.getByRole('link', { name: 'Configure' }).click()
+  await page.getByRole('link', { name: 'Edit' }).click()
   await page.waitForURL(/\/landing-pages\/(?!new$)[^/]+$/)
 }
 
@@ -37,7 +37,12 @@ test.describe('page editor canvas', () => {
     await page.getByLabel('Label', { exact: true }).nth(fieldCount).fill('Phone')
     await page.getByLabel('Type', { exact: true }).nth(fieldCount).selectOption('PHONE')
 
-    await page.getByLabel('Layout').selectOption({ label: 'Simple Lead Gen' })
+    const layout = page.getByLabel('Layout')
+    const layoutLabels = await layout.locator('option').allTextContents()
+    const layoutPick =
+      layoutLabels.find((label) => label === 'Sales page' || label === 'Simple Lead Gen') ??
+      layoutLabels[0]!
+    await layout.selectOption({ label: layoutPick })
     await expect(page.getByRole('button', { name: /save draft/i })).toBeEnabled()
     await page.getByRole('button', { name: /save draft/i }).click()
     await expect(page.getByText('Saved')).toBeVisible({ timeout: 10000 })
