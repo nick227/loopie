@@ -2,10 +2,11 @@
   "name": "server",
   "version": "0.0.1",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch --env-file=../../.env src/index.ts",
     "build": "tsc",
-    "start": "tsx src/index.ts",
+    "start": "tsx --env-file=../../.env src/index.ts",
     "test": "vitest run",
+    "shadow-compare": "tsx --env-file=../../.env scripts/shadow-compare.ts",
     "typecheck": "tsc --noEmit",
     "lint": "echo 'no lint configured for server'"
   },
@@ -17,6 +18,7 @@
     "@fastify/swagger-ui": "^3.0.0",
     "@prisma/client": "^5.0.0",
     "@project/db": "workspace:*",
+    "@project/sdk": "workspace:*",
     "bcryptjs": "^2.4.3",
     "fastify": "^4.0.0",
     "fastify-openapi-glue": "^4.0.0",
