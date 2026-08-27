@@ -60,13 +60,15 @@ export function Modal({
   }, [onClose])
 
   const node = (
-    <div className="fixed inset-0 z-[80]">
+    <div
+      className={cn('fixed z-[80]', full ? 'bottom-0 left-0 right-0 top-16 md:left-64' : 'inset-0')}
+    >
       {full ? (
-        <div className="absolute inset-0 bg-foreground/40" />
+        <div className="modal-backdrop absolute inset-0 bg-background" />
       ) : (
         <button
           type="button"
-          className="absolute inset-0 bg-foreground/40"
+          className="modal-backdrop absolute inset-0 bg-foreground/40"
           aria-label="Close"
           onClick={onClose}
         />
@@ -78,11 +80,11 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         className={cn(
-          'absolute z-10 flex min-h-0 flex-col overflow-hidden border border-border bg-background',
+          'absolute z-10 flex min-h-0 flex-col overflow-hidden bg-background',
           full
-            ? 'inset-0 rounded-none'
+            ? 'modal-panel inset-0 border-t border-border md:border-l'
             : cn(
-                'left-1/2 top-1/2 w-full -translate-x-1/2 -translate-y-1/2 rounded-lg',
+                'left-1/2 top-1/2 w-full -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border',
                 size === 'xl' ? 'max-w-4xl' : 'max-w-lg',
                 'max-h-[calc(100vh-2rem)]',
               ),

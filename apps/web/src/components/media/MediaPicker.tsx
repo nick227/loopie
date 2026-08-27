@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { Image } from 'lucide-react'
 import { useAssets } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
@@ -7,12 +6,23 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { AddMediaForm, type AddMediaInput } from '@/components/media/AddMediaForm'
+import type { AddMediaInput } from '@/components/media/AddMediaForm'
 import { MediaGrid } from '@/components/media/MediaGrid'
+import { MediaUploadBar } from '@/components/media/MediaUploadBar'
 import { MEDIA_TYPES, type MediaTypeFilter } from '@/components/media/MediaToolbar'
 import { useFlatPages } from '@/hooks/useFlatPages'
 
 type AssetType = (typeof MEDIA_TYPES)[number]
+
+function GridSkeletons() {
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+      {Array.from({ length: 12 }).map((_, i) => (
+        <Skeleton key={i} className="aspect-square w-full rounded-lg" />
+      ))}
+    </div>
+  )
+}
 
 export function MediaPicker({
   selectedIds,
@@ -42,6 +52,7 @@ export function MediaPicker({
   const assets = useFlatPages(query)
   const count = selectedIds.length
   const canUse = single ? count === 1 : count > 0
+  const showSkeletons = query.isPending || (query.isFetching && assets.length === 0)
 
   return (
     <Modal
@@ -81,33 +92,25 @@ export function MediaPicker({
       }
       footer={
         <div className="flex w-full items-center justify-between gap-3">
-          <div className="flex items-center gap-4">
-            <p className="text-sm tabular-nums text-muted-foreground">
-              {count === 0 ? 'None selected' : `${count} selected`}
-            </p>
-            <Link to="/media" className="text-sm underline underline-offset-4">
-              Manage library
-            </Link>
-          </div>
+          <p className="text-sm tabular-nums text-muted-foreground">
+            {count === 0 ? 'None selected' : `${count} selected`}
+          </p>
           <Button type="button" size="sm" onClick={onConfirm} disabled={!canUse}>
             Use selected
           </Button>
         </div>
       }
     >
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <MediaUploadBar adding={adding} lockedType={lockedType} onAdd={onAdd} />
         <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
-          {query.isLoading ? (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <Skeleton key={i} className="aspect-square w-full rounded-lg" />
-              ))}
-            </div>
+          {showSkeletons ? (
+            <GridSkeletons />
           ) : assets.length === 0 ? (
             <EmptyState
               icon={Image}
               title={q || type ? 'No matching media' : 'No media yet'}
-              description={q || type ? 'Try a different search.' : 'Upload a file or add a URL.'}
+              description={q || type ? 'Try a different search.' : 'Drop a file to add media.'}
             />
           ) : (
             <MediaGrid
@@ -121,9 +124,6 @@ export function MediaPicker({
             />
           )}
         </div>
-        <aside className="flex min-h-0 max-h-[38vh] shrink-0 flex-col overflow-y-auto border-t border-border p-4 lg:max-h-none lg:w-80 lg:border-l lg:border-t-0 lg:p-5">
-          <AddMediaForm variant="rail" lockedType={lockedType} adding={adding} onAdd={onAdd} />
-        </aside>
       </div>
     </Modal>
   )

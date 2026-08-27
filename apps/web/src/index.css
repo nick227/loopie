@@ -4,16 +4,16 @@
 
 @layer base {
   :root {
-    --background: 0 0% 99%;
+    --background: 0 0% 100%;
     --foreground: 240 10% 4%;
 
-    --surface: 0 0% 96%;
-    --surface-foreground: 240 6% 30%;
+    --surface: 240 5% 96%;
+    --surface-foreground: 240 6% 20%;
 
     --primary: 240 6% 10%;
     --primary-foreground: 0 0% 98%;
 
-    --muted: 240 5% 94%;
+    --muted: 240 5% 96%;
     --muted-foreground: 240 4% 46%;
 
     --accent: 240 5% 90%;
@@ -23,7 +23,7 @@
     --input-border: 240 6% 82%;
     --ring: 240 6% 10%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
     --radius: 0.5rem;
@@ -32,24 +32,25 @@
   }
 
   .dark {
-    --background: 240 10% 4%;
-    --foreground: 0 0% 98%;
+    /* Sleek obsidian/linear dark mode */
+    --background: 0 0% 0%; /* True black background for depth */
+    --foreground: 0 0% 98%; /* High contrast white */
 
-    --surface: 240 8% 8%;
-    --surface-foreground: 240 5% 65%;
+    --surface: 0 0% 4%; /* Slightly lighter than background */
+    --surface-foreground: 0 0% 65%; /* Soft gray */
 
     --primary: 0 0% 98%;
     --primary-foreground: 240 6% 10%;
 
-    --muted: 240 6% 12%;
-    --muted-foreground: 240 5% 55%;
+    --muted: 0 0% 6%; /* Deep gray for muted areas */
+    --muted-foreground: 0 0% 55%; /* Medium gray for muted text */
 
-    --accent: 240 5% 16%;
+    --accent: 0 0% 8%; /* Hover states */
     --accent-foreground: 0 0% 98%;
 
-    --border: 240 6% 16%;
-    --input-border: 240 5% 22%;
-    --ring: 240 5% 84%;
+    --border: 0 0% 12%; /* Very subtle borders */
+    --input-border: 0 0% 18%; /* Slightly stronger input borders */
+    --ring: 0 0% 98%; /* White focus rings */
 
     --destructive: 0 63% 48%;
     --destructive-foreground: 0 0% 98%;
@@ -62,7 +63,65 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-family: 'Geist Sans', 'Inter', system-ui, sans-serif;
+    font-family:
+      'Inter',
+      system-ui,
+      -apple-system,
+      sans-serif;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer utilities {
+  /* Premium Micro-animations & Glassmorphism */
+  .glass {
+    @apply bg-background/60 backdrop-blur-md border border-white/10;
+  }
+
+  .glass-surface {
+    @apply bg-surface/60 backdrop-blur-xl border border-white/5;
+  }
+
+  .animate-in {
+    animation:
+      fade-in 0.3s ease-out forwards,
+      slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .modal-backdrop {
+    animation: fade-in 0.2s ease-out forwards;
+  }
+
+  .modal-panel {
+    animation:
+      fade-in 0.2s ease-out forwards,
+      slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-in,
+    .modal-backdrop,
+    .modal-panel {
+      animation: none;
+    }
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(8px);
+  }
+  to {
+    transform: translateY(0);
   }
 }

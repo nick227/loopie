@@ -19,13 +19,23 @@ test.describe('ads library', () => {
     await page.goto('/ads/new')
     await page.getByPlaceholder('Ad name').fill(adName)
     await page.getByRole('button', { name: 'Choose media' }).click()
-    await page.getByPlaceholder('Name', { exact: true }).fill(`Media ${Date.now()}`)
-    await page.getByPlaceholder('URL').fill('https://example.com/ad.jpg')
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64',
+    )
     const added = page.waitForResponse(
       (response) => response.url().includes('/assets') && response.request().method() === 'POST',
     )
-    await page.getByRole('button', { name: 'Add media' }).click()
+    await page
+      .getByRole('dialog')
+      .locator('input[type=file]')
+      .setInputFiles({
+        name: `ad-${Date.now()}.png`,
+        mimeType: 'image/png',
+        buffer: png,
+      })
     await added
+    await expect(page.getByRole('button', { name: 'Use selected' })).toBeEnabled()
     await page.getByRole('button', { name: 'Use selected' }).click()
     await page.getByRole('button', { name: 'Save' }).click()
     await page.waitForURL(/\/ads\/(?!new$)[^/]+$/)
