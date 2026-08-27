@@ -61,6 +61,7 @@ test.describe('ads library', () => {
     await readded
     await page.getByRole('button', { name: 'Use selected' }).click()
     await expect(page.getByRole('button', { name: 'Remove' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Choose media' })).toHaveCount(0)
 
     await page.goto('/ads')
     await expect(page.getByRole('link', { name: adName })).toBeVisible()

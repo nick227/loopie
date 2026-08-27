@@ -77,7 +77,6 @@ export function AdEditor({
             asset={onDeck}
             frameId={frameId}
             onFrame={setFrameId}
-            onChange={() => setOpen(true)}
             onRemove={() => onAssetIds([])}
           />
         ) : onDeckId ? (
