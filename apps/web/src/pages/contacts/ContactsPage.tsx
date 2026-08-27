@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useContacts } from '@project/sdk'
+import { useContacts, useResultsSummary } from '@project/sdk'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -13,6 +13,8 @@ export function ContactsPage() {
   const [q, setQ] = useState('')
   const query = useContacts(q ? { q } : undefined)
   const items = useFlatPages(query)
+  const results = useResultsSummary()
+  const bySource = (results.data?.data?.bySource ?? []).slice(0, 5)
 
   return (
     <div className="space-y-5">
@@ -37,6 +39,22 @@ export function ContactsPage() {
         </div>
       </div>
       <CrmNav />
+
+      {bySource.length > 0 ? (
+        <Card>
+          <CardContent className="space-y-2 py-4">
+            <p className="text-sm font-medium">Attributed revenue</p>
+            {bySource.map((row) => (
+              <p
+                key={`${row.sourceType}-${row.sourceId}`}
+                className="text-sm text-muted-foreground"
+              >
+                {row.label}: ${row.revenue} · {row.sales} sales
+              </p>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <label className="block max-w-md">
         <span className="sr-only">Search contacts</span>

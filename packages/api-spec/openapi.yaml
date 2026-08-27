@@ -164,6 +164,11 @@ components:
       name: integrationId
       required: true
       schema: { type: string }
+    CrmProviderParam:
+      in: path
+      name: provider
+      required: true
+      schema: { type: string, enum: [HUBSPOT, SALESFORCE, SHOPIFY, SQUARE, PIPEDRIVE] }
     ExternalRecordId:
       in: path
       name: recordId
@@ -262,6 +267,31 @@ components:
         createdAt: { type: string, format: date-time }
         # Derived, not stored: Lead / Customer / Past Customer — computed from Lead + Sale history.
         lifecycleStatus: { type: string, enum: [LEAD, CUSTOMER, PAST_CUSTOMER, NONE] }
+        revenue: { type: number, description: Sum of non-reversed sales on this contact }
+        provenance:
+          type: array
+          items: { $ref: '#/components/schemas/FieldProvenance' }
+        records:
+          type: array
+          items: { $ref: '#/components/schemas/ContactSourceRecord' }
+
+    FieldProvenance:
+      type: object
+      required: [field, value, source]
+      properties:
+        field: { type: string, enum: [name, email, phone, company] }
+        value: { type: string }
+        source: { type: string, enum: [LOOPIE, HUBSPOT, SALESFORCE, PIPEDRIVE, SHOPIFY, SQUARE, CSV] }
+
+    ContactSourceRecord:
+      type: object
+      required: [id, provider, externalId, matchStatus]
+      properties:
+        id: { type: string }
+        provider: { type: string }
+        externalId: { type: string }
+        matchStatus: { type: string }
+        syncedAt: { type: string, format: date-time, nullable: true }
 
     CreateContactInput:
       type: object
@@ -328,6 +358,8 @@ components:
         provider: { type: string, enum: [HUBSPOT, SALESFORCE, SHOPIFY, SQUARE, PIPEDRIVE] }
         label: { type: string }
         capabilities: { $ref: '#/components/schemas/CrmCapabilities' }
+        oauth: { type: boolean }
+        configured: { type: boolean }
 
     Integration:
       type: object
@@ -341,8 +373,25 @@ components:
         status: { type: string, enum: [INCOMPLETE, CONNECTED, NEEDS_REAUTH, PAUSED] }
         syncDirection: { type: string, enum: [INBOUND] }
         lastSyncAt: { type: string, format: date-time, nullable: true }
+        lastSyncCreated: { type: integer, nullable: true }
+        lastSyncLinked: { type: integer, nullable: true }
+        lastSyncAmbiguous: { type: integer, nullable: true }
+        lastSyncSkipped: { type: integer, nullable: true }
         capabilities: { $ref: '#/components/schemas/CrmCapabilities' }
+        oauth: { type: boolean }
+        configured: { type: boolean }
         createdAt: { type: string, format: date-time }
+
+    SyncIntegrationResult:
+      type: object
+      required: [created, linked, ambiguous, skipped, orders]
+      properties:
+        created: { type: integer }
+        linked: { type: integer }
+        ambiguous: { type: integer }
+        skipped: { type: integer }
+        orders: { type: integer }
+        lastSyncAt: { type: string, format: date-time }
 
     CreateIntegrationInput:
       type: object
@@ -458,9 +507,9 @@ components:
         filter:
           type: object
           description: >
-            Free-form filter used when type = SAVED_FILTER. Keys mirror
-            docs/05-audience-segmentation-spec.md (leadStatus, hasEmail, hasMobile, tag,
-            lastPurchaseBeforeDays, sourceCampaignId, sourceDeploymentId, ...).
+            Free-form filter used when type = SAVED_FILTER. Keys: leadStatus, hasEmail, hasMobile, tag,
+            lastPurchaseBeforeDays, hasSaleSinceDays, emailEligible, provider, adLeadNoPurchase,
+            sourceCampaignId, sourceDeploymentId.
           additionalProperties: true
           nullable: true
         memberCount: { type: integer }
@@ -1378,7 +1427,19 @@ components:
         id: { type: string }
         sortOrder: { type: integer }
         placement: { type: string, enum: [AFTER_HERO, BEFORE_FORM, AFTER_FORM, BOTTOM] }
-        adUnitId: { type: string, nullable: true }
+        assignments:
+          type: array
+          items: { $ref: '#/components/schemas/LandingPageAdSlotAssignment' }
+
+    LandingPageAdSlotAssignment:
+      type: object
+      required: [id, slotId, adRunId, status, weight]
+      properties:
+        id: { type: string }
+        slotId: { type: string }
+        adRunId: { type: string }
+        status: { type: string, enum: [PENDING, READY, ACTIVE, PAUSED, ENDED, VALIDATION_FAILED, PROVISIONING_FAILED] }
+        weight: { type: integer }
 
     ReplaceLandingPageAdSlotsInput:
       type: object
@@ -1392,7 +1453,9 @@ components:
             required: [placement]
             properties:
               placement: { type: string, enum: [AFTER_HERO, BEFORE_FORM, AFTER_FORM, BOTTOM] }
-              adUnitId: { type: string, nullable: true }
+              adRunIds: 
+                type: array
+                items: { type: string }
 
     CreateLandingPageInput:
       type: object
@@ -2252,11 +2315,12 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [data]
+                required: [data, unresolvedMatchCount]
                 properties:
                   data:
                     type: array
                     items: { $ref: '#/components/schemas/CrmCatalogEntry' }
+                  unresolvedMatchCount: { type: integer }
 
   /integrations:
     get:
@@ -2281,7 +2345,7 @@ paths:
                   meta: { $ref: '#/components/schemas/PaginatedMeta' }
     post:
       operationId: createIntegration
-      summary: Connect a CRM or commerce account (stub connect; no live OAuth)
+      summary: Stub-connect a provider when OAuth env is unset
       tags: [crm]
       requestBody:
         required: true
@@ -2334,6 +2398,67 @@ paths:
                 type: object
                 properties:
                   data: { $ref: '#/components/schemas/Integration' }
+
+  /integrations/{provider}/oauth/start:
+    get:
+      operationId: startCrmOAuth
+      summary: Start CRM provider OAuth
+      tags: [crm]
+      parameters:
+        - $ref: '#/components/parameters/CrmProviderParam'
+        - in: query
+          name: returnPath
+          schema: { type: string }
+        - in: query
+          name: shop
+          schema: { type: string }
+          description: Required for Shopify (store subdomain or myshopify.com host)
+      responses:
+        '200':
+          description: Vendor authorize URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/OAuthStart' }
+
+  /integrations/{provider}/oauth/callback:
+    get:
+      operationId: handleCrmOAuthCallback
+      summary: CRM OAuth callback
+      tags: [crm]
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CrmProviderParam'
+        - in: query
+          name: code
+          schema: { type: string }
+        - in: query
+          name: state
+          schema: { type: string }
+      responses:
+        '302':
+          description: Stores the token and redirects to the web app
+          headers:
+            Location: { schema: { type: string } }
+
+  /integrations/{integrationId}/sync:
+    post:
+      operationId: syncIntegration
+      summary: Pull inbound contacts and orders from a connected provider
+      tags: [crm]
+      parameters:
+        - $ref: '#/components/parameters/IntegrationId'
+      responses:
+        '200':
+          description: Sync counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/SyncIntegrationResult' }
 
   /external-events:
     post:

@@ -1,4 +1,5 @@
 import { Prisma, LeadStage } from '@prisma/client'
+import { provenanceFor } from './crm/fieldAuthority'
 
 // Shared between ContactService and AudienceService so both compute the same
 // derived lifecycleStatus without duplicating the include shape. `satisfies` (not `as const`)
@@ -7,14 +8,18 @@ import { Prisma, LeadStage } from '@prisma/client'
 // Prisma's generated where-input types (LeadStage[], mutable) reject.
 export const LIFECYCLE_INCLUDE = {
   sales: { take: 1, select: { id: true } },
-  leads: { where: { stage: { notIn: [LeadStage.WON, LeadStage.LOST] } }, take: 1, select: { id: true } },
+  leads: {
+    where: { stage: { notIn: [LeadStage.WON, LeadStage.LOST] } },
+    take: 1,
+    select: { id: true },
+  },
 } satisfies Prisma.ContactInclude
 
 type ContactWithLifecycle = Prisma.ContactGetPayload<{ include: typeof LIFECYCLE_INCLUDE }>
 
-// PAST_CUSTOMER is a filter (see docs/00-unified-data-model.md Audience section), not a
-// per-contact label computed here — Audience presets query for it directly.
-function lifecycleStatus(contact: Pick<ContactWithLifecycle, 'sales' | 'leads'>): 'LEAD' | 'CUSTOMER' | 'NONE' {
+function lifecycleStatus(
+  contact: Pick<ContactWithLifecycle, 'sales' | 'leads'>,
+): 'LEAD' | 'CUSTOMER' | 'NONE' {
   if (contact.sales.length > 0) return 'CUSTOMER'
   if (contact.leads.length > 0) return 'LEAD'
   return 'NONE'
@@ -35,5 +40,38 @@ export function toContactDTO(contact: ContactWithLifecycle) {
     lastContactedAt: contact.lastContactedAt?.toISOString() ?? null,
     createdAt: contact.createdAt.toISOString(),
     lifecycleStatus: lifecycleStatus(contact),
+  }
+}
+
+export function withGraph(
+  contact: ContactWithLifecycle,
+  extras: {
+    identifiers: {
+      kind: 'EMAIL' | 'PHONE'
+      normalizedValue: string
+      source: string
+      isPrimary: boolean
+    }[]
+    records: {
+      id: string
+      provider: string
+      externalId: string
+      matchStatus: string
+      syncedAt: Date | null
+    }[]
+    revenue: number
+  },
+) {
+  return {
+    ...toContactDTO(contact),
+    provenance: provenanceFor(contact, extras.identifiers),
+    records: extras.records.map((row) => ({
+      id: row.id,
+      provider: row.provider,
+      externalId: row.externalId,
+      matchStatus: row.matchStatus,
+      syncedAt: row.syncedAt?.toISOString() ?? null,
+    })),
+    revenue: extras.revenue,
   }
 }

@@ -2,9 +2,20 @@ import { db } from '@project/db'
 import type { CrmProvider, IntegrationStatus } from '@prisma/client'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { catalogEntry } from '../lib/crm/catalog'
-import { listCrmConnectors } from '../lib/crm/registry'
+import { getCrmConnector, listCrmConnectors } from '../lib/crm/registry'
 
-function toDTO(row: {
+async function lastJob(integrationId: string) {
+  const record = await db.externalContactRecord.findFirst({
+    where: { integrationId, importJobId: { not: null } },
+    orderBy: { syncedAt: 'desc' },
+    select: {
+      importJob: { select: { created: true, linked: true, ambiguous: true, skipped: true } },
+    },
+  })
+  return record?.importJob ?? null
+}
+
+async function toDTO(row: {
   id: string
   businessId: string
   provider: CrmProvider
@@ -15,8 +26,11 @@ function toDTO(row: {
   lastSyncAt: Date | null
   capabilities: unknown
   createdAt: Date
+  credentialsEnc: string | null
 }) {
   const catalog = catalogEntry(row.provider)
+  const connector = getCrmConnector(row.provider)
+  const job = await lastJob(row.id)
   return {
     id: row.id,
     businessId: row.businessId,
@@ -26,20 +40,23 @@ function toDTO(row: {
     status: row.status,
     syncDirection: row.syncDirection,
     lastSyncAt: row.lastSyncAt?.toISOString() ?? null,
+    lastSyncCreated: job?.created ?? null,
+    lastSyncLinked: job?.linked ?? null,
+    lastSyncAmbiguous: job?.ambiguous ?? null,
+    lastSyncSkipped: job?.skipped ?? null,
     capabilities: row.capabilities,
+    oauth: connector.oauth,
+    configured: connector.configured(),
     createdAt: row.createdAt.toISOString(),
   }
 }
 
 export class IntegrationService {
-  catalog() {
-    return {
-      data: listCrmConnectors().map(({ provider, label, capabilities }) => ({
-        provider,
-        label,
-        capabilities,
-      })),
-    }
+  async catalog(businessId: string) {
+    const unresolvedMatchCount = await db.externalContactRecord.count({
+      where: { businessId, matchStatus: { in: ['AMBIGUOUS', 'UNMATCHED'] } },
+    })
+    return { data: listCrmConnectors(), unresolvedMatchCount }
   }
 
   async list(businessId: string, opts: { cursor?: string; limit?: number }) {
@@ -66,7 +83,7 @@ export class IntegrationService {
       hasMore && last
         ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
         : null
-    return { data: items.map(toDTO), meta: { hasMore, nextCursor } }
+    return { data: await Promise.all(items.map(toDTO)), meta: { hasMore, nextCursor } }
   }
 
   async get(businessId: string, integrationId: string) {
@@ -83,6 +100,10 @@ export class IntegrationService {
       throw { statusCode: 400, message: 'CSV is an import, not an Integration' }
     const entry = catalogEntry(data.provider)
     if (!entry) throw { statusCode: 400, message: 'Unknown CRM provider' }
+    const connector = getCrmConnector(entry.provider)
+    if (connector.oauth && connector.configured()) {
+      throw { statusCode: 400, message: 'Connect this provider with OAuth' }
+    }
     const row = await db.integration.create({
       data: {
         businessId,

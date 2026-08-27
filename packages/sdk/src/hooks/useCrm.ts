@@ -72,6 +72,50 @@ export function useContactMatches(status?: 'UNMATCHED' | 'AMBIGUOUS') {
   })
 }
 
+export function useStartCrmOAuth() {
+  return useMutation({
+    mutationFn: async (input: {
+      provider: 'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'SQUARE' | 'PIPEDRIVE'
+      shop?: string
+    }) => {
+      const client = getApiClient()
+      const result = await client.GET('/integrations/{provider}/oauth/start', {
+        params: {
+          path: { provider: input.provider },
+          query: { shop: input.shop, returnPath: '/integrations' },
+        },
+      })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
+      return data!
+    },
+  })
+}
+
+export function useSyncIntegration() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (integrationId: string) => {
+      const client = getApiClient()
+      const result = await client.POST('/integrations/{integrationId}/sync', {
+        params: { path: { integrationId } },
+      })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
+      return data!
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['integrations', 'list'] })
+      queryClient.invalidateQueries({ queryKey: ['crm', 'catalog'] })
+      queryClient.invalidateQueries({ queryKey: ['contacts'] })
+    },
+  })
+}
+
 export function useResolveContactMatch() {
   const queryClient = useQueryClient()
   return useMutation({

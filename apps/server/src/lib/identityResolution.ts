@@ -80,7 +80,7 @@ export async function resolveContact(
     const contact = await fillContactBlanks(
       tx,
       match.contact,
-      { email, phone, company: input.company },
+      { name: input.name, email, phone, company: input.company },
       source,
       external?.integrationId,
     )

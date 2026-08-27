@@ -1,6 +1,7 @@
 import type { Contact } from '@prisma/client'
 import { isUniqueConflict } from './prismaError'
 import type { DbClient } from './identityMatch'
+import { isPlaceholderName } from './crm/fieldAuthority'
 
 export async function ensureIdentifier(
   tx: DbClient,
@@ -64,11 +65,19 @@ export async function syncPrimaryIdentifiers(
 export async function fillContactBlanks(
   tx: DbClient,
   contact: Contact,
-  input: { email: string | null; phone: string | null; company?: string | null },
+  input: {
+    name?: string | null
+    email: string | null
+    phone: string | null
+    company?: string | null
+  },
   source: string,
   integrationId?: string | null,
 ) {
-  const data: { email?: string; phone?: string; company?: string } = {}
+  const data: { name?: string; email?: string; phone?: string; company?: string } = {}
+  if (isPlaceholderName(contact.name) && input.name && !isPlaceholderName(input.name)) {
+    data.name = input.name
+  }
   if (!contact.email && input.email) data.email = input.email
   if (!contact.phone && input.phone) data.phone = input.phone
   if (!contact.company && input.company) data.company = input.company

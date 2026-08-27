@@ -1,9 +1,10 @@
 import { db } from '@project/db'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
-import { LIFECYCLE_INCLUDE, toContactDTO } from '../lib/contactDto'
+import { LIFECYCLE_INCLUDE, toContactDTO, withGraph } from '../lib/contactDto'
 import { normalizeEmail, normalizePhone, tombstoneIdentity } from '../lib/identityResolution'
 import { syncPrimaryIdentifiers, tombstoneIdentifiers } from '../lib/contactIdentifiers'
 import { ImportJobService, type ImportRow } from './ImportJobService'
+import { ACTIVE_SALE_WHERE } from '../lib/salePredicates'
 
 const importJobs = new ImportJobService()
 
@@ -82,7 +83,19 @@ export class ContactService {
       include: LIFECYCLE_INCLUDE,
     })
     if (!contact) throw { statusCode: 404, message: 'Contact not found' }
-    return toContactDTO(contact)
+    const [identifiers, records, revenueAgg] = await Promise.all([
+      db.contactIdentifier.findMany({ where: { contactId } }),
+      db.externalContactRecord.findMany({ where: { contactId }, orderBy: { syncedAt: 'desc' } }),
+      db.sale.aggregate({
+        where: { contactId, businessId, ...ACTIVE_SALE_WHERE },
+        _sum: { amount: true },
+      }),
+    ])
+    return withGraph(contact, {
+      identifiers,
+      records,
+      revenue: Number(revenueAgg._sum.amount ?? 0),
+    })
   }
 
   async update(businessId: string, contactId: string, data: any) {

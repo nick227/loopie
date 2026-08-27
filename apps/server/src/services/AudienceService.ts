@@ -10,6 +10,10 @@ type AudienceFilter = {
   leadStatus?: string
   source?: string
   lastPurchaseBeforeDays?: number
+  hasSaleSinceDays?: number
+  provider?: string
+  adLeadNoPurchase?: boolean
+  emailEligible?: boolean
 }
 
 // Maps the filter keys documented in docs/05-audience-segmentation-spec.md onto the Contact
@@ -23,7 +27,21 @@ function buildFilterWhere(businessId: string, filter: AudienceFilter): any {
   if (filter.leadStatus) AND.push({ leads: { some: { stage: filter.leadStatus as any } } })
   if (filter.lastPurchaseBeforeDays) {
     const cutoff = new Date(Date.now() - filter.lastPurchaseBeforeDays * 24 * 60 * 60 * 1000)
-    AND.push({ sales: { some: { date: { lt: cutoff } } } })
+    AND.push({ sales: { some: { date: { lt: cutoff }, reversedAt: null } } })
+  }
+  if (filter.hasSaleSinceDays) {
+    const since = new Date(Date.now() - filter.hasSaleSinceDays * 24 * 60 * 60 * 1000)
+    AND.push({ sales: { some: { date: { gte: since }, reversedAt: null } } })
+  }
+  if (filter.emailEligible) AND.push({ emailEligible: true, email: { not: null } })
+  if (filter.provider) {
+    AND.push({ externalRecords: { some: { provider: filter.provider, matchStatus: 'LINKED' } } })
+  }
+  if (filter.adLeadNoPurchase) {
+    AND.push({
+      leads: { some: { sourceType: { in: ['AD_RUN', 'DEPLOYMENT', 'AD_UNIT'] } } },
+      sales: { none: { reversedAt: null } },
+    })
   }
   return { businessId, deletedAt: null, ...(AND.length ? { AND } : {}) }
 }
@@ -37,8 +55,8 @@ function buildPredefinedWhere(businessId: string, name: string): any {
     case 'Leads':
       return { ...base, leads: { some: { stage: { notIn: ['WON', 'LOST'] } } } }
     case 'Customers':
-    case 'Repeat customers': // approximated as "has a sale" — a true 2+ count needs a raw query
-      return { ...base, sales: { some: {} } }
+    case 'Repeat customers':
+      return { ...base, sales: { some: { reversedAt: null } } }
     case 'No response':
       return { ...base, interactions: { none: { type: 'REPLY' } }, lastContactedAt: { not: null } }
     case 'Recently contacted':
@@ -46,7 +64,30 @@ function buildPredefinedWhere(businessId: string, name: string): any {
     case 'Past customers':
       return {
         ...base,
-        sales: { some: { date: { lt: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000) } } },
+        sales: {
+          some: {
+            date: { lt: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000) },
+            reversedAt: null,
+          },
+        },
+      }
+    case 'Recent customers':
+      return {
+        ...base,
+        emailEligible: true,
+        email: { not: null },
+        sales: {
+          some: {
+            date: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+            reversedAt: null,
+          },
+        },
+      }
+    case 'Ad leads that never bought':
+      return {
+        ...base,
+        leads: { some: { sourceType: { in: ['AD_RUN', 'DEPLOYMENT', 'AD_UNIT'] } } },
+        sales: { none: { reversedAt: null } },
       }
     default:
       return base

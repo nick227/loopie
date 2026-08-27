@@ -107,6 +107,195 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/integrations/catalog': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** CRM provider catalog and capabilities */
+    get: operations['listCrmCatalog']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/integrations': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List CRM integrations */
+    get: operations['listIntegrations']
+    put?: never
+    /** Stub-connect a provider when OAuth env is unset */
+    post: operations['createIntegration']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/integrations/{integrationId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get a CRM integration */
+    get: operations['getIntegration']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /** Pause or update a CRM integration */
+    patch: operations['updateIntegration']
+    trace?: never
+  }
+  '/integrations/{provider}/oauth/start': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Start CRM provider OAuth */
+    get: operations['startCrmOAuth']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/integrations/{provider}/oauth/callback': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** CRM OAuth callback */
+    get: operations['handleCrmOAuthCallback']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/integrations/{integrationId}/sync': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Pull inbound contacts and orders from a connected provider */
+    post: operations['syncIntegration']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/external-events': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Ingest a CRM or commerce event */
+    post: operations['ingestExternalEvent']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/contact-matches': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Unmatched and ambiguous external contact records */
+    get: operations['listContactMatches']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/contact-matches/{recordId}/resolve': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Link an ambiguous or unmatched external record to a Contact */
+    post: operations['resolveContactMatch']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/t/session': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Mint or reuse a first-touch LOOPIE tracking session */
+    get: operations['getLoopieSession']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/t/events': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Record a portable page/form event */
+    post: operations['trackLoopieEvent']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/contacts/{contactId}': {
     parameters: {
       query?: never
@@ -2034,6 +2223,25 @@ export interface components {
       createdAt: string
       /** @enum {string} */
       lifecycleStatus?: 'LEAD' | 'CUSTOMER' | 'PAST_CUSTOMER' | 'NONE'
+      /** @description Sum of non-reversed sales on this contact */
+      revenue?: number
+      provenance?: components['schemas']['FieldProvenance'][]
+      records?: components['schemas']['ContactSourceRecord'][]
+    }
+    FieldProvenance: {
+      /** @enum {string} */
+      field: 'name' | 'email' | 'phone' | 'company'
+      value: string
+      /** @enum {string} */
+      source: 'LOOPIE' | 'HUBSPOT' | 'SALESFORCE' | 'PIPEDRIVE' | 'SHOPIFY' | 'SQUARE' | 'CSV'
+    }
+    ContactSourceRecord: {
+      id: string
+      provider: string
+      externalId: string
+      matchStatus: string
+      /** Format: date-time */
+      syncedAt?: string | null
     }
     CreateContactInput: {
       name: string
@@ -2062,8 +2270,150 @@ export interface components {
       contacts: components['schemas']['CreateContactInput'][]
     }
     ImportContactsResult: {
+      importJobId?: string
       created: number
+      linked: number
+      ambiguous: number
       skipped: number
+    }
+    CrmCapabilities: {
+      contacts: boolean
+      companies: boolean
+      deals: boolean
+      orders: boolean
+      payments: boolean
+      events: boolean
+    }
+    CrmCatalogEntry: {
+      /** @enum {string} */
+      provider: 'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'SQUARE' | 'PIPEDRIVE'
+      label: string
+      capabilities: components['schemas']['CrmCapabilities']
+      oauth?: boolean
+      configured?: boolean
+    }
+    Integration: {
+      id: string
+      businessId: string
+      /** @enum {string} */
+      provider: 'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'SQUARE' | 'PIPEDRIVE'
+      label?: string | null
+      externalAccountId?: string | null
+      /** @enum {string} */
+      status: 'INCOMPLETE' | 'CONNECTED' | 'NEEDS_REAUTH' | 'PAUSED'
+      /** @enum {string} */
+      syncDirection: 'INBOUND'
+      /** Format: date-time */
+      lastSyncAt?: string | null
+      lastSyncCreated?: number | null
+      lastSyncLinked?: number | null
+      lastSyncAmbiguous?: number | null
+      lastSyncSkipped?: number | null
+      capabilities?: components['schemas']['CrmCapabilities']
+      oauth?: boolean
+      configured?: boolean
+      /** Format: date-time */
+      createdAt: string
+    }
+    SyncIntegrationResult: {
+      created: number
+      linked: number
+      ambiguous: number
+      skipped: number
+      orders: number
+      /** Format: date-time */
+      lastSyncAt?: string
+    }
+    CreateIntegrationInput: {
+      /** @enum {string} */
+      provider: 'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'SQUARE' | 'PIPEDRIVE'
+      label?: string
+      externalAccountId?: string
+    }
+    UpdateIntegrationInput: {
+      /** @enum {string} */
+      status?: 'CONNECTED' | 'PAUSED' | 'NEEDS_REAUTH'
+      label?: string
+    }
+    ExternalContactRecord: {
+      id: string
+      businessId: string
+      contactId?: string | null
+      integrationId?: string | null
+      provider: string
+      externalId: string
+      /** @enum {string} */
+      matchStatus: 'LINKED' | 'UNMATCHED' | 'AMBIGUOUS'
+      candidateContactIds?: string[]
+      /** Format: date-time */
+      syncedAt?: string | null
+      /** Format: date-time */
+      createdAt: string
+    }
+    ResolveContactMatchInput: {
+      contactId: string
+    }
+    IngestExternalEventInput: {
+      integrationId: string
+      /** @enum {string} */
+      type:
+        | 'CONTACT_CREATED'
+        | 'CONTACT_UPDATED'
+        | 'DEAL_WON'
+        | 'ORDER_CREATED'
+        | 'PAYMENT_COMPLETED'
+        | 'APPOINTMENT_COMPLETED'
+        | 'CUSTOMER_TAGGED'
+      externalEventId: string
+      /** Format: date-time */
+      occurredAt?: string
+      amount?: number
+      productOrService?: string
+      contact?: {
+        externalId?: string
+        name?: string
+        email?: string
+        phone?: string
+        company?: string
+      }
+      payload?: {
+        [key: string]: unknown
+      }
+    }
+    ExternalEvent: {
+      id: string
+      businessId: string
+      integrationId?: string | null
+      contactId?: string | null
+      saleId?: string | null
+      provider: string
+      type: string
+      externalEventId: string
+      /** Format: date-time */
+      occurredAt: string
+      /** Format: date-time */
+      createdAt: string
+    }
+    LoopieRuntimeSession: {
+      sessionId: string
+      token: string
+      firstAdRunId?: string | null
+      firstSourceType?: string | null
+      platformClickIds?: {
+        [key: string]: string | null
+      }
+      utms?: {
+        [key: string]: string | null
+      }
+    }
+    TrackRuntimeEventInput: {
+      businessId: string
+      sessionId: string
+      /** @enum {string} */
+      type: 'PAGE_VIEW' | 'FORM_START' | 'FORM_SUBMIT'
+      pageUrl?: string
+      adRunId?: string
+      clickId?: string
     }
     Audience: {
       id: string
@@ -2071,7 +2421,7 @@ export interface components {
       name: string
       /** @enum {string} */
       type: 'PREDEFINED' | 'SAVED_FILTER' | 'MANUAL_LIST' | 'IMPORTED_LIST'
-      /** @description Free-form filter used when type = SAVED_FILTER. Keys mirror docs/05-audience-segmentation-spec.md (leadStatus, hasEmail, hasMobile, tag, lastPurchaseBeforeDays, sourceCampaignId, sourceDeploymentId, ...). */
+      /** @description Free-form filter used when type = SAVED_FILTER. Keys: leadStatus, hasEmail, hasMobile, tag, lastPurchaseBeforeDays, hasSaleSinceDays, emailEligible, provider, adLeadNoPurchase, sourceCampaignId, sourceDeploymentId. */
       filter?: {
         [key: string]: unknown
       } | null
@@ -2834,13 +3184,28 @@ export interface components {
       sortOrder: number
       /** @enum {string} */
       placement: 'AFTER_HERO' | 'BEFORE_FORM' | 'AFTER_FORM' | 'BOTTOM'
-      adUnitId?: string | null
+      assignments?: components['schemas']['LandingPageAdSlotAssignment'][]
+    }
+    LandingPageAdSlotAssignment: {
+      id: string
+      slotId: string
+      adRunId: string
+      /** @enum {string} */
+      status:
+        | 'PENDING'
+        | 'READY'
+        | 'ACTIVE'
+        | 'PAUSED'
+        | 'ENDED'
+        | 'VALIDATION_FAILED'
+        | 'PROVISIONING_FAILED'
+      weight: number
     }
     ReplaceLandingPageAdSlotsInput: {
       slots: {
         /** @enum {string} */
         placement: 'AFTER_HERO' | 'BEFORE_FORM' | 'AFTER_FORM' | 'BOTTOM'
-        adUnitId?: string | null
+        adRunIds?: string[]
       }[]
     }
     CreateLandingPageInput: {
@@ -3517,6 +3882,9 @@ export interface components {
     TransactionId: string
     AdSpendId: string
     CommissionId: string
+    IntegrationId: string
+    CrmProviderParam: 'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'SQUARE' | 'PIPEDRIVE'
+    ExternalRecordId: string
   }
   requestBodies: never
   headers: never
@@ -3695,6 +4063,350 @@ export interface operations {
             data?: components['schemas']['ImportContactsResult']
           }
         }
+      }
+    }
+  }
+  listCrmCatalog: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Providers LOOPIE can connect */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['CrmCatalogEntry'][]
+            unresolvedMatchCount: number
+          }
+        }
+      }
+    }
+  }
+  listIntegrations: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor returned by the previous page. */
+        cursor?: components['parameters']['Cursor']
+        limit?: components['parameters']['Limit']
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated integrations */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['Integration'][]
+            meta: components['schemas']['PaginatedMeta']
+          }
+        }
+      }
+    }
+  }
+  createIntegration: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateIntegrationInput']
+      }
+    }
+    responses: {
+      /** @description Integration connected */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['Integration']
+          }
+        }
+      }
+    }
+  }
+  getIntegration: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integrationId: components['parameters']['IntegrationId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Integration */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['Integration']
+          }
+        }
+      }
+    }
+  }
+  updateIntegration: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integrationId: components['parameters']['IntegrationId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateIntegrationInput']
+      }
+    }
+    responses: {
+      /** @description Integration updated */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['Integration']
+          }
+        }
+      }
+    }
+  }
+  startCrmOAuth: {
+    parameters: {
+      query?: {
+        returnPath?: string
+        /** @description Required for Shopify (store subdomain or myshopify.com host) */
+        shop?: string
+      }
+      header?: never
+      path: {
+        provider: components['parameters']['CrmProviderParam']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Vendor authorize URL */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['OAuthStart']
+          }
+        }
+      }
+    }
+  }
+  handleCrmOAuthCallback: {
+    parameters: {
+      query?: {
+        code?: string
+        state?: string
+      }
+      header?: never
+      path: {
+        provider: components['parameters']['CrmProviderParam']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Stores the token and redirects to the web app */
+      302: {
+        headers: {
+          Location?: string
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  syncIntegration: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integrationId: components['parameters']['IntegrationId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Sync counts */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['SyncIntegrationResult']
+          }
+        }
+      }
+    }
+  }
+  ingestExternalEvent: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['IngestExternalEventInput']
+      }
+    }
+    responses: {
+      /** @description Event stored; orders/payments may materialize a Sale */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['ExternalEvent']
+          }
+        }
+      }
+    }
+  }
+  listContactMatches: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor returned by the previous page. */
+        cursor?: components['parameters']['Cursor']
+        limit?: components['parameters']['Limit']
+        status?: 'UNMATCHED' | 'AMBIGUOUS'
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Records needing review */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['ExternalContactRecord'][]
+            meta: components['schemas']['PaginatedMeta']
+          }
+        }
+      }
+    }
+  }
+  resolveContactMatch: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        recordId: components['parameters']['ExternalRecordId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ResolveContactMatchInput']
+      }
+    }
+    responses: {
+      /** @description Record linked */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['ExternalContactRecord']
+          }
+        }
+      }
+    }
+  }
+  getLoopieSession: {
+    parameters: {
+      query: {
+        businessId: string
+        sid?: string
+        adRunId?: string
+        deploymentId?: string
+        gclid?: string
+        fbclid?: string
+        ttclid?: string
+        click_id?: string
+        utm_source?: string
+        utm_medium?: string
+        utm_campaign?: string
+        utm_content?: string
+        utm_term?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Signed session token; first-touch fields are retained */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['LoopieRuntimeSession']
+          }
+        }
+      }
+    }
+  }
+  trackLoopieEvent: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TrackRuntimeEventInput']
+      }
+    }
+    responses: {
+      /** @description Recorded */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
       }
     }
   }

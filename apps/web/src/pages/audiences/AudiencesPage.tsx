@@ -1,54 +1,82 @@
-import { useAudiences } from '@project/sdk'
+import { Link } from 'react-router-dom'
+import { useAudiences, useCreateAudience } from '@project/sdk'
 import { Card, CardContent } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { List } from 'lucide-react'
 import { useFlatPages } from '@/hooks/useFlatPages'
 
-export function AudiencesPage() {
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useAudiences()
-  const items = useFlatPages({ data: data })
+const SUGGESTED = [
+  {
+    name: 'Recent customers',
+    type: 'SAVED_FILTER' as const,
+    filter: { hasSaleSinceDays: 30, emailEligible: true },
+  },
+  {
+    name: 'Ad leads that never bought',
+    type: 'SAVED_FILTER' as const,
+    filter: { adLeadNoPurchase: true },
+  },
+  {
+    name: 'Shopify customers',
+    type: 'SAVED_FILTER' as const,
+    filter: { provider: 'SHOPIFY' },
+  },
+]
 
-  if (isLoading)
-    return (
-      <div className="space-y-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className="h-20 w-full" />
-        ))}
-      </div>
-    )
+export function AudiencesPage() {
+  const query = useAudiences()
+  const items = useFlatPages(query)
+  const create = useCreateAudience()
 
   return (
-    <div className="space-y-3">
-      <h1 className="text-xl font-semibold">Audiences</h1>
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-xl font-semibold">Audiences</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Live queries over the customer graph — not copied import lists.
+        </p>
+      </div>
 
-      {items.length === 0 ? (
+      <div className="flex flex-wrap gap-2">
+        {SUGGESTED.filter((row) => !items.some((item) => item.name === row.name)).map((row) => (
+          <Button
+            key={row.name}
+            type="button"
+            variant="outline"
+            disabled={create.isPending}
+            onClick={() => create.mutate(row)}
+          >
+            Add “{row.name}”
+          </Button>
+        ))}
+      </div>
+
+      {query.isLoading ? (
+        <Skeleton className="h-24 w-full" />
+      ) : items.length === 0 ? (
         <EmptyState
           icon={List}
-          title="Nothing here yet"
-          description="Items will appear here once created."
+          title="No audiences yet"
+          description="Create a filter for Messages."
         />
       ) : (
-        items.map((item: any) => (
+        items.map((item) => (
           <Card key={item.id}>
-            <CardContent className="py-4">
-              {/* TODO: replace with real fields */}
-              <pre className="text-xs text-muted-foreground overflow-auto">
-                {JSON.stringify(item, null, 2)}
-              </pre>
+            <CardContent className="flex items-center justify-between gap-3 py-4">
+              <div>
+                <p className="font-medium">{item.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {item.memberCount ?? 0} people · {item.type}
+                </p>
+              </div>
+              <Link to={`/audiences/${item.id}`} className="text-sm underline underline-offset-4">
+                View
+              </Link>
             </CardContent>
           </Card>
         ))
-      )}
-
-      {hasNextPage && (
-        <button
-          onClick={() => fetchNextPage()}
-          disabled={isFetchingNextPage}
-          className="w-full py-3 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-        >
-          {isFetchingNextPage ? 'Loading...' : 'Load more'}
-        </button>
       )}
     </div>
   )
