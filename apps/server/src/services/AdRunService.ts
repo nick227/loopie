@@ -26,7 +26,10 @@ function toAdRunDTO(adRun: any) {
     externalCampaignId: adRun.externalCampaignId ?? null,
     externalAdSetId: adRun.externalAdSetId ?? null,
     externalAdId: adRun.externalAdId ?? null,
+    placement: adRun.placement ?? null,
     previewUrl: adRun.previewUrl ?? null,
+    managerUrl: adRun.managerUrl ?? null,
+    errorMessage: adRun.errorMessage ?? null,
     destinationLandingPageId: adRun.destinationLandingPageId ?? null,
     trackedUrl: trackedAdRunUrl(adRun.id),
     createdAt: adRun.createdAt.toISOString(),
@@ -246,7 +249,7 @@ export class AdRunService {
       // safety rule as the media-missing case above: never leave the run looking live.
       await db.adRun.update({
         where: { id: adRun.id },
-        data: { status: 'VALIDATION_FAILED', errorMessage: err?.message || String(err) },
+        data: { status: 'PROVISIONING_FAILED', errorMessage: err?.message || String(err) },
       })
       throw err
     }

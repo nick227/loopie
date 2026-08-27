@@ -1,3 +1,4 @@
+import { type ReactNode } from 'react'
 import { Image as ImageIcon, X } from 'lucide-react'
 import type { components } from '@project/sdk'
 import { mediaSrc } from '@/lib/media'
@@ -6,6 +7,7 @@ import {
   frameBox,
   parseAspectRatio,
   ratioFits,
+  type PreviewFrame,
   type PreviewFrameId,
 } from '@/lib/adPreview'
 import { cn } from '@/lib/utils'
@@ -33,6 +35,29 @@ function Media({ asset, cover }: { asset: Asset; cover: boolean }) {
   )
 }
 
+function Device({ frame, children }: { frame: PreviewFrame; children: ReactNode }) {
+  if (frame.chrome === 'none') return children
+  if (frame.chrome === 'player') {
+    return (
+      <div className="overflow-hidden rounded-xl border-[6px] border-zinc-900 bg-zinc-900 shadow-2xl transition-all duration-300">
+        {children}
+      </div>
+    )
+  }
+  if (frame.chrome === 'page') {
+    return (
+      <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 shadow-xl transition-all duration-300">
+        {children}
+      </div>
+    )
+  }
+  return (
+    <div className="overflow-hidden rounded-[2.5rem] border-[8px] border-zinc-900 bg-zinc-900 shadow-2xl transition-all duration-300">
+      {children}
+    </div>
+  )
+}
+
 export function AdMediaStage({
   asset,
   frameId,
@@ -52,7 +77,7 @@ export function AdMediaStage({
   const frame = PREVIEW_FRAMES.find((row) => row.id === frameId) ?? PREVIEW_FRAMES[0]!
   const ratio = frame.ratio ?? mediaRatio
   const box = frameBox(ratio, scale)
-  const native = frame.id === 'native'
+  const native = frame.chrome === 'none'
   const fits = frame.ratio ? ratioFits(mediaRatio, frame.ratio) : true
   const spec = [
     asset.widthPx && asset.heightPx ? `${asset.widthPx}×${asset.heightPx}` : null,
@@ -64,16 +89,18 @@ export function AdMediaStage({
   return (
     <div className="space-y-3">
       <div className="relative overflow-hidden rounded-xl bg-zinc-950">
-        <div className="flex min-h-72 items-center justify-center p-6 sm:min-h-80">
-          <div
-            className="overflow-hidden bg-zinc-900 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
-            style={{ width: box.width, height: box.height }}
-          >
-            <Media asset={asset} cover={!native} />
-          </div>
+        <div className="flex min-h-80 items-center justify-center p-8 sm:min-h-[28rem]">
+          <Device frame={frame}>
+            <div
+              className="overflow-hidden bg-zinc-900"
+              style={{ width: box.width, height: box.height }}
+            >
+              <Media asset={asset} cover={!native} />
+            </div>
+          </Device>
         </div>
         <div className="absolute left-3 top-3 flex flex-wrap gap-1.5 text-[11px] tabular-nums text-white/80">
-          <span className="bg-black/70 px-1.5 py-0.5">{native ? 'Native' : frame.id}</span>
+          <span className="bg-black/70 px-1.5 py-0.5">{frame.label}</span>
           {spec ? <span className="bg-black/70 px-1.5 py-0.5">{spec}</span> : null}
           {native ? null : (
             <span className={cn('px-1.5 py-0.5', fits ? 'bg-emerald-500/80' : 'bg-amber-500/80')}>
@@ -91,7 +118,7 @@ export function AdMediaStage({
         </button>
       </div>
 
-      <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="-mx-1 flex justify-center gap-1 overflow-x-auto px-1 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {PREVIEW_FRAMES.map((row) => (
           <button
             key={row.id}
@@ -104,12 +131,12 @@ export function AdMediaStage({
                 : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100',
             )}
           >
-            {row.id === 'native' ? 'Native' : `${row.label} ${row.id}`}
+            {row.label}
           </button>
         ))}
       </div>
 
-      <label className="flex items-center gap-3 text-xs text-muted-foreground">
+      <label className="mx-auto flex max-w-sm items-center gap-3 text-xs text-muted-foreground">
         <span className="shrink-0">Size</span>
         <input
           type="range"

@@ -171,9 +171,7 @@ describe('AdRun declarative creation', () => {
       headers: asAuth(testUserId),
       payload: { platform: 'LOOPIE', idempotencyKey: 'validation-loopie' },
     })
-    // CreateAdRunInput's platform enum excludes LOOPIE at the OpenAPI/schema-validation layer
-    // (mirrors CreateDeploymentInput's identical exclusion), so this is rejected before it ever
-    // reaches AdRunService's own explicit 409 check.
+    // LOOPIE needs a landing page — rejected before any connector call.
     expect(loopie.statusCode).toBe(400)
 
     const badBudget = await app.inject({
@@ -199,6 +197,29 @@ describe('AdRun declarative creation', () => {
 
     expect(calls.length).toBe(0) // connector never touched
     expect(await db.adRun.count({ where: { advertisementId: advertisement.id } })).toBe(0)
+  })
+
+  it('creates a LOOPIE run on a named page with a $0 budget', async () => {
+    const advertisement = await createAdvertisementWithImage()
+    const page = await createPublishedPage()
+    const res = await app.inject({
+      method: 'POST',
+      url: `/advertisements/${advertisement.id}/runs`,
+      headers: asAuth(testUserId),
+      payload: {
+        platform: 'LOOPIE',
+        placement: 'PAGE',
+        budget: 0,
+        destinationLandingPageId: page.id,
+        idempotencyKey: 'loopie-page-zero',
+      },
+    })
+    expect(res.statusCode).toBe(201)
+    expect(res.json().data.platform).toBe('LOOPIE')
+    expect(res.json().data.placement).toBe('PAGE')
+    expect(res.json().data.budget).toBe(0)
+    expect(res.json().data.status).toBe('PENDING')
+    expect(res.json().data.destinationLandingPageId).toBe(page.id)
   })
 
   it('connector failure leaves the run VALIDATION_FAILED, never looking live, and is retryable with the same key', async () => {

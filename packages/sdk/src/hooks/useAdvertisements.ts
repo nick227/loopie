@@ -132,3 +132,37 @@ export function useUpdateAdRun() {
     },
   })
 }
+
+export function usePauseAdRun() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ advertisementId, runId }: { advertisementId: string; runId: string }) => {
+      const client = getApiClient()
+      return unwrap(
+        await client.POST('/ad-runs/{adRunId}/pause', {
+          params: { path: { adRunId: runId } },
+        }),
+      )
+    },
+    onSuccess: (_, { advertisementId }) => {
+      queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
+    },
+  })
+}
+
+export function useResumeAdRun() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ advertisementId, runId }: { advertisementId: string; runId: string }) => {
+      const client = getApiClient()
+      return unwrap(
+        await client.POST('/ad-runs/{adRunId}/resume', {
+          params: { path: { adRunId: runId } },
+        }),
+      )
+    },
+    onSuccess: (_, { advertisementId }) => {
+      queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
+    },
+  })
+}

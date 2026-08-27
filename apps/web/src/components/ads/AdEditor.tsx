@@ -1,60 +1,78 @@
 import { useState, type FormEvent } from 'react'
-import { useAsset } from '@project/sdk'
+import { useAsset, useLandingPages } from '@project/sdk'
+import type { components } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { MediaPicker } from '@/components/media/MediaPicker'
 import type { AddMediaInput } from '@/components/media/AddMediaForm'
 import { AdMediaEmpty, AdMediaStage } from '@/components/ads/AdMediaStage'
-import { AdPostNow } from '@/components/ads/AdPostNow'
-import { POST_TARGETS, type PreviewFrameId } from '@/lib/adPreview'
+import {
+  AdDestinations,
+  selectedToPublishTargets,
+  type PublishTarget,
+} from '@/components/ads/AdDestinations'
+import { useFlatPages } from '@/hooks/useFlatPages'
+import { runDestinationKey, type PreviewFrameId } from '@/lib/adPreview'
 
-export function AdForm({
+type AdRun = components['schemas']['AdRun']
+
+export function AdEditor({
+  heading,
   name,
   assetIds,
+  runs,
   pending,
   error,
-  submitLabel,
   onName,
   onAssetIds,
   onAddAsset,
-  onSubmit,
-  onPostNow,
+  onSave,
+  onStartNew,
+  onStartRun,
+  onPauseRun,
+  onStartAll,
+  onPauseAll,
 }: {
+  heading: string
   name: string
   assetIds: string[]
+  runs: AdRun[]
   pending: boolean
   error: string | null
-  submitLabel: string
   onName: (value: string) => void
   onAssetIds: (ids: string[]) => void
   onAddAsset: (input: AddMediaInput) => Promise<void>
-  onSubmit: () => Promise<void>
-  onPostNow?: (input: {
-    targets: Array<{ platform: 'META' | 'TIKTOK'; placement: string }>
-    budget: number
-  }) => Promise<void>
+  onSave: () => Promise<void>
+  onStartNew: (targets: PublishTarget[]) => Promise<void>
+  onStartRun?: (runId: string) => void
+  onPauseRun?: (runId: string) => void
+  onStartAll?: () => void
+  onPauseAll?: () => void
 }) {
   const [open, setOpen] = useState(false)
   const [frameId, setFrameId] = useState<PreviewFrameId>('native')
   const [scale, setScale] = useState(1)
-  const [postKeys, setPostKeys] = useState<string[]>([])
-  const [budget, setBudget] = useState(10)
+  const [selected, setSelected] = useState<string[]>([])
+  const [budgets, setBudgets] = useState<Record<string, number>>({})
+  const pages = useFlatPages(useLandingPages({ limit: 100 }))
   const onDeckId = assetIds[0]
-  const assetQuery = useAsset(onDeckId ?? '')
-  const onDeck = assetQuery.data?.data
+  const onDeck = useAsset(onDeckId ?? '').data?.data
+  const liveKeys = new Set(runs.map(runDestinationKey))
+  const pendingKeys = selected.filter((key) => !liveKeys.has(key))
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    await onSubmit()
+    await onSave()
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-xl">
+    <form onSubmit={handleSubmit} className="mx-auto w-full max-w-2xl space-y-8">
+      <h1 className="text-center text-xl font-semibold">{heading}</h1>
       <Input value={name} onChange={(e) => onName(e.target.value)} placeholder="Ad name" required />
 
       <div className="space-y-2">
-        <p className="text-sm font-medium">Media</p>
+        <p className="text-center text-sm font-medium">Media</p>
         {onDeck ? (
           <AdMediaStage
             asset={onDeck}
@@ -71,44 +89,40 @@ export function AdForm({
         )}
       </div>
 
-      {onPostNow && onDeck ? (
-        <AdPostNow
+      {onDeck ? (
+        <AdDestinations
           mediaType={onDeck.type === 'AUDIO' ? undefined : onDeck.type}
-          selected={postKeys}
-          budget={budget}
+          pages={pages}
+          runs={runs}
+          selected={selected}
+          budgets={budgets}
           onToggle={(key) =>
-            setPostKeys((current) =>
+            setSelected((current) =>
               current.includes(key) ? current.filter((row) => row !== key) : [...current, key],
             )
           }
-          onBudget={setBudget}
+          onBudget={(key, value) => setBudgets((current) => ({ ...current, [key]: value }))}
+          onStart={onStartRun}
+          onPause={onPauseRun}
+          onStartAll={onStartAll}
+          onPauseAll={onPauseAll}
         />
       ) : null}
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
         <Button type="submit" disabled={pending || !name || assetIds.length === 0}>
-          {submitLabel}
+          Save
         </Button>
-        {onPostNow ? (
-          <Button
-            type="button"
-            variant="outline"
-            disabled={pending || !name || assetIds.length === 0 || postKeys.length === 0}
-            onClick={() =>
-              onPostNow({
-                targets: POST_TARGETS.filter((row) => postKeys.includes(row.key)).map((row) => ({
-                  platform: row.platform,
-                  placement: row.placement,
-                })),
-                budget,
-              })
-            }
-          >
-            Post now
-          </Button>
-        ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          disabled={pending || !name || assetIds.length === 0 || pendingKeys.length === 0}
+          onClick={() => onStartNew(selectedToPublishTargets(pendingKeys, budgets))}
+        >
+          Start
+        </Button>
       </div>
 
       {open ? (

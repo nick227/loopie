@@ -7,5 +7,5 @@ export function CreativeToAd() {
 
 export function CreativeEditToAd() {
   const { creativeId } = useParams<{ creativeId: string }>()
-  return <Navigate to={`/ads/${creativeId}/edit`} replace />
+  return <Navigate to={`/ads/${creativeId}`} replace />
 }

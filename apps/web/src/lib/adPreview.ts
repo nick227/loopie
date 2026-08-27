@@ -1,31 +1,32 @@
-export type PreviewFrameId = 'native' | '1:1' | '4:5' | '9:16' | '16:9'
+export type PreviewFrameId = 'native' | 'meta' | 'tiktok' | 'youtube' | 'pages'
 
 export type PreviewFrame = {
   id: PreviewFrameId
   label: string
   ratio: number | null
+  chrome: 'none' | 'phone' | 'player' | 'page'
 }
 
 export const PREVIEW_FRAMES: PreviewFrame[] = [
-  { id: 'native', label: 'Native', ratio: null },
-  { id: '1:1', label: 'Meta Feed', ratio: 1 },
-  { id: '4:5', label: 'Meta Feed', ratio: 4 / 5 },
-  { id: '9:16', label: 'Reels / TikTok', ratio: 9 / 16 },
-  { id: '16:9', label: 'YouTube', ratio: 16 / 9 },
+  { id: 'native', label: 'Original', ratio: null, chrome: 'none' },
+  { id: 'meta', label: 'Meta', ratio: 4 / 5, chrome: 'phone' },
+  { id: 'tiktok', label: 'TikTok', ratio: 9 / 16, chrome: 'phone' },
+  { id: 'youtube', label: 'YouTube', ratio: 16 / 9, chrome: 'player' },
+  { id: 'pages', label: 'Pages', ratio: 16 / 9, chrome: 'page' },
 ]
 
-export const PREVIEW_MAX = 280
+export const PREVIEW_MAX = 320
 export const RATIO_TOLERANCE = 0.03
 
-export type PostTarget = {
-  key: string
+export type PaidTarget = {
+  key: 'META_FEED' | 'META_REEL' | 'TIKTOK_FEED'
   platform: 'META' | 'TIKTOK'
   placement: string
   label: string
   types: Array<'IMAGE' | 'VIDEO' | 'TEXT'>
 }
 
-export const POST_TARGETS: PostTarget[] = [
+export const PAID_TARGETS: PaidTarget[] = [
   {
     key: 'META_FEED',
     platform: 'META',
@@ -36,6 +37,28 @@ export const POST_TARGETS: PostTarget[] = [
   { key: 'META_REEL', platform: 'META', placement: 'REEL', label: 'Meta Reels', types: ['VIDEO'] },
   { key: 'TIKTOK_FEED', platform: 'TIKTOK', placement: 'FEED', label: 'TikTok', types: ['VIDEO'] },
 ]
+
+export function pageKey(pageId: string) {
+  return `page:${pageId}`
+}
+
+export function pageIdFromKey(key: string) {
+  return key.startsWith('page:') ? key.slice(5) : null
+}
+
+export function runDestinationKey(run: {
+  platform: string
+  placement?: string | null
+  destinationLandingPageId?: string | null
+}) {
+  if (run.platform === 'LOOPIE' && run.destinationLandingPageId) {
+    return pageKey(run.destinationLandingPageId)
+  }
+  if (run.platform === 'META' && run.placement === 'REEL') return 'META_REEL'
+  if (run.platform === 'TIKTOK') return 'TIKTOK_FEED'
+  if (run.platform === 'META') return 'META_FEED'
+  return `${run.platform}_${run.placement ?? 'FEED'}`
+}
 
 export function parseAspectRatio(
   aspectRatio?: string | null,

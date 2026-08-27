@@ -43,7 +43,7 @@ export function AdRow({ ad }: { ad: Advertisement }) {
             </p>
           </div>
           <Link
-            to={`/ads/${ad.id}/edit`}
+            to={`/ads/${ad.id}`}
             className="inline-flex h-8 items-center rounded-lg px-3 text-xs font-medium text-zinc-500 hover:bg-accent hover:text-zinc-900"
           >
             Edit
