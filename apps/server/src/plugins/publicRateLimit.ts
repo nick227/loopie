@@ -8,6 +8,8 @@ const PUBLIC_WRITES: Array<{ method: string; pattern: RegExp }> = [
   { method: 'POST', pattern: /^\/landing-pages\/[^/]+\/submissions$/ },
   { method: 'POST', pattern: /^\/landing-pages\/[^/]+\/form-start$/ },
   { method: 'POST', pattern: /^\/attribution\/form-submit$/ },
+  { method: 'POST', pattern: /^\/t\/events$/ },
+  { method: 'GET', pattern: /^\/t\/session$/ },
 ]
 
 function isPublicWrite(method: string, url: string): boolean {

@@ -52,6 +52,14 @@ async function main() {
 
   // health check — not in spec, always public
   server.get('/health', async () => ({ status: 'ok' }))
+  server.get('/loopie.js', async (_request, reply) => {
+    const body = readFileSync(resolve(__dirname, 'public/loopie.js'), 'utf-8')
+    return reply
+      .header('Cache-Control', 'public, max-age=300')
+      .header('Access-Control-Allow-Origin', '*')
+      .type('application/javascript')
+      .send(body)
+  })
   await registerUploadStatic(server)
 
   await server.register(async (stripeApp) => {
@@ -112,6 +120,15 @@ async function main() {
     port: Number(process.env.PORT ?? 3001),
     host: '0.0.0.0',
   })
+
+  const shutdown = async () => {
+    server.log.info('Shutting down server...')
+    await server.close()
+    process.exit(0)
+  }
+
+  process.once('SIGINT', shutdown)
+  process.once('SIGTERM', shutdown)
 }
 
 main().catch((err) => {

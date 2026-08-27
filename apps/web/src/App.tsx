@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { CreativeToAd, CreativeEditToAd } from '@/pages/ads/CreativeRedirects'
 const RegisterPage = lazy(() =>
   import('@/pages/auth/RegisterPage').then((m) => ({ default: m.RegisterPage })),
@@ -27,6 +27,12 @@ const ContactInteractionsPage = lazy(() =>
   import('@/pages/contacts/ContactInteractionsPage').then((m) => ({
     default: m.ContactInteractionsPage,
   })),
+)
+const IntegrationsPage = lazy(() =>
+  import('@/pages/crm/IntegrationsPage').then((m) => ({ default: m.IntegrationsPage })),
+)
+const ContactMatchesPage = lazy(() =>
+  import('@/pages/crm/ContactMatchesPage').then((m) => ({ default: m.ContactMatchesPage })),
 )
 const AudiencesPage = lazy(() =>
   import('@/pages/audiences/AudiencesPage').then((m) => ({ default: m.AudiencesPage })),
@@ -278,8 +284,11 @@ const BillingPage = lazy(() =>
 )
 import { AuthGuard } from '@/lib/AuthGuard'
 import { ErrorBoundary } from '@/components/layout/ErrorBoundary'
-import { RequireRole, HomeRoute } from '@/lib/RequireRole'
+import { RequireRole, RequireNonAffiliate, HomeRoute } from '@/lib/RequireRole'
 import { Shell } from '@/components/layout/Shell'
+const PlatformsPage = lazy(() =>
+  import('@/pages/platforms/PlatformsPage').then((m) => ({ default: m.PlatformsPage })),
+)
 const AffiliatesPage = lazy(() =>
   import('@/pages/affiliates/AffiliatesPage').then((m) => ({ default: m.AffiliatesPage })),
 )
@@ -319,10 +328,15 @@ const AffiliatePortalPayoutsPage = lazy(() =>
   })),
 )
 
+function ResettableErrorBoundary({ children }: { children: React.ReactNode }) {
+  const location = useLocation()
+  return <ErrorBoundary key={location.pathname}>{children}</ErrorBoundary>
+}
+
 export function App() {
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <ErrorBoundary>
+      <ResettableErrorBoundary>
         <Suspense fallback={<Skeleton className="h-48 w-full" />}>
           <Routes>
             {/* Public / auth routes */}
@@ -332,186 +346,206 @@ export function App() {
             {/* Protected routes */}
             <Route element={<AuthGuard />}>
               <Route element={<Shell />}>
-                <Route index element={<Navigate to="/home" replace />} />
-                <Route path="/contacts" element={<ContactsPage />} />
-                <Route path="/contacts/new" element={<CreateContactPage />} />
-                <Route path="/contacts/import/new" element={<ImportContactsPage />} />
-                <Route path="/contacts/:contactId" element={<ContactPage />} />
-                <Route path="/contacts/:contactId/edit" element={<UpdateContactPage />} />
-                <Route
-                  path="/contacts/:contactId/interactions"
-                  element={<ContactInteractionsPage />}
-                />
-                <Route path="/audiences" element={<AudiencesPage />} />
-                <Route path="/audiences/new" element={<CreateAudiencePage />} />
-                <Route path="/audiences/:audienceId" element={<AudiencePage />} />
-                <Route path="/audiences/:audienceId/edit" element={<UpdateAudiencePage />} />
-                <Route path="/audiences/:audienceId/contacts" element={<AudienceContactsPage />} />
-                <Route path="/media" element={<MediaPage />} />
-                <Route path="/media/:assetId" element={<MediaItemPage />} />
-                <Route path="/assets" element={<Navigate to="/media" replace />} />
-                <Route path="/assets/new" element={<Navigate to="/media" replace />} />
-                <Route path="/assets/:assetId" element={<AssetToMedia />} />
-                <Route path="/templates" element={<TemplatesPage />} />
-                <Route path="/templates/new" element={<CreateTemplatePage />} />
-                <Route path="/templates/:templateId" element={<TemplatePage />} />
-                <Route path="/templates/:templateId/edit" element={<UpdateTemplatePage />} />
-                <Route path="/ads" element={<AdsPage />} />
-                <Route path="/ads/new" element={<CreateAdPage />} />
-                <Route path="/ads/:adId" element={<AdPage />} />
-                <Route path="/ads/:adId/edit" element={<UpdateAdPage />} />
-                <Route path="/creatives" element={<Navigate to="/ads" replace />} />
-                <Route path="/creatives/new" element={<Navigate to="/ads/new" replace />} />
-                <Route path="/creatives/:creativeId" element={<CreativeToAd />} />
-                <Route path="/creatives/:creativeId/edit" element={<CreativeEditToAd />} />
-                <Route path="/messages" element={<MessagesPage />} />
-                <Route path="/messages/new" element={<CreateMessagePage />} />
-                <Route path="/messages/:messageId" element={<MessagePage />} />
-                <Route path="/messages/:messageId/edit" element={<UpdateMessagePage />} />
-                <Route path="/messages/:messageId/send" element={<SendMessagePage />} />
-                <Route
-                  path="/messages/:messageId/test-send/new"
-                  element={<TestSendMessagePage />}
-                />
-                <Route
-                  path="/messages/:messageId/performance"
-                  element={<MessagePerformancePage />}
-                />
-                <Route path="/automations" element={<AutomationsPage />} />
-                <Route path="/automations/new" element={<CreateAutomationPage />} />
-                <Route path="/automations/:automationId" element={<AutomationPage />} />
-                <Route path="/automations/:automationId/edit" element={<UpdateAutomationPage />} />
-                <Route path="/automations/:automationId/pause" element={<PauseAutomationPage />} />
-                <Route
-                  path="/automations/:automationId/resume"
-                  element={<ResumeAutomationPage />}
-                />
-                <Route path="/automations/:automationId/logs" element={<AutomationLogsPage />} />
-                <Route path="/campaigns" element={<CampaignsPage />} />
-                <Route path="/campaigns/new" element={<CreateCampaignPage />} />
-                <Route path="/campaigns/:campaignId" element={<CampaignPage />} />
-                <Route path="/campaigns/:campaignId/edit" element={<UpdateCampaignPage />} />
-                <Route path="/campaigns/:campaignId/pause" element={<PauseCampaignPage />} />
-                <Route path="/campaigns/:campaignId/resume" element={<ResumeCampaignPage />} />
-                <Route path="/campaigns/:campaignId/end" element={<EndCampaignPage />} />
-                <Route
-                  path="/campaigns/:campaignId/duplicate"
-                  element={<DuplicateCampaignPage />}
-                />
-                <Route
-                  path="/campaigns/:campaignId/performance"
-                  element={<CampaignPerformancePage />}
-                />
-                <Route path="/campaigns/:campaignId/budget" element={<CampaignBudgetPage />} />
-                <Route
-                  path="/campaigns/:campaignId/creatives/new"
-                  element={<CampaignCreateCreativePage />}
-                />
-                <Route
-                  path="/campaigns/:campaignId/creatives"
-                  element={<CampaignCreativesPage />}
-                />
-                <Route
-                  path="/campaigns/:campaignId/ad-units/new"
-                  element={<CampaignCreateAdUnitPage />}
-                />
-                <Route path="/campaigns/:campaignId/ad-units" element={<CampaignAdUnitsPage />} />
-                <Route path="/campaigns/:campaignId/leads" element={<CampaignLeadsPage />} />
-                <Route path="/campaigns/:campaignId/deployments" element={<DeploymentsPage />} />
-                <Route
-                  path="/campaigns/:campaignId/deployments/new"
-                  element={<CreateDeploymentPage />}
-                />
-                <Route path="/deployments/:deploymentId/edit" element={<UpdateDeploymentPage />} />
-                <Route path="/landing-page-templates" element={<LandingPageTemplatesPage />} />
-                <Route
-                  path="/landing-page-templates/:templateId"
-                  element={<LandingPageTemplatePage />}
-                />
-                <Route path="/landing-pages" element={<LandingPagesPage />} />
-                <Route path="/landing-pages/new" element={<CreateLandingPage />} />
-                <Route path="/landing-pages/:landingPageId" element={<LandingPage />} />
-                <Route path="/landing-pages/:landingPageId/edit" element={<UpdateLandingPage />} />
-                <Route
-                  path="/landing-pages/:landingPageId/publish"
-                  element={<PublishLandingPage />}
-                />
-                <Route
-                  path="/landing-pages/:landingPageId/versions"
-                  element={<LandingPageVersionsPage />}
-                />
-                <Route
-                  path="/landing-pages/:landingPageId/export"
-                  element={<ExportLandingPage />}
-                />
-                <Route
-                  path="/landing-pages/:landingPageId/performance"
-                  element={<LandingPagePerformancePage />}
-                />
-                <Route path="/forms" element={<FormsPage />} />
-                <Route path="/forms/new" element={<CreateFormPage />} />
-                <Route path="/forms/:formId" element={<FormPage />} />
-                <Route path="/forms/:formId/edit" element={<UpdateFormPage />} />
-                <Route path="/ad-units" element={<AdUnitsPage />} />
-                <Route path="/ad-units/new" element={<CreateAdUnitPage />} />
-                <Route path="/ad-units/:adUnitId" element={<AdUnitPage />} />
-                <Route path="/ad-units/:adUnitId/edit" element={<UpdateAdUnitPage />} />
-                <Route path="/leads" element={<LeadsPage />} />
-                <Route path="/leads/:leadId" element={<LeadPage />} />
-                <Route path="/leads/:leadId/edit" element={<UpdateLeadPage />} />
-                <Route path="/sales" element={<SalesPage />} />
-                <Route path="/sales/new" element={<CreateSalePage />} />
-                <Route path="/sales/:saleId" element={<SalePage />} />
-                <Route path="/home" element={<HomeRoute />} />
-                <Route path="/results" element={<ResultsSummaryPage />} />
-                <Route
-                  path="/affiliates"
-                  element={
-                    <RequireRole role="ADMIN">
-                      <AffiliatesPage />
-                    </RequireRole>
-                  }
-                />
-                <Route
-                  path="/affiliates/new"
-                  element={
-                    <RequireRole role="ADMIN">
-                      <CreateAffiliatePage />
-                    </RequireRole>
-                  }
-                />
-                <Route
-                  path="/affiliates/classes"
-                  element={
-                    <RequireRole role="ADMIN">
-                      <AffiliateClassesPage />
-                    </RequireRole>
-                  }
-                />
-                <Route
-                  path="/affiliates/payouts"
-                  element={
-                    <RequireRole role="ADMIN">
-                      <AffiliatePayoutsPage />
-                    </RequireRole>
-                  }
-                />
-                <Route
-                  path="/affiliates/:affiliateId"
-                  element={
-                    <RequireRole role="ADMIN">
-                      <AffiliateDetailPage />
-                    </RequireRole>
-                  }
-                />
-                <Route
-                  path="/billing"
-                  element={
-                    <RequireRole role="ADMIN">
-                      <BillingPage />
-                    </RequireRole>
-                  }
-                />
+                <Route element={<RequireNonAffiliate />}>
+                  <Route index element={<Navigate to="/home" replace />} />
+                  <Route path="/contacts" element={<ContactsPage />} />
+                  <Route path="/contacts/new" element={<CreateContactPage />} />
+                  <Route path="/contacts/import/new" element={<ImportContactsPage />} />
+                  <Route path="/contacts/:contactId" element={<ContactPage />} />
+                  <Route path="/contacts/:contactId/edit" element={<UpdateContactPage />} />
+                  <Route
+                    path="/contacts/:contactId/interactions"
+                    element={<ContactInteractionsPage />}
+                  />
+                  <Route path="/integrations" element={<IntegrationsPage />} />
+                  <Route path="/contact-matches" element={<ContactMatchesPage />} />
+                  <Route path="/audiences" element={<AudiencesPage />} />
+                  <Route path="/audiences/new" element={<CreateAudiencePage />} />
+                  <Route path="/audiences/:audienceId" element={<AudiencePage />} />
+                  <Route path="/audiences/:audienceId/edit" element={<UpdateAudiencePage />} />
+                  <Route
+                    path="/audiences/:audienceId/contacts"
+                    element={<AudienceContactsPage />}
+                  />
+                  <Route path="/media" element={<MediaPage />} />
+                  <Route path="/media/:assetId" element={<MediaItemPage />} />
+                  <Route path="/assets" element={<Navigate to="/media" replace />} />
+                  <Route path="/assets/new" element={<Navigate to="/media" replace />} />
+                  <Route path="/assets/:assetId" element={<AssetToMedia />} />
+                  <Route path="/templates" element={<TemplatesPage />} />
+                  <Route path="/templates/new" element={<CreateTemplatePage />} />
+                  <Route path="/templates/:templateId" element={<TemplatePage />} />
+                  <Route path="/templates/:templateId/edit" element={<UpdateTemplatePage />} />
+                  <Route path="/ads" element={<AdsPage />} />
+                  <Route path="/ads/new" element={<CreateAdPage />} />
+                  <Route path="/ads/:adId" element={<AdPage />} />
+                  <Route path="/ads/:adId/edit" element={<UpdateAdPage />} />
+                  <Route path="/creatives" element={<Navigate to="/ads" replace />} />
+                  <Route path="/creatives/new" element={<Navigate to="/ads/new" replace />} />
+                  <Route path="/creatives/:creativeId" element={<CreativeToAd />} />
+                  <Route path="/creatives/:creativeId/edit" element={<CreativeEditToAd />} />
+                  <Route path="/messages" element={<MessagesPage />} />
+                  <Route path="/messages/new" element={<CreateMessagePage />} />
+                  <Route path="/messages/:messageId" element={<MessagePage />} />
+                  <Route path="/messages/:messageId/edit" element={<UpdateMessagePage />} />
+                  <Route path="/messages/:messageId/send" element={<SendMessagePage />} />
+                  <Route
+                    path="/messages/:messageId/test-send/new"
+                    element={<TestSendMessagePage />}
+                  />
+                  <Route
+                    path="/messages/:messageId/performance"
+                    element={<MessagePerformancePage />}
+                  />
+                  <Route path="/automations" element={<AutomationsPage />} />
+                  <Route path="/automations/new" element={<CreateAutomationPage />} />
+                  <Route path="/automations/:automationId" element={<AutomationPage />} />
+                  <Route
+                    path="/automations/:automationId/edit"
+                    element={<UpdateAutomationPage />}
+                  />
+                  <Route
+                    path="/automations/:automationId/pause"
+                    element={<PauseAutomationPage />}
+                  />
+                  <Route
+                    path="/automations/:automationId/resume"
+                    element={<ResumeAutomationPage />}
+                  />
+                  <Route path="/automations/:automationId/logs" element={<AutomationLogsPage />} />
+                  <Route path="/campaigns" element={<CampaignsPage />} />
+                  <Route path="/campaigns/new" element={<CreateCampaignPage />} />
+                  <Route path="/campaigns/:campaignId" element={<CampaignPage />} />
+                  <Route path="/campaigns/:campaignId/edit" element={<UpdateCampaignPage />} />
+                  <Route path="/campaigns/:campaignId/pause" element={<PauseCampaignPage />} />
+                  <Route path="/campaigns/:campaignId/resume" element={<ResumeCampaignPage />} />
+                  <Route path="/campaigns/:campaignId/end" element={<EndCampaignPage />} />
+                  <Route
+                    path="/campaigns/:campaignId/duplicate"
+                    element={<DuplicateCampaignPage />}
+                  />
+                  <Route
+                    path="/campaigns/:campaignId/performance"
+                    element={<CampaignPerformancePage />}
+                  />
+                  <Route path="/campaigns/:campaignId/budget" element={<CampaignBudgetPage />} />
+                  <Route
+                    path="/campaigns/:campaignId/creatives/new"
+                    element={<CampaignCreateCreativePage />}
+                  />
+                  <Route
+                    path="/campaigns/:campaignId/creatives"
+                    element={<CampaignCreativesPage />}
+                  />
+                  <Route
+                    path="/campaigns/:campaignId/ad-units/new"
+                    element={<CampaignCreateAdUnitPage />}
+                  />
+                  <Route path="/campaigns/:campaignId/ad-units" element={<CampaignAdUnitsPage />} />
+                  <Route path="/campaigns/:campaignId/leads" element={<CampaignLeadsPage />} />
+                  <Route path="/campaigns/:campaignId/deployments" element={<DeploymentsPage />} />
+                  <Route
+                    path="/campaigns/:campaignId/deployments/new"
+                    element={<CreateDeploymentPage />}
+                  />
+                  <Route
+                    path="/deployments/:deploymentId/edit"
+                    element={<UpdateDeploymentPage />}
+                  />
+                  <Route path="/landing-page-templates" element={<LandingPageTemplatesPage />} />
+                  <Route
+                    path="/landing-page-templates/:templateId"
+                    element={<LandingPageTemplatePage />}
+                  />
+                  <Route path="/landing-pages" element={<LandingPagesPage />} />
+                  <Route path="/landing-pages/new" element={<CreateLandingPage />} />
+                  <Route path="/landing-pages/:landingPageId" element={<LandingPage />} />
+                  <Route
+                    path="/landing-pages/:landingPageId/edit"
+                    element={<UpdateLandingPage />}
+                  />
+                  <Route
+                    path="/landing-pages/:landingPageId/publish"
+                    element={<PublishLandingPage />}
+                  />
+                  <Route
+                    path="/landing-pages/:landingPageId/versions"
+                    element={<LandingPageVersionsPage />}
+                  />
+                  <Route
+                    path="/landing-pages/:landingPageId/export"
+                    element={<ExportLandingPage />}
+                  />
+                  <Route
+                    path="/landing-pages/:landingPageId/performance"
+                    element={<LandingPagePerformancePage />}
+                  />
+                  <Route path="/forms" element={<FormsPage />} />
+                  <Route path="/forms/new" element={<CreateFormPage />} />
+                  <Route path="/forms/:formId" element={<FormPage />} />
+                  <Route path="/forms/:formId/edit" element={<UpdateFormPage />} />
+                  <Route path="/ad-units" element={<AdUnitsPage />} />
+                  <Route path="/ad-units/new" element={<CreateAdUnitPage />} />
+                  <Route path="/ad-units/:adUnitId" element={<AdUnitPage />} />
+                  <Route path="/ad-units/:adUnitId/edit" element={<UpdateAdUnitPage />} />
+                  <Route path="/leads" element={<LeadsPage />} />
+                  <Route path="/leads/:leadId" element={<LeadPage />} />
+                  <Route path="/leads/:leadId/edit" element={<UpdateLeadPage />} />
+                  <Route path="/sales" element={<SalesPage />} />
+                  <Route path="/sales/new" element={<CreateSalePage />} />
+                  <Route path="/sales/:saleId" element={<SalePage />} />
+                  <Route path="/home" element={<HomeRoute />} />
+                  <Route path="/results" element={<ResultsSummaryPage />} />
+                  <Route path="/platforms" element={<PlatformsPage />} />
+                  <Route
+                    path="/affiliates"
+                    element={
+                      <RequireRole role="ADMIN">
+                        <AffiliatesPage />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/affiliates/new"
+                    element={
+                      <RequireRole role="ADMIN">
+                        <CreateAffiliatePage />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/affiliates/classes"
+                    element={
+                      <RequireRole role="ADMIN">
+                        <AffiliateClassesPage />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/affiliates/payouts"
+                    element={
+                      <RequireRole role="ADMIN">
+                        <AffiliatePayoutsPage />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/affiliates/:affiliateId"
+                    element={
+                      <RequireRole role="ADMIN">
+                        <AffiliateDetailPage />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/billing"
+                    element={
+                      <RequireRole role="ADMIN">
+                        <BillingPage />
+                      </RequireRole>
+                    }
+                  />
+                </Route>
                 <Route
                   path="/portal"
                   element={
@@ -542,7 +576,7 @@ export function App() {
             <Route path="*" element={<Navigate to="/home" replace />} />
           </Routes>
         </Suspense>
-      </ErrorBoundary>
+      </ResettableErrorBoundary>
     </BrowserRouter>
   )
 }

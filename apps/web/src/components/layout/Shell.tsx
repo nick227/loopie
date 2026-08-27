@@ -1,7 +1,6 @@
-import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   Home,
-  Megaphone,
   Image,
   Mail,
   LogOut,
@@ -9,6 +8,7 @@ import {
   CreditCard,
   Clapperboard,
   LayoutTemplate,
+  Users,
   type LucideIcon,
   Bell,
   Search,
@@ -21,10 +21,10 @@ type NavItem = { to: string; label: string; icon: LucideIcon; end?: boolean }
 
 const SHOP_NAV: NavItem[] = [
   { to: '/home', label: 'Home', icon: Home },
-  { to: '/campaigns', label: 'Campaigns', icon: Megaphone },
+  { to: '/contacts', label: 'CRM', icon: Users },
   { to: '/messages', label: 'Messages', icon: Mail },
-  { to: '/ads', label: 'Ads', icon: Image },
-  { to: '/landing-pages', label: 'Pages', icon: LayoutTemplate },
+  { to: '/ads', label: 'Advertisements', icon: Image },
+  { to: '/landing-pages', label: 'Pages', icon: LayoutTemplate, end: true },
   { to: '/media', label: 'Media', icon: Clapperboard },
 ]
 
@@ -43,7 +43,6 @@ const AFFILIATE_NAV: NavItem[] = [
 export function Shell() {
   const logout = useLogout()
   const navigate = useNavigate()
-  const location = useLocation()
   const me = useCurrentUser()
   const role = me.data?.data?.role ?? 'USER'
   const navItems = role === 'ADMIN' ? ADMIN_NAV : role === 'AFFILIATE' ? AFFILIATE_NAV : SHOP_NAV
@@ -107,13 +106,18 @@ export function Shell() {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <input
                 type="search"
+                aria-label="Search"
                 placeholder="Search..."
                 className="h-9 w-full rounded-full border border-input-border bg-surface pl-9 pr-4 text-sm outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary transition-all"
               />
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <button className="h-9 w-9 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+            <button
+              type="button"
+              aria-label="Notifications"
+              className="h-9 w-9 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
               <Bell size={18} />
             </button>
             <div className="h-8 w-8 rounded-full bg-accent border border-border flex items-center justify-center overflow-hidden cursor-pointer">
@@ -133,7 +137,10 @@ export function Shell() {
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-background/80 backdrop-blur-md flex justify-around px-2 py-3 z-50 pb-[env(safe-area-inset-bottom)]">
+      <nav
+        aria-label="Primary navigation"
+        className="md:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-background/80 backdrop-blur-md flex overflow-x-auto px-2 py-3 z-50 pb-[env(safe-area-inset-bottom)]"
+      >
         {navItems.map((item) => (
           <NavLink
             key={item.to}
@@ -141,7 +148,7 @@ export function Shell() {
             end={item.end}
             className={({ isActive }) =>
               cn(
-                'flex flex-col items-center gap-1 px-4 py-1.5 rounded-lg text-[11px] font-medium transition-colors',
+                'flex min-w-[4.5rem] flex-1 flex-col items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-colors',
                 isActive ? 'text-primary' : 'text-muted-foreground',
               )
             }

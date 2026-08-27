@@ -81,7 +81,7 @@ ${fieldsHtml}
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sessionId: params.get('sid') || ${issuedSid},
+        sessionId: (window.Loopie && window.Loopie.session && window.Loopie.session.token) || params.get('sid') || ${issuedSid},
         data: data,
         utmSource: params.get('utm_source') || undefined,
         utmMedium: params.get('utm_medium') || undefined,
@@ -112,6 +112,8 @@ export function renderLandingPageHtml(input: {
   submitActionUrl: string
   sessionToken?: string
   adSlots?: { placement: string; embedUrl: string | null }[]
+  runtimeScriptUrl?: string
+  businessId?: string
 }): string {
   const sections = [...(input.templateSchema.sections ?? [])].sort((a, b) => a.order - b.order)
   const formHtml = renderFormHtml(input.form, input.submitActionUrl, input.sessionToken)
@@ -133,6 +135,11 @@ export function renderLandingPageHtml(input: {
   const headingFont = theme.headingFont ?? '"IBM Plex Serif", Georgia, serif'
   const googleFonts =
     theme.googleFonts ?? 'family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600'
+
+  const runtime =
+    input.runtimeScriptUrl && input.businessId
+      ? `<script src="${escapeHtml(input.runtimeScriptUrl)}" data-business="${escapeHtml(input.businessId)}"></script>`
+      : ''
 
   return `<!doctype html>
 <html lang="en">
@@ -180,6 +187,7 @@ button[type="submit"] { padding: 0.8rem 1.4rem; background: var(--lp-primary); c
 </head>
 <body>
 ${bodyHtml}
+${runtime}
 </body>
 </html>`
 }

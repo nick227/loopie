@@ -1,5 +1,5 @@
 import { db, resolveVisitorSid } from '@project/db'
-import { landingPageSubmitUrl } from '../lib/urls'
+import { landingPageSubmitUrl, PUBLIC_SERVER_URL } from '../lib/urls'
 import { renderLandingPageHtml } from '../lib/renderLandingPage'
 import { snapshotSlots, type AdSlotSnapshotItem } from '../lib/adSlots'
 import { snapshotForm, isFormLive, type FormSnapshot } from '../lib/formSnapshot'
@@ -68,6 +68,8 @@ export class LandingPageRenderService {
         submitActionUrl: landingPageSubmitUrl(page.id),
         sessionToken: visitor.token,
         adSlots,
+        runtimeScriptUrl: `${PUBLIC_SERVER_URL}/loopie.js`,
+        businessId: page.businessId,
       }),
     }
   }

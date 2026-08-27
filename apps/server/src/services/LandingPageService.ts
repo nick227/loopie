@@ -6,7 +6,12 @@ import {
 } from '@project/db'
 import type { Prisma } from '@prisma/client'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
-import { hostedPageUrl, landingPagePreviewUrl, landingPageSubmitUrl } from '../lib/urls'
+import {
+  hostedPageUrl,
+  landingPagePreviewUrl,
+  landingPageSubmitUrl,
+  PUBLIC_SERVER_URL,
+} from '../lib/urls'
 import { renderLandingPageHtml } from '../lib/renderLandingPage'
 import { snapshotForm } from '../lib/formSnapshot'
 import { ACTIVE_SALE_WHERE } from '../lib/salePredicates'
@@ -326,6 +331,8 @@ export class LandingPageService {
       form,
       submitActionUrl: landingPageSubmitUrl(page.id),
       adSlots: snapshotSlots(slots),
+      runtimeScriptUrl: `${PUBLIC_SERVER_URL}/loopie.js`,
+      businessId: page.businessId,
     })
     return { filename: `${page.slug}.html`, html }
   }
