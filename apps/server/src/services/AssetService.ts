@@ -2,7 +2,7 @@ import { db } from '@project/db'
 import type { Asset, Prisma } from '@prisma/client'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { aspectRatio, matchPlacements, type PlacementId } from '../lib/assetSpecs'
-import { saveMediaFile } from '../lib/saveUpload'
+import { saveMediaFile } from '../lib/mediaStorage'
 
 type AssetType = 'IMAGE' | 'TEXT' | 'VIDEO' | 'AUDIO'
 

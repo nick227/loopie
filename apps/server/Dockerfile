@@ -37,6 +37,8 @@ RUN apk add --no-cache openssl
 
 WORKDIR /app
 ENV NODE_ENV=production
+# Durable media files: attach a Railway volume at /data/uploads and set UPLOAD_DIR=/data/uploads.
+# Default without that is ./uploads, which is ephemeral across deploys.
 
 # Needs packages/api-spec too (unlike ad-server) — index.ts reads openapi.yaml from it directly
 # at startup, both to drive fastify-openapi-glue's spec-based routing and for the /docs UI.
