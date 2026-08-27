@@ -6,8 +6,18 @@ export async function trackDeploymentClick(request: any, reply: any) {
   const { redirectUrl } = await attributionService.trackClick(
     request.params.deploymentId,
     request.query.sid,
+    request.query.click_id,
   )
-  return reply.redirect(302, redirectUrl)
+  return reply.header('Cache-Control', 'no-store').redirect(302, redirectUrl)
+}
+
+export async function trackAdRunClick(request: any, reply: any) {
+  const { redirectUrl } = await attributionService.trackAdRunClick(
+    request.params.adRunId,
+    request.query.sid,
+    request.query.click_id,
+  )
+  return reply.header('Cache-Control', 'no-store').redirect(302, redirectUrl)
 }
 
 export async function trackAffiliateClick(request: any, reply: any) {
@@ -15,7 +25,7 @@ export async function trackAffiliateClick(request: any, reply: any) {
     request.params.affiliateId,
     request.query.sid,
   )
-  return reply.redirect(302, redirectUrl)
+  return reply.header('Cache-Control', 'no-store').redirect(302, redirectUrl)
 }
 
 export async function submitLeadForm(request: any, reply: any) {

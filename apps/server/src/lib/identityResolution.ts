@@ -1,18 +1,29 @@
-import type { Prisma, SourceType } from '@prisma/client'
+import type { Contact, SourceType } from '@prisma/client'
 import { isUniqueConflict } from './prismaError'
 import { scheduleAutomationRuns } from './automationScheduling'
+import { matchIdentity, type DbClient } from './identityMatch'
+import { fillContactBlanks, syncPrimaryIdentifiers } from './contactIdentifiers'
+import { upsertExternalRecord, type ExternalRef } from './externalRecords'
 
+export type { DbClient }
 export const OPEN_SLOT = 'OPEN'
-
-export type DbClient = Prisma.TransactionClient
 
 export type Attribution = {
   sourceType: SourceType
   sourceMessageId?: string | null
   sourceDeploymentId?: string | null
+  sourceAdRunId?: string | null
   sourceAdUnitId?: string | null
   clickId?: string | null
   landingSessionId?: string | null
+}
+
+export type ContactInput = {
+  name: string
+  email?: string | null
+  phone?: string | null
+  company?: string | null
+  source?: string
 }
 
 export function normalizeEmail(value?: string | null): string | null {
@@ -32,45 +43,84 @@ export function tombstoneIdentity(value: string | null, id: string): string | nu
   return `deleted:${id}:${value}`
 }
 
-async function findLiveContact(
-  tx: DbClient,
-  businessId: string,
-  email: string | null,
-  phone: string | null,
-) {
-  if (email) {
-    const byEmail = await tx.contact.findFirst({ where: { businessId, email, deletedAt: null } })
-    if (byEmail) return byEmail
-  }
-  if (phone) {
-    return tx.contact.findFirst({ where: { businessId, phone, deletedAt: null } })
-  }
-  return null
-}
+export type ResolveContactResult =
+  | { status: 'resolved'; contact: Contact; created: boolean }
+  | { status: 'ambiguous'; candidateIds: string[] }
 
-async function insertOrReuseContact(
+export async function resolveContact(
   tx: DbClient,
   businessId: string,
-  input: { name: string; email: string | null; phone: string | null; source?: string },
-) {
-  const existing = await findLiveContact(tx, businessId, input.email, input.phone)
-  if (existing) return existing
+  input: ContactInput,
+  external?: ExternalRef,
+): Promise<ResolveContactResult> {
+  const email = normalizeEmail(input.email)
+  const phone = normalizePhone(input.phone)
+  const source = input.source ?? 'landing-page'
+  const match = await matchIdentity(tx, businessId, {
+    email,
+    phone,
+    externalId: external?.externalId,
+    scopeKey: external?.scopeKey,
+  })
+
+  if (match.status === 'ambiguous') {
+    if (external) {
+      await upsertExternalRecord(tx, {
+        businessId,
+        contactId: null,
+        matchStatus: 'AMBIGUOUS',
+        candidateContactIds: match.candidateIds,
+        ...external,
+      })
+    }
+    return { status: 'ambiguous', candidateIds: match.candidateIds }
+  }
+
+  if (match.status === 'resolved') {
+    const contact = await fillContactBlanks(
+      tx,
+      match.contact,
+      { email, phone, company: input.company },
+      source,
+      external?.integrationId,
+    )
+    if (external) {
+      await upsertExternalRecord(tx, {
+        businessId,
+        contactId: contact.id,
+        matchStatus: 'LINKED',
+        ...external,
+      })
+    }
+    return { status: 'resolved', contact, created: false }
+  }
 
   try {
-    return await tx.contact.create({
+    const contact = await tx.contact.create({
       data: {
         businessId,
         name: input.name,
-        email: input.email,
-        phone: input.phone,
-        source: input.source ?? 'landing-page',
+        email,
+        phone,
+        company: input.company,
+        source,
       },
     })
+    await syncPrimaryIdentifiers(tx, contact, source, external?.integrationId)
+    if (external) {
+      await upsertExternalRecord(tx, {
+        businessId,
+        contactId: contact.id,
+        matchStatus: 'LINKED',
+        ...external,
+      })
+    }
+    return { status: 'resolved', contact, created: true }
   } catch (err) {
     if (!isUniqueConflict(err)) throw err
-    const raced = await findLiveContact(tx, businessId, input.email, input.phone)
-    if (!raced) throw err
-    return raced
+    const raced = await matchIdentity(tx, businessId, { email, phone })
+    if (raced.status !== 'resolved') throw err
+    return { status: 'resolved', contact: raced.contact, created: false }
   }
 }
 
@@ -91,6 +141,7 @@ async function insertOrReuseOpenLead(
         sourceType: attribution.sourceType,
         sourceMessageId: attribution.sourceMessageId ?? null,
         sourceDeploymentId: attribution.sourceDeploymentId ?? null,
+        sourceAdRunId: attribution.sourceAdRunId ?? null,
         sourceAdUnitId: attribution.sourceAdUnitId ?? null,
         clickId: attribution.clickId ?? null,
         landingSessionId: attribution.landingSessionId ?? null,
@@ -106,30 +157,22 @@ async function insertOrReuseOpenLead(
   }
 }
 
-// Canonical identity transition: anonymous -> Contact -> one open Lead.
-// Callers must run this inside db.$transaction so submit/sale stay atomic with it.
 export async function resolveContactAndLead(
   tx: DbClient,
   businessId: string,
-  contactInput: { name: string; email?: string | null; phone?: string | null; source?: string },
+  contactInput: ContactInput,
   attribution: Attribution,
 ) {
-  const email = normalizeEmail(contactInput.email)
-  const phone = normalizePhone(contactInput.phone)
-  const contact = await insertOrReuseContact(tx, businessId, {
-    name: contactInput.name,
-    email,
-    phone,
-    source: contactInput.source,
-  })
-
+  const resolved = await resolveContact(tx, businessId, contactInput)
+  if (resolved.status === 'ambiguous') {
+    throw {
+      statusCode: 409,
+      message: 'Ambiguous contact match — email and phone belong to different people',
+    }
+  }
+  const contact = resolved.contact
   const { lead, created } = await insertOrReuseOpenLead(tx, businessId, contact.id, attribution)
 
-  // Affiliate referral attribution is deliberately a separate dimension from sourceType/source*Id
-  // above — this stamps Lead.referringAffiliateId (who gets credit) without touching sourceType
-  // (how the lead reached us), which both existing submission paths already resolve independently.
-  // Only a genuinely new lead gets stamped — same "first touch, not retroactive" rule as the
-  // LEAD_CREATED automation trigger below.
   if (created && attribution.landingSessionId) {
     const click = await tx.affiliateReferralClick.findFirst({
       where: { sessionId: attribution.landingSessionId },
@@ -150,12 +193,11 @@ export async function resolveContactAndLead(
       type: 'FORM_SUBMITTED',
       sourceType: attribution.sourceType,
       sourceDeploymentId: attribution.sourceDeploymentId ?? null,
+      sourceAdRunId: attribution.sourceAdRunId ?? null,
       sourceAdUnitId: attribution.sourceAdUnitId ?? null,
     },
   })
 
-  // Only a genuinely new lead is a LEAD_CREATED trigger event — reusing an already-open lead
-  // (a repeat visit) isn't a new occurrence for automations to react to.
   if (created) {
     await scheduleAutomationRuns(tx, {
       businessId,
@@ -167,5 +209,5 @@ export async function resolveContactAndLead(
     })
   }
 
-  return { contact, lead }
+  return { contact, lead, leadCreated: created }
 }

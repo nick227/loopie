@@ -18,7 +18,13 @@ export { issueSid, verifySid, resolveVisitorSid } from './signedSid'
 export { hashSessionToken, randomSessionToken } from './sessionToken'
 export { consumeRateLimit, cleanupExpiredRateLimitBuckets, type RateLimitResult } from './rateLimit'
 export { assertTestDatabaseUrl } from './testGuard'
-export { withSid, clickRedirectUrl, trackBaseClick, isCampaignEnded } from './tracking'
+export {
+  withSid,
+  clickRedirectUrl,
+  trackBaseClick,
+  isCampaignEnded,
+  isAdRunEnded,
+} from './tracking'
 export { absoluteMediaUrl } from './mediaUrl'
 export {
   SYSTEM_LEAD_GEN_TEMPLATE_ID,

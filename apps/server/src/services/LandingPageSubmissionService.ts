@@ -2,6 +2,7 @@ import { db, verifySid } from '@project/db'
 import type { Prisma, SourceType } from '@prisma/client'
 import { resolveContactAndLead } from '../lib/identityResolution'
 import { snapshotForm, isFormLive, type FormSnapshot } from '../lib/formSnapshot'
+import { resolveAttributionSource, sourceTypeForKind } from '../lib/attributionSource'
 
 export class LandingPageSubmissionService {
   async submit(
@@ -63,9 +64,16 @@ export class LandingPageSubmissionService {
       const event = await tx.attributionEvent.findFirst({
         where: { sessionId },
         orderBy: { createdAt: 'asc' },
-        include: { deployment: { include: { campaign: true } }, adUnit: true },
+        include: {
+          deployment: { include: { campaign: true } },
+          adRun: { include: { advertisement: true } },
+          adUnit: true,
+        },
       })
-      const eventBusinessId = event?.deployment?.campaign.businessId ?? event?.adUnit?.businessId
+      const eventBusinessId =
+        event?.adRun?.advertisement.businessId ??
+        event?.deployment?.campaign.businessId ??
+        event?.adUnit?.businessId
       const attributed = event && eventBusinessId === page.businessId ? event : null
 
       const emailField = form.fields.find((f) => f.type === 'EMAIL')
@@ -94,15 +102,19 @@ export class LandingPageSubmissionService {
           utmContent: input.utmContent ?? attributed?.utmContent,
           utmTerm: input.utmTerm ?? attributed?.utmTerm,
           sourceDeploymentId: attributed?.deploymentId,
+          sourceAdRunId: attributed?.adRunId,
           sourceAdUnitId: attributed?.adUnitId,
         },
       })
 
-      const sourceType: SourceType = attributed?.deploymentId
-        ? 'DEPLOYMENT'
-        : attributed?.adUnitId
-          ? 'AD_UNIT'
-          : 'MANUAL'
+      // Canonical attribution-source resolution — see AttributionService.submitForm's identical
+      // use of this helper. AttributionEvent's own columns have no "source" prefix, adapted here.
+      const source = resolveAttributionSource({
+        sourceAdRunId: attributed?.adRunId,
+        sourceDeploymentId: attributed?.deploymentId,
+        sourceAdUnitId: attributed?.adUnitId,
+      })
+      const sourceType: SourceType = source ? sourceTypeForKind(source.kind) : 'MANUAL'
       const { contact, lead, leadCreated } = await resolveContactAndLead(
         tx,
         page.businessId,
@@ -110,6 +122,7 @@ export class LandingPageSubmissionService {
         {
           sourceType,
           sourceDeploymentId: attributed?.deploymentId,
+          sourceAdRunId: attributed?.adRunId,
           sourceAdUnitId: attributed?.adUnitId,
           clickId: attributed?.clickId,
           landingSessionId: sessionId,
@@ -122,11 +135,17 @@ export class LandingPageSubmissionService {
       })
       // Only a genuinely new Lead is a new conversion — see AttributionService.submitForm's
       // identical fix. A contact with an already-open Lead who submits a second, different
-      // landing page in a fresh session must not inflate that page's deployment/ad-unit
+      // landing page in a fresh session must not inflate that page's deployment/ad-run/ad-unit
       // conversions for a Lead that was merely reused.
       if (leadCreated && attributed?.deploymentId) {
         await tx.deployment.update({
           where: { id: attributed.deploymentId },
+          data: { conversions: { increment: 1 } },
+        })
+      }
+      if (leadCreated && attributed?.adRunId) {
+        await tx.adRun.update({
+          where: { id: attributed.adRunId },
           data: { conversions: { increment: 1 } },
         })
       }
