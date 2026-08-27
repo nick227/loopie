@@ -51,8 +51,7 @@ export function AdEditor({
   onPauseAll?: () => void
 }) {
   const [open, setOpen] = useState(false)
-  const [frameId, setFrameId] = useState<PreviewFrameId>('native')
-  const [scale, setScale] = useState(1)
+  const [frameId, setFrameId] = useState<PreviewFrameId>('desktop')
   const [selected, setSelected] = useState<string[]>([])
   const [budgets, setBudgets] = useState<Record<string, number>>({})
   const pages = useFlatPages(useLandingPages({ limit: 100 }))
@@ -74,14 +73,7 @@ export function AdEditor({
       <div className="space-y-2">
         <p className="text-center text-sm font-medium">Media</p>
         {onDeck ? (
-          <AdMediaStage
-            asset={onDeck}
-            frameId={frameId}
-            scale={scale}
-            onFrame={setFrameId}
-            onScale={setScale}
-            onRemove={() => onAssetIds([])}
-          />
+          <AdMediaStage asset={onDeck} frameId={frameId} onFrame={setFrameId} />
         ) : onDeckId ? (
           <Skeleton className="min-h-56 w-full rounded-xl" />
         ) : (

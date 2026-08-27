@@ -1,22 +1,14 @@
-export type PreviewFrameId = 'native' | 'meta' | 'tiktok' | 'youtube' | 'pages'
+export type PreviewFrameId = 'desktop' | 'mobile'
 
 export type PreviewFrame = {
   id: PreviewFrameId
   label: string
-  ratio: number | null
-  chrome: 'none' | 'phone' | 'player' | 'page'
 }
 
 export const PREVIEW_FRAMES: PreviewFrame[] = [
-  { id: 'native', label: 'Original', ratio: null, chrome: 'none' },
-  { id: 'meta', label: 'Meta', ratio: 4 / 5, chrome: 'phone' },
-  { id: 'tiktok', label: 'TikTok', ratio: 9 / 16, chrome: 'phone' },
-  { id: 'youtube', label: 'YouTube', ratio: 16 / 9, chrome: 'player' },
-  { id: 'pages', label: 'Pages', ratio: 16 / 9, chrome: 'page' },
+  { id: 'desktop', label: 'Desktop' },
+  { id: 'mobile', label: 'Mobile' },
 ]
-
-export const PREVIEW_MAX = 320
-export const RATIO_TOLERANCE = 0.03
 
 export type PaidTarget = {
   key: 'META_FEED' | 'META_REEL' | 'TIKTOK_FEED'
@@ -58,26 +50,4 @@ export function runDestinationKey(run: {
   if (run.platform === 'TIKTOK') return 'TIKTOK_FEED'
   if (run.platform === 'META') return 'META_FEED'
   return `${run.platform}_${run.placement ?? 'FEED'}`
-}
-
-export function parseAspectRatio(
-  aspectRatio?: string | null,
-  widthPx?: number | null,
-  heightPx?: number | null,
-): number | null {
-  if (widthPx && heightPx) return widthPx / heightPx
-  if (!aspectRatio) return null
-  const [w, h] = aspectRatio.split(':').map(Number)
-  if (!w || !h) return null
-  return w / h
-}
-
-export function frameBox(ratio: number, scale: number) {
-  const max = PREVIEW_MAX * scale
-  if (ratio >= 1) return { width: max, height: max / ratio }
-  return { width: max * ratio, height: max }
-}
-
-export function ratioFits(mediaRatio: number, frameRatio: number) {
-  return Math.abs(mediaRatio - frameRatio) / frameRatio <= RATIO_TOLERANCE
 }
