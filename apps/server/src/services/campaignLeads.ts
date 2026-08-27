@@ -9,14 +9,18 @@ const FORMAT_LABEL: Record<string, string> = {
 
 type FollowUpStatus = 'NONE' | 'SCHEDULED' | 'DUE' | 'SENT' | 'STOPPED'
 
-function followUpForContact(
-  runs: { status: string; runAt: Date }[],
-): { status: FollowUpStatus; at: Date | null } {
+function followUpForContact(runs: { status: string; runAt: Date }[]): {
+  status: FollowUpStatus
+  at: Date | null
+} {
   const pending = runs
     .filter((run) => run.status === 'PENDING')
     .sort((a, b) => a.runAt.getTime() - b.runAt.getTime())[0]
   if (pending) {
-    return { status: pending.runAt.getTime() <= Date.now() ? 'DUE' : 'SCHEDULED', at: pending.runAt }
+    return {
+      status: pending.runAt.getTime() <= Date.now() ? 'DUE' : 'SCHEDULED',
+      at: pending.runAt,
+    }
   }
   const last = [...runs].sort((a, b) => b.runAt.getTime() - a.runAt.getTime())[0]
   if (!last) return { status: 'NONE', at: null }
@@ -47,13 +51,20 @@ export async function listCampaignLeadOutcomes(
   const leads = await db.lead.findMany({
     where: {
       businessId,
-      OR: [{ sourceDeployment: { campaignId } }, { sourceAdUnit: { campaignId } }],
+      OR: [
+        { sourceDeployment: { campaignId } },
+        { sourceAdUnit: { campaignId } },
+        // AdRun's campaign association is via the optional CampaignAdRun join, not a direct
+        // campaignId field — see CLAUDE.md's Media/Advertisement/AdRun migration audit.
+        { sourceAdRun: { campaignLinks: { some: { campaignId } } } },
+      ],
       ...(AND.length ? { AND } : {}),
     },
     include: {
       contact: { select: { id: true, name: true } },
       sales: { select: { amount: true } },
       sourceDeployment: { select: { platform: true, creative: { select: { name: true } } } },
+      sourceAdRun: { select: { platform: true, advertisement: { select: { name: true } } } },
       sourceAdUnit: { select: { format: true, creative: { select: { name: true } } } },
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -63,7 +74,8 @@ export async function listCampaignLeadOutcomes(
   const hasMore = leads.length > limit
   const items = hasMore ? leads.slice(0, limit) : leads
   const last = items[items.length - 1]
-  const nextCursor = hasMore && last ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id }) : null
+  const nextCursor =
+    hasMore && last ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id }) : null
   const contactIds = items.map((lead) => lead.contactId)
 
   const [interactions, runs] = contactIds.length
@@ -81,7 +93,10 @@ export async function listCampaignLeadOutcomes(
   const lastInteraction = new Map<string, { type: string; occurredAt: Date }>()
   for (const interaction of interactions) {
     if (!lastInteraction.has(interaction.contactId)) {
-      lastInteraction.set(interaction.contactId, { type: interaction.type, occurredAt: interaction.occurredAt })
+      lastInteraction.set(interaction.contactId, {
+        type: interaction.type,
+        occurredAt: interaction.occurredAt,
+      })
     }
   }
   const runsByContact = new Map<string, { status: string; runAt: Date }[]>()
@@ -97,8 +112,17 @@ export async function listCampaignLeadOutcomes(
       const estimated = lead.estimatedValue !== null ? Number(lead.estimatedValue) : null
       const attributedValue = saleTotal > 0 ? saleTotal : estimated
       const isAdUnit = Boolean(lead.sourceAdUnitId)
-      const creativeName = isAdUnit ? (lead.sourceAdUnit?.creative.name ?? null) : (lead.sourceDeployment?.creative.name ?? null)
-      const platform = isAdUnit ? 'LOOPIE' : (lead.sourceDeployment?.platform ?? null)
+      const isAdRun = Boolean(lead.sourceAdRunId)
+      const creativeName = isAdUnit
+        ? (lead.sourceAdUnit?.creative.name ?? null)
+        : isAdRun
+          ? (lead.sourceAdRun?.advertisement.name ?? null)
+          : (lead.sourceDeployment?.creative.name ?? null)
+      const platform = isAdUnit
+        ? 'LOOPIE'
+        : isAdRun
+          ? (lead.sourceAdRun?.platform ?? null)
+          : (lead.sourceDeployment?.platform ?? null)
       const sourceLabel = isAdUnit
         ? `${creativeName ?? 'Creative'} · ${FORMAT_LABEL[lead.sourceAdUnit?.format ?? ''] ?? 'Ad unit'}`
         : `${creativeName ?? 'Creative'} · ${platform}`
@@ -110,7 +134,7 @@ export async function listCampaignLeadOutcomes(
         contactName: lead.contact.name,
         acquiredAt: lead.createdAt.toISOString(),
         stage: lead.stage,
-        sourceType: isAdUnit ? 'AD_UNIT' : 'DEPLOYMENT',
+        sourceType: isAdUnit ? 'AD_UNIT' : isAdRun ? 'AD_RUN' : 'DEPLOYMENT',
         platform,
         creativeName,
         sourceLabel,

@@ -7,6 +7,7 @@ import {
   isWithinEligibilityWindow,
   resolveDealPolicy,
 } from '../lib/affiliateRates'
+import { requireIdempotencyKey } from '../lib/finance/money'
 import { FinanceService } from './FinanceService'
 
 const financeService = new FinanceService()
@@ -22,10 +23,12 @@ function toSaleDTO(sale: any) {
     productOrService: sale.productOrService,
     sourceType: sale.sourceType,
     sourceMessageId: sale.sourceMessageId,
-        sourceDeploymentId: sale.sourceDeploymentId,
-        sourceAdUnitId: sale.sourceAdUnitId,
-        notes: sale.notes,
+    sourceDeploymentId: sale.sourceDeploymentId,
+    sourceAdRunId: sale.sourceAdRunId,
+    sourceAdUnitId: sale.sourceAdUnitId,
+    notes: sale.notes,
     reversedAt: sale.reversedAt?.toISOString() ?? null,
+    idempotencyKey: sale.idempotencyKey ?? null,
     createdAt: sale.createdAt.toISOString(),
   }
 }
@@ -53,81 +56,145 @@ export class SaleService {
     const hasMore = sales.length > limit
     const items = hasMore ? sales.slice(0, limit) : sales
     const last = items[items.length - 1]
-    const nextCursor = hasMore && last ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id }) : null
+    const nextCursor =
+      hasMore && last
+        ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
+        : null
     return { data: items.map(toSaleDTO), meta: { hasMore, nextCursor } }
   }
 
   // Contact lifecycle becomes CUSTOMER (derived, not stored) and the linked Lead moves to WON —
   // docs/07-sales-flow-spec.md "When marked Won". Attribution follows the linked Lead's source
   // when known, otherwise the sale is MANUAL.
+  //
+  // Idempotent on (businessId, idempotencyKey) — same convention as every finance-writing
+  // endpoint (see apps/server/src/services/finance/fundingOps.ts). A retried request or a
+  // double-submitted form must return the original Sale, not record the economic event twice
+  // (found live: the pre-idempotency version double-recorded revenue on retry AND double-paid
+  // affiliate commission, since the commission's own idempotencyKey was derived from the
+  // duplicate Sale's freshly-minted id rather than a stable identity).
   async create(businessId: string, data: any) {
-    const contact = await db.contact.findFirst({ where: { id: data.contactId, businessId, deletedAt: null } })
+    const idempotencyKey = requireIdempotencyKey(data.idempotencyKey)
+    const existing = await db.sale.findUnique({
+      where: { businessId_idempotencyKey: { businessId, idempotencyKey } },
+    })
+    if (existing) return toSaleDTO(existing)
+
+    const contact = await db.contact.findFirst({
+      where: { id: data.contactId, businessId, deletedAt: null },
+    })
     if (!contact) throw { statusCode: 404, message: 'Contact not found' }
 
-    const result = await db.$transaction(async (tx) => {
-      let lead = null
-      if (data.leadId) {
-        lead = await tx.lead.findFirst({ where: { id: data.leadId, businessId } })
-        if (!lead) throw { statusCode: 404, message: 'Lead not found' }
-        if (lead.contactId !== data.contactId) {
-          throw { statusCode: 400, message: 'Lead does not belong to this contact' }
+    let result
+    try {
+      result = await db.$transaction(async (tx) => {
+        let lead = null
+        if (data.leadId) {
+          lead = await tx.lead.findFirst({ where: { id: data.leadId, businessId } })
+          if (!lead) throw { statusCode: 404, message: 'Lead not found' }
+          if (lead.contactId !== data.contactId) {
+            throw { statusCode: 400, message: 'Lead does not belong to this contact' }
+          }
+          // Repeat-purchase policy (explicit, per user decision): a sale credits the lead/
+          // opportunity it belongs to. Reusing an already-closed Lead for a second sale would
+          // silently keep crediting whatever campaign originally acquired it, years later if
+          // need be — campaign-attributed revenue and customer-lifetime revenue must not blend.
+          // A repeat purchase must attach to a new Lead (fresh acquisition touch, or one created
+          // by hand) to be measured as a new conversion; passing no leadId at all still works —
+          // it's just recorded as a standalone MANUAL sale with no campaign attribution.
+          if (lead.closedAt) {
+            throw {
+              statusCode: 409,
+              message:
+                'This lead is already closed — record a new Lead for a repeat purchase, or omit leadId for a standalone sale.',
+            }
+          }
         }
-      }
 
-      const sourceType = lead ? lead.sourceType : 'MANUAL'
-      const sourceMessageId = lead?.sourceMessageId ?? null
-      const sourceDeploymentId = lead?.sourceDeploymentId ?? null
-      const sourceAdUnitId = lead?.sourceAdUnitId ?? null
+        const sourceType = lead ? lead.sourceType : 'MANUAL'
+        const sourceMessageId = lead?.sourceMessageId ?? null
+        const sourceDeploymentId = lead?.sourceDeploymentId ?? null
+        const sourceAdRunId = lead?.sourceAdRunId ?? null
+        const sourceAdUnitId = lead?.sourceAdUnitId ?? null
 
-      const sale = await tx.sale.create({
-        data: {
-          businessId,
-          contactId: data.contactId,
-          leadId: data.leadId,
-          amount: data.amount,
-          date: new Date(data.date),
-          productOrService: data.productOrService,
-          sourceType,
-          sourceMessageId,
-          sourceDeploymentId,
-          sourceAdUnitId,
-          notes: data.notes,
-        },
-      })
-
-      if (lead && lead.stage !== 'WON') {
-        await tx.lead.update({
-          where: { id: lead.id },
-          data: { stage: 'WON', closedAt: new Date(), openSlot: null },
+        const sale = await tx.sale.create({
+          data: {
+            businessId,
+            contactId: data.contactId,
+            leadId: data.leadId,
+            amount: data.amount,
+            date: new Date(data.date),
+            productOrService: data.productOrService,
+            sourceType,
+            sourceMessageId,
+            sourceDeploymentId,
+            sourceAdRunId,
+            sourceAdUnitId,
+            notes: data.notes,
+            idempotencyKey,
+          },
         })
-      }
 
-      await tx.contact.update({ where: { id: data.contactId }, data: { lastContactedAt: new Date() } })
-      await tx.interaction.create({
-        data: {
-          businessId,
-          contactId: data.contactId,
-          type: 'SALE_RECORDED',
-          sourceType,
-          sourceMessageId,
-          sourceDeploymentId,
-          sourceAdUnitId,
-          metadata: { amount: data.amount },
-        },
-      })
-
-      const affiliate = lead?.referringAffiliateId
-        ? await tx.affiliate.findUnique({
-            where: { id: lead.referringAffiliateId },
-            include: affiliatePolicyInclude,
+        if (lead && lead.stage !== 'WON') {
+          await tx.lead.update({
+            where: { id: lead.id },
+            data: { stage: 'WON', closedAt: new Date(), openSlot: null },
           })
-        : null
+        }
 
-      return { sale, leadId: lead?.id ?? null, affiliate, lead }
-    })
+        await tx.contact.update({
+          where: { id: data.contactId },
+          data: { lastContactedAt: new Date() },
+        })
+        await tx.interaction.create({
+          data: {
+            businessId,
+            contactId: data.contactId,
+            type: 'SALE_RECORDED',
+            sourceType,
+            sourceMessageId,
+            sourceDeploymentId,
+            sourceAdRunId,
+            sourceAdUnitId,
+            metadata: { amount: data.amount },
+          },
+        })
+
+        const affiliate = lead?.referringAffiliateId
+          ? await tx.affiliate.findUnique({
+              where: { id: lead.referringAffiliateId },
+              include: affiliatePolicyInclude,
+            })
+          : null
+
+        return { sale, leadId: lead?.id ?? null, affiliate, lead }
+      })
+    } catch (err) {
+      // A concurrent duplicate request can race past the findUnique fast-path above; the unique
+      // constraint on (businessId, idempotencyKey) is the real guarantee. MySQL surfaces this
+      // race as either a clean P2002 unique-violation or a P2034 "write conflict/deadlock,
+      // please retry" depending on timing — found live, not by inspection: a concurrent-request
+      // test reproduced the P2034 case, which a P2002-only check misses entirely. Rather than
+      // enumerate every Prisma conflict code, just check whether the row actually exists: if it
+      // does, a concurrent request won the race and this replays its result; if it doesn't, the
+      // failure was real (e.g. "Lead not found") and must propagate. A short bounded retry
+      // handles the remaining timing window where this transaction's own failure is reported
+      // before the "winning" concurrent transaction has actually committed yet — found live via
+      // a flaky concurrent-request test, not by inspection.
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const row = await db.sale.findUnique({
+          where: { businessId_idempotencyKey: { businessId, idempotencyKey } },
+        })
+        if (row) return toSaleDTO(row)
+        if (attempt < 4) await new Promise((resolve) => setTimeout(resolve, 10))
+      }
+      throw err
+    }
 
     // Scheduled outside the transaction — idempotent (see scheduleAutomationRuns), doesn't need
-    // to be atomic with the sale write.
+    // to be atomic with the sale write. Only reached when this call actually created the Sale
+    // (a replayed duplicate returns early above), so these side effects never run twice for one
+    // economic event.
     const triggerEventAt = new Date()
     await scheduleAutomationRuns(db, {
       businessId,
@@ -144,7 +211,13 @@ export class SaleService {
     // owed flows through FinanceService — there is no affiliate-balance field anywhere; an
     // affiliate's earnings are just Commission rows filtered by payeeRef.
     if (result.affiliate) {
-      await this._freezeAndCommission(businessId, data.contactId, result.sale, result.lead, result.affiliate)
+      await this._freezeAndCommission(
+        businessId,
+        data.contactId,
+        result.sale,
+        result.lead,
+        result.affiliate,
+      )
     }
 
     return toSaleDTO(result.sale)
@@ -163,32 +236,51 @@ export class SaleService {
   // something a retroactive stage change should re-contest. Reverses the linked Commission (if
   // any) through FinanceService.reverseCommission — never mutated directly, per "all money owed/
   // paid flows through FinanceService."
+  //
+  // Concurrency-safe by construction: the "already reversed?" check is a conditional
+  // `updateMany({ where: { reversedAt: null } })` inside the transaction, not a read-then-write
+  // check beforehand. Two concurrent reverse calls for the same sale both race to that single
+  // atomic UPDATE — exactly one sees rowCount 1 and proceeds to reverse the linked commissions,
+  // the other sees rowCount 0 and returns the already-reversed sale untouched. Previously this
+  // relied entirely on FinanceService's own idempotencyKey dedup underneath as accidental
+  // protection, not on this function's own guard actually providing mutual exclusion.
   async reverse(businessId: string, saleId: string, data: { reason?: string }) {
     const sale = await db.sale.findFirst({ where: { id: saleId, businessId } })
     if (!sale) throw { statusCode: 404, message: 'Sale not found' }
-    if (sale.reversedAt) return toSaleDTO(sale)
 
-    await db.$transaction(async (tx) => {
-      await tx.sale.update({ where: { id: sale.id }, data: { reversedAt: new Date() } })
+    const { performedReversal } = await db.$transaction(async (tx) => {
+      const updated = await tx.sale.updateMany({
+        where: { id: sale.id, businessId, reversedAt: null },
+        data: { reversedAt: new Date() },
+      })
+      if (updated.count === 0) return { performedReversal: false }
 
       if (sale.leadId) {
         const otherActiveSales = await tx.sale.count({
           where: { leadId: sale.leadId, reversedAt: null, id: { not: sale.id } },
         })
         if (otherActiveSales === 0) {
-          await tx.lead.update({ where: { id: sale.leadId }, data: { stage: 'QUALIFIED', closedAt: null } })
+          await tx.lead.update({
+            where: { id: sale.leadId },
+            data: { stage: 'QUALIFIED', closedAt: null },
+          })
         }
       }
+      return { performedReversal: true }
     })
 
-    const commissions = await db.commission.findMany({ where: { businessId, sourceRef: sale.id } })
-    for (const commission of commissions) {
-      await financeService.reverseCommission(
-        businessId,
-        commission.id,
-        `reverse-commission:${sale.id}:${commission.id}`,
-        data.reason ?? 'Sale reversed',
-      )
+    if (performedReversal) {
+      const commissions = await db.commission.findMany({
+        where: { businessId, sourceRef: sale.id },
+      })
+      for (const commission of commissions) {
+        await financeService.reverseCommission(
+          businessId,
+          commission.id,
+          `reverse-commission:${sale.id}:${commission.id}`,
+          data.reason ?? 'Sale reversed',
+        )
+      }
     }
 
     return toSaleDTO(await db.sale.findUniqueOrThrow({ where: { id: sale.id } }))
@@ -210,7 +302,9 @@ export class SaleService {
   ) {
     const policy = resolveDealPolicy({
       assignedDeal: affiliate.deal ? dealPolicyFromRow(affiliate.deal) : null,
-      classDefaultDeal: affiliate.class?.defaultDeal ? dealPolicyFromRow(affiliate.class.defaultDeal) : null,
+      classDefaultDeal: affiliate.class?.defaultDeal
+        ? dealPolicyFromRow(affiliate.class.defaultDeal)
+        : null,
       overrideRateBps: affiliate.affiliateRateOverrideBps,
       overrideManagerShareBps: affiliate.managerShareOverrideBps,
     })
@@ -230,7 +324,7 @@ export class SaleService {
           type: 'NOTE',
           metadata: {
             affiliateId: affiliate.id,
-            note: "Sale has no referral click to measure eligibility from — no commission created.",
+            note: 'Sale has no referral click to measure eligibility from — no commission created.',
           },
         },
       })

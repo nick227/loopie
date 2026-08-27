@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useRef } from 'react'
 import { z } from 'zod'
 import { useCreateSale } from '@project/sdk'
 import { Form } from '@/components/ui/Form'
@@ -32,6 +33,10 @@ const fields: FieldConfig[] = [
 export function CreateSalePage() {
   const navigate = useNavigate()
   const mutation = useCreateSale()
+  // Generated once per mount, resent unchanged on every submit attempt (including a retry after
+  // a failed request or a double-click) so the backend's idempotency check can tell "the same
+  // sale, submitted twice" from "a second, different sale" — never a user-facing field.
+  const idempotencyKey = useRef(crypto.randomUUID())
 
   return (
     <div className="space-y-4">
@@ -40,7 +45,10 @@ export function CreateSalePage() {
         fields={fields}
         schema={schema}
         onSubmit={async (data) => {
-          const result = await mutation.mutateAsync(data)
+          const result = await mutation.mutateAsync({
+            ...data,
+            idempotencyKey: idempotencyKey.current,
+          })
           navigate(`/sales/${result.data!.id}`)
         }}
         isLoading={mutation.isPending}

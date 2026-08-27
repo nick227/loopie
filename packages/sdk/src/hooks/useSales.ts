@@ -8,6 +8,7 @@ type CreateSaleInput = {
   date: string
   productOrService?: string
   notes?: string
+  idempotencyKey: string
 }
 
 export function useSales(params?: { limit?: number }) {

@@ -1,4 +1,5 @@
 import { db } from '@project/db'
+import { ACTIVE_SALE_WHERE } from '../lib/salePredicates'
 
 export class DashboardService {
   // Operational, "what needs me today" — the training pack's Start of Day checklist
@@ -44,25 +45,40 @@ export class DashboardService {
   // Retrospective, blended funnel across Advertising spend and organic Messages —
   // docs/00-unified-ia-navigation.md "Home vs. Results".
   async results(businessId: string) {
-    const [deployments, adUnits, leads, sales, revenueAgg] = await Promise.all([
+    const [deployments, adRuns, adUnits, leads, sales, revenueAgg] = await Promise.all([
       db.deployment.findMany({
         where: { campaign: { businessId } },
         select: { spend: true, impressions: true, clicks: true },
       }),
+      // Business-wide, not campaign-scoped — a standalone AdRun with no CampaignAdRun link still
+      // belongs to this business's blended funnel. See CLAUDE.md's Media/Advertisement/AdRun
+      // migration audit.
+      db.adRun.findMany({
+        where: { advertisement: { businessId } },
+        select: { spend: true, impressions: true, clicks: true },
+      }),
       db.adUnit.findMany({ where: { businessId }, select: { impressions: true, clicks: true } }),
       db.lead.count({ where: { businessId } }),
-      db.sale.count({ where: { businessId } }),
-      db.sale.aggregate({ where: { businessId }, _sum: { amount: true } }),
+      db.sale.count({ where: { businessId, ...ACTIVE_SALE_WHERE } }),
+      db.sale.aggregate({ where: { businessId, ...ACTIVE_SALE_WHERE }, _sum: { amount: true } }),
     ])
 
-    const totalSpend = deployments.reduce((sum, d) => sum + Number(d.spend), 0)
+    // leads/sales/revenueAgg above are already business-wide (no sourceType filter), so they
+    // already include AD_RUN-sourced rows automatically — only the spend/views/clicks reduces
+    // (which read from Deployment/AdUnit rows directly, not Lead/Sale) need AdRun added by hand.
+    const totalSpend =
+      deployments.reduce((sum, d) => sum + Number(d.spend), 0) +
+      adRuns.reduce((sum, r) => sum + Number(r.spend), 0)
     const totalRevenue = Number(revenueAgg._sum.amount ?? 0)
     const blendedCpl = leads > 0 ? totalSpend / leads : null
     const totalViews =
       deployments.reduce((s, d) => s + d.impressions, 0) +
-      adUnits.reduce((s, a) => s + a.impressions, 0)
+      adUnits.reduce((s, a) => s + a.impressions, 0) +
+      adRuns.reduce((s, r) => s + r.impressions, 0)
     const totalClicks =
-      deployments.reduce((s, d) => s + d.clicks, 0) + adUnits.reduce((s, a) => s + a.clicks, 0)
+      deployments.reduce((s, d) => s + d.clicks, 0) +
+      adUnits.reduce((s, a) => s + a.clicks, 0) +
+      adRuns.reduce((s, r) => s + r.clicks, 0)
 
     const [
       leadsByMessage,
@@ -74,6 +90,9 @@ export class DashboardService {
       leadsByAdUnit,
       salesByAdUnit,
       revenueByAdUnit,
+      leadsByAdRun,
+      salesByAdRun,
+      revenueByAdRun,
     ] = await Promise.all([
       db.lead.groupBy({
         by: ['sourceMessageId'],
@@ -82,12 +101,12 @@ export class DashboardService {
       }),
       db.sale.groupBy({
         by: ['sourceMessageId'],
-        where: { businessId, sourceType: 'MESSAGE' },
+        where: { businessId, sourceType: 'MESSAGE', ...ACTIVE_SALE_WHERE },
         _count: { _all: true },
       }),
       db.sale.groupBy({
         by: ['sourceMessageId'],
-        where: { businessId, sourceType: 'MESSAGE' },
+        where: { businessId, sourceType: 'MESSAGE', ...ACTIVE_SALE_WHERE },
         _sum: { amount: true },
       }),
       db.lead.groupBy({
@@ -97,12 +116,12 @@ export class DashboardService {
       }),
       db.sale.groupBy({
         by: ['sourceDeploymentId'],
-        where: { businessId, sourceType: 'DEPLOYMENT' },
+        where: { businessId, sourceType: 'DEPLOYMENT', ...ACTIVE_SALE_WHERE },
         _count: { _all: true },
       }),
       db.sale.groupBy({
         by: ['sourceDeploymentId'],
-        where: { businessId, sourceType: 'DEPLOYMENT' },
+        where: { businessId, sourceType: 'DEPLOYMENT', ...ACTIVE_SALE_WHERE },
         _sum: { amount: true },
       }),
       db.lead.groupBy({
@@ -112,12 +131,27 @@ export class DashboardService {
       }),
       db.sale.groupBy({
         by: ['sourceAdUnitId'],
-        where: { businessId, sourceType: 'AD_UNIT' },
+        where: { businessId, sourceType: 'AD_UNIT', ...ACTIVE_SALE_WHERE },
         _count: { _all: true },
       }),
       db.sale.groupBy({
         by: ['sourceAdUnitId'],
-        where: { businessId, sourceType: 'AD_UNIT' },
+        where: { businessId, sourceType: 'AD_UNIT', ...ACTIVE_SALE_WHERE },
+        _sum: { amount: true },
+      }),
+      db.lead.groupBy({
+        by: ['sourceAdRunId'],
+        where: { businessId, sourceType: 'AD_RUN' },
+        _count: { _all: true },
+      }),
+      db.sale.groupBy({
+        by: ['sourceAdRunId'],
+        where: { businessId, sourceType: 'AD_RUN', ...ACTIVE_SALE_WHERE },
+        _count: { _all: true },
+      }),
+      db.sale.groupBy({
+        by: ['sourceAdRunId'],
+        where: { businessId, sourceType: 'AD_RUN', ...ACTIVE_SALE_WHERE },
         _sum: { amount: true },
       }),
     ])
@@ -154,8 +188,20 @@ export class DashboardService {
     })
     const adUnitLabel = new Map(adUnitRows.map((a) => [a.id, `${a.campaign.name} · LOOPIE`]))
 
+    const adRunIds = [
+      ...new Set(leadsByAdRun.map((r) => r.sourceAdRunId).filter((v): v is string => !!v)),
+    ]
+    const adRunRows = await db.adRun.findMany({
+      where: { id: { in: adRunIds } },
+      include: { advertisement: { select: { name: true } } },
+    })
+    const adRunLabel = new Map(
+      adRunRows.map((r) => [r.id, `${r.advertisement.name} · ${r.platform}`]),
+    )
+    const adRunSpend = new Map(adRunRows.map((r) => [r.id, Number(r.spend)]))
+
     const bySource: {
-      sourceType: 'MESSAGE' | 'DEPLOYMENT' | 'AD_UNIT'
+      sourceType: 'MESSAGE' | 'DEPLOYMENT' | 'AD_RUN' | 'AD_UNIT'
       sourceId: string
       label: string
       leads: number
@@ -215,6 +261,23 @@ export class DashboardService {
         sales: salesCount,
         revenue,
         spend: null, // first-party inventory has no external spend concept — see AdUnit in schema.prisma
+      })
+    }
+    for (const row of leadsByAdRun) {
+      if (!row.sourceAdRunId) continue
+      const salesCount =
+        salesByAdRun.find((s) => s.sourceAdRunId === row.sourceAdRunId)?._count._all ?? 0
+      const revenue = Number(
+        revenueByAdRun.find((s) => s.sourceAdRunId === row.sourceAdRunId)?._sum.amount ?? 0,
+      )
+      bySource.push({
+        sourceType: 'AD_RUN',
+        sourceId: row.sourceAdRunId,
+        label: adRunLabel.get(row.sourceAdRunId) ?? 'Ad run',
+        leads: row._count._all,
+        sales: salesCount,
+        revenue,
+        spend: adRunSpend.get(row.sourceAdRunId) ?? null,
       })
     }
     bySource.sort((a, b) => b.leads - a.leads)

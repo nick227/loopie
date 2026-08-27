@@ -13,6 +13,7 @@ function toLeadDTO(lead: any) {
     sourceType: lead.sourceType,
     sourceMessageId: lead.sourceMessageId,
     sourceDeploymentId: lead.sourceDeploymentId,
+    sourceAdRunId: lead.sourceAdRunId,
     sourceAdUnitId: lead.sourceAdUnitId,
     clickId: lead.clickId,
     landingSessionId: lead.landingSessionId,

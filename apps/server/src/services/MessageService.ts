@@ -3,6 +3,7 @@ import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { resolveAudienceWhere } from './AudienceService'
 import { requireAudience, requireAutomation, requireTemplate } from '../lib/ownership'
 import { scheduleAutomationRuns } from '../lib/automationScheduling'
+import { ACTIVE_SALE_WHERE } from '../lib/salePredicates'
 
 function toMessageDTO(message: any, recipientCount = 0) {
   return {
@@ -216,9 +217,9 @@ export class MessageService {
       }),
       db.interaction.count({ where: { businessId, sourceMessageId: messageId, type: 'REPLY' } }),
       db.lead.count({ where: { businessId, sourceMessageId: messageId } }),
-      db.sale.count({ where: { businessId, sourceMessageId: messageId } }),
+      db.sale.count({ where: { businessId, sourceMessageId: messageId, ...ACTIVE_SALE_WHERE } }),
       db.sale.aggregate({
-        where: { businessId, sourceMessageId: messageId },
+        where: { businessId, sourceMessageId: messageId, ...ACTIVE_SALE_WHERE },
         _sum: { amount: true },
       }),
     ])
