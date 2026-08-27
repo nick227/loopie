@@ -140,6 +140,46 @@ describe('CRM customer graph', () => {
     ).toBe(true)
   })
 
+  it('an externalId match does not short-circuit past a conflicting phone owned by another Contact', async () => {
+    // Contact Z already owns this phone number from an unrelated origin.
+    const contactZ = await db.contact.create({
+      data: { businessId: testBusinessId, name: 'Zoe', phone: '555-9999' },
+    })
+
+    // No explicit externalId, so ImportJobService derives one from the email — this creates
+    // Contact X, externalId-linked by that derived key.
+    const first = await app.inject({
+      method: 'POST',
+      url: '/contacts/import',
+      headers: asAuth(testUserId),
+      payload: { contacts: [{ name: 'Xavier', email: 'shared-x@example.com' }] },
+    })
+    expect(first.json().data.created).toBe(1)
+    const contactX = await db.contact.findFirst({
+      where: { businessId: testBusinessId, email: 'shared-x@example.com' },
+    })
+
+    // Re-importing the same email — which resolves via the externalId link — this time also
+    // carries Contact Z's phone number. The externalId match must not be trusted blindly: since
+    // the phone points at a different Contact, this must flag ambiguous, not silently attach
+    // Z's phone onto X.
+    const second = await app.inject({
+      method: 'POST',
+      url: '/contacts/import',
+      headers: asAuth(testUserId),
+      payload: {
+        contacts: [{ name: 'Xavier', email: 'shared-x@example.com', phone: '555-9999' }],
+      },
+    })
+    expect(second.json().data.ambiguous).toBe(1)
+    expect(second.json().data.linked).toBe(0)
+
+    const refreshedX = await db.contact.findFirst({ where: { id: contactX!.id } })
+    expect(refreshedX?.phone).toBeNull()
+    const refreshedZ = await db.contact.findFirst({ where: { id: contactZ.id } })
+    expect(refreshedZ?.phone).toBe('555-9999')
+  })
+
   it('CSV import is idempotent by email and links instead of skipping', async () => {
     const first = await app.inject({
       method: 'POST',
@@ -299,5 +339,51 @@ describe('CRM customer graph', () => {
     ).json().data
     expect(perf.sales).toBe(1)
     expect(perf.revenue).toBe(229)
+  })
+
+  it('concurrent duplicate delivery of the same external event is idempotent, not a race error', async () => {
+    // Duplicate delivery (a retried webhook, or two overlapping sync runs racing on the same
+    // event) is normal, expected behavior for an inbound sync system, not an edge case — this
+    // must never surface a raw unique-constraint error to the caller, and must never create more
+    // than one ExternalEvent or Contact for the same externalEventId.
+    const integration = (
+      await app.inject({
+        method: 'POST',
+        url: '/integrations',
+        headers: asAuth(testUserId),
+        payload: { provider: 'SHOPIFY', externalAccountId: 'shop-race' },
+      })
+    ).json().data
+
+    const payload = {
+      integrationId: integration.id,
+      type: 'CONTACT_CREATED',
+      externalEventId: 'race-evt-1',
+      contact: { externalId: 'race-evt-1', name: 'Race Condition', email: 'race@example.com' },
+    }
+
+    const results = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        app.inject({
+          method: 'POST',
+          url: '/external-events',
+          headers: asAuth(testUserId),
+          payload,
+        }),
+      ),
+    )
+
+    for (const res of results) expect(res.statusCode).toBe(201)
+    const ids = new Set(results.map((res) => res.json().data.id))
+    expect(ids.size).toBe(1)
+
+    expect(
+      await db.externalEvent.count({
+        where: { businessId: testBusinessId, externalEventId: 'race-evt-1' },
+      }),
+    ).toBe(1)
+    expect(
+      await db.contact.count({ where: { businessId: testBusinessId, email: 'race@example.com' } }),
+    ).toBe(1)
   })
 })

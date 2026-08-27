@@ -1,8 +1,9 @@
 import { db } from '@project/db'
-import type { CrmProvider, ExternalEventType } from '@prisma/client'
+import type { CrmProvider, ExternalEventType, ExternalEvent } from '@prisma/client'
 import { resolveContact } from '../lib/identityResolution'
 import { integrationScope } from '../lib/crm/catalog'
 import { catalogEntry } from '../lib/crm/catalog'
+import { isUniqueConflict } from '../lib/prismaError'
 import { SaleService } from './SaleService'
 
 const saleService = new SaleService()
@@ -70,28 +71,23 @@ export class ExternalEventService {
     }
 
     const scopeKey = integrationScope(integration.id)
+
+    // Shared by both the fast-path duplicate check below and the concurrent-race recovery
+    // further down — a replayed/duplicate delivery of the same external event must always be
+    // handled identically, whichever path detected it.
+    const handleExisting = async (row: ExternalEvent) => {
+      if (SALE_TYPES.includes(row.type) && !row.saleId && row.contactId && input.amount != null) {
+        return toDTO(
+          await this.attachSale(row.id, businessId, row.contactId, integration.provider, input),
+        )
+      }
+      return toDTO(row)
+    }
+
     const existing = await db.externalEvent.findUnique({
       where: { scopeKey_externalEventId: { scopeKey, externalEventId: input.externalEventId } },
     })
-    if (existing) {
-      if (
-        SALE_TYPES.includes(existing.type) &&
-        !existing.saleId &&
-        existing.contactId &&
-        input.amount != null
-      ) {
-        return toDTO(
-          await this.attachSale(
-            existing.id,
-            businessId,
-            existing.contactId,
-            integration.provider,
-            input,
-          ),
-        )
-      }
-      return toDTO(existing)
-    }
+    if (existing) return handleExisting(existing)
 
     const occurredAt = input.occurredAt ? new Date(input.occurredAt) : new Date()
     const contactPayload = input.contact
@@ -123,19 +119,41 @@ export class ExternalEventService {
       if (resolved.status === 'resolved') contactId = resolved.contact.id
     }
 
-    const event = await db.externalEvent.create({
-      data: {
-        businessId,
-        integrationId: integration.id,
-        contactId,
-        provider: integration.provider,
-        type: input.type,
-        externalEventId: input.externalEventId,
-        scopeKey,
-        occurredAt,
-        payload: input.payload ?? undefined,
-      },
-    })
+    let event: ExternalEvent
+    try {
+      event = await db.externalEvent.create({
+        data: {
+          businessId,
+          integrationId: integration.id,
+          contactId,
+          provider: integration.provider,
+          type: input.type,
+          externalEventId: input.externalEventId,
+          scopeKey,
+          occurredAt,
+          payload: input.payload ?? undefined,
+        },
+      })
+    } catch (err) {
+      if (!isUniqueConflict(err)) throw err
+      // Concurrent duplicate delivery (a retried webhook, or two overlapping sync runs — see
+      // CrmSyncService, which has no lock preventing two overlapping runs for one integration)
+      // raced past the fast-path existence check above; the unique constraint on
+      // (scopeKey, externalEventId) is the real guarantee. Duplicate delivery is normal,
+      // expected behavior for inbound webhooks/sync polling, not an edge case — replay the
+      // winning row's result instead of surfacing a raw Prisma error, same bounded-retry
+      // convention as SaleService.create()'s idempotency handling.
+      let winner: ExternalEvent | null = null
+      for (let attempt = 0; attempt < 5; attempt++) {
+        winner = await db.externalEvent.findUnique({
+          where: { scopeKey_externalEventId: { scopeKey, externalEventId: input.externalEventId } },
+        })
+        if (winner) break
+        if (attempt < 4) await new Promise((resolve) => setTimeout(resolve, 10))
+      }
+      if (!winner) throw err
+      return handleExisting(winner)
+    }
 
     if (SALE_TYPES.includes(input.type) && contactId && input.amount != null) {
       return toDTO(

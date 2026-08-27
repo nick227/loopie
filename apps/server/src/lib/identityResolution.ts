@@ -1,4 +1,5 @@
 import type { Contact, SourceType } from '@prisma/client'
+import { db } from '@project/db'
 import { isUniqueConflict } from './prismaError'
 import { scheduleAutomationRuns } from './automationScheduling'
 import { matchIdentity, type DbClient } from './identityMatch'
@@ -118,8 +119,30 @@ export async function resolveContact(
     return { status: 'resolved', contact, created: true }
   } catch (err) {
     if (!isUniqueConflict(err)) throw err
-    const raced = await matchIdentity(tx, businessId, { email, phone })
-    if (raced.status !== 'resolved') throw err
+    // A concurrent request can create the same Contact between the identity lookup above and
+    // this create attempt (e.g. two overlapping webhook/sync deliveries, or a form submission
+    // racing an inbound sync, for the same email/phone). Re-reading via `tx` here would not
+    // reliably see the winner: MySQL's default REPEATABLE READ isolation fixes a transaction's
+    // snapshot at its first read, so a retry read on the *same* transaction can still miss a row
+    // the winner already committed by wall-clock time. Retry against the plain `db` client
+    // instead — same bounded-retry convention as SaleService.create()'s idempotency handling —
+    // so a losing concurrent request reliably observes the winner once it has actually
+    // committed, rather than surfacing a raw unique-constraint error to the caller.
+    let raced: Awaited<ReturnType<typeof matchIdentity>> | null = null
+    for (let attempt = 0; attempt < 5; attempt++) {
+      raced = await matchIdentity(db, businessId, { email, phone })
+      if (raced.status === 'resolved') break
+      if (attempt < 4) await new Promise((resolve) => setTimeout(resolve, 10))
+    }
+    if (!raced || raced.status !== 'resolved') throw err
+    if (external) {
+      await upsertExternalRecord(db, {
+        businessId,
+        contactId: raced.contact.id,
+        matchStatus: 'LINKED',
+        ...external,
+      })
+    }
     return { status: 'resolved', contact: raced.contact, created: false }
   }
 }

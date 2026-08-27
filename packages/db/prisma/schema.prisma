@@ -550,10 +550,12 @@ enum AdStatus {
 
 enum AdRunStatus {
   PENDING
+  READY
   ACTIVE
   PAUSED
   ENDED
   VALIDATION_FAILED
+  PROVISIONING_FAILED
 }
 
 model Advertisement {
@@ -612,6 +614,7 @@ model AdRun {
   budgetAuthorizations BudgetAuthorization[]
   reconciliations   Reconciliation[]
   ledgerEntries     LedgerEntry[]
+  slotAssignments   LandingPageAdSlotAssignment[]
 
   @@unique([advertisementId, idempotencyKey])
   @@index([advertisementId])
@@ -1109,14 +1112,27 @@ model LandingPageAdSlot {
   landingPageId String
   sortOrder     Int
   placement     AdSlotPlacement
-  adUnitId      String?
   createdAt     DateTime         @default(now())
 
-  landingPage LandingPage @relation(fields: [landingPageId], references: [id])
-  adUnit      AdUnit?     @relation("PageAdPlacements", fields: [adUnitId], references: [id])
+  landingPage   LandingPage      @relation(fields: [landingPageId], references: [id])
+  assignments   LandingPageAdSlotAssignment[]
 
   @@index([landingPageId])
-  @@index([adUnitId])
+}
+
+model LandingPageAdSlotAssignment {
+  id            String           @id @default(cuid())
+  slotId        String
+  adRunId       String
+  status        AdRunStatus      @default(ACTIVE)
+  weight        Int              @default(1)
+  createdAt     DateTime         @default(now())
+
+  slot          LandingPageAdSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  adRun         AdRun             @relation(fields: [adRunId], references: [id], onDelete: Cascade)
+
+  @@index([slotId])
+  @@index([adRunId])
 }
 
 // Immutable snapshot written on every publish — content/theme/formId frozen at that moment,
@@ -1300,7 +1316,6 @@ model AdUnit {
   campaign               Campaign     @relation(fields: [campaignId], references: [id])
   creative               Creative     @relation(fields: [creativeId], references: [id])
   destinationLandingPage LandingPage? @relation(fields: [destinationLandingPageId], references: [id])
-  pagePlacements         LandingPageAdSlot[] @relation("PageAdPlacements")
 
   attributionEvents AttributionEvent[]
   leadsSourced      Lead[]             @relation("LeadSourceAdUnit")
@@ -1760,6 +1775,7 @@ enum ExternalEventType {
 
 enum ImportJobStatus {
   PENDING
+  RUNNING
   COMPLETED
   FAILED
 }
@@ -1796,6 +1812,9 @@ model ImportJob {
   linked     Int             @default(0)
   ambiguous  Int             @default(0)
   skipped    Int             @default(0)
+  // Set only on status FAILED — the sync-job lifecycle must never leave a run stuck looking
+  // "in progress" forever with no visible reason it stopped.
+  error      String?         @db.Text
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
 

@@ -20,6 +20,16 @@ function parseCursor(raw: string | null): CursorState {
   }
 }
 
+function errorMessage(err: unknown): string {
+  const raw =
+    err instanceof Error
+      ? err.message
+      : typeof err === 'object' && err !== null && 'message' in err
+        ? String((err as { message: unknown }).message)
+        : String(err)
+  return raw.slice(0, 2000)
+}
+
 export class CrmSyncService {
   async run(businessId: string, integrationId: string) {
     const integration = await db.integration.findFirst({ where: { id: integrationId, businessId } })
@@ -30,34 +40,50 @@ export class CrmSyncService {
     if (!creds?.accessToken)
       throw { statusCode: 409, message: 'Connect this account with OAuth first' }
 
-    const job = await db.importJob.create({ data: { businessId, status: 'PENDING' } })
+    const job = await db.importJob.create({ data: { businessId, status: 'RUNNING' } })
     const cursor = parseCursor(integration.syncCursor)
     const shop = creds.shop ?? integration.externalAccountId ?? undefined
-    const createdLinked = await this.pullContacts(
-      integration,
-      live,
-      creds.accessToken,
-      cursor,
-      shop,
-      job.id,
-    )
-    const orders = live.listOrders
-      ? await this.pullOrders(integration, live, creds.accessToken, cursor, shop)
-      : 0
 
-    await db.importJob.update({
-      where: { id: job.id },
-      data: { status: 'COMPLETED', ...createdLinked },
-    })
-    await db.integration.update({
-      where: { id: integration.id },
-      data: {
-        lastSyncAt: new Date(),
-        syncCursor: JSON.stringify(cursor),
-        status: 'CONNECTED',
-      },
-    })
-    return { ...createdLinked, orders, lastSyncAt: new Date().toISOString() }
+    // Explicit state handling for the whole pull/process loop — duplicate delivery and mid-sync
+    // failures (a transient DB error, a malformed connector row, a race in ExternalEventService)
+    // are normal, expected occurrences for a sync system, not edge cases. A failure here must
+    // never leave the job silently stuck looking "in progress" forever, and a retry after a real
+    // failure must resume near where this run actually stopped rather than restarting from page
+    // 0 — see pullContacts/pullOrders below, which persist the cursor after every page instead
+    // of only once at the very end of a fully successful run.
+    try {
+      const createdLinked = await this.pullContacts(
+        integration,
+        live,
+        creds.accessToken,
+        cursor,
+        shop,
+        job.id,
+      )
+      const orders = live.listOrders
+        ? await this.pullOrders(integration, live, creds.accessToken, cursor, shop)
+        : 0
+
+      await db.importJob.update({
+        where: { id: job.id },
+        data: { status: 'COMPLETED', ...createdLinked },
+      })
+      await db.integration.update({
+        where: { id: integration.id },
+        data: {
+          lastSyncAt: new Date(),
+          syncCursor: JSON.stringify(cursor),
+          status: 'CONNECTED',
+        },
+      })
+      return { ...createdLinked, orders, lastSyncAt: new Date().toISOString() }
+    } catch (err) {
+      await db.importJob.update({
+        where: { id: job.id },
+        data: { status: 'FAILED', error: errorMessage(err) },
+      })
+      throw err
+    }
   }
 
   private async pullContacts(
@@ -105,6 +131,13 @@ export class CrmSyncService {
         else linked++
       }
       cursor.contacts = batch.cursor
+      // Persist after every fully-processed page, not just once at the end of a fully successful
+      // run — if a later page (or pullOrders afterward) throws, this page's progress must not be
+      // discarded and re-processed from scratch on the next retry.
+      await db.integration.update({
+        where: { id: integration.id },
+        data: { syncCursor: JSON.stringify(cursor) },
+      })
       if (!batch.cursor) break
     }
     return { created, linked, ambiguous, skipped }
@@ -135,6 +168,10 @@ export class CrmSyncService {
         count++
       }
       cursor.orders = batch.cursor
+      await db.integration.update({
+        where: { id: integration.id },
+        data: { syncCursor: JSON.stringify(cursor) },
+      })
       if (!batch.cursor) break
     }
     return count

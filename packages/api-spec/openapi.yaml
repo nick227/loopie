@@ -328,8 +328,12 @@ components:
         One person. CSV headers and JSON keys accept the listed aliases
         (first_name, email_address, hs_object_id, …). At least one of email,
         phone, or externalId is required. Name may be omitted when firstName
-        and lastName are present. Unknown columns land in profile.
-      additionalProperties: false
+        and lastName are present. Unknown columns land in profile — this
+        schema deliberately allows additional properties so that a
+        caller sending a raw, un-normalized row (e.g. a direct CSV-to-JSON
+        dump with vendor-specific columns) doesn't get the whole import
+        request rejected; ImportJobService normalizes and captures them.
+      additionalProperties: true
       properties:
         name: { type: string, maxLength: 200 }
         firstName: { type: string }
@@ -2059,16 +2063,6 @@ components:
         leadId: { type: string }
 
     # ---------- Dashboards ----------
-    HomePrimaryAction:
-      type: object
-      required: [id, title, reason, actionLabel, href]
-      properties:
-        id: { type: string }
-        title: { type: string }
-        reason: { type: string }
-        actionLabel: { type: string }
-        href: { type: string }
-
     HomeRail:
       type: object
       required:
@@ -2133,7 +2127,16 @@ components:
         businessName: { type: string }
         generatedAt: { type: string, format: date-time }
         brief: { type: string }
-        primaryAction: { $ref: '#/components/schemas/HomePrimaryAction', nullable: true }
+        primaryAction:
+          type: object
+          nullable: true
+          required: [id, title, reason, actionLabel, href]
+          properties:
+            id: { type: string }
+            title: { type: string }
+            reason: { type: string }
+            actionLabel: { type: string }
+            href: { type: string }
         rail: { $ref: '#/components/schemas/HomeRail' }
         inbox:
           type: object

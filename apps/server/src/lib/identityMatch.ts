@@ -52,17 +52,28 @@ export async function matchIdentity(
   businessId: string,
   keys: IdentityKeys,
 ): Promise<MatchResult> {
-  if (keys.scopeKey && keys.externalId) {
-    const byExt = await findByExternalId(tx, businessId, keys.scopeKey, keys.externalId)
-    if (byExt) return { status: 'resolved', contact: byExt }
-  }
-
+  // An externalId match is a strong candidate, but it must not short-circuit the email/phone
+  // conflict check below — a re-synced row can carry an externalId pointing at one Contact
+  // while its email or phone canonically belongs to a different one (e.g. two people sharing an
+  // externalId source-of-truth key, or a stale externalId link left over from a prior merge).
+  // Enriching the externalId match in that case would silently misattribute the other
+  // identifier's data onto the wrong Contact, so any disagreement goes through the ambiguous
+  // path instead of being resolved automatically.
+  const byExt =
+    keys.scopeKey && keys.externalId
+      ? await findByExternalId(tx, businessId, keys.scopeKey, keys.externalId)
+      : null
   const byEmail = keys.email ? await findByIdentifier(tx, businessId, 'EMAIL', keys.email) : null
   const byPhone = keys.phone ? await findByIdentifier(tx, businessId, 'PHONE', keys.phone) : null
 
-  if (byEmail && byPhone && byEmail.id !== byPhone.id) {
-    return { status: 'ambiguous', candidateIds: [byEmail.id, byPhone.id] }
+  const candidateIds = [
+    ...new Set([byExt?.id, byEmail?.id, byPhone?.id].filter((id): id is string => !!id)),
+  ]
+
+  if (candidateIds.length > 1) {
+    return { status: 'ambiguous', candidateIds }
   }
+  if (byExt) return { status: 'resolved', contact: byExt }
   if (byEmail) return { status: 'resolved', contact: byEmail }
   if (byPhone) return { status: 'resolved', contact: byPhone }
   return { status: 'none' }

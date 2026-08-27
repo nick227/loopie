@@ -43,13 +43,20 @@ export class TrackingRuntimeService {
     const business = await db.business.findFirst({ where: { id: query.businessId } })
     if (!business) throw { statusCode: 404, message: 'Business not found' }
 
-    const visitor = resolveVisitorSid(query.sid)
+    // The sid is bound to this businessId in its own signature (see signedSid.ts), so a sid
+    // minted for a different business fails verification here and a brand-new session is
+    // minted instead — it can never resolve to another tenant's existing session row.
+    const visitor = resolveVisitorSid(query.sid, query.businessId)
     const expiresAt = new Date(Date.now() + SESSION_TTL_MS)
     const incomingClicks = clickIds(query)
     const incomingUtms = utms(query)
     const firstSourceType = query.adRunId ? 'AD_RUN' : query.deploymentId ? 'DEPLOYMENT' : null
 
-    const existing = await db.loopieSession.findUnique({ where: { id: visitor.sessionId } })
+    // Belt-and-suspenders alongside the token scoping above: never read or write a session row
+    // that isn't this business's, even if the id lookup alone would have matched one.
+    const existing = await db.loopieSession.findFirst({
+      where: { id: visitor.sessionId, businessId: query.businessId },
+    })
     const row = existing
       ? await db.loopieSession.update({
           where: { id: visitor.sessionId },
@@ -119,7 +126,7 @@ export class TrackingRuntimeService {
     adRunId?: string
     clickId?: string
   }) {
-    const verified = verifySid(input.sessionId)
+    const verified = verifySid(input.sessionId, input.businessId)
     if (!verified) throw { statusCode: 400, message: 'Invalid session' }
     const session = await db.loopieSession.findFirst({
       where: { id: verified.sessionId, businessId: input.businessId },

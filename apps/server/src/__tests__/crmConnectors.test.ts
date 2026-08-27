@@ -211,6 +211,70 @@ describe('HubSpot and Shopify connectors', () => {
     expect(Number(sale.amount)).toBe(42.5)
   })
 
+  it('a mid-sync failure marks the ImportJob FAILED with a persisted error, not stuck PENDING, and keeps the page progress already made', async () => {
+    enableCrm()
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/admin/oauth/access_token')) return json({ access_token: 'SH_TOKEN' })
+      if (url.includes('/customers.json')) {
+        return json({
+          customers: [
+            { id: 21, first_name: 'Fail', last_name: 'Ure', email: 'fail.sync@example.com' },
+          ],
+        })
+      }
+      // Orders fails after contacts already succeeded — the run must not discard that progress.
+      if (url.includes('/orders.json')) return json({ error: 'orders unavailable' }, 500)
+      return json({ error: url }, 500)
+    })
+
+    await app.inject({
+      method: 'GET',
+      url: '/integrations/SHOPIFY/oauth/start?shop=failshop',
+      headers: asAuth(testUserId),
+    })
+    const row = await db.integration.findFirstOrThrow({
+      where: { businessId: testBusinessId, provider: 'SHOPIFY' },
+    })
+    expect(row.syncCursor).toBeNull()
+    const state = issueOAuthState({
+      businessId: testBusinessId,
+      platform: 'crm:SHOPIFY',
+      returnPath: `/integrations?iid=${row.id}`,
+    })
+    await app.inject({
+      method: 'GET',
+      url: `/integrations/SHOPIFY/oauth/callback?code=xyz&state=${encodeURIComponent(state)}`,
+    })
+
+    const synced = await app.inject({
+      method: 'POST',
+      url: `/integrations/${row.id}/sync`,
+      headers: asAuth(testUserId),
+    })
+    expect(synced.statusCode).toBeGreaterThanOrEqual(400)
+
+    const job = await db.importJob.findFirstOrThrow({
+      where: { businessId: testBusinessId },
+      orderBy: { createdAt: 'desc' },
+    })
+    expect(job.status).toBe('FAILED')
+    expect(job.error).toBeTruthy()
+
+    // Contact created via the contacts page that succeeded before orders.json failed.
+    expect(
+      await db.contact.count({
+        where: { businessId: testBusinessId, email: 'fail.sync@example.com' },
+      }),
+    ).toBe(1)
+
+    // The contacts cursor was persisted incrementally, not only at the end of a full success —
+    // a retry can resume rather than re-pulling contacts from page 0.
+    const refreshed = await db.integration.findUniqueOrThrow({ where: { id: row.id } })
+    expect(refreshed.syncCursor).toBeTruthy()
+    expect(JSON.parse(refreshed.syncCursor!)).toHaveProperty('contacts')
+  })
+
   it('graph audiences match recent buyers and ad leads with no purchase', async () => {
     const buyer = await db.contact.create({
       data: {
