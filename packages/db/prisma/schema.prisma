@@ -7,6 +7,17 @@
 // OR first-party AdUnit -> LandingPage -> Form -> FormSubmission -> Contact -> Lead.
 // AdUnit is deliberately a separate model from Deployment (see AdUnit section) — first-party
 // serving lives in apps/ad-server, a standalone deployable service that shares this schema.
+//
+// Media/Advertisement/AdRun migration (2026-08-27, in progress — see CLAUDE.md's "Media/
+// Advertisement/AdRun Migration Audit"): Campaign/Creative/Deployment are being superseded by
+// Advertisement/AdRun (optionally grouped under a Campaign via CampaignAdRun). Permanent policy,
+// not just for this migration: a model or column marked `@deprecated` here means the write path
+// stops using it going forward — it NEVER means delete it, drop it, or stop reading it. Every
+// attribution/finance table that references a deprecated column (campaignId, deploymentId,
+// sourceDeploymentId, sourceAdUnitId, ...) keeps that column, its data, and its read paths
+// permanently, even after every write path has fully cut over to the new model. Historical
+// attribution and financial history must stay queryable forever — a "cleanup" migration that
+// drops a deprecated column is a bug, not a completion of this migration.
 
 generator client {
   provider      = "prisma-client-js"
@@ -69,6 +80,13 @@ model Business {
   payouts              Payout[]
   reconciliations      Reconciliation[]
   platformConnections  PlatformConnection[]
+
+  integrations           Integration[]
+  importJobs             ImportJob[]
+  contactIdentifiers     ContactIdentifier[]
+  externalContactRecords ExternalContactRecord[]
+  externalEvents         ExternalEvent[]
+  loopieSessions         LoopieSession[]
 }
 
 enum UserRole {
@@ -136,6 +154,9 @@ model Contact {
   audienceMemberships AudienceMember[]
   formSubmissions     FormSubmission[]
   automationRuns      AutomationRun[]
+  identifiers         ContactIdentifier[]
+  externalRecords     ExternalContactRecord[]
+  externalEvents      ExternalEvent[]
 
   @@unique([businessId, email])
   @@unique([businessId, phone])
@@ -539,7 +560,6 @@ model Advertisement {
   id                       String           @id @default(cuid())
   businessId               String
   name                     String
-  globalStatus             AdStatus         @default(PAUSED)
   createdAt                DateTime         @default(now())
   updatedAt                DateTime         @updatedAt
 
@@ -554,6 +574,7 @@ model AdRun {
   id                       String           @id @default(cuid())
   advertisementId          String
   platform                 Platform
+  placement                String?
   status                   AdRunStatus      @default(PENDING)
   budget                   Decimal?         @db.Decimal(12, 2)
   startDate                DateTime?
@@ -562,18 +583,26 @@ model AdRun {
   externalAdSetId          String?
   externalAdId             String?
   previewUrl               String?          // Link to see the ad "in the wild"
+  managerUrl               String?          // Link to open the ad in the platform's manager
+  errorMessage             String?          // Holds failure reason if status is VALIDATION_FAILED
   spend                    Decimal          @default(0) @db.Decimal(12, 2)
   impressions              Int              @default(0)
   clicks                   Int              @default(0)
   conversions              Int              @default(0)
   lastSyncedAt             DateTime?
   destinationLandingPageId String?
+  // Client-supplied dedup key for the declarative create-and-provision command (POST
+  // /advertisements/{advertisementId}/runs) — a retry must return the same AdRun and must never
+  // trigger a second connector push. Same convention as Sale.idempotencyKey. Nullable at the DB
+  // level for the same reason: MySQL's unique index treats multiple NULLs as distinct, so rows
+  // created before this column existed (or via direct db.adRun.create in tests) never collide.
+  idempotencyKey           String?
   createdAt                DateTime         @default(now())
   updatedAt                DateTime         @updatedAt
 
   advertisement          Advertisement @relation(fields: [advertisementId], references: [id])
   destinationLandingPage LandingPage?  @relation(fields: [destinationLandingPageId], references: [id])
-  
+
   attributionEvents AttributionEvent[]
   leadsSourced      Lead[]             @relation("LeadSourceAdRun")
   salesSourced      Sale[]             @relation("SaleSourceAdRun")
@@ -584,6 +613,7 @@ model AdRun {
   reconciliations   Reconciliation[]
   ledgerEntries     LedgerEntry[]
 
+  @@unique([advertisementId, idempotencyKey])
   @@index([advertisementId])
   @@index([destinationLandingPageId])
 }
@@ -819,6 +849,7 @@ model AffiliateReferralClick {
 enum SourceType {
   MESSAGE
   DEPLOYMENT
+  AD_RUN
   AD_UNIT
   MANUAL
   IMPORT
@@ -914,6 +945,7 @@ model Sale {
   sourceAdRun      AdRun?      @relation("SaleSourceAdRun", fields: [sourceAdRunId], references: [id])
   sourceAdUnit     AdUnit?     @relation("SaleSourceAdUnit", fields: [sourceAdUnitId], references: [id])
   affiliateSplit   SaleAffiliateSplit?
+  externalEvents   ExternalEvent[]
 
   @@unique([businessId, idempotencyKey])
   @@index([businessId, date])
@@ -1103,6 +1135,9 @@ model PublishedPageVersion {
   // with no form attached (see CLAUDE.md "Landing-Page Capture Immutability").
   formSnapshot Json?
   adSlotSnapshot Json?
+  // Frozen template schema at publish time. The live LandingPage.templateId can change in draft
+  // (layout switch) without rewriting this, so /p/{slug} keeps rendering the published layout.
+  schemaSnapshot Json?
   publishedAt DateTime  @default(now())
   publishedBy String? // userId — no admin/RBAC in V1, kept optional
   archivedAt  DateTime? // set when a newer version supersedes this one; row is kept for history
@@ -1206,6 +1241,7 @@ model FormSubmission {
   utmContent             String?
   utmTerm                String?
   sourceDeploymentId     String?
+  sourceAdRunId          String?
   sourceAdUnitId         String?
   createdAt              DateTime @default(now())
 
@@ -1672,6 +1708,192 @@ model Reconciliation {
   @@index([campaignId])
   @@index([adRunId])
   @@index([adSpendId])
+}
+
+// ---------- CRM customer graph ----------
+//
+// Person is Contact. Source systems are Integration + ExternalContactRecord.
+// CSV is not an Integration; ImportJob writes ExternalContactRecord with provider CSV.
+// Do not reuse PlatformConnection (ad-platform OAuth). Capabilities live on Integration
+// and in the provider catalog — consumers must not switch on provider names.
+
+enum CrmProvider {
+  HUBSPOT
+  SALESFORCE
+  SHOPIFY
+  SQUARE
+  PIPEDRIVE
+  CSV
+}
+
+enum IntegrationStatus {
+  INCOMPLETE
+  CONNECTED
+  NEEDS_REAUTH
+  PAUSED
+}
+
+enum SyncDirection {
+  INBOUND
+}
+
+enum ContactIdentifierKind {
+  EMAIL
+  PHONE
+}
+
+enum ExternalMatchStatus {
+  LINKED
+  UNMATCHED
+  AMBIGUOUS
+}
+
+enum ExternalEventType {
+  CONTACT_CREATED
+  CONTACT_UPDATED
+  DEAL_WON
+  ORDER_CREATED
+  PAYMENT_COMPLETED
+  APPOINTMENT_COMPLETED
+  CUSTOMER_TAGGED
+}
+
+enum ImportJobStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model Integration {
+  id                String            @id @default(cuid())
+  businessId        String
+  provider          CrmProvider
+  label             String?
+  externalAccountId String?
+  status            IntegrationStatus @default(INCOMPLETE)
+  syncDirection     SyncDirection     @default(INBOUND)
+  lastSyncAt        DateTime?
+  syncCursor        String?
+  capabilities      Json
+  credentialsEnc    String?           @db.Text
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  business        Business               @relation(fields: [businessId], references: [id])
+  identifiers     ContactIdentifier[]
+  contactRecords  ExternalContactRecord[]
+  events          ExternalEvent[]
+
+  @@unique([businessId, provider, externalAccountId])
+  @@index([businessId, provider])
+}
+
+model ImportJob {
+  id         String          @id @default(cuid())
+  businessId String
+  status     ImportJobStatus @default(COMPLETED)
+  created    Int             @default(0)
+  linked     Int             @default(0)
+  ambiguous  Int             @default(0)
+  skipped    Int             @default(0)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  business Business               @relation(fields: [businessId], references: [id])
+  records  ExternalContactRecord[]
+
+  @@index([businessId, createdAt])
+}
+
+model ContactIdentifier {
+  id              String                @id @default(cuid())
+  businessId      String
+  contactId       String
+  kind            ContactIdentifierKind
+  normalizedValue String
+  source          String
+  integrationId   String?
+  isPrimary       Boolean               @default(false)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  business    Business     @relation(fields: [businessId], references: [id])
+  contact     Contact      @relation(fields: [contactId], references: [id])
+  integration Integration? @relation(fields: [integrationId], references: [id])
+
+  @@unique([businessId, kind, normalizedValue])
+  @@index([contactId])
+}
+
+model ExternalContactRecord {
+  id                  String              @id @default(cuid())
+  businessId          String
+  contactId           String?
+  integrationId       String?
+  importJobId         String?
+  provider            CrmProvider
+  externalId          String
+  scopeKey            String
+  matchStatus         ExternalMatchStatus @default(LINKED)
+  candidateContactIds Json?
+  externalUpdatedAt   DateTime?
+  syncedAt            DateTime?
+  raw                 Json?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  business    Business     @relation(fields: [businessId], references: [id])
+  contact     Contact?     @relation(fields: [contactId], references: [id])
+  integration Integration? @relation(fields: [integrationId], references: [id])
+  importJob   ImportJob?   @relation(fields: [importJobId], references: [id])
+
+  @@unique([scopeKey, externalId])
+  @@index([businessId, matchStatus])
+  @@index([contactId])
+}
+
+model ExternalEvent {
+  id              String            @id @default(cuid())
+  businessId      String
+  integrationId   String?
+  contactId       String?
+  saleId          String?
+  provider        CrmProvider
+  type            ExternalEventType
+  externalEventId String
+  scopeKey        String
+  occurredAt      DateTime
+  payload         Json?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  business    Business     @relation(fields: [businessId], references: [id])
+  integration Integration? @relation(fields: [integrationId], references: [id])
+  contact     Contact?     @relation(fields: [contactId], references: [id])
+  sale        Sale?        @relation(fields: [saleId], references: [id])
+
+  @@unique([scopeKey, externalEventId])
+  @@index([businessId, type])
+  @@index([contactId])
+}
+
+model LoopieSession {
+  id                 String    @id
+  businessId         String
+  firstAdRunId       String?
+  firstDeploymentId  String?
+  firstSourceType    String?
+  platformClickIds   Json?
+  utms               Json?
+  firstSeenAt        DateTime  @default(now())
+  lastSeenAt         DateTime  @default(now())
+  expiresAt          DateTime
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@index([businessId, lastSeenAt])
 }
 
 // ---------- Rate limiting ----------

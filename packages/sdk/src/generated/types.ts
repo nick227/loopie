@@ -918,6 +918,150 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/advertisements': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List advertisements */
+    get: operations['listAdvertisements']
+    put?: never
+    /** Create advertisement */
+    post: operations['createAdvertisement']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/advertisements/{advertisementId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get advertisement */
+    get: operations['getAdvertisement']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /** Update advertisement */
+    patch: operations['updateAdvertisement']
+    trace?: never
+  }
+  '/advertisements/{advertisementId}/runs': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List ad runs for this advertisement */
+    get: operations['listAdRuns']
+    put?: never
+    /** Declaratively create and provision an ad run */
+    post: operations['createAdRun']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/ad-runs/{adRunId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get ad run */
+    get: operations['getAdRun']
+    put?: never
+    post?: never
+    /**
+     * Delete ad run
+     * @description Rejected (409) if the ad run has any ledger history, spend, or attributed Lead/Sale/Interaction activity — pause or end it instead.
+     */
+    delete: operations['deleteAdRun']
+    options?: never
+    head?: never
+    /** Update ad run */
+    patch: operations['updateAdRun']
+    trace?: never
+  }
+  '/ad-runs/{adRunId}/pause': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Pause ad run */
+    post: operations['pauseAdRun']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/ad-runs/{adRunId}/resume': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Resume (activate) ad run */
+    post: operations['resumeAdRun']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/ad-runs/{adRunId}/end': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** End ad run */
+    post: operations['endAdRun']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/platform-capabilities': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get platform capabilities configuration */
+    get: operations['getPlatformCapabilities']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/platforms/{platform}': {
     parameters: {
       query?: never
@@ -1013,6 +1157,26 @@ export interface paths {
     }
     /** Track deployment click */
     get: operations['trackDeploymentClick']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/r/adrun/{adRunId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Track AdRun click
+     * @description Mirrors GET /r/{deploymentId} exactly (same session-mint/redirect/click_id shape) for the Advertisement/AdRun model — see CLAUDE.md's Media/Advertisement/AdRun migration audit. Additive alongside /r/{deploymentId}, not a replacement: existing Deployments keep using that route indefinitely, this one is for AdRuns.
+     */
+    get: operations['trackAdRunClick']
     put?: never
     post?: never
     delete?: never
@@ -1175,6 +1339,26 @@ export interface paths {
     }
     /** List published versions */
     get: operations['listLandingPageVersions']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/landing-pages/{landingPageId}/preview': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Preview current draft as HTML
+     * @description Authenticated. Renders the working draft (not the published version) as a full HTML page. Does not record a PageView. 401 if the caller is not signed in.
+     */
+    get: operations['previewLandingPage']
     put?: never
     post?: never
     delete?: never
@@ -2454,6 +2638,86 @@ export interface components {
       conversions?: number
       destinationLandingPageId?: string | null
     }
+    /** @description The "Media" grouping entity in Media -> Advertisement -> AdRun — content comes directly from Asset via AdvertisementAsset, not the older per-campaign Creative model. Media is selected once here; every AdRun under it reuses the same attached assets when it provisions on a platform. */
+    Advertisement: {
+      id: string
+      businessId: string
+      name: string
+      assetIds: string[]
+      assets?: components['schemas']['Asset'][]
+      /** Format: date-time */
+      createdAt: string
+    }
+    CreateAdvertisementInput: {
+      name: string
+      assetIds?: string[]
+    }
+    UpdateAdvertisementInput: {
+      name?: string
+      /** @description Wholesale replace, same convention as Campaign.creativeIds — omit to leave media unchanged. */
+      assetIds?: string[]
+    }
+    AdRun: {
+      id: string
+      advertisementId: string
+      /** @enum {string} */
+      platform: 'META' | 'GOOGLE' | 'TIKTOK' | 'LOOPIE'
+      placement?: string | null
+      /** @enum {string} */
+      status: 'PENDING' | 'ACTIVE' | 'PAUSED' | 'ENDED' | 'VALIDATION_FAILED'
+      budget: number | null
+      spend: number
+      impressions: number
+      clicks: number
+      conversions: number
+      /** Format: date-time */
+      startDate?: string | null
+      /** Format: date-time */
+      endDate?: string | null
+      externalCampaignId?: string | null
+      externalAdSetId?: string | null
+      externalAdId?: string | null
+      previewUrl?: string | null
+      managerUrl?: string | null
+      /** @description Populates only once the external platform object genuinely exists — never speculative. */
+      errorMessage?: string | null
+      destinationLandingPageId?: string | null
+      /** @description Redirect URL for this ad run — GET /r/adrun/{adRunId}. */
+      trackedUrl: string
+      /** Format: date-time */
+      createdAt: string
+    }
+    /** @description The declarative "create and provision" command: state intent, LOOPIE owns validate -> create AdRun -> call the platform connector (if one is registered, configured, and connected for this business) -> persist external ids -> mark PENDING ("ready" — pushed as a paused draft awaiting manual activation, same convention as Deployment) or VALIDATION_FAILED. If no connector applies, the AdRun is created PENDING for manual entry, exactly like a non-Meta Deployment today. */
+    CreateAdRunInput: {
+      /** @enum {string} */
+      platform: 'META' | 'GOOGLE' | 'TIKTOK' | 'LOOPIE'
+      placement?: string | null
+      budget?: number
+      /** Format: date-time */
+      startDate?: string
+      /** Format: date-time */
+      endDate?: string
+      destinationLandingPageId?: string
+      /** @description Client-generated once per creation attempt and resent unchanged on any retry — a retried request returns the same AdRun and never triggers a second connector push. */
+      idempotencyKey: string
+    }
+    /** @description Manual metrics/status entry, same "no live platform sync in V1" model as Deployment. Cannot change platform or advertisementId — an AdRun's source identity is immutable once created. */
+    UpdateAdRunInput: {
+      /** @enum {string} */
+      status?: 'PENDING' | 'ACTIVE' | 'PAUSED' | 'ENDED' | 'VALIDATION_FAILED'
+      spend?: number
+      budget?: number
+      impressions?: number
+      clicks?: number
+      conversions?: number
+      destinationLandingPageId?: string | null
+    }
+    PlatformPlacementCapability: {
+      supportedMediaTypes: ('IMAGE' | 'VIDEO' | 'TEXT')[]
+      recommendedAspectRatios?: string[] | null
+      maxTextLength?: number | null
+      requiresDestinationUrl: boolean
+    }
     PlatformCapabilities: {
       oauth: boolean
       mappingFields: ('adAccount' | 'page' | 'defaultCountry')[]
@@ -2554,8 +2818,10 @@ export interface components {
         [key: string]: unknown
       } | null
       publishedVersionId?: string | null
-      /** @description LOOPIE-hosted URL — GET /p/{slug}. */
+      /** @description Public live URL — GET /p/{slug}. 404 until the page is published. */
       hostedUrl?: string
+      /** @description Authenticated draft preview — GET /landing-pages/{id}/preview. */
+      previewUrl: string
       /** @description Approximate — not deduplicated by session. */
       formStartCount: number
       adSlotCount?: number
@@ -2594,6 +2860,7 @@ export interface components {
       slug?: string
       customDomain?: string | null
       formId?: string | null
+      templateId?: string
       content?: {
         [key: string]: unknown
       }
@@ -2762,9 +3029,10 @@ export interface components {
       owner?: string | null
       estimatedValue?: number | null
       /** @enum {string} */
-      sourceType: 'MESSAGE' | 'DEPLOYMENT' | 'AD_UNIT' | 'MANUAL' | 'IMPORT'
+      sourceType: 'MESSAGE' | 'DEPLOYMENT' | 'AD_RUN' | 'AD_UNIT' | 'MANUAL' | 'IMPORT'
       sourceMessageId?: string | null
       sourceDeploymentId?: string | null
+      sourceAdRunId?: string | null
       sourceAdUnitId?: string | null
       clickId?: string | null
       landingSessionId?: string | null
@@ -2793,9 +3061,10 @@ export interface components {
       date: string
       productOrService?: string | null
       /** @enum {string} */
-      sourceType: 'MESSAGE' | 'DEPLOYMENT' | 'AD_UNIT' | 'MANUAL' | 'IMPORT'
+      sourceType: 'MESSAGE' | 'DEPLOYMENT' | 'AD_RUN' | 'AD_UNIT' | 'MANUAL' | 'IMPORT'
       sourceMessageId?: string | null
       sourceDeploymentId?: string | null
+      sourceAdRunId?: string | null
       sourceAdUnitId?: string | null
       notes?: string | null
       /** @description Client-supplied dedup key from CreateSaleInput. Nullable only because a handful of Sale rows predate this field; every sale created going forward has one. */
@@ -2840,9 +3109,10 @@ export interface components {
         | 'FORM_SUBMITTED'
         | 'PAGE_VIEWED'
       /** @enum {string|null} */
-      sourceType?: 'MESSAGE' | 'DEPLOYMENT' | 'AD_UNIT' | 'MANUAL' | 'IMPORT' | null
+      sourceType?: 'MESSAGE' | 'DEPLOYMENT' | 'AD_RUN' | 'AD_UNIT' | 'MANUAL' | 'IMPORT' | null
       sourceMessageId?: string | null
       sourceDeploymentId?: string | null
+      sourceAdRunId?: string | null
       sourceAdUnitId?: string | null
       metadata?: {
         [key: string]: unknown
@@ -2883,7 +3153,7 @@ export interface components {
       }
       bySource?: {
         /** @enum {string} */
-        sourceType?: 'MESSAGE' | 'DEPLOYMENT' | 'AD_UNIT'
+        sourceType?: 'MESSAGE' | 'DEPLOYMENT' | 'AD_RUN' | 'AD_UNIT'
         sourceId?: string
         label?: string
         leads?: number
@@ -2985,10 +3255,12 @@ export interface components {
       /** Format: date-time */
       createdAt: string
     }
+    /** @description Exactly one of campaignId/adRunId is set — campaignId is the legacy path (every existing row), adRunId is the standalone-AdRun path added by the Media/Advertisement/AdRun migration (see CLAUDE.md) so an AdRun can be funded without a parent Campaign. */
     BudgetAuthorization: {
       id: string
       businessId: string
-      campaignId: string
+      campaignId?: string | null
+      adRunId?: string | null
       currency: string
       authorizedAmountMinor: number
       /** @enum {string} */
@@ -3019,7 +3291,7 @@ export interface components {
       /** @enum {string} */
       stage: 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'QUOTED' | 'WON' | 'LOST'
       /** @enum {string} */
-      sourceType: 'DEPLOYMENT' | 'AD_UNIT'
+      sourceType: 'DEPLOYMENT' | 'AD_RUN' | 'AD_UNIT'
       /** @enum {string|null} */
       platform?: 'META' | 'GOOGLE' | 'TIKTOK' | 'LOOPIE' | null
       creativeName?: string | null
@@ -3033,10 +3305,12 @@ export interface components {
       /** Format: date-time */
       followUpAt?: string | null
     }
+    /** @description Exactly one of campaignId/adRunId is set — see BudgetAuthorization's description. */
     AdSpend: {
       id: string
       businessId: string
-      campaignId: string
+      campaignId?: string | null
+      adRunId?: string | null
       budgetAuthorizationId?: string | null
       deploymentId?: string | null
       adUnitId?: string | null
@@ -3095,6 +3369,7 @@ export interface components {
       id: string
       businessId: string
       campaignId?: string | null
+      adRunId?: string | null
       adSpendId?: string | null
       currency: string
       trackedAmountMinor: number
@@ -3229,6 +3504,8 @@ export interface components {
     AffiliateDealId: string
     CampaignId: string
     DeploymentId: string
+    AdRunId: string
+    AdvertisementId: string
     AdPlatform: 'META' | 'GOOGLE' | 'TIKTOK'
     LeadId: string
     SaleId: string
@@ -5360,6 +5637,340 @@ export interface operations {
       }
     }
   }
+  listAdvertisements: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor returned by the previous page. */
+        cursor?: components['parameters']['Cursor']
+        limit?: components['parameters']['Limit']
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated advertisements */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['Advertisement'][]
+            meta: components['schemas']['PaginatedMeta']
+          }
+        }
+      }
+    }
+  }
+  createAdvertisement: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateAdvertisementInput']
+      }
+    }
+    responses: {
+      /** @description Advertisement created */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['Advertisement']
+          }
+        }
+      }
+    }
+  }
+  getAdvertisement: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        advertisementId: components['parameters']['AdvertisementId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Advertisement */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['Advertisement']
+          }
+        }
+      }
+    }
+  }
+  updateAdvertisement: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        advertisementId: components['parameters']['AdvertisementId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateAdvertisementInput']
+      }
+    }
+    responses: {
+      /** @description Updated advertisement */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['Advertisement']
+          }
+        }
+      }
+    }
+  }
+  listAdRuns: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor returned by the previous page. */
+        cursor?: components['parameters']['Cursor']
+        limit?: components['parameters']['Limit']
+      }
+      header?: never
+      path: {
+        advertisementId: components['parameters']['AdvertisementId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated ad runs */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['AdRun'][]
+            meta: components['schemas']['PaginatedMeta']
+          }
+        }
+      }
+    }
+  }
+  createAdRun: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        advertisementId: components['parameters']['AdvertisementId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateAdRunInput']
+      }
+    }
+    responses: {
+      /** @description Ad run created (and provisioned on the platform connector if one applies). Check `status` — PENDING means ready (manual entry, or a paused draft pushed successfully); VALIDATION_FAILED means the connector was attempted and failed, safe to retry with the same idempotencyKey. */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['AdRun']
+          }
+        }
+      }
+    }
+  }
+  getAdRun: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        adRunId: components['parameters']['AdRunId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Ad run */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['AdRun']
+          }
+        }
+      }
+    }
+  }
+  deleteAdRun: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        adRunId: components['parameters']['AdRunId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: {
+              success?: boolean
+            }
+          }
+        }
+      }
+    }
+  }
+  updateAdRun: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        adRunId: components['parameters']['AdRunId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateAdRunInput']
+      }
+    }
+    responses: {
+      /** @description Updated ad run */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['AdRun']
+          }
+        }
+      }
+    }
+  }
+  pauseAdRun: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        adRunId: components['parameters']['AdRunId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paused ad run */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['AdRun']
+          }
+        }
+      }
+    }
+  }
+  resumeAdRun: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        adRunId: components['parameters']['AdRunId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Activated ad run */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['AdRun']
+          }
+        }
+      }
+    }
+  }
+  endAdRun: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        adRunId: components['parameters']['AdRunId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Ended ad run */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['AdRun']
+          }
+        }
+      }
+    }
+  }
+  getPlatformCapabilities: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            [key: string]: components['schemas']['PlatformPlacementCapability']
+          }
+        }
+      }
+    }
+  }
   getPlatformConnection: {
     parameters: {
       query?: never
@@ -5528,6 +6139,32 @@ export interface operations {
     requestBody?: never
     responses: {
       /** @description Records an AttributionEvent and redirects to the campaign destination URL */
+      302: {
+        headers: {
+          Location?: string
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  trackAdRunClick: {
+    parameters: {
+      query?: {
+        /** @description Anonymous session id, generated client-side if absent. */
+        sid?: string
+        /** @description The originating ad platform's own click identifier, passed through unmodified into AttributionEvent.clickId. Optional — omitted for platforms that don't append one. */
+        click_id?: string
+      }
+      header?: never
+      path: {
+        adRunId: components['parameters']['AdRunId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Records an AttributionEvent and redirects to the AdRun's destination */
       302: {
         headers: {
           Location?: string
@@ -5845,6 +6482,28 @@ export interface operations {
             data: components['schemas']['PublishedPageVersion'][]
             meta: components['schemas']['PaginatedMeta']
           }
+        }
+      }
+    }
+  }
+  previewLandingPage: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        landingPageId: components['parameters']['LandingPageId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Draft HTML */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'text/html': string
         }
       }
     }

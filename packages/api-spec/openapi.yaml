@@ -159,6 +159,16 @@ components:
       name: commissionId
       required: true
       schema: { type: string }
+    IntegrationId:
+      in: path
+      name: integrationId
+      required: true
+      schema: { type: string }
+    ExternalRecordId:
+      in: path
+      name: recordId
+      required: true
+      schema: { type: string }
 
   schemas:
     PaginatedMeta:
@@ -292,10 +302,149 @@ components:
 
     ImportContactsResult:
       type: object
-      required: [created, skipped]
+      required: [created, linked, ambiguous, skipped]
       properties:
+        importJobId: { type: string }
         created: { type: integer }
+        linked: { type: integer }
+        ambiguous: { type: integer }
         skipped: { type: integer }
+
+    CrmCapabilities:
+      type: object
+      required: [contacts, companies, deals, orders, payments, events]
+      properties:
+        contacts: { type: boolean }
+        companies: { type: boolean }
+        deals: { type: boolean }
+        orders: { type: boolean }
+        payments: { type: boolean }
+        events: { type: boolean }
+
+    CrmCatalogEntry:
+      type: object
+      required: [provider, label, capabilities]
+      properties:
+        provider: { type: string, enum: [HUBSPOT, SALESFORCE, SHOPIFY, SQUARE, PIPEDRIVE] }
+        label: { type: string }
+        capabilities: { $ref: '#/components/schemas/CrmCapabilities' }
+
+    Integration:
+      type: object
+      required: [id, businessId, provider, status, syncDirection, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        provider: { type: string, enum: [HUBSPOT, SALESFORCE, SHOPIFY, SQUARE, PIPEDRIVE] }
+        label: { type: string, nullable: true }
+        externalAccountId: { type: string, nullable: true }
+        status: { type: string, enum: [INCOMPLETE, CONNECTED, NEEDS_REAUTH, PAUSED] }
+        syncDirection: { type: string, enum: [INBOUND] }
+        lastSyncAt: { type: string, format: date-time, nullable: true }
+        capabilities: { $ref: '#/components/schemas/CrmCapabilities' }
+        createdAt: { type: string, format: date-time }
+
+    CreateIntegrationInput:
+      type: object
+      required: [provider]
+      properties:
+        provider: { type: string, enum: [HUBSPOT, SALESFORCE, SHOPIFY, SQUARE, PIPEDRIVE] }
+        label: { type: string }
+        externalAccountId: { type: string }
+
+    UpdateIntegrationInput:
+      type: object
+      properties:
+        status: { type: string, enum: [CONNECTED, PAUSED, NEEDS_REAUTH] }
+        label: { type: string }
+
+    ExternalContactRecord:
+      type: object
+      required: [id, businessId, provider, externalId, matchStatus, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        contactId: { type: string, nullable: true }
+        integrationId: { type: string, nullable: true }
+        provider: { type: string }
+        externalId: { type: string }
+        matchStatus: { type: string, enum: [LINKED, UNMATCHED, AMBIGUOUS] }
+        candidateContactIds:
+          type: array
+          items: { type: string }
+        syncedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    ResolveContactMatchInput:
+      type: object
+      required: [contactId]
+      properties:
+        contactId: { type: string }
+
+    IngestExternalEventInput:
+      type: object
+      required: [integrationId, type, externalEventId]
+      properties:
+        integrationId: { type: string }
+        type:
+          type: string
+          enum: [CONTACT_CREATED, CONTACT_UPDATED, DEAL_WON, ORDER_CREATED, PAYMENT_COMPLETED, APPOINTMENT_COMPLETED, CUSTOMER_TAGGED]
+        externalEventId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        amount: { type: number }
+        productOrService: { type: string }
+        contact:
+          type: object
+          properties:
+            externalId: { type: string }
+            name: { type: string }
+            email: { type: string }
+            phone: { type: string }
+            company: { type: string }
+        payload:
+          type: object
+          additionalProperties: true
+
+    ExternalEvent:
+      type: object
+      required: [id, businessId, provider, type, externalEventId, occurredAt, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        integrationId: { type: string, nullable: true }
+        contactId: { type: string, nullable: true }
+        saleId: { type: string, nullable: true }
+        provider: { type: string }
+        type: { type: string }
+        externalEventId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+
+    LoopieRuntimeSession:
+      type: object
+      required: [sessionId, token]
+      properties:
+        sessionId: { type: string }
+        token: { type: string }
+        firstAdRunId: { type: string, nullable: true }
+        firstSourceType: { type: string, nullable: true }
+        platformClickIds:
+          type: object
+          additionalProperties: { type: string, nullable: true }
+        utms:
+          type: object
+          additionalProperties: { type: string, nullable: true }
+
+    TrackRuntimeEventInput:
+      type: object
+      required: [businessId, sessionId, type]
+      properties:
+        businessId: { type: string }
+        sessionId: { type: string }
+        type: { type: string, enum: [PAGE_VIEW, FORM_START, FORM_SUBMIT] }
+        pageUrl: { type: string }
+        adRunId: { type: string }
+        clickId: { type: string }
 
     # ---------- Audience ----------
     Audience:
@@ -970,6 +1119,10 @@ components:
         assetIds:
           type: array
           items: { type: string }
+        assets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Asset'
         createdAt: { type: string, format: date-time }
 
     CreateAdvertisementInput:
@@ -996,7 +1149,8 @@ components:
       properties:
         id: { type: string }
         advertisementId: { type: string }
-        platform: { type: string, enum: [META, GOOGLE, TIKTOK] }
+        platform: { type: string, enum: [META, GOOGLE, TIKTOK, LOOPIE] }
+        placement: { type: string, nullable: true }
         status: { type: string, enum: [PENDING, ACTIVE, PAUSED, ENDED, VALIDATION_FAILED] }
         budget: { type: number, nullable: true }
         spend: { type: number }
@@ -1009,6 +1163,12 @@ components:
         externalAdSetId: { type: string, nullable: true }
         externalAdId: { type: string, nullable: true }
         previewUrl:
+          type: string
+          nullable: true
+        managerUrl:
+          type: string
+          nullable: true
+        errorMessage:
           type: string
           nullable: true
           description: Populates only once the external platform object genuinely exists — never speculative.
@@ -1029,7 +1189,8 @@ components:
         VALIDATION_FAILED. If no connector applies, the AdRun is created PENDING for manual entry,
         exactly like a non-Meta Deployment today.
       properties:
-        platform: { type: string, enum: [META, GOOGLE, TIKTOK] }
+        platform: { type: string, enum: [META, GOOGLE, TIKTOK, LOOPIE] }
+        placement: { type: string, nullable: true }
         budget: { type: number, minimum: 0 }
         startDate: { type: string, format: date-time }
         endDate: { type: string, format: date-time }
@@ -1053,6 +1214,23 @@ components:
         clicks: { type: integer, minimum: 0 }
         conversions: { type: integer, minimum: 0 }
         destinationLandingPageId: { type: string, nullable: true }
+
+    PlatformPlacementCapability:
+      type: object
+      required: [supportedMediaTypes, requiresDestinationUrl]
+      properties:
+        supportedMediaTypes:
+          type: array
+          items: { type: string, enum: [IMAGE, VIDEO, TEXT] }
+        recommendedAspectRatios:
+          type: array
+          items: { type: string }
+          nullable: true
+        maxTextLength:
+          type: integer
+          nullable: true
+        requiresDestinationUrl:
+          type: boolean
 
     PlatformCapabilities:
       type: object
@@ -2061,6 +2239,241 @@ paths:
                 type: object
                 properties:
                   data: { $ref: '#/components/schemas/ImportContactsResult' }
+
+  /integrations/catalog:
+    get:
+      operationId: listCrmCatalog
+      summary: CRM provider catalog and capabilities
+      tags: [crm]
+      responses:
+        '200':
+          description: Providers LOOPIE can connect
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/CrmCatalogEntry' }
+
+  /integrations:
+    get:
+      operationId: listIntegrations
+      summary: List CRM integrations
+      tags: [crm]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated integrations
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Integration' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createIntegration
+      summary: Connect a CRM or commerce account (stub connect; no live OAuth)
+      tags: [crm]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateIntegrationInput' }
+      responses:
+        '201':
+          description: Integration connected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Integration' }
+
+  /integrations/{integrationId}:
+    get:
+      operationId: getIntegration
+      summary: Get a CRM integration
+      tags: [crm]
+      parameters:
+        - $ref: '#/components/parameters/IntegrationId'
+      responses:
+        '200':
+          description: Integration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Integration' }
+    patch:
+      operationId: updateIntegration
+      summary: Pause or update a CRM integration
+      tags: [crm]
+      parameters:
+        - $ref: '#/components/parameters/IntegrationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateIntegrationInput' }
+      responses:
+        '200':
+          description: Integration updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Integration' }
+
+  /external-events:
+    post:
+      operationId: ingestExternalEvent
+      summary: Ingest a CRM or commerce event
+      tags: [crm]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IngestExternalEventInput' }
+      responses:
+        '201':
+          description: Event stored; orders/payments may materialize a Sale
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ExternalEvent' }
+
+  /contact-matches:
+    get:
+      operationId: listContactMatches
+      summary: Unmatched and ambiguous external contact records
+      tags: [crm]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: status
+          schema: { type: string, enum: [UNMATCHED, AMBIGUOUS] }
+      responses:
+        '200':
+          description: Records needing review
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ExternalContactRecord' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+
+  /contact-matches/{recordId}/resolve:
+    post:
+      operationId: resolveContactMatch
+      summary: Link an ambiguous or unmatched external record to a Contact
+      tags: [crm]
+      parameters:
+        - $ref: '#/components/parameters/ExternalRecordId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResolveContactMatchInput' }
+      responses:
+        '200':
+          description: Record linked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ExternalContactRecord' }
+
+  /t/session:
+    get:
+      operationId: getLoopieSession
+      summary: Mint or reuse a first-touch LOOPIE tracking session
+      tags: [tracking]
+      security: []
+      parameters:
+        - in: query
+          name: businessId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: sid
+          schema: { type: string }
+        - in: query
+          name: adRunId
+          schema: { type: string }
+        - in: query
+          name: deploymentId
+          schema: { type: string }
+        - in: query
+          name: gclid
+          schema: { type: string }
+        - in: query
+          name: fbclid
+          schema: { type: string }
+        - in: query
+          name: ttclid
+          schema: { type: string }
+        - in: query
+          name: click_id
+          schema: { type: string }
+        - in: query
+          name: utm_source
+          schema: { type: string }
+        - in: query
+          name: utm_medium
+          schema: { type: string }
+        - in: query
+          name: utm_campaign
+          schema: { type: string }
+        - in: query
+          name: utm_content
+          schema: { type: string }
+        - in: query
+          name: utm_term
+          schema: { type: string }
+      responses:
+        '200':
+          description: Signed session token; first-touch fields are retained
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/LoopieRuntimeSession' }
+
+  /t/events:
+    post:
+      operationId: trackLoopieEvent
+      summary: Record a portable page/form event
+      tags: [tracking]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TrackRuntimeEventInput' }
+      responses:
+        '204':
+          description: Recorded
 
   /contacts/{contactId}:
     get:
@@ -3718,6 +4131,21 @@ paths:
                 type: object
                 properties:
                   data: { $ref: '#/components/schemas/AdRun' }
+
+  /platform-capabilities:
+    get:
+      operationId: getPlatformCapabilities
+      summary: Get platform capabilities configuration
+      tags: [platform]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: '#/components/schemas/PlatformPlacementCapability'
 
   /platforms/{platform}:
     get:

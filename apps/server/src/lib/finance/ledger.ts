@@ -22,18 +22,27 @@ export function assertBalanced(entries: EntryInput[]): void {
     else credits += entry.amountMinor
   }
   if (debits !== credits) {
-    throw { statusCode: 400, message: `Unbalanced ledger transaction: debits ${debits} !== credits ${credits}` }
+    throw {
+      statusCode: 400,
+      message: `Unbalanced ledger transaction: debits ${debits} !== credits ${credits}`,
+    }
   }
 }
 
-export function balancedPair(debitAccountId: string, creditAccountId: string, amountMinor: number): EntryInput[] {
+export function balancedPair(
+  debitAccountId: string,
+  creditAccountId: string,
+  amountMinor: number,
+): EntryInput[] {
   return [
     { accountId: debitAccountId, direction: 'DEBIT', amountMinor },
     { accountId: creditAccountId, direction: 'CREDIT', amountMinor },
   ]
 }
 
-export function invertEntries(entries: { accountId: string; direction: LedgerDirection; amountMinor: number }[]): EntryInput[] {
+export function invertEntries(
+  entries: { accountId: string; direction: LedgerDirection; amountMinor: number }[],
+): EntryInput[] {
   return entries.map((entry) => ({
     accountId: entry.accountId,
     direction: entry.direction === 'DEBIT' ? 'CREDIT' : 'DEBIT',
@@ -41,7 +50,9 @@ export function invertEntries(entries: { accountId: string; direction: LedgerDir
   }))
 }
 
-export function transactionBalance(entries: { direction: LedgerDirection; amountMinor: number }[]): number {
+export function transactionBalance(
+  entries: { direction: LedgerDirection; amountMinor: number }[],
+): number {
   let debits = 0
   let credits = 0
   for (const entry of entries) {
@@ -60,7 +71,8 @@ type PostArgs = {
   externalProvider?: string | null
   reversesTransactionId?: string | null
   metadata?: Prisma.InputJsonValue
-  campaignId?: string | null
+  campaignId?: string | null // @deprecated
+  adRunId?: string | null
   entries: EntryInput[]
 }
 
@@ -93,6 +105,7 @@ export async function postLedger(tx: Prisma.TransactionClient, args: PostArgs) {
           businessId: args.businessId,
           accountId: entry.accountId,
           campaignId: args.campaignId ?? null,
+          adRunId: args.adRunId ?? null,
           direction: entry.direction,
           amountMinor: entry.amountMinor,
           currency: args.currency,
@@ -103,17 +116,27 @@ export async function postLedger(tx: Prisma.TransactionClient, args: PostArgs) {
   })
 }
 
+// campaignId and adRunId are two independent, additive scoping dimensions (see CLAUDE.md's
+// Media/Advertisement/AdRun migration audit) — real reserved-fund balances today are entirely
+// campaignId-scoped (nothing writes adRunId-scoped LedgerEntry rows yet), so both must keep
+// working rather than one replacing the other in this shared helper.
 export async function accountBalanceMinor(
   tx: Prisma.TransactionClient,
   businessId: string,
   accountId: string,
   campaignId?: string,
+  adRunId?: string,
 ): Promise<number> {
   const account = await tx.financialAccount.findFirst({ where: { id: accountId, businessId } })
   if (!account) throw { statusCode: 404, message: 'Account not found' }
   const grouped = await tx.ledgerEntry.groupBy({
     by: ['direction'],
-    where: { businessId, accountId, ...(campaignId ? { campaignId } : {}) },
+    where: {
+      businessId,
+      accountId,
+      ...(campaignId ? { campaignId } : {}),
+      ...(adRunId ? { adRunId } : {}),
+    },
     _sum: { amountMinor: true },
   })
   const debit = grouped.find((row) => row.direction === 'DEBIT')?._sum.amountMinor ?? 0
@@ -121,7 +144,10 @@ export async function accountBalanceMinor(
   return isDebitNormal(account.kind) ? debit - credit : credit - debit
 }
 
-export async function replayOnConflict<T>(err: unknown, replay: () => Promise<T | null>): Promise<T> {
+export async function replayOnConflict<T>(
+  err: unknown,
+  replay: () => Promise<T | null>,
+): Promise<T> {
   if (!isUniqueConflict(err)) throw err
   const existing = await replay()
   if (!existing) throw err

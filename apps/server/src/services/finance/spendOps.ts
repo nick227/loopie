@@ -2,11 +2,26 @@ import { db } from '@project/db'
 import { ensureChartOfAccounts } from '../../lib/finance/accounts'
 import { toAdSpendDTO, toBudgetAuthorizationDTO } from '../../lib/finance/dtoEntities'
 import { toTransactionDTO } from '../../lib/finance/dto'
-import { accountBalanceMinor, balancedPair, postLedger, replayOnConflict } from '../../lib/finance/ledger'
+import {
+  accountBalanceMinor,
+  balancedPair,
+  postLedger,
+  replayOnConflict,
+} from '../../lib/finance/ledger'
 import { requireMoney } from '../../lib/finance/money'
-import type { AuthorizeBudgetInput, FeeInput, RecordAdSpendInput, SettleAdSpendInput } from '../../lib/finance/types'
+import type {
+  AuthorizeBudgetInput,
+  FeeInput,
+  RecordAdRunSpendInput,
+  RecordAdSpendInput,
+  SettleAdSpendInput,
+} from '../../lib/finance/types'
 
-export async function authorizeCampaignBudget(businessId: string, campaignId: string, input: AuthorizeBudgetInput) {
+export async function authorizeCampaignBudget(
+  businessId: string,
+  campaignId: string,
+  input: AuthorizeBudgetInput,
+) {
   const { amountMinor, currency, idempotencyKey } = requireMoney(input)
   const existing = await db.budgetAuthorization.findUnique({
     where: { businessId_idempotencyKey: { businessId, idempotencyKey } },
@@ -19,7 +34,8 @@ export async function authorizeCampaignBudget(businessId: string, campaignId: st
       const active = await tx.budgetAuthorization.findFirst({
         where: { campaignId, businessId, status: 'ACTIVE' },
       })
-      if (active) throw { statusCode: 409, message: 'Campaign already has an active budget authorization' }
+      if (active)
+        throw { statusCode: 409, message: 'Campaign already has an active budget authorization' }
       const chart = await ensureChartOfAccounts(tx, businessId, currency)
       const available = await accountBalanceMinor(tx, businessId, chart.CLIENT_AD_FUNDS.id)
       // Phase 1 is non-custodial: a spend limit does not require LOOPIE-held client funds.
@@ -32,7 +48,11 @@ export async function authorizeCampaignBudget(businessId: string, campaignId: st
           idempotencyKey,
           metadata: input.metadata,
           campaignId,
-          entries: balancedPair(chart.CLIENT_AD_FUNDS.id, chart.CLIENT_FUNDS_RESERVED.id, amountMinor),
+          entries: balancedPair(
+            chart.CLIENT_AD_FUNDS.id,
+            chart.CLIENT_FUNDS_RESERVED.id,
+            amountMinor,
+          ),
         })
         const auth = await tx.budgetAuthorization.create({
           data: {
@@ -50,6 +70,78 @@ export async function authorizeCampaignBudget(businessId: string, campaignId: st
         data: {
           businessId,
           campaignId,
+          currency,
+          authorizedAmountMinor: amountMinor,
+          idempotencyKey,
+        },
+      })
+      return toBudgetAuthorizationDTO(auth)
+    })
+  } catch (err) {
+    return replayOnConflict(err, async () => {
+      const row = await db.budgetAuthorization.findUnique({
+        where: { businessId_idempotencyKey: { businessId, idempotencyKey } },
+      })
+      return row ? toBudgetAuthorizationDTO(row) : null
+    })
+  }
+}
+
+// New, additive counterpart to authorizeCampaignBudget above for the Advertisement/AdRun model
+// this repo is migrating toward (see CLAUDE.md's "Media/Advertisement/AdRun Migration Audit").
+// Nothing calls this yet — kept alongside the campaign-scoped version rather than replacing it,
+// since real Lead/Sale/AdSpend/BudgetAuthorization history is still entirely campaign-scoped.
+export async function authorizeAdRunBudget(
+  businessId: string,
+  adRunId: string,
+  input: AuthorizeBudgetInput,
+) {
+  const { amountMinor, currency, idempotencyKey } = requireMoney(input)
+  const existing = await db.budgetAuthorization.findUnique({
+    where: { businessId_idempotencyKey: { businessId, idempotencyKey } },
+  })
+  if (existing) return toBudgetAuthorizationDTO(existing)
+  try {
+    return await db.$transaction(async (tx) => {
+      const adRun = await tx.adRun.findFirst({ where: { id: adRunId } })
+      if (!adRun) throw { statusCode: 404, message: 'AdRun not found' }
+      const active = await tx.budgetAuthorization.findFirst({
+        where: { adRunId, businessId, status: 'ACTIVE' },
+      })
+      if (active)
+        throw { statusCode: 409, message: 'AdRun already has an active budget authorization' }
+      const chart = await ensureChartOfAccounts(tx, businessId, currency)
+      const available = await accountBalanceMinor(tx, businessId, chart.CLIENT_AD_FUNDS.id)
+      if (available >= amountMinor) {
+        const posted = await postLedger(tx, {
+          businessId,
+          currency,
+          type: 'BUDGET_RESERVE',
+          idempotencyKey,
+          metadata: input.metadata,
+          adRunId,
+          entries: balancedPair(
+            chart.CLIENT_AD_FUNDS.id,
+            chart.CLIENT_FUNDS_RESERVED.id,
+            amountMinor,
+          ),
+        })
+        const auth = await tx.budgetAuthorization.create({
+          data: {
+            businessId,
+            adRunId,
+            currency,
+            authorizedAmountMinor: amountMinor,
+            idempotencyKey,
+            ledgerTransactionId: posted.id,
+          },
+        })
+        return toBudgetAuthorizationDTO(auth)
+      }
+      const auth = await tx.budgetAuthorization.create({
+        data: {
+          businessId,
+          adRunId,
           currency,
           authorizedAmountMinor: amountMinor,
           idempotencyKey,
@@ -92,7 +184,8 @@ export async function recordAdSpend(businessId: string, input: RecordAdSpendInpu
       const authorization = await tx.budgetAuthorization.findFirst({
         where: { campaignId: input.campaignId, businessId, status: 'ACTIVE' },
       })
-      if (!authorization) throw { statusCode: 409, message: 'No active budget authorization for this campaign' }
+      if (!authorization)
+        throw { statusCode: 409, message: 'No active budget authorization for this campaign' }
       const spendData = {
         businessId,
         campaignId: input.campaignId,
@@ -112,8 +205,14 @@ export async function recordAdSpend(businessId: string, input: RecordAdSpendInpu
         return toAdSpendDTO(spend)
       }
       const chart = await ensureChartOfAccounts(tx, businessId, currency)
-      const reserved = await accountBalanceMinor(tx, businessId, chart.CLIENT_FUNDS_RESERVED.id, input.campaignId)
-      if (reserved < amountMinor) throw { statusCode: 409, message: 'Insufficient reserved campaign funds' }
+      const reserved = await accountBalanceMinor(
+        tx,
+        businessId,
+        chart.CLIENT_FUNDS_RESERVED.id,
+        input.campaignId,
+      )
+      if (reserved < amountMinor)
+        throw { statusCode: 409, message: 'Insufficient reserved campaign funds' }
       const posted = await postLedger(tx, {
         businessId,
         currency,
@@ -122,7 +221,11 @@ export async function recordAdSpend(businessId: string, input: RecordAdSpendInpu
         externalRef: input.externalChargeId,
         metadata: input.metadata,
         campaignId: input.campaignId,
-        entries: balancedPair(chart.CLIENT_FUNDS_RESERVED.id, chart.AD_PLATFORM_CLEARING.id, amountMinor),
+        entries: balancedPair(
+          chart.CLIENT_FUNDS_RESERVED.id,
+          chart.AD_PLATFORM_CLEARING.id,
+          amountMinor,
+        ),
       })
       const spend = await tx.adSpend.create({
         data: { ...spendData, ledgerTransactionId: posted.id },
@@ -139,7 +242,86 @@ export async function recordAdSpend(businessId: string, input: RecordAdSpendInpu
   }
 }
 
-export async function settleAdSpend(businessId: string, adSpendId: string, input: SettleAdSpendInput) {
+// Standalone counterpart to recordAdSpend above — an AdRun spends against its own budget
+// authorization directly, with no parent Campaign/Deployment/AdUnit involved. See
+// authorizeAdRunBudget above and CLAUDE.md's Media/Advertisement/AdRun migration audit.
+export async function recordAdRunSpend(businessId: string, input: RecordAdRunSpendInput) {
+  const { amountMinor, currency, idempotencyKey } = requireMoney(input)
+  const existing = await db.adSpend.findUnique({
+    where: { businessId_idempotencyKey: { businessId, idempotencyKey } },
+  })
+  if (existing) return toAdSpendDTO(existing)
+  try {
+    return await db.$transaction(async (tx) => {
+      const adRun = await tx.adRun.findFirst({
+        where: { id: input.adRunId, advertisement: { businessId } },
+      })
+      if (!adRun) throw { statusCode: 404, message: 'AdRun not found' }
+      const authorization = await tx.budgetAuthorization.findFirst({
+        where: { adRunId: input.adRunId, businessId, status: 'ACTIVE' },
+      })
+      if (!authorization)
+        throw { statusCode: 409, message: 'No active budget authorization for this AdRun' }
+      const spendData = {
+        businessId,
+        adRunId: input.adRunId,
+        budgetAuthorizationId: authorization.id,
+        platform: input.platform,
+        externalChargeId: input.externalChargeId,
+        periodStart: new Date(input.periodStart),
+        periodEnd: new Date(input.periodEnd),
+        currency,
+        reportedAmountMinor: amountMinor,
+        idempotencyKey,
+      }
+      if (!authorization.ledgerTransactionId) {
+        const spend = await tx.adSpend.create({ data: spendData })
+        return toAdSpendDTO(spend)
+      }
+      const chart = await ensureChartOfAccounts(tx, businessId, currency)
+      const reserved = await accountBalanceMinor(
+        tx,
+        businessId,
+        chart.CLIENT_FUNDS_RESERVED.id,
+        undefined,
+        input.adRunId,
+      )
+      if (reserved < amountMinor)
+        throw { statusCode: 409, message: 'Insufficient reserved AdRun funds' }
+      const posted = await postLedger(tx, {
+        businessId,
+        currency,
+        type: 'AD_SPEND',
+        idempotencyKey,
+        externalRef: input.externalChargeId,
+        metadata: input.metadata,
+        adRunId: input.adRunId,
+        entries: balancedPair(
+          chart.CLIENT_FUNDS_RESERVED.id,
+          chart.AD_PLATFORM_CLEARING.id,
+          amountMinor,
+        ),
+      })
+      const spend = await tx.adSpend.create({
+        data: { ...spendData, ledgerTransactionId: posted.id },
+      })
+      return toAdSpendDTO(spend)
+    })
+  } catch (err) {
+    return replayOnConflict(err, async () => {
+      const row = await db.adSpend.findUnique({
+        where: { businessId_idempotencyKey: { businessId, idempotencyKey } },
+      })
+      return row ? toAdSpendDTO(row) : null
+    })
+  }
+}
+
+export async function settleAdSpend(
+  businessId: string,
+  adSpendId: string,
+  input: SettleAdSpendInput,
+) {
   const existing = await db.adSpend.findFirst({
     where: { businessId, settlementTransaction: { idempotencyKey: input.idempotencyKey } },
   })
@@ -148,7 +330,8 @@ export async function settleAdSpend(businessId: string, adSpendId: string, input
     return await db.$transaction(async (tx) => {
       const spend = await tx.adSpend.findFirst({ where: { id: adSpendId, businessId } })
       if (!spend) throw { statusCode: 404, message: 'Ad spend not found' }
-      if (spend.settlementTransactionId) throw { statusCode: 409, message: 'Ad spend already settled' }
+      if (spend.settlementTransactionId)
+        throw { statusCode: 409, message: 'Ad spend already settled' }
       if (!Number.isInteger(input.settledAmountMinor) || input.settledAmountMinor <= 0) {
         throw { statusCode: 400, message: 'settledAmountMinor must be a positive integer' }
       }
@@ -163,7 +346,11 @@ export async function settleAdSpend(businessId: string, adSpendId: string, input
       const reported = spend.reportedAmountMinor
       const settled = input.settledAmountMinor
       const entries = [
-        { accountId: chart.AD_PLATFORM_CLEARING.id, direction: 'DEBIT' as const, amountMinor: reported },
+        {
+          accountId: chart.AD_PLATFORM_CLEARING.id,
+          direction: 'DEBIT' as const,
+          amountMinor: reported,
+        },
         { accountId: chart.LOOPIE_CASH.id, direction: 'CREDIT' as const, amountMinor: settled },
       ]
       if (reported !== settled) {
@@ -179,6 +366,7 @@ export async function settleAdSpend(businessId: string, adSpendId: string, input
         type: 'AD_SPEND_SETTLEMENT',
         idempotencyKey: input.idempotencyKey,
         campaignId: spend.campaignId,
+        adRunId: spend.adRunId,
         entries,
       })
       const updated = await tx.adSpend.update({
@@ -211,13 +399,29 @@ export async function recordLoopieFee(businessId: string, input: FeeInput) {
   try {
     return await db.$transaction(async (tx) => {
       if (input.campaignId) {
-        const campaign = await tx.campaign.findFirst({ where: { id: input.campaignId, businessId } })
+        const campaign = await tx.campaign.findFirst({
+          where: { id: input.campaignId, businessId },
+        })
         if (!campaign) throw { statusCode: 404, message: 'Campaign not found' }
       }
+      if (input.adRunId) {
+        const adRun = await tx.adRun.findFirst({
+          where: { id: input.adRunId, advertisement: { businessId } },
+        })
+        if (!adRun) throw { statusCode: 404, message: 'AdRun not found' }
+      }
+      const scoped = Boolean(input.campaignId || input.adRunId)
       const chart = await ensureChartOfAccounts(tx, businessId, currency)
-      const source = input.campaignId ? chart.CLIENT_FUNDS_RESERVED : chart.CLIENT_AD_FUNDS
-      const available = await accountBalanceMinor(tx, businessId, source.id, input.campaignId)
-      if (available < amountMinor) throw { statusCode: 409, message: 'Insufficient funds for LOOPIE fee' }
+      const source = scoped ? chart.CLIENT_FUNDS_RESERVED : chart.CLIENT_AD_FUNDS
+      const available = await accountBalanceMinor(
+        tx,
+        businessId,
+        source.id,
+        input.campaignId,
+        input.adRunId,
+      )
+      if (available < amountMinor)
+        throw { statusCode: 409, message: 'Insufficient funds for LOOPIE fee' }
       const posted = await postLedger(tx, {
         businessId,
         currency,
@@ -225,6 +429,7 @@ export async function recordLoopieFee(businessId: string, input: FeeInput) {
         idempotencyKey,
         metadata: { description: input.description ?? null, ...input.metadata },
         campaignId: input.campaignId,
+        adRunId: input.adRunId,
         entries: balancedPair(source.id, chart.LOOPIE_REVENUE.id, amountMinor),
       })
       return toTransactionDTO(posted)

@@ -83,6 +83,13 @@ export const metaConnector: AdPlatformConnector = {
   async pushDraft(input) {
     return pushDraft(input)
   },
+  managerUrl(result, ctx) {
+    const act = ctx.adAccountId.startsWith('act_') ? ctx.adAccountId : `act_${ctx.adAccountId}`
+    const url = new URL('https://www.facebook.com/adsmanager/manage/campaigns')
+    url.searchParams.set('act', act.replace(/^act_/, ''))
+    url.searchParams.set('selected_campaign_ids', result.externalCampaignId)
+    return url.toString()
+  },
 }
 
 async function pushDraft(input: PushDraftInput): Promise<PushDraftResult> {

@@ -40,4 +40,9 @@ export type AdPlatformConnector = {
   listAccounts: (token: string) => Promise<PlatformAccount[]>
   listPages: (token: string) => Promise<PlatformAccount[]>
   pushDraft: (input: PushDraftInput) => Promise<PushDraftResult>
+  // Optional: a human-clickable link into the platform's own ad manager for the object pushDraft
+  // just created, scoped to the connected ad account.
+  managerUrl?: (result: PushDraftResult, ctx: { adAccountId: string }) => string
+  // Optional: a live preview link to see the ad "in the wild"
+  previewUrl?: (result: PushDraftResult, ctx: { adAccountId: string }) => string
 }

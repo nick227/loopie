@@ -47,6 +47,14 @@ function toDateTime(date: string | undefined) {
   return new Date(`${date}T00:00:00`).toISOString()
 }
 
+// End Date is inclusive — a campaign ending "2026-08-26" should stay active through the end of
+// that day, not stop at its start. Stored as the same local-time-then-ISO shape as toDateTime
+// above, just pinned to the last instant of the day instead of the first.
+function toEndOfDay(date: string | undefined) {
+  if (!date) return undefined
+  return new Date(`${date}T23:59:59.999`).toISOString()
+}
+
 export function CreateCampaignPage() {
   const navigate = useNavigate()
   const mutation = useCreateCampaign()
@@ -63,7 +71,7 @@ export function CreateCampaignPage() {
             name: data.name,
             budget: Number(data.budget),
             startDate: toDateTime(data.startDate),
-            endDate: toDateTime(data.endDate),
+            endDate: toEndOfDay(data.endDate),
             destinationUrl: data.destinationUrl,
             platforms: data.platforms,
           })

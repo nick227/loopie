@@ -3,6 +3,10 @@ import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { trackedDeploymentUrl } from '../lib/urls'
 import { requireCreative } from '../lib/ownership'
 
+// Restored after the /campaigns/{campaignId}/deployments* handlers were briefly repointed at
+// AdRunService (which expects an advertisementId, not a campaignId, and operates on the adRun/
+// advertisement tables) — see CLAUDE.md's Media/Advertisement/AdRun migration audit. Every real
+// Deployment row and every attribution/finance FK pointing at one still needs this REST surface.
 function toDeploymentDTO(deployment: any) {
   return {
     id: deployment.id,
@@ -46,7 +50,10 @@ export class DeploymentService {
     const hasMore = deployments.length > limit
     const items = hasMore ? deployments.slice(0, limit) : deployments
     const last = items[items.length - 1]
-    const nextCursor = hasMore && last ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id }) : null
+    const nextCursor =
+      hasMore && last
+        ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
+        : null
     return { data: items.map(toDeploymentDTO), meta: { hasMore, nextCursor } }
   }
 
@@ -56,7 +63,8 @@ export class DeploymentService {
       throw { statusCode: 409, message: 'LOOPIE inventory is created as AdUnits, not Deployments' }
     }
     await requireCreative(businessId, data.creativeId)
-    if (data.destinationLandingPageId) await this._findLandingPage(businessId, data.destinationLandingPageId)
+    if (data.destinationLandingPageId)
+      await this._findLandingPage(businessId, data.destinationLandingPageId)
     const deployment = await db.deployment.create({
       data: {
         campaignId,
@@ -79,14 +87,15 @@ export class DeploymentService {
     return toDeploymentDTO(deployment)
   }
 
-  // V1 has no live ad-platform sync (see CLAUDE.md Parking lot) — spend/status/metrics are
-  // entered here manually until a real Meta/Google/TikTok connector exists.
+  // Spend/status/metrics may still be entered manually. POST /deployments/{id}/push
+  // creates a PAUSED draft on a registered connector when one exists.
   async update(businessId: string, deploymentId: string, data: any) {
     const deployment = await db.deployment.findFirst({
       where: { id: deploymentId, campaign: { businessId } },
     })
     if (!deployment) throw { statusCode: 404, message: 'Deployment not found' }
-    if (data.destinationLandingPageId) await this._findLandingPage(businessId, data.destinationLandingPageId)
+    if (data.destinationLandingPageId)
+      await this._findLandingPage(businessId, data.destinationLandingPageId)
 
     const updated = await db.deployment.update({
       where: { id: deploymentId },
@@ -106,7 +115,9 @@ export class DeploymentService {
   }
 
   private async _findLandingPage(businessId: string, landingPageId: string) {
-    const page = await db.landingPage.findFirst({ where: { id: landingPageId, businessId, deletedAt: null } })
+    const page = await db.landingPage.findFirst({
+      where: { id: landingPageId, businessId, deletedAt: null },
+    })
     if (!page) throw { statusCode: 404, message: 'Landing page not found' }
     return page
   }

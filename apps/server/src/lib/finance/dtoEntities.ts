@@ -1,10 +1,18 @@
-import type { AdSpend, AdSpendSettlementStatus, BudgetAuthorization, Commission, Payout, Reconciliation } from '@prisma/client'
+import type {
+  AdSpend,
+  AdSpendSettlementStatus,
+  BudgetAuthorization,
+  Commission,
+  Payout,
+  Reconciliation,
+} from '@prisma/client'
 
 export function toBudgetAuthorizationDTO(row: BudgetAuthorization) {
   return {
     id: row.id,
     businessId: row.businessId,
     campaignId: row.campaignId,
+    adRunId: row.adRunId,
     currency: row.currency,
     authorizedAmountMinor: row.authorizedAmountMinor,
     status: row.status,
@@ -19,6 +27,7 @@ export function toAdSpendDTO(row: AdSpend) {
     id: row.id,
     businessId: row.businessId,
     campaignId: row.campaignId,
+    adRunId: row.adRunId,
     budgetAuthorizationId: row.budgetAuthorizationId,
     deploymentId: row.deploymentId,
     adUnitId: row.adUnitId,
@@ -52,7 +61,9 @@ export function toCommissionDTO(row: Commission) {
   }
 }
 
-export function toPayoutDTO(row: Payout & { items?: { commissionId: string; amountMinor: number }[] }) {
+export function toPayoutDTO(
+  row: Payout & { items?: { commissionId: string; amountMinor: number }[] },
+) {
   return {
     id: row.id,
     businessId: row.businessId,
@@ -74,6 +85,7 @@ export function toReconciliationDTO(row: Reconciliation) {
     id: row.id,
     businessId: row.businessId,
     campaignId: row.campaignId,
+    adRunId: row.adRunId,
     adSpendId: row.adSpendId,
     currency: row.currency,
     trackedAmountMinor: row.trackedAmountMinor,

@@ -157,6 +157,12 @@ export class CampaignService {
     const campaign = await db.$transaction(async (tx) => {
       await tx.deployment.updateMany({ where: { campaignId }, data: { status: 'PAUSED' } })
       await tx.adUnit.updateMany({ where: { campaignId }, data: { status: 'PAUSED' } })
+      // Status-cascade parity with Deployment/AdUnit above — AdRun has no direct campaignId
+      // column, only the optional CampaignAdRun join, so it's reached via that relation instead.
+      await tx.adRun.updateMany({
+        where: { campaignLinks: { some: { campaignId } } },
+        data: { status: 'PAUSED' },
+      })
       return tx.campaign.update({
         where: { id: campaignId },
         data: { status: 'PAUSED' },
@@ -179,6 +185,14 @@ export class CampaignService {
         where: { campaignId, status: { in: ['DRAFT', 'PAUSED'] } },
         data: { status: 'ACTIVE' },
       })
+      // Conditional like AdUnit above, not blanket like Deployment — an AdRun that's ENDED or
+      // VALIDATION_FAILED must never be resurrected to ACTIVE just because its campaign resumed;
+      // a VALIDATION_FAILED run in particular has no real external ad, so marking it ACTIVE would
+      // violate "failed external creation must not leave a run looking live."
+      await tx.adRun.updateMany({
+        where: { campaignLinks: { some: { campaignId } }, status: { in: ['PENDING', 'PAUSED'] } },
+        data: { status: 'ACTIVE' },
+      })
       return tx.campaign.update({
         where: { id: campaignId },
         data: { status: 'ACTIVE' },
@@ -194,6 +208,10 @@ export class CampaignService {
     const campaign = await db.$transaction(async (tx) => {
       await tx.deployment.updateMany({ where: { campaignId }, data: { status: 'ENDED' } })
       await tx.adUnit.updateMany({ where: { campaignId }, data: { status: 'ENDED' } })
+      await tx.adRun.updateMany({
+        where: { campaignLinks: { some: { campaignId } } },
+        data: { status: 'ENDED' },
+      })
       return tx.campaign.update({
         where: { id: campaignId },
         data: { status: 'ENDED' },

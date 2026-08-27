@@ -21,6 +21,7 @@ import {
   recordPayoutTransferred,
 } from './finance/connectPayoutOps'
 import {
+  getAdRunFunding,
   getCampaignFunding,
   getTransaction,
   listAccounts,
@@ -28,7 +29,9 @@ import {
   reconcileAdSpend,
 } from './finance/queryOps'
 import {
+  authorizeAdRunBudget,
   authorizeCampaignBudget,
+  recordAdRunSpend,
   recordAdSpend,
   recordLoopieFee,
   settleAdSpend,
@@ -39,6 +42,7 @@ export class FinanceService {
   listTransactions = listTransactions
   getTransaction = getTransaction
   getCampaignFunding = getCampaignFunding
+  getAdRunFunding = getAdRunFunding
   recordClientFunding = recordClientFunding
   recordServicePayment = recordServicePayment
   refundServicePayment = refundServicePayment
@@ -46,7 +50,9 @@ export class FinanceService {
   issueRefund = issueRefund
   reverseTransaction = reverseTransaction
   authorizeCampaignBudget = authorizeCampaignBudget
+  authorizeAdRunBudget = authorizeAdRunBudget
   recordAdSpend = recordAdSpend
+  recordAdRunSpend = recordAdRunSpend
   settleAdSpend = settleAdSpend
   recordLoopieFee = recordLoopieFee
   createCommission = createCommission

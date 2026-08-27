@@ -55,6 +55,22 @@ export type RecordAdSpendInput = {
   metadata?: AuditMetadata
 }
 
+// Standalone-AdRun counterpart to RecordAdSpendInput — no campaignId/deploymentId/adUnitId,
+// since an AdRun funds and spends against its own budget authorization directly (see
+// CLAUDE.md's Media/Advertisement/AdRun migration audit: "an AdRun must be able to run without a
+// Campaign").
+export type RecordAdRunSpendInput = {
+  adRunId: string
+  amountMinor: number
+  currency: string
+  platform: 'META' | 'GOOGLE' | 'TIKTOK' | 'LOOPIE'
+  externalChargeId: string
+  periodStart: string
+  periodEnd: string
+  idempotencyKey: string
+  metadata?: AuditMetadata
+}
+
 export type SettleAdSpendInput = {
   settledAmountMinor: number
   idempotencyKey: string
@@ -65,6 +81,7 @@ export type FeeInput = {
   currency: string
   idempotencyKey: string
   campaignId?: string
+  adRunId?: string
   description?: string
   metadata?: AuditMetadata
 }

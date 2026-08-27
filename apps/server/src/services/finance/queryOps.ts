@@ -40,7 +40,10 @@ export async function listAccounts(businessId: string, currency: string) {
   return { data }
 }
 
-export async function listTransactions(businessId: string, opts: { cursor?: string; limit?: number }) {
+export async function listTransactions(
+  businessId: string,
+  opts: { cursor?: string; limit?: number },
+) {
   const limit = normalizeLimit(opts.limit)
   const cursor = decodeCursor(opts.cursor)
   const AND = cursor
@@ -62,7 +65,8 @@ export async function listTransactions(businessId: string, opts: { cursor?: stri
   const hasMore = rows.length > limit
   const items = hasMore ? rows.slice(0, limit) : rows
   const last = items[items.length - 1]
-  const nextCursor = hasMore && last ? encodeCursor({ createdAt: last.postedAt.toISOString(), id: last.id }) : null
+  const nextCursor =
+    hasMore && last ? encodeCursor({ createdAt: last.postedAt.toISOString(), id: last.id }) : null
   return { data: items.map(toTransactionDTO), meta: { hasMore, nextCursor } }
 }
 
@@ -75,6 +79,9 @@ export async function getTransaction(businessId: string, transactionId: string) 
   return toTransactionDTO(row)
 }
 
+// Restored alongside getAdRunFunding below rather than replaced by it — every existing
+// BudgetAuthorization/AdSpend row in this app is campaignId-scoped (see CLAUDE.md's
+// Media/Advertisement/AdRun migration audit), so CampaignService.funding still needs this.
 export async function getCampaignFunding(businessId: string, campaignId: string) {
   const campaign = await db.campaign.findFirst({ where: { id: campaignId, businessId } })
   if (!campaign) throw { statusCode: 404, message: 'Campaign not found' }
@@ -93,16 +100,62 @@ export async function getCampaignFunding(businessId: string, campaignId: string)
     },
     _sum: { amountMinor: true },
   })
-  const reservedDebit = reservedEntries.find((row) => row.direction === 'DEBIT')?._sum.amountMinor ?? 0
-  const reservedCredit = reservedEntries.find((row) => row.direction === 'CREDIT')?._sum.amountMinor ?? 0
+  const reservedDebit =
+    reservedEntries.find((row) => row.direction === 'DEBIT')?._sum.amountMinor ?? 0
+  const reservedCredit =
+    reservedEntries.find((row) => row.direction === 'CREDIT')?._sum.amountMinor ?? 0
   const reservedAmountMinor = reservedCredit - reservedDebit
   const spendRows = await db.adSpend.findMany({ where: { businessId, campaignId } })
-  const platformReportedAmountMinor = spendRows.reduce((sum, row) => sum + row.reportedAmountMinor, 0)
+  const platformReportedAmountMinor = spendRows.reduce(
+    (sum, row) => sum + row.reportedAmountMinor,
+    0,
+  )
   const settledAmountMinor = spendRows.reduce((sum, row) => sum + row.settledAmountMinor, 0)
   return {
     campaignId,
     currency,
     planningBudget: Number(campaign.budget),
+    authorizedAmountMinor: authorization?.authorizedAmountMinor ?? 0,
+    reservedAmountMinor,
+    platformReportedAmountMinor,
+    settledAmountMinor,
+    clientAvailableAmountMinor: byKind.CLIENT_AD_FUNDS ?? 0,
+  }
+}
+
+export async function getAdRunFunding(businessId: string, adRunId: string) {
+  const adRun = await db.adRun.findFirst({ where: { id: adRunId, advertisement: { businessId } } })
+  if (!adRun) throw { statusCode: 404, message: 'AdRun not found' }
+  const authorization = await db.budgetAuthorization.findFirst({
+    where: { adRunId, businessId, status: 'ACTIVE' },
+  })
+  const currency = authorization?.currency ?? 'USD'
+  const accounts = await listAccounts(businessId, currency)
+  const byKind = Object.fromEntries(accounts.data.map((row) => [row.kind, row.balanceMinor]))
+  const reservedEntries = await db.ledgerEntry.groupBy({
+    by: ['direction'],
+    where: {
+      businessId,
+      adRunId,
+      account: { kind: 'CLIENT_FUNDS_RESERVED' },
+    },
+    _sum: { amountMinor: true },
+  })
+  const reservedDebit =
+    reservedEntries.find((row) => row.direction === 'DEBIT')?._sum.amountMinor ?? 0
+  const reservedCredit =
+    reservedEntries.find((row) => row.direction === 'CREDIT')?._sum.amountMinor ?? 0
+  const reservedAmountMinor = reservedCredit - reservedDebit
+  const spendRows = await db.adSpend.findMany({ where: { businessId, adRunId } })
+  const platformReportedAmountMinor = spendRows.reduce(
+    (sum, row) => sum + row.reportedAmountMinor,
+    0,
+  )
+  const settledAmountMinor = spendRows.reduce((sum, row) => sum + row.settledAmountMinor, 0)
+  return {
+    adRunId,
+    currency,
+    planningBudget: Number(adRun.budget ?? 0),
     authorizedAmountMinor: authorization?.authorizedAmountMinor ?? 0,
     reservedAmountMinor,
     platformReportedAmountMinor,
@@ -130,12 +183,11 @@ export async function reconcileAdSpend(businessId: string, input: ReconcileInput
     ) {
       throw { statusCode: 400, message: 'Reconciliation amounts must be non-negative integers' }
     }
-    const discrepancyMinor =
-      Math.max(
-        Math.abs(input.platformReportedAmountMinor - input.trackedAmountMinor),
-        Math.abs(input.settledAmountMinor - input.trackedAmountMinor),
-        Math.abs(input.settledAmountMinor - input.platformReportedAmountMinor),
-      )
+    const discrepancyMinor = Math.max(
+      Math.abs(input.platformReportedAmountMinor - input.trackedAmountMinor),
+      Math.abs(input.settledAmountMinor - input.trackedAmountMinor),
+      Math.abs(input.settledAmountMinor - input.platformReportedAmountMinor),
+    )
     const matched =
       input.trackedAmountMinor === input.platformReportedAmountMinor &&
       input.platformReportedAmountMinor === input.settledAmountMinor
@@ -143,6 +195,7 @@ export async function reconcileAdSpend(businessId: string, input: ReconcileInput
       data: {
         businessId,
         campaignId: spend.campaignId,
+        adRunId: spend.adRunId,
         adSpendId: spend.id,
         currency: spend.currency,
         trackedAmountMinor: input.trackedAmountMinor,
