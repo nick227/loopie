@@ -15,6 +15,7 @@ export function MediaPicker({
   onAdd,
   onConfirm,
   onClose,
+  single,
 }: {
   assets: Asset[]
   selectedIds: string[]
@@ -23,6 +24,7 @@ export function MediaPicker({
   onAdd: (input: AddMediaInput) => Promise<void>
   onConfirm: () => void
   onClose: () => void
+  single?: boolean
 }) {
   return (
     <Modal
@@ -34,7 +36,12 @@ export function MediaPicker({
           <Link to="/media" className="text-sm underline underline-offset-4">
             Manage library
           </Link>
-          <Button type="button" size="sm" onClick={onConfirm} disabled={selectedIds.length === 0}>
+          <Button
+            type="button"
+            size="sm"
+            onClick={onConfirm}
+            disabled={single ? selectedIds.length !== 1 : selectedIds.length === 0}
+          >
             Use selected
           </Button>
         </div>

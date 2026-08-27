@@ -96,7 +96,9 @@ describe('page ad slots', () => {
 
     const hosted = await app.inject({ method: 'GET', url: `/p/${page.slug}` })
     expect(hosted.statusCode).toBe(200)
-    expect(hosted.body).toContain('Welcome to Pages Co')
+    expect(hosted.body).toContain('Pages Co is booking this week')
+    expect(hosted.body).toContain('name="name"')
+    expect(hosted.body).toContain('type="email"')
     expect(hosted.body).not.toContain('/embed/')
     expect(hosted.body).not.toContain('class="lp-section lp-ad"')
   })

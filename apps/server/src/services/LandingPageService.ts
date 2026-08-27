@@ -1,12 +1,15 @@
-import { db, resolveVisitorSid, verifySid } from '@project/db'
-import type { Prisma, SourceType } from '@prisma/client'
+import { db, starterContentForTemplate, DEFAULT_PAGE_THEME } from '@project/db'
+import type { Prisma } from '@prisma/client'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { hostedPageUrl, landingPageSubmitUrl } from '../lib/urls'
-import { renderLandingPageHtml, defaultContentFromSchema } from '../lib/renderLandingPage'
-import { resolveContactAndLead } from '../lib/identityResolution'
-import { snapshotForm, isFormLive, type FormSnapshot } from '../lib/formSnapshot'
+import { renderLandingPageHtml } from '../lib/renderLandingPage'
+import { snapshotForm } from '../lib/formSnapshot'
 import { ACTIVE_SALE_WHERE } from '../lib/salePredicates'
 import { snapshotSlots, toSlotDTO } from '../lib/adSlots'
+import { CONTACT_FORM_FIELDS } from '../lib/contactForm'
+import { ensureSystemTemplates } from '../lib/ensureSystemTemplates'
+import { withResolvedMedia } from '../lib/pageMedia'
+import { assertYoutubeUrlsInContent } from '../lib/youtubeContent'
 
 function toLandingPageDTO(page: {
   id: string
@@ -100,6 +103,7 @@ export class LandingPageService {
   }
 
   async create(businessId: string, data: any) {
+    await ensureSystemTemplates(db)
     const template = await db.landingPageTemplate.findFirst({
       where: { id: data.templateId, OR: [{ businessId: null }, { businessId }] },
     })
@@ -114,19 +118,38 @@ export class LandingPageService {
       })
       if (!form) throw { statusCode: 404, message: 'Form not found' }
     }
+    if (data.content) assertYoutubeUrlsInContent(data.content)
 
-    const page = await db.landingPage.create({
-      data: {
-        businessId,
-        templateId: data.templateId,
-        formId: data.formId,
-        name: data.name,
-        slug: data.slug,
-        content: data.content ?? (defaultContentFromSchema(template.schema as any) as any),
-        theme: data.theme,
-        adSlots: { create: [{ sortOrder: 0, placement: 'AFTER_HERO' }] },
-      },
-      include: { adSlots: { orderBy: { sortOrder: 'asc' as const } } },
+    const business = await db.business.findUniqueOrThrow({ where: { id: businessId } })
+    const page = await db.$transaction(async (tx) => {
+      let formId = data.formId as string | undefined
+      if (!formId) {
+        const form = await tx.form.create({
+          data: {
+            businessId,
+            name: 'Contact',
+            submitLabel: 'Get in touch',
+            successMessage: "Thanks — we'll be in touch.",
+            fields: { create: CONTACT_FORM_FIELDS },
+          },
+        })
+        formId = form.id
+      }
+      return tx.landingPage.create({
+        data: {
+          businessId,
+          templateId: data.templateId,
+          formId,
+          name: data.name,
+          slug: data.slug,
+          content:
+            data.content ??
+            (starterContentForTemplate(template.schema as never, business.name) as never),
+          theme: data.theme ?? DEFAULT_PAGE_THEME,
+          adSlots: { create: [{ sortOrder: 0, placement: 'AFTER_HERO' }] },
+        },
+        include: { adSlots: { orderBy: { sortOrder: 'asc' as const } } },
+      })
     })
     return toLandingPageDTO(page)
   }
@@ -147,6 +170,14 @@ export class LandingPageService {
       })
       if (!form) throw { statusCode: 404, message: 'Form not found' }
     }
+    if (data.templateId) {
+      await ensureSystemTemplates(db)
+      const template = await db.landingPageTemplate.findFirst({
+        where: { id: data.templateId, OR: [{ businessId: null }, { businessId }] },
+      })
+      if (!template) throw { statusCode: 404, message: 'Template not found' }
+    }
+    if (data.content) assertYoutubeUrlsInContent(data.content)
     const page = await db.landingPage.update({
       where: { id: landingPageId },
       data: {
@@ -154,6 +185,7 @@ export class LandingPageService {
         ...(data.slug !== undefined ? { slug: data.slug } : {}),
         ...(data.customDomain !== undefined ? { customDomain: data.customDomain } : {}),
         ...(data.formId !== undefined ? { formId: data.formId } : {}),
+        ...(data.templateId !== undefined ? { templateId: data.templateId } : {}),
         ...(data.content !== undefined ? { content: data.content } : {}),
         ...(data.theme !== undefined ? { theme: data.theme } : {}),
       },
@@ -261,10 +293,11 @@ export class LandingPageService {
       where: { landingPageId: page.id },
       orderBy: { sortOrder: 'asc' },
     })
+    const content = await withResolvedMedia(page.businessId, page.content as never)
     const html = renderLandingPageHtml({
       pageName: page.name,
       templateSchema: template.schema as any,
-      content: page.content as any,
+      content,
       theme: page.theme as any,
       form,
       submitActionUrl: landingPageSubmitUrl(page.id),

@@ -3,6 +3,7 @@ import { landingPageSubmitUrl } from '../lib/urls'
 import { renderLandingPageHtml } from '../lib/renderLandingPage'
 import { snapshotSlots, type AdSlotSnapshotItem } from '../lib/adSlots'
 import { snapshotForm, isFormLive, type FormSnapshot } from '../lib/formSnapshot'
+import { withResolvedMedia } from '../lib/pageMedia'
 
 export class LandingPageRenderService {
   async serve(
@@ -52,12 +53,13 @@ export class LandingPageRenderService {
           orderBy: { sortOrder: 'asc' },
         }),
       )
+    const content = await withResolvedMedia(page.businessId, page.publishedVersion.content as never)
     return {
       sidToken: visitor.token,
       html: renderLandingPageHtml({
         pageName: page.name,
         templateSchema: page.template.schema as any,
-        content: page.publishedVersion.content as any,
+        content,
         theme: page.publishedVersion.theme as any,
         form,
         submitActionUrl: landingPageSubmitUrl(page.id),

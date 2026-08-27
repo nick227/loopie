@@ -16,6 +16,7 @@ type UpdateLandingPageInput = {
   slug?: string
   customDomain?: string | null
   formId?: string | null
+  templateId?: string
   content?: Record<string, unknown>
   theme?: Record<string, unknown> | null
 }
@@ -182,6 +183,9 @@ export function useUpdateLandingPage() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['landingPages', 'list'] })
       queryClient.invalidateQueries({ queryKey: ['landingPage', variables.landingPageId] })
+      if (variables.templateId) {
+        queryClient.invalidateQueries({ queryKey: ['landingPageTemplate', variables.templateId] })
+      }
     },
   })
 }

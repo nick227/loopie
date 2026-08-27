@@ -1,5 +1,6 @@
 import { db } from '@project/db'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
+import { ensureSystemTemplates } from '../lib/ensureSystemTemplates'
 
 function toTemplateDTO(template: any) {
   return {
@@ -21,6 +22,7 @@ function toTemplateDTO(template: any) {
 // templates are seeded, businessId stays available for that future import to land in.
 export class LandingPageTemplateService {
   async list(businessId: string, opts: { cursor?: string; limit?: number }) {
+    await ensureSystemTemplates(db)
     const limit = normalizeLimit(opts.limit)
     const cursor = decodeCursor(opts.cursor)
     const AND: any[] = []
@@ -40,11 +42,15 @@ export class LandingPageTemplateService {
     const hasMore = templates.length > limit
     const items = hasMore ? templates.slice(0, limit) : templates
     const last = items[items.length - 1]
-    const nextCursor = hasMore && last ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id }) : null
+    const nextCursor =
+      hasMore && last
+        ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
+        : null
     return { data: items.map(toTemplateDTO), meta: { hasMore, nextCursor } }
   }
 
   async get(businessId: string, templateId: string) {
+    await ensureSystemTemplates(db)
     const template = await db.landingPageTemplate.findFirst({
       where: { id: templateId, OR: [{ businessId: null }, { businessId }] },
     })

@@ -1,4 +1,16 @@
-export type SectionContent = Record<string, any> & { hidden?: boolean }
+export type FeatureItem = { title: string; body: string }
+export type SectionContent = Record<string, string | boolean | FeatureItem[] | undefined> & {
+  hidden?: boolean
+  headline?: string
+  subheadline?: string
+  ctaLabel?: string
+  ctaLink?: string
+  items?: FeatureItem[]
+  text?: string
+  assetId?: string
+  imageUrl?: string
+  youtubeUrl?: string
+}
 export type TemplateSection = {
   key: string
   type: string
@@ -6,4 +18,3 @@ export type TemplateSection = {
   hideable?: boolean
   editable?: string[]
 }
-export type FeatureItem = { title: string; body: string }

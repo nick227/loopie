@@ -20,4 +20,15 @@ export { consumeRateLimit, cleanupExpiredRateLimitBuckets, type RateLimitResult 
 export { assertTestDatabaseUrl } from './testGuard'
 export { withSid, clickRedirectUrl, trackBaseClick, isCampaignEnded } from './tracking'
 export { absoluteMediaUrl } from './mediaUrl'
-export { SYSTEM_LEAD_GEN_TEMPLATE_ID, SYSTEM_LEAD_GEN_SCHEMA } from './leadGenTemplate'
+export {
+  SYSTEM_LEAD_GEN_TEMPLATE_ID,
+  SYSTEM_LEAD_GEN_SCHEMA,
+  SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID,
+  SYSTEM_MEDIA_LEAD_GEN_SCHEMA,
+  DEFAULT_PAGE_THEME,
+  MOCK_FEATURE_ITEMS,
+  MOCK_STARTER_IMAGE,
+  defaultContentFromSchema,
+  starterContentForTemplate,
+} from './leadGenTemplate'
+export { parseYoutubeId, youtubeEmbedUrl } from './youtube'

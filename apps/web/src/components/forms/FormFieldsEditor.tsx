@@ -37,18 +37,25 @@ export function emptyField(): FormFieldDraft {
 interface FormFieldsEditorProps {
   fields: FormFieldDraft[]
   onChange: (fields: FormFieldDraft[]) => void
+  protectEmail?: boolean
 }
 
 // A Form's fields are a required, ordered, nested-object array — CreateFormInput/UpdateFormInput
 // can't be represented by the generic generated Zod form (see CLAUDE.md's Known Gap notes on
 // buildZodExpr's 'json' fallback), so this is real, hand-built UI rather than a JSON textarea.
-export function FormFieldsEditor({ fields, onChange }: FormFieldsEditorProps) {
+export function FormFieldsEditor({ fields, onChange, protectEmail }: FormFieldsEditorProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+
+  function isLockedEmail(field: FormFieldDraft) {
+    if (!protectEmail || field.type !== 'EMAIL') return false
+    return fields.filter((f) => f.type === 'EMAIL').length <= 1
+  }
 
   function update(index: number, patch: Partial<FormFieldDraft>) {
     const next = fields.slice()
     const current = next[index]
     if (!current) return
+    if (patch.type && isLockedEmail(current) && patch.type !== 'EMAIL') return
     const updated = { ...current, ...patch }
     // Keep fieldKey in sync with the label until the author deliberately edits fieldKey by hand.
     if (patch.label !== undefined && current.fieldKey === toFieldKey(current.label)) {
@@ -59,6 +66,8 @@ export function FormFieldsEditor({ fields, onChange }: FormFieldsEditorProps) {
   }
 
   function remove(index: number) {
+    const field = fields[index]
+    if (field && isLockedEmail(field)) return
     onChange(fields.filter((_, i) => i !== index))
   }
 
@@ -112,24 +121,43 @@ export function FormFieldsEditor({ fields, onChange }: FormFieldsEditorProps) {
             />
             <div className="flex-1 grid grid-cols-2 gap-2">
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-muted-foreground">Label</label>
+                <label
+                  htmlFor={`form-field-label-${index}`}
+                  className="text-xs text-muted-foreground"
+                >
+                  Label
+                </label>
                 <Input
+                  id={`form-field-label-${index}`}
                   value={field.label}
                   onChange={(e) => update(index, { label: e.target.value })}
                   placeholder="e.g. Phone Number"
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-muted-foreground">Field key</label>
+                <label
+                  htmlFor={`form-field-key-${index}`}
+                  className="text-xs text-muted-foreground"
+                >
+                  Field key
+                </label>
                 <Input
+                  id={`form-field-key-${index}`}
                   value={field.fieldKey}
                   onChange={(e) => update(index, { fieldKey: toFieldKey(e.target.value) })}
                   placeholder="phone_number"
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-muted-foreground">Type</label>
+                <label
+                  htmlFor={`form-field-type-${index}`}
+                  className="text-xs text-muted-foreground"
+                >
+                  Type
+                </label>
                 <select
+                  id={`form-field-type-${index}`}
+                  aria-label="Type"
                   value={field.type}
                   onChange={(e) =>
                     update(index, { type: e.target.value as FormFieldDraft['type'] })
@@ -168,14 +196,16 @@ export function FormFieldsEditor({ fields, onChange }: FormFieldsEditorProps) {
                 Required
               </label>
             </div>
-            <button
-              type="button"
-              onClick={() => remove(index)}
-              className="text-muted-foreground hover:text-destructive transition-colors mt-2.5"
-              aria-label="Remove field"
-            >
-              <Trash2 size={16} />
-            </button>
+            {!isLockedEmail(field) && (
+              <button
+                type="button"
+                onClick={() => remove(index)}
+                className="text-muted-foreground hover:text-destructive transition-colors mt-2.5"
+                aria-label="Remove field"
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
           </div>
         </div>
       ))}

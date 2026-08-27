@@ -58,9 +58,11 @@ export class LandingPageSubmissionService {
         }
       }
 
+      // First-touch, same reasoning as AttributionService.submitForm: the earliest click in this
+      // session gets credit, not whichever click is most recent.
       const event = await tx.attributionEvent.findFirst({
         where: { sessionId },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: 'asc' },
         include: { deployment: { include: { campaign: true } }, adUnit: true },
       })
       const eventBusinessId = event?.deployment?.campaign.businessId ?? event?.adUnit?.businessId
@@ -101,7 +103,7 @@ export class LandingPageSubmissionService {
         : attributed?.adUnitId
           ? 'AD_UNIT'
           : 'MANUAL'
-      const { contact, lead } = await resolveContactAndLead(
+      const { contact, lead, leadCreated } = await resolveContactAndLead(
         tx,
         page.businessId,
         { name: nameValue, email: emailValue, phone: phoneValue, source: 'landing-page' },
@@ -118,13 +120,17 @@ export class LandingPageSubmissionService {
         where: { id: submission.id },
         data: { contactId: contact.id, leadId: lead.id },
       })
-      if (attributed?.deploymentId) {
+      // Only a genuinely new Lead is a new conversion — see AttributionService.submitForm's
+      // identical fix. A contact with an already-open Lead who submits a second, different
+      // landing page in a fresh session must not inflate that page's deployment/ad-unit
+      // conversions for a Lead that was merely reused.
+      if (leadCreated && attributed?.deploymentId) {
         await tx.deployment.update({
           where: { id: attributed.deploymentId },
           data: { conversions: { increment: 1 } },
         })
       }
-      if (attributed?.adUnitId) {
+      if (leadCreated && attributed?.adUnitId) {
         await tx.adUnit.update({
           where: { id: attributed.adUnitId },
           data: { conversions: { increment: 1 } },

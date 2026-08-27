@@ -5,6 +5,9 @@
 // (a fixed vocabulary of section "type"s) and fills them from LandingPage.content, rather than
 // interpreting arbitrary markup. That's the deliberate constraint: no freeform builder in V1.
 
+import { defaultContentFromSchema } from '@project/db'
+import { escapeHtml, renderBody, type RenderForm } from './renderLandingPageSections'
+
 type TemplateSection = {
   key: string
   type: string
@@ -22,23 +25,7 @@ type SectionContent = Record<string, unknown> & { hidden?: boolean }
 type PageContent = { sections?: Record<string, SectionContent> }
 type PageTheme = Record<string, string> | null | undefined
 
-type RenderFormField = {
-  label: string
-  fieldKey: string
-  type: string
-  required: boolean
-  options: unknown
-}
-
-type RenderForm = { id: string; submitLabel: string; fields: RenderFormField[] } | null
-
-function escapeHtml(value: unknown): string {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
+export { defaultContentFromSchema }
 
 function renderFormHtml(form: RenderForm, submitActionUrl: string, sessionToken?: string): string {
   if (!form) return ''
@@ -102,79 +89,6 @@ ${fieldsHtml}
 </script>`
 }
 
-function renderAdSlot(embedUrl: string, sessionToken?: string): string {
-  const src = sessionToken ? `${embedUrl}?sid=${encodeURIComponent(sessionToken)}` : embedUrl
-  return `<section class="lp-section lp-ad"><iframe src="${escapeHtml(src)}" title="Ad" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></section>`
-}
-
-function slotsAt(
-  slots: { placement: string; embedUrl: string | null }[],
-  placement: string,
-  sessionToken?: string,
-) {
-  return slots
-    .filter((slot) => slot.placement === placement && slot.embedUrl)
-    .map((slot) => renderAdSlot(slot.embedUrl!, sessionToken))
-    .join('\n')
-}
-
-function renderBody(
-  sections: TemplateSection[],
-  content: PageContent,
-  formHtml: string,
-  adSlots: { placement: string; embedUrl: string | null }[],
-  sessionToken?: string,
-) {
-  const chunks: string[] = []
-  for (const section of sections) {
-    if (section.type === 'form-embed') chunks.push(slotsAt(adSlots, 'BEFORE_FORM', sessionToken))
-    chunks.push(renderSection(section, content.sections?.[section.key] ?? {}, formHtml))
-    if (section.type === 'hero') chunks.push(slotsAt(adSlots, 'AFTER_HERO', sessionToken))
-    if (section.type === 'form-embed') chunks.push(slotsAt(adSlots, 'AFTER_FORM', sessionToken))
-  }
-  chunks.push(slotsAt(adSlots, 'BOTTOM', sessionToken))
-  return chunks.filter(Boolean).join('\n')
-}
-
-function renderSection(
-  section: TemplateSection,
-  content: SectionContent,
-  formHtml: string,
-): string {
-  if (content.hidden) return ''
-
-  switch (section.type) {
-    case 'hero': {
-      const headline = content.headline ? `<h1>${escapeHtml(content.headline)}</h1>` : ''
-      const subheadline = content.subheadline
-        ? `<p class="lp-subheadline">${escapeHtml(content.subheadline)}</p>`
-        : ''
-      const cta = content.ctaLabel
-        ? `<a class="lp-cta" href="${escapeHtml(content.ctaLink ?? '#form')}">${escapeHtml(content.ctaLabel)}</a>`
-        : ''
-      return `<section class="lp-section lp-hero">${headline}${subheadline}${cta}</section>`
-    }
-    case 'feature-grid': {
-      const items = Array.isArray(content.items)
-        ? (content.items as { title: string; body: string }[])
-        : []
-      const itemsHtml = items
-        .map(
-          (item) =>
-            `<div class="lp-feature"><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.body)}</p></div>`,
-        )
-        .join('')
-      return `<section class="lp-section lp-features"><div class="lp-feature-grid">${itemsHtml}</div></section>`
-    }
-    case 'form-embed':
-      return `<section class="lp-section lp-form" id="form">${formHtml}</section>`
-    case 'footer':
-      return `<footer class="lp-section lp-footer"><p>${escapeHtml(content.text ?? '')}</p></footer>`
-    default:
-      return ''
-  }
-}
-
 export function renderLandingPageHtml(input: {
   pageName: string
   templateSchema: TemplateSchema
@@ -196,9 +110,9 @@ export function renderLandingPageHtml(input: {
   )
 
   const theme = input.theme ?? {}
-  const primaryColor = theme.primaryColor ?? '#111827'
-  const backgroundColor = theme.backgroundColor ?? '#ffffff'
-  const fontFamily = theme.fontFamily ?? 'system-ui, sans-serif'
+  const primaryColor = theme.primaryColor ?? '#0B3D91'
+  const backgroundColor = theme.backgroundColor ?? '#E8EEF4'
+  const fontFamily = theme.fontFamily ?? '"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif'
 
   return `<!doctype html>
 <html lang="en">
@@ -206,34 +120,36 @@ export function renderLandingPageHtml(input: {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${escapeHtml(input.pageName)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,600;1,600&display=swap" rel="stylesheet" />
 <style>
-:root { --lp-primary: ${escapeHtml(primaryColor)}; --lp-bg: ${escapeHtml(backgroundColor)}; }
-body { margin: 0; font-family: ${escapeHtml(fontFamily)}; background: var(--lp-bg); color: #111827; }
-.lp-section { padding: 48px 24px; max-width: 720px; margin: 0 auto; }
-.lp-hero h1 { font-size: 2.25rem; margin-bottom: 0.5rem; }
-.lp-subheadline { color: #4b5563; }
-.lp-cta { display: inline-block; margin-top: 1rem; padding: 0.75rem 1.5rem; background: var(--lp-primary); color: white; text-decoration: none; border-radius: 8px; }
-.lp-feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; }
+:root { --lp-primary: ${escapeHtml(primaryColor)}; --lp-bg: ${escapeHtml(backgroundColor)}; --lp-ink: #122033; }
+body { margin: 0; font-family: ${escapeHtml(fontFamily)}; background: var(--lp-bg); color: var(--lp-ink); }
+.lp-section { padding: 56px 28px; max-width: 1040px; margin: 0 auto; }
+.lp-kicker { margin: 0 0 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--lp-primary); }
+.lp-hero h1 { font-family: "IBM Plex Serif", Georgia, serif; font-size: clamp(2.1rem, 4vw, 3.15rem); line-height: 1.12; letter-spacing: -0.03em; margin: 0 0 1rem; font-weight: 600; }
+.lp-subheadline { color: #3d4a5c; font-size: 1.05rem; line-height: 1.55; max-width: 36rem; margin: 0; }
+.lp-cta { display: inline-block; margin-top: 1.5rem; padding: 0.8rem 1.4rem; background: var(--lp-primary); color: white; text-decoration: none; border-radius: 6px; font-size: 0.92rem; font-weight: 500; letter-spacing: 0.02em; }
+.lp-feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1px; background: #d5dde6; border: 1px solid #d5dde6; border-radius: 8px; overflow: hidden; }
+.lp-feature { background: #fff; padding: 1.35rem 1.25rem; }
+.lp-feature h3 { margin: 0 0 0.4rem; font-size: 1rem; }
+.lp-feature p { margin: 0; color: #4b5563; font-size: 0.9rem; line-height: 1.45; }
+.lp-form-card { background: #fff; border: 1px solid #d5dde6; border-radius: 8px; padding: 1.75rem; }
+.lp-form-title { font-family: "IBM Plex Serif", Georgia, serif; font-size: 1.35rem; margin: 0 0 1.1rem; }
 .lp-field { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.25rem; }
 .lp-field-checkbox { flex-direction: row; align-items: center; }
-input, textarea, select { padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px; font: inherit; }
-button[type="submit"] { padding: 0.75rem 1.5rem; background: var(--lp-primary); color: white; border: none; border-radius: 8px; cursor: pointer; }
-.lp-footer { text-align: center; color: #6b7280; font-size: 0.875rem; }
+input, textarea, select { padding: 0.55rem 0.65rem; border: 1px solid #c5ced8; border-radius: 6px; font: inherit; background: #fbfcfd; }
+button[type="submit"] { padding: 0.8rem 1.4rem; background: var(--lp-primary); color: white; border: none; border-radius: 6px; cursor: pointer; font: inherit; font-weight: 500; }
+.lp-footer { text-align: center; color: #5b6776; font-size: 0.875rem; }
 .lp-ad iframe { width: 100%; min-height: 280px; border: 0; display: block; }
+.lp-media img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; display: block; box-shadow: 0 12px 40px rgba(18, 32, 51, 0.12); }
+.lp-media audio { width: 100%; }
+.lp-media iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 4px; display: block; }
 </style>
 </head>
 <body>
 ${bodyHtml}
 </body>
 </html>`
-}
-
-// Every LandingPageTemplate.schema section gets a `{ hidden: false }` slot so the draft starts
-// in a valid, renderable state before the author has touched anything.
-export function defaultContentFromSchema(schema: TemplateSchema): PageContent {
-  const sections: Record<string, SectionContent> = {}
-  for (const section of schema.sections ?? []) {
-    sections[section.key] = { hidden: false }
-  }
-  return { sections }
 }

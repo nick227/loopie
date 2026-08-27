@@ -1123,6 +1123,7 @@ components:
         slug: { type: string, minLength: 1, maxLength: 80, pattern: '^[a-z0-9-]+$' }
         customDomain: { type: string, nullable: true }
         formId: { type: string, nullable: true }
+        templateId: { type: string }
         content: { type: object, additionalProperties: true }
         theme: { type: object, nullable: true, additionalProperties: true }
 

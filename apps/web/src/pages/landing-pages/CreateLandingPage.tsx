@@ -28,13 +28,14 @@ export function CreateLandingPage() {
 
   const mutation = useCreateLandingPage()
 
-  // Only one template exists in V1 (system "Simple Lead Gen") — auto-select it once loaded so
-  // authoring a page doesn't require picking from a list of one. A picker still renders if a
-  // business ever has more than one template available (own + system).
   useEffect(() => {
+    if (templateId || templates.length === 0) return
+    const simple = templates.find(
+      (t) => t.id === 'system-template-lead-gen' || t.name === 'Simple Lead Gen',
+    )
     // Genuinely reacting to async query data arriving after mount, not derivable at render time —
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!templateId && templates.length > 0) setTemplateId(templates[0]!.id)
+    setTemplateId(simple?.id ?? templates[0]!.id)
   }, [templates, templateId])
 
   async function handleSubmit() {
@@ -43,8 +44,13 @@ export function CreateLandingPage() {
     if (!slug.trim()) return setError('Slug is required.')
     if (!templateId) return setError('Choose a template.')
 
-    const result = await mutation.mutateAsync({ templateId, name, slug })
-    navigate(`/landing-pages/${result.data!.id}`)
+    try {
+      const result = await mutation.mutateAsync({ templateId, name, slug })
+      if (!result.data) throw new Error('The landing page was created without an identifier.')
+      navigate(`/landing-pages/${result.data.id}`)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'The landing page could not be created.')
+    }
   }
 
   return (
