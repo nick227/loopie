@@ -162,7 +162,17 @@ export class CrmSyncService {
           occurredAt: row.occurredAt,
           amount: row.amount,
           productOrService: row.productOrService,
-          contact: row.contact,
+          // Connector rows use `string | null` for a missing email/phone (raw CRM JSON commonly
+          // sends an explicit null rather than omitting the key); ExternalEventService's input
+          // type only accepts `string | undefined`. Both are already treated identically
+          // downstream (normalizeEmail/normalizePhone treat null and undefined the same, and the
+          // `contactPayload.email || contactPayload.phone || ...` gate is falsy for either) — this
+          // is a type-level coercion only, not a behavior change.
+          contact: {
+            ...row.contact,
+            email: row.contact.email ?? undefined,
+            phone: row.contact.phone ?? undefined,
+          },
           payload: row.raw,
         })
         count++
