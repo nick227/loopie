@@ -57,17 +57,23 @@ function renderFormHtml(form: RenderForm, submitActionUrl: string, sessionToken?
     })
     .join('\n')
 
+  const successHtml = JSON.stringify(
+    `<p class="lp-success">${escapeHtml(form.successMessage || "Thanks — we'll be in touch.")}</p>`,
+  )
   const issuedSid = sessionToken ? JSON.stringify(sessionToken) : 'null'
 
   return `<form class="lp-form-el" data-submit-url="${escapeHtml(submitActionUrl)}">
+<p class="lp-error" hidden></p>
 ${fieldsHtml}
 <button type="submit">${escapeHtml(form.submitLabel)}</button>
 </form>
 <script>
 (function () {
   var formEl = document.currentScript.previousElementSibling;
+  var errorEl = formEl.querySelector('.lp-error');
   formEl.addEventListener('submit', function (event) {
     event.preventDefault();
+    errorEl.hidden = true;
     var data = {};
     new FormData(formEl).forEach(function (value, key) { data[key] = value; });
     var params = new URLSearchParams(window.location.search);
@@ -83,7 +89,15 @@ ${fieldsHtml}
         utmContent: params.get('utm_content') || undefined,
         utmTerm: params.get('utm_term') || undefined,
       }),
-    }).then(function () { formEl.outerHTML = '<p class="lp-success">Thanks!</p>'; });
+    }).then(function (res) {
+      return res.json().then(function (body) {
+        if (!res.ok) throw new Error(body.message || 'Could not submit');
+        formEl.outerHTML = ${successHtml};
+      });
+    }).catch(function (err) {
+      errorEl.textContent = err.message || 'Could not submit';
+      errorEl.hidden = false;
+    });
   });
 })();
 </script>`
@@ -111,6 +125,7 @@ export function renderLandingPageHtml(input: {
 
   const theme = input.theme ?? {}
   const primaryColor = theme.primaryColor ?? '#0B3D91'
+  const onPrimaryColor = theme.onPrimaryColor ?? '#FFFFFF'
   const backgroundColor = theme.backgroundColor ?? '#E8EEF4'
   const inkColor = theme.inkColor ?? '#122033'
   const cardColor = theme.cardColor ?? '#FFFFFF'
@@ -129,28 +144,38 @@ export function renderLandingPageHtml(input: {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?${escapeHtml(googleFonts)}&display=swap" rel="stylesheet" />
 <style>
-:root { --lp-primary: ${escapeHtml(primaryColor)}; --lp-bg: ${escapeHtml(backgroundColor)}; --lp-ink: ${escapeHtml(inkColor)}; --lp-card: ${escapeHtml(cardColor)}; --lp-heading: ${escapeHtml(headingFont)}; }
+:root { --lp-primary: ${escapeHtml(primaryColor)}; --lp-on-primary: ${escapeHtml(onPrimaryColor)}; --lp-bg: ${escapeHtml(backgroundColor)}; --lp-ink: ${escapeHtml(inkColor)}; --lp-card: ${escapeHtml(cardColor)}; --lp-heading: ${escapeHtml(headingFont)}; }
 body { margin: 0; font-family: ${escapeHtml(fontFamily)}; background: var(--lp-bg); color: var(--lp-ink); }
 .lp-section { padding: 56px 28px; max-width: 1040px; margin: 0 auto; }
 .lp-kicker { margin: 0 0 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--lp-primary); }
 .lp-hero h1 { font-family: var(--lp-heading); font-size: clamp(2.1rem, 4vw, 3.15rem); line-height: 1.12; letter-spacing: -0.03em; margin: 0 0 1rem; font-weight: 600; }
-.lp-subheadline { color: var(--lp-ink); opacity: 0.72; font-size: 1.05rem; line-height: 1.55; max-width: 36rem; margin: 0; }
-.lp-cta { display: inline-block; margin-top: 1.5rem; padding: 0.8rem 1.4rem; background: var(--lp-primary); color: white; text-decoration: none; border-radius: 6px; font-size: 0.92rem; font-weight: 500; letter-spacing: 0.02em; }
+.lp-subheadline { color: color-mix(in srgb, var(--lp-ink) 72%, var(--lp-bg)); font-size: 1.05rem; line-height: 1.55; max-width: 36rem; margin: 0; }
+.lp-cta { display: inline-block; margin-top: 1.5rem; padding: 0.8rem 1.4rem; background: var(--lp-primary); color: var(--lp-on-primary); text-decoration: none; border-radius: 6px; font-size: 0.92rem; font-weight: 500; letter-spacing: 0.02em; }
 .lp-feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1px; background: color-mix(in srgb, var(--lp-ink) 12%, var(--lp-bg)); border: 1px solid color-mix(in srgb, var(--lp-ink) 12%, var(--lp-bg)); border-radius: 8px; overflow: hidden; }
 .lp-feature { background: var(--lp-card); padding: 1.35rem 1.25rem; }
 .lp-feature h3 { margin: 0 0 0.4rem; font-size: 1rem; }
-.lp-feature p { margin: 0; opacity: 0.72; font-size: 0.9rem; line-height: 1.45; }
+.lp-feature p { margin: 0; color: color-mix(in srgb, var(--lp-ink) 72%, var(--lp-bg)); font-size: 0.9rem; line-height: 1.45; }
 .lp-form-card { background: var(--lp-card); border: 1px solid color-mix(in srgb, var(--lp-ink) 12%, var(--lp-bg)); border-radius: 8px; padding: 1.75rem; }
 .lp-form-title { font-family: var(--lp-heading); font-size: 1.35rem; margin: 0 0 1.1rem; }
 .lp-field { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.25rem; }
 .lp-field-checkbox { flex-direction: row; align-items: center; }
-input, textarea, select { padding: 0.55rem 0.65rem; border: 1px solid color-mix(in srgb, var(--lp-ink) 18%, var(--lp-card)); border-radius: 6px; font: inherit; background: var(--lp-card); color: var(--lp-ink); }
-button[type="submit"] { padding: 0.8rem 1.4rem; background: var(--lp-primary); color: white; border: none; border-radius: 6px; cursor: pointer; font: inherit; font-weight: 500; }
-.lp-footer { text-align: center; opacity: 0.65; font-size: 0.875rem; }
-.lp-ad iframe { width: 100%; min-height: 280px; border: 0; display: block; }
-.lp-media img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; display: block; box-shadow: 0 12px 40px rgba(18, 32, 51, 0.12); }
+input, textarea, select { padding: 0.55rem 0.65rem; border: 1px solid color-mix(in srgb, var(--lp-ink) 18%, var(--lp-card)); border-radius: 6px; font: inherit; background: var(--lp-bg); color: var(--lp-ink); }
+button[type="submit"] { padding: 0.8rem 1.4rem; background: var(--lp-primary); color: var(--lp-on-primary); border: none; border-radius: 6px; cursor: pointer; font: inherit; font-weight: 500; }
+.lp-footer { text-align: center; color: color-mix(in srgb, var(--lp-ink) 65%, var(--lp-bg)); font-size: 0.875rem; }
+.lp-ad { padding: 16px 28px; max-width: 1040px; margin: 0 auto; }
+.lp-ad iframe { width: 100%; min-height: 90px; max-height: 120px; border: 0; display: block; background: color-mix(in srgb, var(--lp-ink) 6%, var(--lp-bg)); }
+.lp-media img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; display: block; }
 .lp-media audio { width: 100%; }
 .lp-media iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 4px; display: block; }
+.lp-split { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; }
+.lp-split-media { min-height: 280px; background: color-mix(in srgb, var(--lp-ink) 8%, var(--lp-bg)); }
+.lp-split-media img { width: 100%; height: 100%; min-height: 280px; object-fit: cover; display: block; }
+.lp-split-copy { display: flex; flex-direction: column; justify-content: center; padding: 48px 40px; background: var(--lp-card); color: var(--lp-ink); }
+.lp-split-copy h1 { font-family: var(--lp-heading); font-size: clamp(1.55rem, 3vw, 2.15rem); line-height: 1.2; margin: 0 0 1.4rem; font-weight: 600; }
+.lp-split .lp-form-el { max-width: 22rem; }
+.lp-error { color: color-mix(in srgb, #e11d48 55%, var(--lp-ink)); font-size: 0.875rem; margin: 0 0 0.75rem; }
+.lp-success { color: var(--lp-ink); font-size: 1rem; }
+@media (max-width: 800px) { .lp-split { grid-template-columns: 1fr; min-height: auto; } }
 </style>
 </head>
 <body>

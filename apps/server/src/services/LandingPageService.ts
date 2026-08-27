@@ -1,4 +1,9 @@
-import { db, starterContentForTemplate, DEFAULT_PAGE_THEME } from '@project/db'
+import {
+  db,
+  starterContentForTemplate,
+  DEFAULT_PAGE_THEME,
+  SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID,
+} from '@project/db'
 import type { Prisma } from '@prisma/client'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { hostedPageUrl, landingPageSubmitUrl } from '../lib/urls'
@@ -6,7 +11,7 @@ import { renderLandingPageHtml } from '../lib/renderLandingPage'
 import { snapshotForm } from '../lib/formSnapshot'
 import { ACTIVE_SALE_WHERE } from '../lib/salePredicates'
 import { snapshotSlots, toSlotDTO } from '../lib/adSlots'
-import { CONTACT_FORM_FIELDS } from '../lib/contactForm'
+import { CONTACT_FORM_FIELDS, EMAIL_CAPTURE_FIELDS } from '../lib/contactForm'
 import { ensureSystemTemplates } from '../lib/ensureSystemTemplates'
 import { withResolvedMedia } from '../lib/pageMedia'
 import { assertYoutubeUrlsInContent } from '../lib/youtubeContent'
@@ -69,7 +74,12 @@ export async function loadFormForRender(formId: string | null) {
     include: { fields: { orderBy: { order: 'asc' } } },
   })
   if (!form) return null
-  return { id: form.id, submitLabel: form.submitLabel, fields: form.fields }
+  return {
+    id: form.id,
+    submitLabel: form.submitLabel,
+    successMessage: form.successMessage,
+    fields: form.fields,
+  }
 }
 
 export class LandingPageService {
@@ -124,13 +134,14 @@ export class LandingPageService {
     const page = await db.$transaction(async (tx) => {
       let formId = data.formId as string | undefined
       if (!formId) {
+        const emailCapture = data.templateId === SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID
         const form = await tx.form.create({
           data: {
             businessId,
-            name: 'Contact',
-            submitLabel: 'Get in touch',
+            name: emailCapture ? 'Email capture' : 'Contact',
+            submitLabel: emailCapture ? 'Get the next opening' : 'Get in touch',
             successMessage: "Thanks — we'll be in touch.",
-            fields: { create: CONTACT_FORM_FIELDS },
+            fields: { create: emailCapture ? EMAIL_CAPTURE_FIELDS : CONTACT_FORM_FIELDS },
           },
         })
         formId = form.id
@@ -146,7 +157,17 @@ export class LandingPageService {
             data.content ??
             (starterContentForTemplate(template.schema as never, business.name) as never),
           theme: data.theme ?? DEFAULT_PAGE_THEME,
-          adSlots: { create: [{ sortOrder: 0, placement: 'AFTER_HERO' }] },
+          adSlots: {
+            create: [
+              {
+                sortOrder: 0,
+                placement:
+                  data.templateId === SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID
+                    ? 'AFTER_FORM'
+                    : 'AFTER_HERO',
+              },
+            ],
+          },
         },
         include: { adSlots: { orderBy: { sortOrder: 'asc' as const } } },
       })
@@ -206,6 +227,7 @@ export class LandingPageService {
     return db.$transaction(async (tx) => {
       const current = await tx.landingPage.findFirst({
         where: { id: landingPageId, businessId, deletedAt: null },
+        include: { template: true },
       })
       if (!current) throw { statusCode: 404, message: 'Landing page not found' }
 
@@ -238,6 +260,7 @@ export class LandingPageService {
           formId: current.formId,
           formSnapshot: formSnapshot as unknown as Prisma.InputJsonValue | undefined,
           adSlotSnapshot: snapshotSlots(slots) as unknown as Prisma.InputJsonValue,
+          schemaSnapshot: current.template.schema as Prisma.InputJsonValue,
           publishedBy,
         },
       })

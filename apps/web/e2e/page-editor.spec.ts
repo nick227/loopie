@@ -41,18 +41,20 @@ test.describe('page editor canvas', () => {
     await page.getByLabel('Type', { exact: true }).nth(fieldCount).selectOption('PHONE')
 
     const layout = page.getByLabel('Layout')
-    const layoutLabels = await layout.locator('option').allTextContents()
-    const layoutPick =
-      layoutLabels.find((label) => label === 'Sales page' || label === 'Simple Lead Gen') ??
-      layoutLabels[0]!
-    await layout.selectOption({ label: layoutPick })
-    await page.getByLabel('Headline', { exact: true }).fill('Canvas Verified Headline')
+    await layout.selectOption({ label: 'Email capture' })
+    await expect(page.getByLabel('Headline', { exact: true })).toHaveCount(0)
+    await page.getByLabel('Pitch').fill('Canvas Verified Pitch')
+    await expect(page.getByLabel('Pitch')).toHaveValue('Canvas Verified Pitch')
+    await expect(page.getByLabel('Phone')).toBeVisible()
     await expect(page.getByRole('button', { name: /save draft/i })).toBeEnabled()
     await page.getByRole('button', { name: /save draft/i }).click()
     await expect(page.getByText('Saved')).toBeVisible({ timeout: 10000 })
 
+    const published = page.waitForResponse(
+      (res) => res.request().method() === 'POST' && res.url().includes('/publish') && res.ok(),
+    )
     await page.getByRole('button', { name: /^publish$/i }).click()
-    await expect(page.getByText(/^Live at /)).toBeVisible({ timeout: 10000 })
+    await published
 
     const hostedHref = await page.locator('a[href*="/p/"]').first().getAttribute('href')
     expect(hostedHref).toBeTruthy()
@@ -60,7 +62,9 @@ test.describe('page editor canvas', () => {
     const hostedResp = await page.request.get(`${apiOrigin}${hostedPath}`)
     expect(hostedResp.status()).toBe(200)
     const html = await hostedResp.text()
-    expect(html).toContain('Canvas Verified Headline')
+    expect(html).toContain('Canvas Verified Pitch')
+    expect(html).toContain('class="lp-split"')
+    expect(html).not.toContain('class="lp-section lp-hero"')
     expect(html).toContain('name="phone"')
     expect(page.url()).not.toContain('/forms/new')
   })

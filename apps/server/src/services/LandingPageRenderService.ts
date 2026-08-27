@@ -54,11 +54,14 @@ export class LandingPageRenderService {
         }),
       )
     const content = await withResolvedMedia(page.businessId, page.publishedVersion.content as never)
+    const templateSchema = page.publishedVersion.schemaSnapshot ?? page.template.schema
     return {
       sidToken: visitor.token,
       html: renderLandingPageHtml({
         pageName: page.name,
-        templateSchema: page.template.schema as any,
+        templateSchema: templateSchema as Parameters<
+          typeof renderLandingPageHtml
+        >[0]['templateSchema'],
         content,
         theme: page.publishedVersion.theme as any,
         form,

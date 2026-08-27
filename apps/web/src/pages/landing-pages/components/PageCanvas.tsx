@@ -29,10 +29,12 @@ export function PageCanvas({
   const fontFamily = theme.fontFamily ?? '"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif'
   const headingFont = theme.headingFont ?? '"IBM Plex Serif", Georgia, serif'
   const primaryColor = theme.primaryColor ?? '#0B3D91'
+  const onPrimaryColor = theme.onPrimaryColor ?? '#FFFFFF'
   const inkColor = theme.inkColor ?? '#122033'
   const cardColor = theme.cardColor ?? '#FFFFFF'
   const googleFonts =
     theme.googleFonts ?? 'family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600'
+  const hasBottom = slots.some((slot) => slot.placement === 'BOTTOM')
 
   return (
     <div
@@ -42,6 +44,8 @@ export function PageCanvas({
         fontFamily,
         color: inkColor,
         ['--lp-primary' as string]: primaryColor,
+        ['--lp-on-primary' as string]: onPrimaryColor,
+        ['--lp-bg' as string]: backgroundColor,
         ['--lp-heading' as string]: headingFont,
         ['--lp-ink' as string]: inkColor,
         ['--lp-card' as string]: cardColor,
@@ -64,12 +68,14 @@ export function PageCanvas({
           {section.type === 'hero' ? (
             <CanvasAdBand placement="AFTER_HERO" slots={slots} onChange={onSlots} />
           ) : null}
-          {section.type === 'form-embed' ? (
+          {section.type === 'split-capture' ||
+          (section.type === 'form-embed' &&
+            slots.some((slot) => slot.placement === 'AFTER_FORM')) ? (
             <CanvasAdBand placement="AFTER_FORM" slots={slots} onChange={onSlots} />
           ) : null}
         </div>
       ))}
-      <CanvasAdBand placement="BOTTOM" slots={slots} onChange={onSlots} />
+      {hasBottom ? <CanvasAdBand placement="BOTTOM" slots={slots} onChange={onSlots} /> : null}
     </div>
   )
 }

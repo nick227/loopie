@@ -59,18 +59,13 @@ export const SYSTEM_LEAD_GEN_SCHEMA = {
 
 export const SYSTEM_MEDIA_LEAD_GEN_SCHEMA = {
   sections: [
-    HERO,
     {
-      key: 'image',
-      type: 'media-image',
-      order: 1,
-      hideable: true,
-      editable: ['assetId', 'imageUrl'],
+      key: 'split',
+      type: 'split-capture',
+      order: 0,
+      hideable: false,
+      editable: ['headline', 'assetId', 'imageUrl'],
     },
-    { key: 'audio', type: 'media-audio', order: 2, hideable: true, editable: ['assetId'] },
-    { key: 'youtube', type: 'media-youtube', order: 3, hideable: true, editable: ['youtubeUrl'] },
-    { ...FORM, order: 4 },
-    { ...FOOTER, order: 5 },
   ],
   themeTokens: [],
   themePresets: PAGE_THEME_PRESETS,
@@ -122,6 +117,13 @@ export function starterContentForTemplate(
   }
   if (sections.image) {
     sections.image = { hidden: false, imageUrl: MOCK_STARTER_IMAGE }
+  }
+  if (sections.split) {
+    sections.split = {
+      hidden: false,
+      headline: `Get ${businessName}'s next opening`,
+      imageUrl: MOCK_STARTER_IMAGE,
+    }
   }
   if (sections.footer) {
     sections.footer = {

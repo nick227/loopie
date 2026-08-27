@@ -31,7 +31,10 @@ export function CreateLandingPage() {
   useEffect(() => {
     if (templateId || templates.length === 0) return
     const simple = templates.find(
-      (t) => t.id === 'system-template-lead-gen' || t.name === 'Simple Lead Gen',
+      (t) =>
+        t.id === 'system-template-lead-gen' ||
+        t.name === 'Sales page' ||
+        t.name === 'Simple Lead Gen',
     )
     // Genuinely reacting to async query data arriving after mount, not derivable at render time —
     // eslint-disable-next-line react-hooks/set-state-in-effect

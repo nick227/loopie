@@ -1,5 +1,10 @@
 import { db } from '../../src/client'
-import { SYSTEM_LEAD_GEN_TEMPLATE_ID, SYSTEM_LEAD_GEN_SCHEMA } from '../../src/leadGenTemplate'
+import {
+  SYSTEM_LEAD_GEN_TEMPLATE_ID,
+  SYSTEM_LEAD_GEN_SCHEMA,
+  SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID,
+  SYSTEM_MEDIA_LEAD_GEN_SCHEMA,
+} from '../../src/leadGenTemplate'
 import type { Prisma } from '@prisma/client'
 
 export async function seedRiversideDemo(businessId: string) {
@@ -172,16 +177,28 @@ export async function seedRiversideDemo(businessId: string) {
 async function seedCapture(businessId: string, campaignId: string, creativeId: string) {
   const leadGenTemplate = await db.landingPageTemplate.upsert({
     where: { id: SYSTEM_LEAD_GEN_TEMPLATE_ID },
-    update: {},
+    update: { name: 'Sales page', schema: SYSTEM_LEAD_GEN_SCHEMA },
     create: {
       id: SYSTEM_LEAD_GEN_TEMPLATE_ID,
       isSystem: true,
-      name: 'Simple Lead Gen',
-      description:
-        'Hero, feature grid, embedded form, footer — a single-purpose lead capture page.',
+      name: 'Sales page',
+      description: 'Vertical sales landing page: hero, photograph, proof, form, footer.',
       category: 'lead-gen',
       formatVersion: '1.0',
       schema: SYSTEM_LEAD_GEN_SCHEMA,
+    },
+  })
+  await db.landingPageTemplate.upsert({
+    where: { id: SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID },
+    update: { name: 'Email capture', schema: SYSTEM_MEDIA_LEAD_GEN_SCHEMA },
+    create: {
+      id: SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID,
+      isSystem: true,
+      name: 'Email capture',
+      description: 'Two-column email capture: image on the left, pitch and email on the right.',
+      category: 'lead-gen',
+      formatVersion: '1.0',
+      schema: SYSTEM_MEDIA_LEAD_GEN_SCHEMA,
     },
   })
 

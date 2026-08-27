@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client'
 import {
-  SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID,
-  SYSTEM_MEDIA_LEAD_GEN_SCHEMA,
+  SYSTEM_LEAD_GEN_TEMPLATE_ID,
+  SYSTEM_LEAD_GEN_SCHEMA,
   starterContentForTemplate,
   DEFAULT_PAGE_THEME,
 } from '@project/db'
@@ -28,7 +28,7 @@ export async function provisionDefaultPage(
     data: {
       businessId: input.businessId,
       name: 'Contact',
-      submitLabel: 'Get in touch',
+      submitLabel: 'Request a callback',
       successMessage: "Thanks — we'll be in touch.",
       fields: { create: CONTACT_FORM_FIELDS },
     },
@@ -39,14 +39,14 @@ export async function provisionDefaultPage(
   if (clash) slug = `${slug}-${input.businessId.slice(-6).toLowerCase()}`
 
   const content = starterContentForTemplate(
-    SYSTEM_MEDIA_LEAD_GEN_SCHEMA,
+    SYSTEM_LEAD_GEN_SCHEMA,
     input.businessName,
   ) as Prisma.InputJsonValue
 
   const page = await tx.landingPage.create({
     data: {
       businessId: input.businessId,
-      templateId: SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID,
+      templateId: SYSTEM_LEAD_GEN_TEMPLATE_ID,
       formId: form.id,
       name: 'Home',
       slug,
@@ -74,6 +74,7 @@ export async function provisionDefaultPage(
         { placement: 'AFTER_HERO', sortOrder: 0, adUnitId: null, embedUrl: null },
         { placement: 'BEFORE_FORM', sortOrder: 1, adUnitId: null, embedUrl: null },
       ],
+      schemaSnapshot: SYSTEM_LEAD_GEN_SCHEMA as Prisma.InputJsonValue,
     },
   })
   await tx.landingPage.update({

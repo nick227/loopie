@@ -2,6 +2,7 @@ export type PageThemePreset = {
   id: string
   name: string
   primaryColor: string
+  onPrimaryColor: string
   backgroundColor: string
   inkColor: string
   cardColor: string
@@ -15,6 +16,7 @@ export const PAGE_THEME_PRESETS: PageThemePreset[] = [
     id: 'carbon',
     name: 'Carbon',
     primaryColor: '#0B3D91',
+    onPrimaryColor: '#FFFFFF',
     backgroundColor: '#E8EEF4',
     inkColor: '#122033',
     cardColor: '#FFFFFF',
@@ -26,6 +28,7 @@ export const PAGE_THEME_PRESETS: PageThemePreset[] = [
     id: 'shopfront',
     name: 'Shopfront',
     primaryColor: '#C8102E',
+    onPrimaryColor: '#FFFFFF',
     backgroundColor: '#FFFFFF',
     inkColor: '#111111',
     cardColor: '#F4F4F4',
@@ -37,6 +40,7 @@ export const PAGE_THEME_PRESETS: PageThemePreset[] = [
     id: 'workshop',
     name: 'Workshop',
     primaryColor: '#1F3D2B',
+    onPrimaryColor: '#F3F0EA',
     backgroundColor: '#E4E0D7',
     inkColor: '#1A1714',
     cardColor: '#F3F0EA',
@@ -48,6 +52,7 @@ export const PAGE_THEME_PRESETS: PageThemePreset[] = [
     id: 'night-desk',
     name: 'Night desk',
     primaryColor: '#8FA8FF',
+    onPrimaryColor: '#0C1222',
     backgroundColor: '#0C1222',
     inkColor: '#E7ECF4',
     cardColor: '#161D30',
@@ -61,6 +66,7 @@ export function themeFromPreset(preset: PageThemePreset): Record<string, string>
   return {
     presetId: preset.id,
     primaryColor: preset.primaryColor,
+    onPrimaryColor: preset.onPrimaryColor,
     backgroundColor: preset.backgroundColor,
     inkColor: preset.inkColor,
     cardColor: preset.cardColor,

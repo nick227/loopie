@@ -33,12 +33,15 @@ describe('page editor', () => {
       headers: asAuth(userId),
     })
     const page = list.json().data[0]
-    expect(page.templateId).toBe(SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID)
+    expect(page.templateId).toBe(SYSTEM_LEAD_GEN_TEMPLATE_ID)
+    expect(page.status).toBe('PUBLISHED')
 
     const hosted = await app.inject({ method: 'GET', url: `/p/${page.slug}` })
     expect(hosted.statusCode).toBe(200)
     expect(hosted.body).toContain('Editor Co is booking this week')
     expect(hosted.body).toContain('images.unsplash.com')
+    expect(hosted.body).toContain('class="lp-section lp-hero"')
+    expect(hosted.body).toContain('class="lp-section lp-features"')
     expect(hosted.body).toContain('name="name"')
     expect(hosted.body).toContain('type="email"')
     expect(hosted.body).not.toContain('/embed/')
@@ -125,8 +128,117 @@ describe('page editor', () => {
       headers: asAuth(testUserId),
     })
     expect(exported.statusCode).toBe(200)
-    expect(exported.json().data.html).not.toContain('lp-features')
-    expect(exported.json().data.html).toContain('lp-hero')
+    expect(exported.json().data.html).not.toContain('class="lp-section lp-hero"')
+    expect(exported.json().data.html).toContain('class="lp-split"')
+  })
+
+  it('creates an email-capture page as a two-column pitch with email only', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/landing-pages',
+      headers: asAuth(testUserId),
+      payload: {
+        templateId: SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID,
+        name: 'Capture Page',
+        slug: `capture-${Date.now()}`,
+      },
+    })
+    expect(created.statusCode).toBe(201)
+    const page = created.json().data
+    expect(page.content.sections.split.headline).toContain('next opening')
+
+    const exported = await app.inject({
+      method: 'GET',
+      url: `/landing-pages/${page.id}/export`,
+      headers: asAuth(testUserId),
+    })
+    expect(exported.statusCode).toBe(200)
+    const html = exported.json().data.html as string
+    expect(html).toContain('class="lp-split"')
+    expect(html).not.toContain('class="lp-section lp-hero"')
+    expect(html).not.toContain('class="lp-section lp-features"')
+    expect(html).toContain('type="email"')
+    expect(html).not.toContain('name="name"')
+
+    const published = await app.inject({
+      method: 'POST',
+      url: `/landing-pages/${page.id}/publish`,
+      headers: asAuth(testUserId),
+    })
+    expect(published.statusCode).toBe(201)
+
+    const submitOk = await app.inject({
+      method: 'POST',
+      url: `/landing-pages/${page.id}/submissions`,
+      payload: {
+        sessionId: issueSid().token,
+        data: { email: 'ada@example.com' },
+      },
+    })
+    expect(submitOk.statusCode).toBe(201)
+
+    const submitBad = await app.inject({
+      method: 'POST',
+      url: `/landing-pages/${page.id}/submissions`,
+      payload: {
+        sessionId: issueSid().token,
+        data: {},
+      },
+    })
+    expect(submitBad.statusCode).toBe(400)
+  })
+
+  it('keeps the hosted layout on the published schema until republish', async () => {
+    const { userId } = await registerBusiness()
+    const list = await app.inject({
+      method: 'GET',
+      url: '/landing-pages',
+      headers: asAuth(userId),
+    })
+    const listed = list.json().data[0]
+    const detail = await app.inject({
+      method: 'GET',
+      url: `/landing-pages/${listed.id}`,
+      headers: asAuth(userId),
+    })
+    expect(detail.statusCode).toBe(200)
+    const page = detail.json().data
+
+    const before = await app.inject({ method: 'GET', url: `/p/${page.slug}` })
+    expect(before.statusCode).toBe(200)
+    expect(before.body).toContain('class="lp-section lp-hero"')
+
+    const patched = await app.inject({
+      method: 'PATCH',
+      url: `/landing-pages/${page.id}`,
+      headers: asAuth(userId),
+      payload: {
+        templateId: SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID,
+        content: {
+          sections: {
+            ...page.content.sections,
+            split: { hidden: false, headline: 'Draft pitch only' },
+          },
+        },
+      },
+    })
+    expect(patched.statusCode).toBe(200)
+
+    const mid = await app.inject({ method: 'GET', url: `/p/${page.slug}` })
+    expect(mid.body).toContain('class="lp-section lp-hero"')
+    expect(mid.body).not.toContain('Draft pitch only')
+
+    const published = await app.inject({
+      method: 'POST',
+      url: `/landing-pages/${page.id}/publish`,
+      headers: asAuth(userId),
+    })
+    expect(published.statusCode).toBe(201)
+
+    const after = await app.inject({ method: 'GET', url: `/p/${page.slug}` })
+    expect(after.body).toContain('class="lp-split"')
+    expect(after.body).toContain('Draft pitch only')
+    expect(after.body).not.toContain('class="lp-section lp-hero"')
   })
 
   it('rejects a non-YouTube URL and does not render garbage as an iframe', async () => {

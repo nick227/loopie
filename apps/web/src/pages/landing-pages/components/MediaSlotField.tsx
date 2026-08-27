@@ -3,18 +3,18 @@ import { useAssets, useCreateAsset } from '@project/sdk'
 import { MediaPicker } from '@/components/media/MediaPicker'
 import { mediaSrc } from '@/lib/media'
 import { useFlatPages } from '@/hooks/useFlatPages'
-import { Button } from '@/components/ui/Button'
 
 export function MediaSlotField({
   assetId,
   kind,
   fallbackUrl,
+  fill,
   onChange,
-  onClearFallback,
 }: {
   assetId: string | undefined
   kind: 'IMAGE' | 'AUDIO'
   fallbackUrl?: string
+  fill?: boolean
   onChange: (assetId: string | undefined) => void
   onClearFallback?: () => void
 }) {
@@ -26,43 +26,51 @@ export function MediaSlotField({
   const selected = assets.find((asset) => asset.id === assetId)
   const src = (selected ? mediaSrc(selected.url) : null) ?? fallbackUrl ?? null
 
+  function openPicker() {
+    setPicked(assetId)
+    setOpen(true)
+  }
+
   return (
-    <div className="space-y-3">
+    <div
+      className={
+        fill
+          ? 'relative min-h-[16rem] bg-[color-mix(in_srgb,var(--lp-ink)_8%,var(--lp-bg))]'
+          : 'relative'
+      }
+    >
       {kind === 'IMAGE' && src ? (
-        <img src={src} alt="" className="aspect-[16/9] w-full rounded-sm object-cover" />
+        <img
+          src={src}
+          alt=""
+          className={
+            fill ? 'h-full min-h-[16rem] w-full object-cover' : 'aspect-[16/9] w-full object-cover'
+          }
+        />
       ) : null}
       {kind === 'AUDIO' && src ? <audio controls src={src} className="w-full" /> : null}
-      {!src ? (
-        <p className="text-sm text-muted-foreground">
-          {kind === 'IMAGE' ? 'Add an image' : 'Add audio'}
-        </p>
-      ) : null}
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setPicked(assetId)
-            setOpen(true)
-          }}
+      <button
+        type="button"
+        onClick={openPicker}
+        className={
+          kind === 'IMAGE'
+            ? 'absolute inset-0 flex items-end justify-start p-3 text-xs font-medium'
+            : 'mt-2 text-xs underline'
+        }
+      >
+        <span
+          className="rounded px-2 py-1"
+          style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
         >
-          {src ? 'Replace' : kind === 'IMAGE' ? 'Choose image' : 'Choose audio'}
-        </Button>
-        {assetId || fallbackUrl ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              onChange(undefined)
-              onClearFallback?.()
-            }}
-          >
-            Remove
-          </Button>
-        ) : null}
-      </div>
+          {src
+            ? kind === 'IMAGE'
+              ? 'Replace image'
+              : 'Replace audio'
+            : kind === 'IMAGE'
+              ? 'Choose image'
+              : 'Choose audio'}
+        </span>
+      </button>
       {open ? (
         <MediaPicker
           assets={assets}

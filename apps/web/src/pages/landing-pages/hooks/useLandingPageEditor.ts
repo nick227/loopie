@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   useLandingPage,
@@ -13,6 +13,7 @@ import {
 import { SectionContent } from '../components/types'
 import type { AdSlotDraft } from '../components/adSlots'
 import type { FormFieldDraft } from '@/components/forms/FormFieldsEditor'
+import { hydratePageSections } from './hydratePageSections'
 
 function toDrafts(
   fields: {
@@ -75,9 +76,12 @@ export function useLandingPageEditor() {
   const [savedAt, setSavedAt] = useState<number | null>(null)
 
   const formQuery = useForm(formId)
+  const hydratedPageId = useRef<string | null>(null)
+  const hydratedFormId = useRef<string | null>(null)
 
   useEffect(() => {
-    if (!page) return
+    if (!page || hydratedPageId.current === page.id) return
+    hydratedPageId.current = page.id
     // Syncing local editable state from the async-loaded page, not derivable at render time —
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setContent(
@@ -92,34 +96,23 @@ export function useLandingPageEditor() {
         adUnitId: slot.adUnitId ?? null,
       })),
     )
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page?.id])
+  }, [page])
 
   useEffect(() => {
     const form = formQuery.data?.data
-    if (!form) return
+    if (!form || hydratedFormId.current === form.id) return
+    hydratedFormId.current = form.id
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFields(toDrafts(form.fields ?? []))
     setSubmitLabel(form.submitLabel)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formQuery.data?.data?.id])
+  }, [formQuery.data?.data])
 
   useEffect(() => {
     const sections = (template?.schema as { sections?: { key: string }[] } | undefined)?.sections
     if (!sections) return
     // Merge newly visible template keys without rewriting existing section content —
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setContent((current) => {
-      const next = { ...current }
-      let changed = false
-      for (const section of sections) {
-        if (!next[section.key]) {
-          next[section.key] = { hidden: false }
-          changed = true
-        }
-      }
-      return changed ? next : current
-    })
+    setContent((current) => hydratePageSections(current, sections))
   }, [template?.id, template?.schema])
 
   async function handleSave() {
@@ -143,7 +136,7 @@ export function useLandingPageEditor() {
   }
 
   async function handlePublish() {
-    if (dirty) await handleSave()
+    await handleSave()
     await publishMutation.mutateAsync(landingPageId!)
   }
 

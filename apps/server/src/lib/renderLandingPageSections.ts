@@ -19,7 +19,12 @@ type RenderFormField = {
   options: unknown
 }
 
-export type RenderForm = { id: string; submitLabel: string; fields: RenderFormField[] } | null
+export type RenderForm = {
+  id: string
+  submitLabel: string
+  successMessage?: string | null
+  fields: RenderFormField[]
+} | null
 
 export function escapeHtml(value: unknown): string {
   return String(value ?? '')
@@ -57,7 +62,9 @@ export function renderBody(
     if (section.type === 'form-embed') chunks.push(slotsAt(adSlots, 'BEFORE_FORM', sessionToken))
     chunks.push(renderSection(section, content.sections?.[section.key] ?? {}, formHtml))
     if (section.type === 'hero') chunks.push(slotsAt(adSlots, 'AFTER_HERO', sessionToken))
-    if (section.type === 'form-embed') chunks.push(slotsAt(adSlots, 'AFTER_FORM', sessionToken))
+    if (section.type === 'form-embed' || section.type === 'split-capture') {
+      chunks.push(slotsAt(adSlots, 'AFTER_FORM', sessionToken))
+    }
   }
   chunks.push(slotsAt(adSlots, 'BOTTOM', sessionToken))
   return chunks.filter(Boolean).join('\n')
@@ -104,6 +111,14 @@ export function renderSection(
     }
     case 'form-embed':
       return `<section class="lp-section lp-form" id="form"><div class="lp-form-card"><p class="lp-form-title">Tell us about the job</p>${formHtml}</div></section>`
+    case 'split-capture': {
+      const src = safeHttpUrl(content.src) || safeHttpUrl(content.imageUrl)
+      const media = src
+        ? `<div class="lp-split-media"><img src="${escapeHtml(src)}" alt="" /></div>`
+        : `<div class="lp-split-media lp-split-media-empty"></div>`
+      const pitch = content.headline ? `<h1>${escapeHtml(content.headline)}</h1>` : ''
+      return `<section class="lp-split" id="form">${media}<div class="lp-split-copy">${pitch}${formHtml}</div></section>`
+    }
     case 'footer':
       return `<footer class="lp-section lp-footer"><p>${escapeHtml(content.text ?? '')}</p></footer>`
     case 'media-image': {

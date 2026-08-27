@@ -37,7 +37,7 @@ export function LandingPage() {
     handleSetDestination,
   } = useLandingPageEditor()
 
-  if (pageLoading) return <Skeleton className="h-64 w-full" />
+  if (pageLoading && !page) return <Skeleton className="h-64 w-full" />
   if (!page) return <p className="text-muted-foreground">Not found.</p>
 
   const sections: TemplateSection[] = [
