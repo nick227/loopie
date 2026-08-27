@@ -67,6 +67,7 @@ model Business {
   commissions          Commission[]
   payouts              Payout[]
   reconciliations      Reconciliation[]
+  platformConnections  PlatformConnection[]
 }
 
 enum UserRole {
@@ -488,6 +489,32 @@ model CampaignCreative {
 
   @@unique([campaignId, creativeId])
   @@index([creativeId])
+}
+
+enum PlatformConnectionStatus {
+  INCOMPLETE
+  CONNECTED
+  NEEDS_REAUTH
+}
+
+model PlatformConnection {
+  id             String                    @id @default(cuid())
+  businessId     String
+  platform       Platform
+  status         PlatformConnectionStatus  @default(INCOMPLETE)
+  accessTokenEnc String                    @db.Text
+  tokenExpiresAt DateTime?
+  externalUserId String?
+  adAccountId    String?
+  pageId         String?
+  defaultCountry String                    @default("US")
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@unique([businessId, platform])
+  @@index([businessId])
 }
 
 enum DeploymentStatus {

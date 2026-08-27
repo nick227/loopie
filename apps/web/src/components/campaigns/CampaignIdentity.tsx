@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { CampaignPlatformConnect } from '@/components/campaigns/CampaignPlatformConnect'
 import { PLATFORM_LABEL } from '@/components/campaigns/buildCampaignAds'
 
 const PLATFORMS = ['META', 'GOOGLE', 'TIKTOK', 'LOOPIE'] as const
@@ -76,8 +77,10 @@ export function CampaignIdentity({
             onBlur={(e) => {
               const next = e.target.value
               if (next === toDay(endDate)) return
+              // Inclusive end date: stays active through the end of the selected day, not just
+              // its start — see CreateCampaignPage.tsx's toEndOfDay for the same reasoning.
               onSave({
-                endDate: next ? new Date(`${next}T00:00:00`).toISOString() : null,
+                endDate: next ? new Date(`${next}T23:59:59.999`).toISOString() : null,
               })
             }}
             className={`${ghost} text-sm border-b border-border`}
@@ -117,6 +120,7 @@ export function CampaignIdentity({
           ))}
         </fieldset>
       </div>
+      <CampaignPlatformConnect platforms={draftPlatforms} />
     </div>
   )
 }

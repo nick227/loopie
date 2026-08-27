@@ -62,6 +62,7 @@ afterEach(async () => {
   await db.contact.deleteMany()
   await db.session.deleteMany()
   await db.user.deleteMany()
+  await db.platformConnection.deleteMany()
   await db.business.deleteMany()
 
   // Not FK-scoped to Business/User (rate limiting is per ip+route, not per tenant) — wiped

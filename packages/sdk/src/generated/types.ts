@@ -901,6 +901,109 @@ export interface paths {
     patch: operations['updateDeployment']
     trace?: never
   }
+  '/deployments/{deploymentId}/push': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Push a PAUSED draft ad to the connected advertiser platform */
+    post: operations['pushDeployment']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/platforms/{platform}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get platform connection and capabilities */
+    get: operations['getPlatformConnection']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /** Map ad account, Page, and placeholder country */
+    patch: operations['updatePlatformConnection']
+    trace?: never
+  }
+  '/platforms/{platform}/oauth/start': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Start advertiser OAuth */
+    get: operations['startPlatformOAuth']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/platforms/{platform}/oauth/callback': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** OAuth callback */
+    get: operations['handlePlatformOAuthCallback']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/platforms/{platform}/accounts': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List ad accounts for the connected user */
+    get: operations['listPlatformAccounts']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/platforms/{platform}/pages': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List Pages for the connected user */
+    get: operations['listPlatformPages']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/r/{deploymentId}': {
     parameters: {
       query?: never
@@ -2334,6 +2437,36 @@ export interface components {
       conversions?: number
       destinationLandingPageId?: string | null
     }
+    PlatformCapabilities: {
+      oauth: boolean
+      mappingFields: ('adAccount' | 'page' | 'defaultCountry')[]
+      pushDraft: boolean
+      pullSpend: boolean
+      activate: boolean
+    }
+    PlatformConnection: {
+      /** @enum {string} */
+      platform: 'META' | 'GOOGLE' | 'TIKTOK'
+      /** @enum {string} */
+      status: 'DISCONNECTED' | 'INCOMPLETE' | 'CONNECTED' | 'NEEDS_REAUTH'
+      adAccountId?: string | null
+      pageId?: string | null
+      defaultCountry?: string
+      capabilities: components['schemas']['PlatformCapabilities']
+      configured: boolean
+    }
+    UpdatePlatformConnectionInput: {
+      adAccountId?: string
+      pageId?: string
+      defaultCountry?: string
+    }
+    PlatformAccount: {
+      id: string
+      name: string
+    }
+    OAuthStart: {
+      url: string
+    }
     CampaignPerformance: {
       spend?: number
       views?: number
@@ -3059,6 +3192,7 @@ export interface components {
     AffiliateDealId: string
     CampaignId: string
     DeploymentId: string
+    AdPlatform: 'META' | 'GOOGLE' | 'TIKTOK'
     LeadId: string
     SaleId: string
     LandingPageTemplateId: string
@@ -5165,11 +5299,188 @@ export interface operations {
       }
     }
   }
+  pushDeployment: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        deploymentId: components['parameters']['DeploymentId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Deployment with external ids filled. Idempotent if already pushed. */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['Deployment']
+          }
+        }
+      }
+    }
+  }
+  getPlatformConnection: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        platform: components['parameters']['AdPlatform']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Connection plus capability flags. Status DISCONNECTED when no row exists. */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['PlatformConnection']
+          }
+        }
+      }
+    }
+  }
+  updatePlatformConnection: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        platform: components['parameters']['AdPlatform']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdatePlatformConnectionInput']
+      }
+    }
+    responses: {
+      /** @description Updated connection */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['PlatformConnection']
+          }
+        }
+      }
+    }
+  }
+  startPlatformOAuth: {
+    parameters: {
+      query?: {
+        /** @description Path on the web app to return to after the callback (must start with /). */
+        returnPath?: string
+      }
+      header?: never
+      path: {
+        platform: components['parameters']['AdPlatform']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Vendor authorize URL */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['OAuthStart']
+          }
+        }
+      }
+    }
+  }
+  handlePlatformOAuthCallback: {
+    parameters: {
+      query?: {
+        code?: string
+        state?: string
+      }
+      header?: never
+      path: {
+        platform: components['parameters']['AdPlatform']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Stores the token and redirects to the web app */
+      302: {
+        headers: {
+          Location?: string
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  listPlatformAccounts: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        platform: components['parameters']['AdPlatform']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Ad accounts */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['PlatformAccount'][]
+          }
+        }
+      }
+    }
+  }
+  listPlatformPages: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        platform: components['parameters']['AdPlatform']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Pages */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['PlatformAccount'][]
+          }
+        }
+      }
+    }
+  }
   trackDeploymentClick: {
     parameters: {
       query?: {
         /** @description Anonymous session id, generated client-side if absent. */
         sid?: string
+        /** @description The originating ad platform's own click identifier (e.g. Meta's fbclid, Google's gclid), passed through unmodified into AttributionEvent.clickId for later attribution/reconciliation. Optional — omitted for platforms that don't append one. */
+        click_id?: string
       }
       header?: never
       path: {

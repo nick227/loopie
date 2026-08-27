@@ -1,4 +1,4 @@
-import type { CampaignAd, CampaignAdStatus } from '@/components/campaigns/CampaignAdRow'
+import type { CampaignAd, CampaignAdStatus } from '@/components/campaigns/CampaignAdCard'
 
 const FORMAT_LABEL: Record<string, string> = {
   DISPLAY_BANNER: 'Display banner',
@@ -34,6 +34,9 @@ type Deployment = {
   status: string
   impressions: number
   clicks: number
+  externalAdId?: string | null
+  externalCampaignId?: string | null
+  externalAdSetId?: string | null
 }
 
 type Placement = {
@@ -44,6 +47,10 @@ type Placement = {
   adUnitId?: string
   format?: string
   serveUrl?: string
+  deploymentId?: string
+  externalAdId?: string | null
+  externalCampaignId?: string | null
+  externalAdSetId?: string | null
 }
 
 export function summarizePlacementStatus(
@@ -86,6 +93,10 @@ export function buildCampaignAds(
       status: row.status,
       impressions: row.impressions,
       clicks: row.clicks,
+      deploymentId: row.id,
+      externalAdId: row.externalAdId,
+      externalCampaignId: row.externalCampaignId,
+      externalAdSetId: row.externalAdSetId,
     })
   }
   for (const id of attachedIds) {
@@ -110,6 +121,15 @@ export function buildCampaignAds(
       serveUrl: loopie?.serveUrl,
       canActivate: !!loopieDraft,
       activateId: loopieDraft?.adUnitId,
+      draftPushes: placements
+        .filter((row) => row.deploymentId)
+        .map((row) => ({
+          deploymentId: row.deploymentId!,
+          platform: row.platform,
+          externalAdId: row.externalAdId ?? null,
+          externalCampaignId: row.externalCampaignId ?? null,
+          externalAdSetId: row.externalAdSetId ?? null,
+        })),
     }
   })
 }

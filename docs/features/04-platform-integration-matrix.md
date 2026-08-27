@@ -1,51 +1,50 @@
 # Platform Integration Matrix
 
-## Phase 1 priority
-1. Meta Ads
-2. Google Ads
-3. TikTok Ads
+LOOPIE owns Campaign, Creative, Deployment, and attribution. Each advertiser network is a **connector** that translates those concepts. First-party `LOOPIE` inventory is `AdUnit` / `apps/ad-server` — not a connector.
 
-Later candidates:
-- LinkedIn Ads
-- Microsoft Ads
-- Reddit Ads
-- Pinterest Ads
-- Snapchat Ads
-- YouTube-specific flows
+## Onboarding checklist (every new advertiser)
 
-## Integration appears contextually
-Integrations should not require a top-level navigation page in the POC.
+Do these in order. UI and API must branch on `capabilities()`, never `if (platform === 'META')`.
 
-First-use flow:
-Campaign → Platforms → Select Meta → Connect Meta
+1. Add a **capability row** to the table below (`oauth`, `mappingFields`, `pushDraft`, `pullSpend`, `activate`).
+2. Implement `AdPlatformConnector` in `apps/server/src/lib/platforms/{id}/`.
+3. Register it in `apps/server/src/lib/platforms/registry.ts`. Unregistered platforms stay as `PENDING` Deployment rows (the book) and return **501** on connect/push.
+4. Add vendor env vars to `.env.example` only. Unset env → **503**, same as Stripe.
+5. Tests mock vendor HTTP. No live network in CI.
+6. Dev-mode app + testers is enough until the vendor grants production/Advanced Access.
 
-After authorization, return the user directly to campaign creation or campaign detail.
+## Capability table
 
-## Deployment abstraction
-A Deployment links one internal creative to one external ad-platform object.
+| Platform | Registered   | oauth | mappingFields                   | pushDraft         | pullSpend | activate |
+| -------- | ------------ | ----- | ------------------------------- | ----------------- | --------- | -------- |
+| META     | yes          | yes   | adAccount, page, defaultCountry | yes (PAUSED only) | no        | no       |
+| GOOGLE   | no           | —     | —                               | —                 | —         | —        |
+| TIKTOK   | no           | —     | —                               | —                 | —         | —        |
+| LOOPIE   | n/a (AdUnit) | —     | —                               | —                 | —         | —        |
 
-Store:
-- campaignId
-- creativeId
-- platform
-- external campaign ID
-- external ad group/ad set ID
-- external ad ID
-- status
-- spend
-- impressions
-- clicks
-- conversions
-- last sync timestamp
+`defaultCountry` is **not** a targeting product. Platforms that require geo to create an ad set use it as a placeholder (Meta: `US`) so a PAUSED draft can exist. Live geo/bid/audience stays in Ads Manager.
 
-## Connector responsibilities
-- account connection
-- campaign/ad creation
-- creative upload/reference
-- budget/status changes
-- pause/resume
-- performance sync
-- conversion upload where supported
+`pushDraft` never sends vendor status `ACTIVE`. LOOPIE `Deployment.status` stays `PENDING`. The destination is always `GET /r/{deploymentId}`.
+
+## First-use flow
+
+Campaign → Platforms → Connect {platform} → map the fields in `mappingFields` → Push draft on the Deployment.
+
+Integrations do not get a top-level nav item. After OAuth, return to the campaign.
+
+## Deployment
+
+A Deployment links one internal creative to one external ad-platform object: `externalCampaignId`, `externalAdSetId`, `externalAdId`. Push is idempotent — a second call does not create another ad.
+
+## Connector responsibilities (capability flags)
+
+- account connection (`oauth`)
+- mapping (ad account, Page, …)
+- creative upload / draft campaign (`pushDraft`)
+- budget/status changes (`activate` — not shipped)
+- performance sync (`pullSpend` — not shipped)
+- conversion upload — not shipped
 
 ## Principle
+
 Platform-specific complexity stays inside connectors. The user works with one normalized campaign model.

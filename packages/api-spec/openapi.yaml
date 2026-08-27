@@ -94,6 +94,11 @@ components:
       name: deploymentId
       required: true
       schema: { type: string }
+    AdPlatform:
+      in: path
+      name: platform
+      required: true
+      schema: { type: string, enum: [META, GOOGLE, TIKTOK] }
     LeadId:
       in: path
       name: leadId
@@ -938,6 +943,50 @@ components:
         clicks: { type: integer, minimum: 0 }
         conversions: { type: integer, minimum: 0 }
         destinationLandingPageId: { type: string, nullable: true }
+
+    PlatformCapabilities:
+      type: object
+      required: [oauth, mappingFields, pushDraft, pullSpend, activate]
+      properties:
+        oauth: { type: boolean }
+        mappingFields:
+          type: array
+          items: { type: string, enum: [adAccount, page, defaultCountry] }
+        pushDraft: { type: boolean }
+        pullSpend: { type: boolean }
+        activate: { type: boolean }
+
+    PlatformConnection:
+      type: object
+      required: [platform, status, capabilities, configured]
+      properties:
+        platform: { type: string, enum: [META, GOOGLE, TIKTOK] }
+        status: { type: string, enum: [DISCONNECTED, INCOMPLETE, CONNECTED, NEEDS_REAUTH] }
+        adAccountId: { type: string, nullable: true }
+        pageId: { type: string, nullable: true }
+        defaultCountry: { type: string }
+        capabilities: { $ref: '#/components/schemas/PlatformCapabilities' }
+        configured: { type: boolean }
+
+    UpdatePlatformConnectionInput:
+      type: object
+      properties:
+        adAccountId: { type: string }
+        pageId: { type: string }
+        defaultCountry: { type: string, minLength: 2, maxLength: 2 }
+
+    PlatformAccount:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+
+    OAuthStart:
+      type: object
+      required: [url]
+      properties:
+        url: { type: string }
 
     CampaignPerformance:
       type: object
@@ -3256,6 +3305,139 @@ paths:
                 properties:
                   data: { $ref: '#/components/schemas/Deployment' }
 
+  /deployments/{deploymentId}/push:
+    post:
+      operationId: pushDeployment
+      summary: Push a PAUSED draft ad to the connected advertiser platform
+      tags: [campaigns]
+      parameters:
+        - $ref: '#/components/parameters/DeploymentId'
+      responses:
+        '200':
+          description: Deployment with external ids filled. Idempotent if already pushed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Deployment' }
+
+  /platforms/{platform}:
+    get:
+      operationId: getPlatformConnection
+      summary: Get platform connection and capabilities
+      tags: [platforms]
+      parameters:
+        - $ref: '#/components/parameters/AdPlatform'
+      responses:
+        '200':
+          description: Connection plus capability flags. Status DISCONNECTED when no row exists.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/PlatformConnection' }
+    patch:
+      operationId: updatePlatformConnection
+      summary: Map ad account, Page, and placeholder country
+      tags: [platforms]
+      parameters:
+        - $ref: '#/components/parameters/AdPlatform'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdatePlatformConnectionInput' }
+      responses:
+        '200':
+          description: Updated connection
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/PlatformConnection' }
+
+  /platforms/{platform}/oauth/start:
+    get:
+      operationId: startPlatformOAuth
+      summary: Start advertiser OAuth
+      tags: [platforms]
+      parameters:
+        - $ref: '#/components/parameters/AdPlatform'
+        - in: query
+          name: returnPath
+          schema: { type: string }
+          description: Path on the web app to return to after the callback (must start with /).
+      responses:
+        '200':
+          description: Vendor authorize URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/OAuthStart' }
+
+  /platforms/{platform}/oauth/callback:
+    get:
+      operationId: handlePlatformOAuthCallback
+      summary: OAuth callback
+      tags: [platforms]
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/AdPlatform'
+        - in: query
+          name: code
+          schema: { type: string }
+        - in: query
+          name: state
+          schema: { type: string }
+      responses:
+        '302':
+          description: Stores the token and redirects to the web app
+          headers:
+            Location: { schema: { type: string } }
+
+  /platforms/{platform}/accounts:
+    get:
+      operationId: listPlatformAccounts
+      summary: List ad accounts for the connected user
+      tags: [platforms]
+      parameters:
+        - $ref: '#/components/parameters/AdPlatform'
+      responses:
+        '200':
+          description: Ad accounts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/PlatformAccount' }
+
+  /platforms/{platform}/pages:
+    get:
+      operationId: listPlatformPages
+      summary: List Pages for the connected user
+      tags: [platforms]
+      parameters:
+        - $ref: '#/components/parameters/AdPlatform'
+      responses:
+        '200':
+          description: Pages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/PlatformAccount' }
+
   # ---------- Attribution (public) ----------
   /r/{deploymentId}:
     get:
@@ -3269,6 +3451,13 @@ paths:
           name: sid
           schema: { type: string }
           description: Anonymous session id, generated client-side if absent.
+        - in: query
+          name: click_id
+          schema: { type: string }
+          description: >
+            The originating ad platform's own click identifier (e.g. Meta's fbclid, Google's
+            gclid), passed through unmodified into AttributionEvent.clickId for later
+            attribution/reconciliation. Optional — omitted for platforms that don't append one.
       responses:
         '302':
           description: Records an AttributionEvent and redirects to the campaign destination URL

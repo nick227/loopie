@@ -10,6 +10,8 @@ import {
   useCreatives,
   useDeployments,
   useLandingPages,
+  usePlatformConnection,
+  usePushDeployment,
   useUpdateAdUnit,
   useUpdateCampaign,
 } from '@project/sdk'
@@ -36,6 +38,10 @@ export function CampaignPage() {
   const updateAdUnit = useUpdateAdUnit()
   const updateCampaign = useUpdateCampaign()
   const authorize = useAuthorizeCampaignBudget()
+  const meta = usePlatformConnection('META')
+  const google = usePlatformConnection('GOOGLE')
+  const tiktok = usePlatformConnection('TIKTOK')
+  const push = usePushDeployment(campaignId!)
   const saveChain = useRef(Promise.resolve())
 
   const campaign = campaignQuery.data?.data
@@ -52,6 +58,14 @@ export function CampaignPage() {
     () => buildCampaignAds(units, deploymentsQuery.data?.data ?? [], creativeName, attachedIds),
     [units, deploymentsQuery.data?.data, creativeName, attachedIds],
   )
+  const pushReady = useMemo(() => {
+    const ready: Record<string, boolean> = {}
+    for (const row of [meta.data?.data, google.data?.data, tiktok.data?.data]) {
+      if (!row) continue
+      ready[row.platform] = Boolean(row.capabilities.pushDraft && row.status === 'CONNECTED')
+    }
+    return ready
+  }, [meta.data?.data, google.data?.data, tiktok.data?.data])
   const library = useMemo(
     () => creatives.filter((creative) => !attachedIds.includes(creative.id)),
     [creatives, attachedIds],
@@ -109,6 +123,9 @@ export function CampaignPage() {
         activating={updateAdUnit.isPending}
         onAttach={attach}
         onActivate={activate}
+        pushReady={pushReady}
+        pushingId={push.variables ?? null}
+        onPush={(deploymentId) => push.mutate(deploymentId)}
       />
 
       <CampaignDestination
