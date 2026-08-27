@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import * as sdk from '@project/sdk'
 import { AdPage } from './AdPage'
@@ -43,7 +44,7 @@ describe('AdPage', () => {
     expect(screen.queryByText('Platform Runs')).toBeNull()
   })
 
-  it('renders the ad editor with destinations and start/pause', () => {
+  it('renders the ad editor with destinations and start/pause', async () => {
     vi.mocked(sdk.useAdvertisement).mockReturnValue(
       stub<ReturnType<typeof sdk.useAdvertisement>>({
         isLoading: false,
@@ -97,14 +98,23 @@ describe('AdPage', () => {
     )
 
     expect(screen.getByRole('heading', { name: 'Test Ad Name' })).toBeTruthy()
-    expect(screen.getByText('Meta Feed')).toBeTruthy()
+    expect(screen.getByRole('checkbox', { name: 'Meta Feed' })).toBeTruthy()
+    expect(screen.getByText(/Running/)).toBeTruthy()
+    expect(screen.getByText(/\/day/)).toBeTruthy()
+    expect(screen.getByText(/spent/)).toBeTruthy()
     expect(screen.getByText('Book a Detail')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Desktop' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Mobile' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Change' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Remove' })).toBeTruthy()
+    expect(screen.queryByText('Daily budget')).toBeNull()
     expect(screen.queryByText('Active globally')).toBeNull()
     expect(screen.queryByText('Platform Runs')).toBeNull()
     expect(screen.queryByText('Paused globally')).toBeNull()
     expect(screen.queryByText('Provision Run')).toBeNull()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remove' }))
+    expect(screen.getByRole('button', { name: 'Choose media' })).toBeTruthy()
   })
 })

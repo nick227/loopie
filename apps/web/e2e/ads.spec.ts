@@ -40,10 +40,27 @@ test.describe('ads library', () => {
     await expect(page.getByRole('button', { name: 'Choose media' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Desktop' })).toBeVisible()
     await page.getByRole('button', { name: 'Mobile' }).click()
-    await page.getByRole('button', { name: 'Meta Feed' }).click()
+    await page.getByRole('checkbox', { name: 'Meta Feed' }).check()
     await page.getByRole('button', { name: 'Start', exact: true }).click()
     await page.waitForURL(/\/ads\/(?!new$)[^/]+$/)
     await expect(page.getByRole('heading', { name: adName })).toBeVisible()
+    await page.getByRole('button', { name: 'Remove' }).click()
+    await expect(page.getByRole('button', { name: 'Choose media' })).toBeVisible()
+    await page.getByRole('button', { name: 'Choose media' }).click()
+    const readded = page.waitForResponse(
+      (response) => response.url().includes('/assets') && response.request().method() === 'POST',
+    )
+    await page
+      .getByRole('dialog')
+      .locator('input[type=file]')
+      .setInputFiles({
+        name: `ad-again-${Date.now()}.png`,
+        mimeType: 'image/png',
+        buffer: png,
+      })
+    await readded
+    await page.getByRole('button', { name: 'Use selected' }).click()
+    await expect(page.getByRole('button', { name: 'Remove' })).toBeVisible()
 
     await page.goto('/ads')
     await expect(page.getByRole('link', { name: adName })).toBeVisible()

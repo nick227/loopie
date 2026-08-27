@@ -43,7 +43,11 @@ export function AdDestinations({
   onPauseAll?: () => void
 }) {
   const paid = PAID_TARGETS.filter((row) => !mediaType || row.types.includes(mediaType))
-  const byKey = new Map(runs.map((run) => [runDestinationKey(run), run]))
+  const byKey = new Map<string, AdRun>()
+  for (const run of runs) {
+    if (run.status === 'ENDED') continue
+    byKey.set(runDestinationKey(run), run)
+  }
   const anyOn = runs.some((run) => run.status === 'ACTIVE')
   const anyOff = runs.some((run) => canStart(run.status))
 
@@ -52,7 +56,9 @@ export function AdDestinations({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-medium">Where it runs</p>
-          <p className="text-sm text-muted-foreground">Paid platforms and your pages.</p>
+          <p className="text-sm text-muted-foreground">
+            Amounts are per day. A running buy stays checked until you pause it.
+          </p>
         </div>
         {runs.length > 0 ? (
           <div className="flex gap-2">
@@ -77,6 +83,7 @@ export function AdDestinations({
             return (
               <DestinationRow
                 key={row.key}
+                id={row.key}
                 label={row.label}
                 run={run}
                 selected={selected.includes(row.key)}
@@ -103,6 +110,7 @@ export function AdDestinations({
             return (
               <DestinationRow
                 key={key}
+                id={key}
                 label={page.name}
                 hint={page.status === 'PUBLISHED' ? undefined : 'Draft'}
                 run={run}

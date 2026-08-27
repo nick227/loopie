@@ -30,10 +30,14 @@ export function AdMediaStage({
   asset,
   frameId,
   onFrame,
+  onChange,
+  onRemove,
 }: {
   asset: Asset
   frameId: PreviewFrameId
   onFrame: (id: PreviewFrameId) => void
+  onChange: () => void
+  onRemove: () => void
 }) {
   const mobile = frameId === 'mobile'
 
@@ -55,22 +59,40 @@ export function AdMediaStage({
         </div>
       )}
 
-      <div className="flex justify-center gap-1">
-        {PREVIEW_FRAMES.map((row) => (
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+        <div className="flex gap-1">
+          {PREVIEW_FRAMES.map((row) => (
+            <button
+              key={row.id}
+              type="button"
+              onClick={() => onFrame(row.id)}
+              className={cn(
+                'rounded-md px-3 min-h-11 text-sm sm:min-h-0 sm:py-1.5 sm:text-xs',
+                frameId === row.id
+                  ? 'bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-900'
+                  : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100',
+              )}
+            >
+              {row.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1">
           <button
-            key={row.id}
             type="button"
-            onClick={() => onFrame(row.id)}
-            className={cn(
-              'rounded-md px-3 min-h-11 text-sm sm:min-h-0 sm:py-1.5 sm:text-xs',
-              frameId === row.id
-                ? 'bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-900'
-                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100',
-            )}
+            onClick={onChange}
+            className="rounded-md px-3 min-h-11 text-sm text-zinc-500 hover:text-zinc-900 sm:min-h-0 sm:py-1.5 sm:text-xs dark:hover:text-zinc-100"
           >
-            {row.label}
+            Change
           </button>
-        ))}
+          <button
+            type="button"
+            onClick={onRemove}
+            className="rounded-md px-3 min-h-11 text-sm text-zinc-500 hover:text-zinc-900 sm:min-h-0 sm:py-1.5 sm:text-xs dark:hover:text-zinc-100"
+          >
+            Remove
+          </button>
+        </div>
       </div>
     </div>
   )

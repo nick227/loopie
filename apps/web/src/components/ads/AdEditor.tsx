@@ -72,8 +72,14 @@ export function AdEditor({
 
       <div className="space-y-2">
         <p className="text-center text-sm font-medium">Media</p>
-        {onDeck ? (
-          <AdMediaStage asset={onDeck} frameId={frameId} onFrame={setFrameId} />
+        {onDeckId && onDeck ? (
+          <AdMediaStage
+            asset={onDeck}
+            frameId={frameId}
+            onFrame={setFrameId}
+            onChange={() => setOpen(true)}
+            onRemove={() => onAssetIds([])}
+          />
         ) : onDeckId ? (
           <Skeleton className="min-h-56 w-full rounded-xl" />
         ) : (
@@ -81,9 +87,9 @@ export function AdEditor({
         )}
       </div>
 
-      {onDeck ? (
+      {onDeckId || runs.length > 0 ? (
         <AdDestinations
-          mediaType={onDeck.type === 'AUDIO' ? undefined : onDeck.type}
+          mediaType={onDeck && onDeck.type !== 'AUDIO' ? onDeck.type : undefined}
           pages={pages}
           runs={runs}
           selected={selected}
