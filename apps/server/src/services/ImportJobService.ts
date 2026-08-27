@@ -1,21 +1,10 @@
 import { db } from '@project/db'
+import { normalizeImportContact } from '@project/sdk/src/lib/importContactSchema'
 import { csvScope } from '../lib/crm/catalog'
 import { normalizeEmail, normalizePhone, resolveContact } from '../lib/identityResolution'
 
-export type ImportRow = {
-  name: string
-  email?: string
-  phone?: string
-  company?: string
-  source?: string
-  tags?: string[]
-  emailEligible?: boolean
-  smsEligible?: boolean
-  externalId?: string
-}
-
 export class ImportJobService {
-  async importContacts(businessId: string, contacts: ImportRow[]) {
+  async importContacts(businessId: string, contacts: Record<string, unknown>[]) {
     const job = await db.importJob.create({ data: { businessId, status: 'PENDING' } })
     let created = 0
     let linked = 0
@@ -23,7 +12,8 @@ export class ImportJobService {
     let skipped = 0
     const scopeKey = csvScope(businessId)
 
-    for (const row of contacts) {
+    for (const original of contacts) {
+      const row = normalizeImportContact(original)
       const email = normalizeEmail(row.email)
       const phone = normalizePhone(row.phone)
       const externalId = row.externalId ?? email ?? phone
@@ -47,7 +37,7 @@ export class ImportJobService {
             externalId,
             scopeKey,
             importJobId: job.id,
-            raw: row,
+            raw: { ...original, profile: row.profile ?? null },
           },
         ),
       )
@@ -55,9 +45,8 @@ export class ImportJobService {
         ambiguous++
         continue
       }
-      if (result.created) created++
-      else linked++
-      if (row.tags || row.emailEligible !== undefined || row.smsEligible !== undefined) {
+      if (result.created) {
+        created++
         await db.contact.update({
           where: { id: result.contact.id },
           data: {
@@ -66,7 +55,7 @@ export class ImportJobService {
             ...(row.smsEligible !== undefined ? { smsEligible: row.smsEligible } : {}),
           },
         })
-      }
+      } else linked++
     }
 
     await db.importJob.update({

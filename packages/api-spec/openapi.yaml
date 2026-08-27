@@ -230,9 +230,18 @@ components:
       properties:
         subscriptionStatus: { type: string, nullable: true }
         stripeCustomerId: { type: string, nullable: true }
-        configured: { type: boolean, description: "True when Stripe billing env is set. Checkout is available." }
+        configured:
+          {
+            type: boolean,
+            description: 'True when Stripe billing env is set. Checkout is available.',
+          }
         planName: { type: string }
-        planPriceLabel: { type: string, nullable: true, description: "Human-readable price from the Stripe Price, e.g. $29.00 / month." }
+        planPriceLabel:
+          {
+            type: string,
+            nullable: true,
+            description: 'Human-readable price from the Stripe Price, e.g. $29.00 / month.',
+          }
 
     CheckoutSession:
       type: object
@@ -281,7 +290,8 @@ components:
       properties:
         field: { type: string, enum: [name, email, phone, company] }
         value: { type: string }
-        source: { type: string, enum: [LOOPIE, HUBSPOT, SALESFORCE, PIPEDRIVE, SHOPIFY, SQUARE, CSV] }
+        source:
+          { type: string, enum: [LOOPIE, HUBSPOT, SALESFORCE, PIPEDRIVE, SHOPIFY, SQUARE, CSV] }
 
     ContactSourceRecord:
       type: object
@@ -292,6 +302,10 @@ components:
         externalId: { type: string }
         matchStatus: { type: string }
         syncedAt: { type: string, format: date-time, nullable: true }
+        profile:
+          type: object
+          additionalProperties: { type: string }
+          description: Extra CRM fields from this source (job title, address, notes, unknown columns)
 
     CreateContactInput:
       type: object
@@ -307,6 +321,41 @@ components:
           items: { type: string }
         emailEligible: { type: boolean, default: true }
         smsEligible: { type: boolean, default: true }
+
+    ImportContactInput:
+      type: object
+      description: >
+        One person. CSV headers and JSON keys accept the listed aliases
+        (first_name, email_address, hs_object_id, …). At least one of email,
+        phone, or externalId is required. Name may be omitted when firstName
+        and lastName are present. Unknown columns land in profile.
+      additionalProperties: false
+      properties:
+        name: { type: string, maxLength: 200 }
+        firstName: { type: string }
+        lastName: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        mobile: { type: string }
+        company: { type: string }
+        jobTitle: { type: string }
+        website: { type: string }
+        address: { type: string }
+        city: { type: string }
+        state: { type: string }
+        postalCode: { type: string }
+        country: { type: string }
+        notes: { type: string }
+        source: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        emailEligible: { type: boolean }
+        smsEligible: { type: boolean }
+        externalId: { type: string }
+        profile:
+          type: object
+          additionalProperties: { type: string }
 
     UpdateContactInput:
       type: object
@@ -327,7 +376,7 @@ components:
       properties:
         contacts:
           type: array
-          items: { $ref: '#/components/schemas/CreateContactInput' }
+          items: { $ref: '#/components/schemas/ImportContactInput' }
           maxItems: 5000
 
     ImportContactsResult:
@@ -437,7 +486,16 @@ components:
         integrationId: { type: string }
         type:
           type: string
-          enum: [CONTACT_CREATED, CONTACT_UPDATED, DEAL_WON, ORDER_CREATED, PAYMENT_COMPLETED, APPOINTMENT_COMPLETED, CUSTOMER_TAGGED]
+          enum:
+            [
+              CONTACT_CREATED,
+              CONTACT_UPDATED,
+              DEAL_WON,
+              ORDER_CREATED,
+              PAYMENT_COMPLETED,
+              APPOINTMENT_COMPLETED,
+              CUSTOMER_TAGGED,
+            ]
         externalEventId: { type: string }
         occurredAt: { type: string, format: date-time }
         amount: { type: number }
@@ -667,7 +725,20 @@ components:
 
     Creative:
       type: object
-      required: [id, businessId, name, version, assetIds, createdAt, impressions, clicks, conversions, spend, campaignCount]
+      required:
+        [
+          id,
+          businessId,
+          name,
+          version,
+          assetIds,
+          createdAt,
+          impressions,
+          clicks,
+          conversions,
+          spend,
+          campaignCount,
+        ]
       properties:
         id: { type: string }
         businessId: { type: string }
@@ -780,7 +851,15 @@ components:
         name: { type: string }
         trigger:
           type: string
-          enum: [MESSAGE_SENT, CONTACT_REPLIES, LEAD_CREATED, LEAD_STATUS_CHANGED, SALE_RECORDED, DATE_REACHED]
+          enum:
+            [
+              MESSAGE_SENT,
+              CONTACT_REPLIES,
+              LEAD_CREATED,
+              LEAD_STATUS_CHANGED,
+              SALE_RECORDED,
+              DATE_REACHED,
+            ]
           description: >
             LEAD_CREATED fires regardless of source_type (message reply or campaign deployment) —
             see docs/00-unified-data-model.md "Resolved: Campaign and Message Stay Distinct Domain Concepts".
@@ -788,14 +867,24 @@ components:
         condition:
           type: string
           nullable: true
-          enum: [HAS_REPLIED, HAS_NOT_REPLIED, LEAD_STILL_OPEN, LEAD_REACHED_STAGE, CUSTOMER_STATUS, CHANNEL_ELIGIBILITY, null]
+          enum:
+            [
+              HAS_REPLIED,
+              HAS_NOT_REPLIED,
+              LEAD_STILL_OPEN,
+              LEAD_REACHED_STAGE,
+              CUSTOMER_STATUS,
+              CHANNEL_ELIGIBILITY,
+              null,
+            ]
         conditionValue:
           type: object
           additionalProperties: true
           nullable: true
         action:
           type: string
-          enum: [SEND_EMAIL, SEND_TEXT, CREATE_REMINDER, CHANGE_LEAD_STATUS, NOTIFY_USER, STOP_SEQUENCE]
+          enum:
+            [SEND_EMAIL, SEND_TEXT, CREATE_REMINDER, CHANGE_LEAD_STATUS, NOTIFY_USER, STOP_SEQUENCE]
         actionTemplateId: { type: string, nullable: true }
         actionValue:
           type: object
@@ -812,17 +901,35 @@ components:
         name: { type: string, minLength: 1, maxLength: 150 }
         trigger:
           type: string
-          enum: [MESSAGE_SENT, CONTACT_REPLIES, LEAD_CREATED, LEAD_STATUS_CHANGED, SALE_RECORDED, DATE_REACHED]
+          enum:
+            [
+              MESSAGE_SENT,
+              CONTACT_REPLIES,
+              LEAD_CREATED,
+              LEAD_STATUS_CHANGED,
+              SALE_RECORDED,
+              DATE_REACHED,
+            ]
         waitDays: { type: integer, minimum: 0, maximum: 30 }
         condition:
           type: string
-          enum: [HAS_REPLIED, HAS_NOT_REPLIED, LEAD_STILL_OPEN, LEAD_REACHED_STAGE, CUSTOMER_STATUS, CHANNEL_ELIGIBILITY, null]
+          enum:
+            [
+              HAS_REPLIED,
+              HAS_NOT_REPLIED,
+              LEAD_STILL_OPEN,
+              LEAD_REACHED_STAGE,
+              CUSTOMER_STATUS,
+              CHANNEL_ELIGIBILITY,
+              null,
+            ]
         conditionValue:
           type: object
           additionalProperties: true
         action:
           type: string
-          enum: [SEND_EMAIL, SEND_TEXT, CREATE_REMINDER, CHANGE_LEAD_STATUS, NOTIFY_USER, STOP_SEQUENCE]
+          enum:
+            [SEND_EMAIL, SEND_TEXT, CREATE_REMINDER, CHANGE_LEAD_STATUS, NOTIFY_USER, STOP_SEQUENCE]
         actionTemplateId: { type: string }
         actionValue:
           type: object
@@ -881,7 +988,17 @@ components:
 
     AffiliateDeal:
       type: object
-      required: [id, businessId, name, commissionRuleType, managerShareBps, payoutCadence, isActive, createdAt]
+      required:
+        [
+          id,
+          businessId,
+          name,
+          commissionRuleType,
+          managerShareBps,
+          payoutCadence,
+          isActive,
+          createdAt,
+        ]
       properties:
         id: { type: string }
         businessId: { type: string }
@@ -890,7 +1007,11 @@ components:
         commissionRuleType: { type: string, enum: [PERCENTAGE, FIXED] }
         affiliateRateBps: { type: integer, nullable: true }
         fixedAmountMinor: { type: integer, nullable: true }
-        managerShareBps: { type: integer, description: Percent of gross commission paid to the manager. Does not increase total cost. }
+        managerShareBps:
+          {
+            type: integer,
+            description: Percent of gross commission paid to the manager. Does not increase total cost.,
+          }
         eligibilityWindowDays:
           type: integer
           nullable: true
@@ -906,7 +1027,8 @@ components:
       properties:
         name: { type: string, minLength: 1, maxLength: 80 }
         classId: { type: string }
-        commissionRuleType: { type: string, enum: [PERCENTAGE, FIXED], description: Defaults to PERCENTAGE. }
+        commissionRuleType:
+          { type: string, enum: [PERCENTAGE, FIXED], description: Defaults to PERCENTAGE. }
         affiliateRateBps: { type: integer, minimum: 1, maximum: 10000 }
         fixedAmountMinor: { type: integer, minimum: 1 }
         managerShareBps: { type: integer, minimum: 0, maximum: 10000 }
@@ -930,14 +1052,35 @@ components:
 
     Affiliate:
       type: object
-      required: [id, businessId, name, referralCode, referralUrl, classId, commissionRuleType, payoutCadence, pendingMinor, payableMinor, paidMinor, isActive, createdAt, payoutsEnabled, connectStatus]
+      required:
+        [
+          id,
+          businessId,
+          name,
+          referralCode,
+          referralUrl,
+          classId,
+          commissionRuleType,
+          payoutCadence,
+          pendingMinor,
+          payableMinor,
+          paidMinor,
+          isActive,
+          createdAt,
+          payoutsEnabled,
+          connectStatus,
+        ]
       properties:
         id: { type: string }
         businessId: { type: string }
         name: { type: string }
         email: { type: string, nullable: true }
-        referralCode: { type: string, description: "Globally unique, like LandingPage.slug." }
-        referralUrl: { type: string, description: "GET this URL to track a click and redirect the visitor — GET /r/affiliate/{affiliateId}." }
+        referralCode: { type: string, description: 'Globally unique, like LandingPage.slug.' }
+        referralUrl:
+          {
+            type: string,
+            description: 'GET this URL to track a click and redirect the visitor — GET /r/affiliate/{affiliateId}.',
+          }
         classId: { type: string }
         dealId: { type: string, nullable: true }
         managerId: { type: string, nullable: true }
@@ -960,26 +1103,52 @@ components:
         className: { type: string, nullable: true }
         managerName: { type: string, nullable: true }
         destinationPageName: { type: string, nullable: true }
-        destinationHostedUrl: { type: string, nullable: true, description: "Live hosted URL of the assigned landing page. Changing destination does not rewrite past clicks." }
-        pendingMinor: { type: integer, description: Sum of frozen PENDING commissions for this payee. Not a balance. }
-        payableMinor: { type: integer, description: Sum of frozen PAYABLE commissions for this payee. Not a balance. }
-        paidMinor: { type: integer, description: Sum of frozen PAID commissions for this payee. Not a balance. }
+        destinationHostedUrl:
+          {
+            type: string,
+            nullable: true,
+            description: 'Live hosted URL of the assigned landing page. Changing destination does not rewrite past clicks.',
+          }
+        pendingMinor:
+          {
+            type: integer,
+            description: Sum of frozen PENDING commissions for this payee. Not a balance.,
+          }
+        payableMinor:
+          {
+            type: integer,
+            description: Sum of frozen PAYABLE commissions for this payee. Not a balance.,
+          }
+        paidMinor:
+          {
+            type: integer,
+            description: Sum of frozen PAID commissions for this payee. Not a balance.,
+          }
         initialPassword: { type: string, description: Returned once when createLogin is true. }
         destinationLandingPageId: { type: string, nullable: true }
-        destinationUrl: { type: string, nullable: true, description: Fallback redirect if no landing page is set. }
+        destinationUrl:
+          {
+            type: string,
+            nullable: true,
+            description: Fallback redirect if no landing page is set.,
+          }
         isActive: { type: boolean }
         pausedAt: { type: string, format: date-time, nullable: true }
         createdAt: { type: string, format: date-time }
-        payoutsEnabled: { type: boolean, description: "Stripe Connect payouts_enabled. LOOPIE stores capability, not bank or KYC fields." }
+        payoutsEnabled:
+          {
+            type: boolean,
+            description: 'Stripe Connect payouts_enabled. LOOPIE stores capability, not bank or KYC fields.',
+          }
         connectStatus:
           type: string
           enum: [NOT_CONNECTED, ONBOARDING, READY, RESTRICTED]
-          description: "Derived from Connect capabilities. NOT_CONNECTED / ONBOARDING / READY / RESTRICTED."
+          description: 'Derived from Connect capabilities. NOT_CONNECTED / ONBOARDING / READY / RESTRICTED.'
         openPayoutStatus:
           type: string
           nullable: true
           enum: [PENDING, TRANSFERRED]
-          description: "In-flight Connect payout. PENDING = Sending; TRANSFERRED = on the connected account, not yet bank-received."
+          description: 'In-flight Connect payout. PENDING = Sending; TRANSFERRED = on the connected account, not yet bank-received.'
 
     CreateAffiliateInput:
       type: object
@@ -987,7 +1156,14 @@ components:
       properties:
         name: { type: string, minLength: 1, maxLength: 150 }
         email: { type: string, format: email }
-        referralCode: { type: string, minLength: 1, maxLength: 40, pattern: '^[a-zA-Z0-9-]+$', description: Auto-generated if omitted. }
+        referralCode:
+          {
+            type: string,
+            minLength: 1,
+            maxLength: 40,
+            pattern: '^[a-zA-Z0-9-]+$',
+            description: Auto-generated if omitted.,
+          }
         classId: { type: string }
         dealId: { type: string }
         managerId: { type: string }
@@ -1036,7 +1212,12 @@ components:
               id: { type: string }
               amountMinor: { type: integer }
               currency: { type: string }
-              status: { type: string, enum: [PENDING, TRANSFERRED, PAID, FAILED, REVERSED], description: "PENDING = Sending. TRANSFERRED is not bank-received." }
+              status:
+                {
+                  type: string,
+                  enum: [PENDING, TRANSFERRED, PAID, FAILED, REVERSED],
+                  description: 'PENDING = Sending. TRANSFERRED is not bank-received.',
+                }
               commissionIds:
                 type: array
                 items: { type: string }
@@ -1106,7 +1287,19 @@ components:
 
     Deployment:
       type: object
-      required: [id, campaignId, creativeId, platform, status, spend, impressions, clicks, conversions, createdAt]
+      required:
+        [
+          id,
+          campaignId,
+          creativeId,
+          platform,
+          status,
+          spend,
+          impressions,
+          clicks,
+          conversions,
+          createdAt,
+        ]
       properties:
         id: { type: string }
         campaignId: { type: string }
@@ -1194,7 +1387,20 @@ components:
 
     AdRun:
       type: object
-      required: [id, advertisementId, platform, status, budget, spend, impressions, clicks, conversions, trackedUrl, createdAt]
+      required:
+        [
+          id,
+          advertisementId,
+          platform,
+          status,
+          budget,
+          spend,
+          impressions,
+          clicks,
+          conversions,
+          trackedUrl,
+          createdAt,
+        ]
       properties:
         id: { type: string }
         advertisementId: { type: string }
@@ -1377,7 +1583,12 @@ components:
       required: [id, isSystem, name, formatVersion, schema, createdAt]
       properties:
         id: { type: string }
-        businessId: { type: string, nullable: true, description: "null = system template, shippable by a future external catalog." }
+        businessId:
+          {
+            type: string,
+            nullable: true,
+            description: 'null = system template, shippable by a future external catalog.',
+          }
         isSystem: { type: boolean }
         name: { type: string }
         description: { type: string, nullable: true }
@@ -1395,7 +1606,19 @@ components:
 
     LandingPage:
       type: object
-      required: [id, businessId, templateId, name, slug, status, content, formStartCount, createdAt, previewUrl]
+      required:
+        [
+          id,
+          businessId,
+          templateId,
+          name,
+          slug,
+          status,
+          content,
+          formStartCount,
+          createdAt,
+          previewUrl,
+        ]
       properties:
         id: { type: string }
         businessId: { type: string }
@@ -1411,9 +1634,17 @@ components:
           description: Draft working copy, shaped per the template's schema.
         theme: { type: object, nullable: true, additionalProperties: true }
         publishedVersionId: { type: string, nullable: true }
-        hostedUrl: { type: string, description: "Public live URL — GET /p/{slug}. 404 until the page is published." }
-        previewUrl: { type: string, description: "Authenticated draft preview — GET /landing-pages/{id}/preview." }
-        formStartCount: { type: integer, description: "Approximate — not deduplicated by session." }
+        hostedUrl:
+          {
+            type: string,
+            description: 'Public live URL — GET /p/{slug}. 404 until the page is published.',
+          }
+        previewUrl:
+          {
+            type: string,
+            description: 'Authenticated draft preview — GET /landing-pages/{id}/preview.',
+          }
+        formStartCount: { type: integer, description: 'Approximate — not deduplicated by session.' }
         adSlotCount: { type: integer }
         slots:
           type: array
@@ -1438,7 +1669,11 @@ components:
         id: { type: string }
         slotId: { type: string }
         adRunId: { type: string }
-        status: { type: string, enum: [PENDING, READY, ACTIVE, PAUSED, ENDED, VALIDATION_FAILED, PROVISIONING_FAILED] }
+        status:
+          {
+            type: string,
+            enum: [PENDING, READY, ACTIVE, PAUSED, ENDED, VALIDATION_FAILED, PROVISIONING_FAILED],
+          }
         weight: { type: integer }
 
     ReplaceLandingPageAdSlotsInput:
@@ -1453,7 +1688,7 @@ components:
             required: [placement]
             properties:
               placement: { type: string, enum: [AFTER_HERO, BEFORE_FORM, AFTER_FORM, BOTTOM] }
-              adRunIds: 
+              adRunIds:
                 type: array
                 items: { type: string }
 
@@ -1514,7 +1749,7 @@ components:
       required: [filename, html]
       properties:
         filename: { type: string }
-        html: { type: string, description: "Self-contained, downloadable HTML page." }
+        html: { type: string, description: 'Self-contained, downloadable HTML page.' }
 
     LandingPagePerformance:
       type: object
@@ -1523,7 +1758,8 @@ components:
         uniqueSessions: { type: integer }
         formStarts: { type: integer }
         submissions: { type: integer }
-        conversionRate: { type: number, nullable: true, description: "submissions / uniqueSessions" }
+        conversionRate:
+          { type: number, nullable: true, description: 'submissions / uniqueSessions' }
         leads: { type: integer }
         sales: { type: integer }
         revenue: { type: number }
@@ -1625,7 +1861,19 @@ components:
     # ---------- Ad Units (first-party) ----------
     AdUnit:
       type: object
-      required: [id, businessId, campaignId, creativeId, format, status, impressions, clicks, conversions, createdAt]
+      required:
+        [
+          id,
+          businessId,
+          campaignId,
+          creativeId,
+          format,
+          status,
+          impressions,
+          clicks,
+          conversions,
+          createdAt,
+        ]
       properties:
         id: { type: string }
         businessId: { type: string }
@@ -1763,8 +2011,27 @@ components:
         contactId: { type: string }
         type:
           type: string
-          enum: [EMAIL_SENT, TEXT_SENT, SOCIAL_POST_SENT, REPLY, CALL_LOGGED, NOTE, STATUS_CHANGE, QUOTE_SENT, SALE_RECORDED, AD_CLICK, FORM_SUBMITTED, PAGE_VIEWED]
-        sourceType: { type: string, enum: [MESSAGE, DEPLOYMENT, AD_RUN, AD_UNIT, MANUAL, IMPORT], nullable: true }
+          enum:
+            [
+              EMAIL_SENT,
+              TEXT_SENT,
+              SOCIAL_POST_SENT,
+              REPLY,
+              CALL_LOGGED,
+              NOTE,
+              STATUS_CHANGE,
+              QUOTE_SENT,
+              SALE_RECORDED,
+              AD_CLICK,
+              FORM_SUBMITTED,
+              PAGE_VIEWED,
+            ]
+        sourceType:
+          {
+            type: string,
+            enum: [MESSAGE, DEPLOYMENT, AD_RUN, AD_UNIT, MANUAL, IMPORT],
+            nullable: true,
+          }
         sourceMessageId: { type: string, nullable: true }
         sourceDeploymentId: { type: string, nullable: true }
         sourceAdRunId: { type: string, nullable: true }
@@ -1792,9 +2059,100 @@ components:
         leadId: { type: string }
 
     # ---------- Dashboards ----------
+    HomePrimaryAction:
+      type: object
+      required: [id, title, reason, actionLabel, href]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        reason: { type: string }
+        actionLabel: { type: string }
+        href: { type: string }
+
+    HomeRail:
+      type: object
+      required:
+        [localDate, timezone, currency, inboxWaiting, reach, responses, spend, leads, revenue]
+      properties:
+        localDate: { type: string, format: date }
+        timezone: { type: string }
+        currency: { type: string }
+        inboxWaiting: { type: integer }
+        inboxOldestAt: { type: string, format: date-time, nullable: true }
+        reach: { type: integer }
+        responses: { type: integer }
+        spend: { type: number }
+        leads: { type: integer }
+        revenue: { type: number }
+
+    HomeInboxItem:
+      type: object
+      required: [id, kind, contactId, contactName, waitingSince, actionLabel, href]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [MESSAGE, LEAD] }
+        contactId: { type: string }
+        contactName: { type: string }
+        preview: { type: string, nullable: true }
+        sourceLabel: { type: string, nullable: true }
+        waitingSince: { type: string, format: date-time }
+        actionLabel: { type: string, enum: [Reply, Review Lead] }
+        href: { type: string }
+
+    HomeActivityItem:
+      type: object
+      required: [id, category, eventType, text, occurredAt, objectType, objectId, href]
+      properties:
+        id: { type: string }
+        category: { type: string, enum: [PERSON, BUSINESS, NEEDS_ATTENTION] }
+        eventType: { type: string }
+        text: { type: string }
+        detail: { type: string, nullable: true }
+        occurredAt: { type: string, format: date-time }
+        sourceLabel: { type: string, nullable: true }
+        objectType: { type: string }
+        objectId: { type: string }
+        href: { type: string }
+        actionLabel: { type: string, nullable: true }
+
+    HomeSystemStatus:
+      type: object
+      required: [id, label, state, detail, href]
+      properties:
+        id: { type: string }
+        label: { type: string }
+        state:
+          { type: string, enum: [CURRENT, ATTENTION, DEGRADED, DISCONNECTED, QUIET, NOT_SET_UP] }
+        detail: { type: string }
+        href: { type: string }
+
     HomeSummary:
       type: object
+      required: [businessName, generatedAt, brief, rail, inbox, activity, systems]
       properties:
+        businessName: { type: string }
+        generatedAt: { type: string, format: date-time }
+        brief: { type: string }
+        primaryAction: { $ref: '#/components/schemas/HomePrimaryAction', nullable: true }
+        rail: { $ref: '#/components/schemas/HomeRail' }
+        inbox:
+          type: object
+          required: [totalWaiting, items]
+          properties:
+            totalWaiting: { type: integer }
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/HomeInboxItem' }
+        activity:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/HomeActivityItem' }
+        systems:
+          type: array
+          items: { $ref: '#/components/schemas/HomeSystemStatus' }
         newLeads: { type: integer }
         unansweredReplies: { type: integer }
         followUpsDue: { type: integer }
@@ -1848,18 +2206,38 @@ components:
 
     LedgerTransaction:
       type: object
-      required: [id, businessId, currency, type, status, idempotencyKey, postedAt, createdAt, entries]
+      required:
+        [id, businessId, currency, type, status, idempotencyKey, postedAt, createdAt, entries]
       properties:
         id: { type: string }
         businessId: { type: string }
         currency: { type: string }
         type:
           type: string
-          enum: [CLIENT_FUNDING, CREDIT, REFUND, REVERSAL, BUDGET_RESERVE, AD_SPEND, AD_SPEND_SETTLEMENT, LOOPIE_FEE, SERVICE_PAYMENT, COMMISSION, PAYOUT, ADJUSTMENT]
+          enum:
+            [
+              CLIENT_FUNDING,
+              CREDIT,
+              REFUND,
+              REVERSAL,
+              BUDGET_RESERVE,
+              AD_SPEND,
+              AD_SPEND_SETTLEMENT,
+              LOOPIE_FEE,
+              SERVICE_PAYMENT,
+              COMMISSION,
+              PAYOUT,
+              ADJUSTMENT,
+            ]
         status: { type: string, enum: [POSTED] }
         idempotencyKey: { type: string }
         externalRef: { type: string, nullable: true }
-        externalProvider: { type: string, nullable: true, description: "STRIPE, META, GOOGLE, or MANUAL. A reference, not the books." }
+        externalProvider:
+          {
+            type: string,
+            nullable: true,
+            description: 'STRIPE, META, GOOGLE, or MANUAL. A reference, not the books.',
+          }
         metadata: { $ref: '#/components/schemas/MoneyMetadata' }
         reversesTransactionId: { type: string, nullable: true }
         postedAt: { type: string, format: date-time }
@@ -1876,14 +2254,34 @@ components:
         businessId: { type: string }
         kind:
           type: string
-          enum: [CLIENT_AD_FUNDS, CLIENT_FUNDS_RESERVED, LOOPIE_CASH, PROCESSOR_CLEARING, AD_PLATFORM_CLEARING, LOOPIE_REVENUE, AFFILIATE_PAYABLE, REFUNDS_CREDITS]
+          enum:
+            [
+              CLIENT_AD_FUNDS,
+              CLIENT_FUNDS_RESERVED,
+              LOOPIE_CASH,
+              PROCESSOR_CLEARING,
+              AD_PLATFORM_CLEARING,
+              LOOPIE_REVENUE,
+              AFFILIATE_PAYABLE,
+              REFUNDS_CREDITS,
+            ]
         currency: { type: string }
         name: { type: string }
         balanceMinor: { type: integer, description: Derived from ledger entries. Never stored. }
 
     Payment:
       type: object
-      required: [id, businessId, amountMinor, currency, status, idempotencyKey, ledgerTransactionId, createdAt]
+      required:
+        [
+          id,
+          businessId,
+          amountMinor,
+          currency,
+          status,
+          idempotencyKey,
+          ledgerTransactionId,
+          createdAt,
+        ]
       properties:
         id: { type: string }
         businessId: { type: string }
@@ -1891,7 +2289,12 @@ components:
         currency: { type: string }
         status: { type: string, enum: [POSTED, REFUNDED, FAILED] }
         processor: { type: string, nullable: true }
-        externalRef: { type: string, nullable: true, description: Canonical processor payment id. For Stripe subscriptions this is the invoice id. }
+        externalRef:
+          {
+            type: string,
+            nullable: true,
+            description: Canonical processor payment id. For Stripe subscriptions this is the invoice id.,
+          }
         stripePaymentIntentId: { type: string, nullable: true }
         stripeChargeId: { type: string, nullable: true }
         idempotencyKey: { type: string }
@@ -1900,7 +2303,17 @@ components:
 
     Refund:
       type: object
-      required: [id, businessId, amountMinor, currency, status, idempotencyKey, ledgerTransactionId, createdAt]
+      required:
+        [
+          id,
+          businessId,
+          amountMinor,
+          currency,
+          status,
+          idempotencyKey,
+          ledgerTransactionId,
+          createdAt,
+        ]
       properties:
         id: { type: string }
         businessId: { type: string }
@@ -1934,11 +2347,25 @@ components:
 
     CampaignFunding:
       type: object
-      required: [campaignId, currency, planningBudget, authorizedAmountMinor, reservedAmountMinor, platformReportedAmountMinor, settledAmountMinor, clientAvailableAmountMinor]
+      required:
+        [
+          campaignId,
+          currency,
+          planningBudget,
+          authorizedAmountMinor,
+          reservedAmountMinor,
+          platformReportedAmountMinor,
+          settledAmountMinor,
+          clientAvailableAmountMinor,
+        ]
       properties:
         campaignId: { type: string }
         currency: { type: string }
-        planningBudget: { type: number, description: "Campaign.budget is operational planning only, not the financial source of truth." }
+        planningBudget:
+          {
+            type: number,
+            description: 'Campaign.budget is operational planning only, not the financial source of truth.',
+          }
         authorizedAmountMinor: { type: integer }
         reservedAmountMinor: { type: integer }
         platformReportedAmountMinor: { type: integer }
@@ -1947,7 +2374,8 @@ components:
 
     CampaignLead:
       type: object
-      required: [id, contactId, contactName, acquiredAt, stage, sourceType, sourceLabel, followUpStatus]
+      required:
+        [id, contactId, contactName, acquiredAt, stage, sourceType, sourceLabel, followUpStatus]
       description: >
         Campaign-scoped outcome row. Not a second CRM — clicking through goes to Contact detail.
       properties:
@@ -1968,7 +2396,21 @@ components:
 
     AdSpend:
       type: object
-      required: [id, businessId, platform, externalChargeId, periodStart, periodEnd, currency, reportedAmountMinor, settledAmountMinor, settlementStatus, idempotencyKey, createdAt]
+      required:
+        [
+          id,
+          businessId,
+          platform,
+          externalChargeId,
+          periodStart,
+          periodEnd,
+          currency,
+          reportedAmountMinor,
+          settledAmountMinor,
+          settlementStatus,
+          idempotencyKey,
+          createdAt,
+        ]
       description: Exactly one of campaignId/adRunId is set — see BudgetAuthorization's description.
       properties:
         id: { type: string }
@@ -2008,7 +2450,18 @@ components:
 
     Payout:
       type: object
-      required: [id, businessId, payeeRef, amountMinor, currency, status, idempotencyKey, commissionIds, createdAt]
+      required:
+        [
+          id,
+          businessId,
+          payeeRef,
+          amountMinor,
+          currency,
+          status,
+          idempotencyKey,
+          commissionIds,
+          createdAt,
+        ]
       properties:
         id: { type: string }
         businessId: { type: string }
@@ -2017,9 +2470,24 @@ components:
         currency: { type: string }
         status: { type: string, enum: [PENDING, TRANSFERRED, PAID, FAILED, REVERSED] }
         idempotencyKey: { type: string }
-        ledgerTransactionId: { type: string, nullable: true, description: "Set when the PAYOUT ledger posts at TRANSFERRED (Connect) or immediately at PAID (manual)." }
-        stripeTransferId: { type: string, nullable: true, description: "Connect Transfer to the affiliate's Stripe account. TRANSFERRED is this movement." }
-        stripePayoutId: { type: string, nullable: true, description: "Connected-account Payout to bank. PAID is this movement, not the Transfer." }
+        ledgerTransactionId:
+          {
+            type: string,
+            nullable: true,
+            description: 'Set when the PAYOUT ledger posts at TRANSFERRED (Connect) or immediately at PAID (manual).',
+          }
+        stripeTransferId:
+          {
+            type: string,
+            nullable: true,
+            description: "Connect Transfer to the affiliate's Stripe account. TRANSFERRED is this movement.",
+          }
+        stripePayoutId:
+          {
+            type: string,
+            nullable: true,
+            description: 'Connected-account Payout to bank. PAID is this movement, not the Transfer.',
+          }
         commissionIds:
           type: array
           items: { type: string }
@@ -2027,7 +2495,19 @@ components:
 
     Reconciliation:
       type: object
-      required: [id, businessId, currency, trackedAmountMinor, platformReportedAmountMinor, settledAmountMinor, discrepancyMinor, status, idempotencyKey, createdAt]
+      required:
+        [
+          id,
+          businessId,
+          currency,
+          trackedAmountMinor,
+          platformReportedAmountMinor,
+          settledAmountMinor,
+          discrepancyMinor,
+          status,
+          idempotencyKey,
+          createdAt,
+        ]
       properties:
         id: { type: string }
         businessId: { type: string }
@@ -2094,7 +2574,17 @@ components:
 
     RecordAdSpendInput:
       type: object
-      required: [campaignId, amountMinor, currency, platform, externalChargeId, periodStart, periodEnd, idempotencyKey]
+      required:
+        [
+          campaignId,
+          amountMinor,
+          currency,
+          platform,
+          externalChargeId,
+          periodStart,
+          periodEnd,
+          idempotencyKey,
+        ]
       properties:
         campaignId: { type: string }
         amountMinor: { type: integer, minimum: 1 }
@@ -2157,7 +2647,14 @@ components:
 
     ReconcileAdSpendInput:
       type: object
-      required: [adSpendId, trackedAmountMinor, platformReportedAmountMinor, settledAmountMinor, idempotencyKey]
+      required:
+        [
+          adSpendId,
+          trackedAmountMinor,
+          platformReportedAmountMinor,
+          settledAmountMinor,
+          idempotencyKey,
+        ]
       properties:
         adSpendId: { type: string }
         trackedAmountMinor: { type: integer, minimum: 0 }
@@ -2286,7 +2783,11 @@ paths:
   /contacts/import:
     post:
       operationId: importContacts
-      summary: Import contacts
+      summary: Import contacts from CSV or JSON
+      description: >
+        Body is a JSON array of people (max 5000). The Import page accepts a
+        .csv or .json file (or pasted text) and maps headers/keys onto
+        ImportContactInput, including HubSpot-style aliases such as first_name.
       tags: [contacts]
       requestBody:
         required: true
@@ -5147,6 +5648,11 @@ paths:
       operationId: getHomeSummary
       summary: Get home summary
       tags: [dashboard]
+      parameters:
+        - in: query
+          name: utcOffsetMinutes
+          description: Browser offset from UTC used to calculate today's operating signals.
+          schema: { type: integer, minimum: -840, maximum: 840, default: 0 }
       responses:
         '200':
           description: Operational exceptions — what needs attention today (docs/00-unified-ia-navigation.md)

@@ -1,9 +1,10 @@
 import { db } from '@project/db'
+import { profileFromRaw } from '@project/sdk/src/lib/importContactSchema'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { LIFECYCLE_INCLUDE, toContactDTO, withGraph } from '../lib/contactDto'
 import { normalizeEmail, normalizePhone, tombstoneIdentity } from '../lib/identityResolution'
 import { syncPrimaryIdentifiers, tombstoneIdentifiers } from '../lib/contactIdentifiers'
-import { ImportJobService, type ImportRow } from './ImportJobService'
+import { ImportJobService } from './ImportJobService'
 import { ACTIVE_SALE_WHERE } from '../lib/salePredicates'
 
 const importJobs = new ImportJobService()
@@ -73,7 +74,7 @@ export class ContactService {
     return toContactDTO(contact)
   }
 
-  async importMany(businessId: string, contacts: ImportRow[]) {
+  async importMany(businessId: string, contacts: Record<string, unknown>[]) {
     return importJobs.importContacts(businessId, contacts)
   }
 
@@ -91,10 +92,16 @@ export class ContactService {
         _sum: { amount: true },
       }),
     ])
+    const profiles: Record<string, Record<string, string>> = {}
+    for (const row of records) {
+      const profile = profileFromRaw(row.raw)
+      if (profile) profiles[row.id] = profile
+    }
     return withGraph(contact, {
       identifiers,
       records,
       revenue: Number(revenueAgg._sum.amount ?? 0),
+      profiles,
     })
   }
 

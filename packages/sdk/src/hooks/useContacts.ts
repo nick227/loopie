@@ -37,7 +37,9 @@ export function useContacts(params?: {
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
       const client = getApiClient()
-      const result = await client.GET('/contacts', { params: { query: { ...params, cursor: pageParam } } })
+      const result = await client.GET('/contacts', {
+        params: { query: { ...params, cursor: pageParam } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -69,7 +71,9 @@ export function useContactInteractions(contactId: string) {
     queryKey: ['contact', contactId, 'interactions'],
     queryFn: async () => {
       const client = getApiClient()
-      const result = await client.GET('/contacts/{contactId}/interactions', { params: { path: { contactId } } })
+      const result = await client.GET('/contacts/{contactId}/interactions', {
+        params: { path: { contactId } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -110,10 +114,23 @@ export function useCreateContact() {
 export function useImportContacts() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (body: { contacts: CreateContactInput[] }) => {
+    mutationFn: async (body: {
+      contacts: Array<{
+        name: string
+        email?: string
+        phone?: string
+        company?: string
+        source?: string
+        tags?: string[]
+        emailEligible?: boolean
+        smsEligible?: boolean
+        externalId?: string
+        profile?: Record<string, string>
+      }>
+    }) => {
       const client = getApiClient()
       const result = await client.POST('/contacts/import', {
-        body: { contacts: body.contacts.map(withChannelDefaults) },
+        body: { contacts: body.contacts },
       })
       const err = result.error
       const status = result.response.status
@@ -121,7 +138,10 @@ export function useImportContacts() {
       if (err) throw new ApiError(status, (err as any).error)
       return data!
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contacts', 'list'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contacts'] })
+      queryClient.invalidateQueries({ queryKey: ['crm', 'catalog'] })
+    },
   })
 }
 
@@ -130,7 +150,10 @@ export function useUpdateContact() {
   return useMutation({
     mutationFn: async ({ contactId, ...body }: UpdateContactInput) => {
       const client = getApiClient()
-      const result = await client.PATCH('/contacts/{contactId}', { params: { path: { contactId } }, body })
+      const result = await client.PATCH('/contacts/{contactId}', {
+        params: { path: { contactId } },
+        body,
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -149,7 +172,9 @@ export function useDeleteContact() {
   return useMutation({
     mutationFn: async (contactId: string) => {
       const client = getApiClient()
-      const result = await client.DELETE('/contacts/{contactId}', { params: { path: { contactId } } })
+      const result = await client.DELETE('/contacts/{contactId}', {
+        params: { path: { contactId } },
+      })
       const err = result.error
       const status = result.response.status
       if (err) throw new ApiError(status, (err as any).error)

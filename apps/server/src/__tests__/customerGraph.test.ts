@@ -163,6 +163,65 @@ describe('CRM customer graph', () => {
     ).toBe(1)
   })
 
+  it('import maps firstName JSON and keeps CRM profile fields', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/contacts/import',
+      headers: asAuth(testUserId),
+      payload: {
+        contacts: [
+          {
+            firstName: 'Ada',
+            lastName: 'Lovelace',
+            email: 'ada.import@example.com',
+            jobTitle: 'Engineer',
+            city: 'London',
+            profile: { lifecycle_stage: 'customer' },
+          },
+        ],
+      },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().data.created).toBe(1)
+    const contact = await db.contact.findFirst({
+      where: { businessId: testBusinessId, email: 'ada.import@example.com' },
+    })
+    expect(contact?.name).toBe('Ada Lovelace')
+    const got = await app.inject({
+      method: 'GET',
+      url: `/contacts/${contact!.id}`,
+      headers: asAuth(testUserId),
+    })
+    expect(got.json().data.records[0].profile).toMatchObject({
+      jobTitle: 'Engineer',
+      city: 'London',
+      lifecycle_stage: 'customer',
+    })
+  })
+
+  it('import does not overwrite consent on a linked person', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/contacts/import',
+      headers: asAuth(testUserId),
+      payload: {
+        contacts: [{ name: 'Pat', email: 'pat.consent@example.com', emailEligible: true }],
+      },
+    })
+    await app.inject({
+      method: 'POST',
+      url: '/contacts/import',
+      headers: asAuth(testUserId),
+      payload: {
+        contacts: [{ name: 'Pat', email: 'pat.consent@example.com', emailEligible: false }],
+      },
+    })
+    const contact = await db.contact.findFirst({
+      where: { businessId: testBusinessId, email: 'pat.consent@example.com' },
+    })
+    expect(contact?.emailEligible).toBe(true)
+  })
+
   it('order.created attaches a Sale to an open attributed Lead and rolls into campaign performance', async () => {
     const page = await createPublishedPage()
     const creative = await db.creative.create({

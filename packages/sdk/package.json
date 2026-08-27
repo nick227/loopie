@@ -2,7 +2,9 @@
   "name": "@project/sdk",
   "version": "0.0.1",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./src/lib/capabilities": "./src/lib/capabilities.ts",
+    "./src/lib/importContactSchema": "./src/lib/importContactSchema.ts"
   },
   "scripts": {
     "generate": "tsx scripts/generate.ts",

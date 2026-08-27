@@ -60,6 +60,7 @@ export function withGraph(
       syncedAt: Date | null
     }[]
     revenue: number
+    profiles?: Record<string, Record<string, string>>
   },
 ) {
   return {
@@ -71,6 +72,7 @@ export function withGraph(
       externalId: row.externalId,
       matchStatus: row.matchStatus,
       syncedAt: row.syncedAt?.toISOString() ?? null,
+      profile: extras.profiles?.[row.id],
     })),
     revenue: extras.revenue,
   }

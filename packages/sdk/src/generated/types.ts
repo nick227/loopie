@@ -99,7 +99,10 @@ export interface paths {
     }
     get?: never
     put?: never
-    /** Import contacts */
+    /**
+     * Import contacts from CSV or JSON
+     * @description Body is a JSON array of people (max 5000). The Import page accepts a .csv or .json file (or pasted text) and maps headers/keys onto ImportContactInput, including HubSpot-style aliases such as first_name.
+     */
     post: operations['importContacts']
     delete?: never
     options?: never
@@ -2242,6 +2245,10 @@ export interface components {
       matchStatus: string
       /** Format: date-time */
       syncedAt?: string | null
+      /** @description Extra CRM fields from this source (job title, address, notes, unknown columns) */
+      profile?: {
+        [key: string]: string
+      }
     }
     CreateContactInput: {
       name: string
@@ -2256,6 +2263,32 @@ export interface components {
       /** @default true */
       smsEligible: boolean
     }
+    /** @description One person. CSV headers and JSON keys accept the listed aliases (first_name, email_address, hs_object_id, …). At least one of email, phone, or externalId is required. Name may be omitted when firstName and lastName are present. Unknown columns land in profile. */
+    ImportContactInput: {
+      name?: string
+      firstName?: string
+      lastName?: string
+      email?: string
+      phone?: string
+      mobile?: string
+      company?: string
+      jobTitle?: string
+      website?: string
+      address?: string
+      city?: string
+      state?: string
+      postalCode?: string
+      country?: string
+      notes?: string
+      source?: string
+      tags?: string[]
+      emailEligible?: boolean
+      smsEligible?: boolean
+      externalId?: string
+      profile?: {
+        [key: string]: string
+      }
+    }
     UpdateContactInput: {
       name?: string
       /** Format: email */
@@ -2267,7 +2300,7 @@ export interface components {
       smsEligible?: boolean
     }
     ImportContactsInput: {
-      contacts: components['schemas']['CreateContactInput'][]
+      contacts: components['schemas']['ImportContactInput'][]
     }
     ImportContactsResult: {
       importJobId?: string
@@ -3497,7 +3530,79 @@ export interface components {
       contactId?: string
       leadId?: string
     }
+    HomePrimaryAction: {
+      id: string
+      title: string
+      reason: string
+      actionLabel: string
+      href: string
+    }
+    HomeRail: {
+      /** Format: date */
+      localDate: string
+      timezone: string
+      currency: string
+      inboxWaiting: number
+      /** Format: date-time */
+      inboxOldestAt?: string | null
+      reach: number
+      responses: number
+      spend: number
+      leads: number
+      revenue: number
+    }
+    HomeInboxItem: {
+      id: string
+      /** @enum {string} */
+      kind: 'MESSAGE' | 'LEAD'
+      contactId: string
+      contactName: string
+      preview?: string | null
+      sourceLabel?: string | null
+      /** Format: date-time */
+      waitingSince: string
+      /** @enum {string} */
+      actionLabel: 'Reply' | 'Review Lead'
+      href: string
+    }
+    HomeActivityItem: {
+      id: string
+      /** @enum {string} */
+      category: 'PERSON' | 'BUSINESS' | 'NEEDS_ATTENTION'
+      eventType: string
+      text: string
+      detail?: string | null
+      /** Format: date-time */
+      occurredAt: string
+      sourceLabel?: string | null
+      objectType: string
+      objectId: string
+      href: string
+      actionLabel?: string | null
+    }
+    HomeSystemStatus: {
+      id: string
+      label: string
+      /** @enum {string} */
+      state: 'CURRENT' | 'ATTENTION' | 'DEGRADED' | 'DISCONNECTED' | 'QUIET' | 'NOT_SET_UP'
+      detail: string
+      href: string
+    }
     HomeSummary: {
+      businessName: string
+      /** Format: date-time */
+      generatedAt: string
+      brief: string
+      primaryAction?: components['schemas']['HomePrimaryAction']
+      rail: components['schemas']['HomeRail']
+      inbox: {
+        totalWaiting: number
+        items: components['schemas']['HomeInboxItem'][]
+      }
+      activity: {
+        items: components['schemas']['HomeActivityItem'][]
+      }
+      systems: components['schemas']['HomeSystemStatus'][]
       newLeads?: number
       unansweredReplies?: number
       followUpsDue?: number
@@ -7770,7 +7875,10 @@ export interface operations {
   }
   getHomeSummary: {
     parameters: {
-      query?: never
+      query?: {
+        /** @description Browser offset from UTC used to calculate today's operating signals. */
+        utcOffsetMinutes?: number
+      }
       header?: never
       path?: never
       cookie?: never

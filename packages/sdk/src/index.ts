@@ -1,3 +1,6 @@
 export { createApiClient, getApiClient, ApiError } from './client'
 export * from './hooks'
+export * from './lib/importContactFields'
+export * from './lib/importContactSchema'
+export * from './lib/parseContactImport'
 export type * from './generated/types'

@@ -70,11 +70,23 @@ export function ContactPage() {
           <CardHeader>
             <p className="text-sm font-medium">Linked systems</p>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
+          <CardContent className="space-y-3 text-sm">
             {records.map((row) => (
-              <p key={row.id} className="text-muted-foreground">
-                {row.provider} · {row.externalId}
-              </p>
+              <div key={row.id}>
+                <p className="text-muted-foreground">
+                  {row.provider} · {row.externalId}
+                </p>
+                {row.profile && Object.keys(row.profile).length > 0 ? (
+                  <dl className="mt-2 grid grid-cols-2 gap-2">
+                    {Object.entries(row.profile).map(([key, value]) => (
+                      <div key={key}>
+                        <dt className="text-xs text-muted-foreground">{key}</dt>
+                        <dd>{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : null}
+              </div>
             ))}
           </CardContent>
         </Card>
