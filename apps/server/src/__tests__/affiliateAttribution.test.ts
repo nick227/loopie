@@ -15,14 +15,21 @@ const app = buildTestApp()
 describe('affiliate attribution: Affiliate -> referral click -> Contact/Lead -> Sale -> Commission -> Payout', () => {
   it('a referred visitor becomes a Lead attributed to the affiliate without touching sourceType, then a Sale auto-creates a payable Commission', async () => {
     const template = await db.landingPageTemplate.create({
-      data: { name: 'Affiliate Test Template', isSystem: true, schema: { sections: [], themeTokens: [] } },
+      data: {
+        name: 'Affiliate Test Template',
+        isSystem: true,
+        schema: { sections: [], themeTokens: [] },
+      },
     })
 
     const formRes = await app.inject({
       method: 'POST',
       url: '/forms',
       headers: asAuth(testUserId),
-      payload: { name: 'Referral form', fields: [{ label: 'Email', fieldKey: 'email', type: 'EMAIL', required: true, order: 0 }] },
+      payload: {
+        name: 'Referral form',
+        fields: [{ label: 'Email', fieldKey: 'email', type: 'EMAIL', required: true, order: 0 }],
+      },
     })
     expect(formRes.statusCode).toBe(201)
     const formId = formRes.json().data.id
@@ -31,7 +38,12 @@ describe('affiliate attribution: Affiliate -> referral click -> Contact/Lead -> 
       method: 'POST',
       url: '/landing-pages',
       headers: asAuth(testUserId),
-      payload: { templateId: template.id, name: 'Referral Page', slug: `referral-page-${Date.now()}`, formId },
+      payload: {
+        templateId: template.id,
+        name: 'Referral Page',
+        slug: `referral-page-${Date.now()}`,
+        formId,
+      },
     })
     expect(pageRes.statusCode).toBe(201)
     const page = pageRes.json().data
@@ -64,7 +76,9 @@ describe('affiliate attribution: Affiliate -> referral click -> Contact/Lead -> 
     const sid = redirectLocation.searchParams.get('sid')
     expect(sid).toBeTruthy()
 
-    const click = await db.affiliateReferralClick.findFirstOrThrow({ where: { affiliateId: affiliate.id } })
+    const click = await db.affiliateReferralClick.findFirstOrThrow({
+      where: { affiliateId: affiliate.id },
+    })
     expect(click.sessionId).toBeTruthy()
 
     // --- Visitor submits the landing page's form with that session ---
@@ -86,7 +100,13 @@ describe('affiliate attribution: Affiliate -> referral click -> Contact/Lead -> 
       method: 'POST',
       url: '/sales',
       headers: asAuth(testUserId),
-      payload: { contactId, leadId, amount: 500, date: new Date().toISOString() },
+      payload: {
+        contactId,
+        leadId,
+        amount: 500,
+        date: new Date().toISOString(),
+        idempotencyKey: 'affiliate-attribution-sale-1',
+      },
     })
     expect(saleRes.statusCode).toBe(201)
     const sale = saleRes.json().data
@@ -136,11 +156,18 @@ describe('affiliate attribution: Affiliate -> referral click -> Contact/Lead -> 
       method: 'POST',
       url: '/sales',
       headers: asAuth(testUserId),
-      payload: { contactId, amount: 250, date: new Date().toISOString() },
+      payload: {
+        contactId,
+        amount: 250,
+        date: new Date().toISOString(),
+        idempotencyKey: 'affiliate-attribution-no-referral-sale',
+      },
     })
     expect(saleRes.statusCode).toBe(201)
 
-    const commission = await db.commission.findFirst({ where: { sourceRef: saleRes.json().data.id } })
+    const commission = await db.commission.findFirst({
+      where: { sourceRef: saleRes.json().data.id },
+    })
     expect(commission).toBeNull()
   })
 })

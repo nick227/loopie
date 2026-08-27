@@ -1,14 +1,25 @@
 import { describe, it, expect } from 'vitest'
-import { buildTestApp, asAuth, testUserId, testBusinessId, testOtherUserId, testShopUserId } from './helpers'
+import {
+  buildTestApp,
+  asAuth,
+  testUserId,
+  testBusinessId,
+  testOtherUserId,
+  testShopUserId,
+} from './helpers'
 import { seedClassAndDeal } from './helpers/affiliateSeed'
 import { db } from '@project/db'
 
 const app = buildTestApp()
 
 async function referredSale(affiliateId: string, amount: number) {
-  const contact = await db.contact.create({ data: { businessId: testBusinessId, name: 'Split Contact' } })
+  const contact = await db.contact.create({
+    data: { businessId: testBusinessId, name: 'Split Contact' },
+  })
   const sessionId = `split-${Date.now()}-${Math.random().toString(36).slice(2)}`
-  await db.affiliateReferralClick.create({ data: { affiliateId, sessionId, clickedAt: new Date() } })
+  await db.affiliateReferralClick.create({
+    data: { affiliateId, sessionId, clickedAt: new Date() },
+  })
   const lead = await db.lead.create({
     data: {
       businessId: testBusinessId,
@@ -23,7 +34,13 @@ async function referredSale(affiliateId: string, amount: number) {
     method: 'POST',
     url: '/sales',
     headers: asAuth(testUserId),
-    payload: { contactId: contact.id, leadId: lead.id, amount, date: new Date().toISOString() },
+    payload: {
+      contactId: contact.id,
+      leadId: lead.id,
+      amount,
+      date: new Date().toISOString(),
+      idempotencyKey: `deal-sale:${lead.id}`,
+    },
   })
   expect(res.statusCode).toBe(201)
   return res.json().data
@@ -61,7 +78,9 @@ describe('affiliate deal freeze and manager split', () => {
 
     const split = await db.saleAffiliateSplit.findUniqueOrThrow({ where: { saleId: sale.id } })
     expect(split.grossCommissionMinor).toBe(5000)
-    expect(split.affiliateCommissionMinor + split.managerCommissionMinor).toBe(split.grossCommissionMinor)
+    expect(split.affiliateCommissionMinor + split.managerCommissionMinor).toBe(
+      split.grossCommissionMinor,
+    )
     expect(split.managerAffiliateId).toBe(manager.id)
 
     const richer = await app.inject({
@@ -110,7 +129,11 @@ describe('affiliate deal freeze and manager split', () => {
     })
     expect(stillX?.amountMinor).toBe(1000)
 
-    const listed = await app.inject({ method: 'GET', url: '/affiliates', headers: asAuth(testUserId) })
+    const listed = await app.inject({
+      method: 'GET',
+      url: '/affiliates',
+      headers: asAuth(testUserId),
+    })
     const listedRep = listed.json().data.find((row: { id: string }) => row.id === affiliate.id)
     expect(listedRep.pendingMinor).toBe(4000)
     expect(listedRep.payableMinor).toBe(0)

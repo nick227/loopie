@@ -8,7 +8,9 @@ function visitorSid() {
   return issueSid().token
 }
 
-async function publishedPage(fields: Array<{ label: string; fieldKey: string; type: string; required: boolean }>) {
+async function publishedPage(
+  fields: Array<{ label: string; fieldKey: string; type: string; required: boolean }>,
+) {
   const template = await db.landingPageTemplate.create({
     data: { name: 'Harden Template', isSystem: true, schema: { sections: [], themeTokens: [] } },
   })
@@ -213,6 +215,7 @@ describe('backend hardening', () => {
         leadId: lead.id,
         amount: 120,
         date: new Date().toISOString(),
+        idempotencyKey: 'hardening-sale-1',
       },
     })
     expect(saleRes.statusCode).toBe(201)

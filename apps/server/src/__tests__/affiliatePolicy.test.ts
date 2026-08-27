@@ -28,7 +28,9 @@ async function createAffiliate(overrides: Record<string, unknown> = {}) {
 }
 
 async function createReferredLead(affiliateId: string, clickedAt: Date) {
-  const contact = await db.contact.create({ data: { businessId: testBusinessId, name: 'Referred Contact' } })
+  const contact = await db.contact.create({
+    data: { businessId: testBusinessId, name: 'Referred Contact' },
+  })
   const sessionId = `policy-test-${Date.now()}-${Math.random().toString(36).slice(2)}`
   await db.affiliateReferralClick.create({ data: { affiliateId, sessionId, clickedAt } })
   const lead = await db.lead.create({
@@ -50,7 +52,13 @@ async function recordSale(contactId: string, leadId: string, amount: number) {
     method: 'POST',
     url: '/sales',
     headers: asAuth(testUserId),
-    payload: { contactId, leadId, amount, date: new Date().toISOString() },
+    payload: {
+      contactId,
+      leadId,
+      amount,
+      date: new Date().toISOString(),
+      idempotencyKey: `policy-sale:${leadId}`,
+    },
   })
   expect(res.statusCode).toBe(201)
   return res.json().data
@@ -72,7 +80,9 @@ describe('affiliate policy', () => {
     // A second, smaller sale where the flat amount would exceed the sale itself
     const { contact: contact2, lead: lead2 } = await createReferredLead(affiliate.id, new Date())
     const smallSale = await recordSale(contact2.id, lead2.id, 10) // $10 sale, flat rate is $25
-    const cappedCommission = await db.commission.findFirstOrThrow({ where: { sourceRef: smallSale.id } })
+    const cappedCommission = await db.commission.findFirstOrThrow({
+      where: { sourceRef: smallSale.id },
+    })
     expect(cappedCommission.amountMinor).toBe(1000) // capped at the $10 sale, not $25
   })
 
@@ -86,7 +96,9 @@ describe('affiliate policy', () => {
     const commission = await db.commission.findFirst({ where: { sourceRef: sale.id } })
     expect(commission).toBeNull()
 
-    const note = await db.interaction.findFirstOrThrow({ where: { contactId: contact.id, type: 'NOTE' } })
+    const note = await db.interaction.findFirstOrThrow({
+      where: { contactId: contact.id, type: 'NOTE' },
+    })
     expect((note.metadata as { note?: string })?.note).toContain('eligibility window')
   })
 
@@ -120,7 +132,9 @@ describe('affiliate policy', () => {
     expect(reopenedLead.stage).toBe('QUALIFIED')
     expect(reopenedLead.closedAt).toBeNull()
 
-    const reversedCommission = await db.commission.findUniqueOrThrow({ where: { id: commission.id } })
+    const reversedCommission = await db.commission.findUniqueOrThrow({
+      where: { id: commission.id },
+    })
     expect(reversedCommission.status).toBe('REVERSED')
 
     // Idempotent — reversing again is a no-op, not an error
@@ -134,9 +148,14 @@ describe('affiliate policy', () => {
 
   it('payout cadence respects the threshold, then fires once it is met — MANUAL affiliates are never touched', async () => {
     const manual = await createAffiliate({ payoutCadence: 'MANUAL' })
-    const { contact: manualContact, lead: manualLead } = await createReferredLead(manual.id, new Date())
+    const { contact: manualContact, lead: manualLead } = await createReferredLead(
+      manual.id,
+      new Date(),
+    )
     const manualSale = await recordSale(manualContact.id, manualLead.id, 1000)
-    const manualCommission = await db.commission.findFirstOrThrow({ where: { sourceRef: manualSale.id } })
+    const manualCommission = await db.commission.findFirstOrThrow({
+      where: { sourceRef: manualSale.id },
+    })
     await app.inject({
       method: 'POST',
       url: `/finance/commissions/${manualCommission.id}/payable`,
@@ -160,7 +179,9 @@ describe('affiliate policy', () => {
     expect(firstRun.paidOut).toBe(0)
     const stillPayable = await db.commission.findUniqueOrThrow({ where: { id: commission1.id } })
     expect(stillPayable.status).toBe('PAYABLE')
-    const manualUntouched = await db.commission.findUniqueOrThrow({ where: { id: manualCommission.id } })
+    const manualUntouched = await db.commission.findUniqueOrThrow({
+      where: { id: manualCommission.id },
+    })
     expect(manualUntouched.status).toBe('PAYABLE') // MANUAL cadence — never auto-paid
 
     // A second commission pushes the payable total to $100, meeting the threshold

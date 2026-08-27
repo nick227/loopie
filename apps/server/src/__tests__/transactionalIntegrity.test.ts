@@ -27,6 +27,7 @@ describe('Sale <-> Lead contact consistency', () => {
         leadId: leadForB.id,
         amount: 100,
         date: new Date().toISOString(),
+        idempotencyKey: 'ti-mismatch-1',
       },
     })
 
@@ -52,6 +53,7 @@ describe('Sale <-> Lead contact consistency', () => {
         leadId: lead.id,
         amount: 100,
         date: new Date().toISOString(),
+        idempotencyKey: 'ti-accept-1',
       },
     })
 
