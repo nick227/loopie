@@ -1,7 +1,8 @@
 import { db, resolveVisitorSid } from '@project/db'
 import { landingPageSubmitUrl } from '../lib/urls'
 import { renderLandingPageHtml } from '../lib/renderLandingPage'
-import { isFormLive, type FormSnapshot } from '../lib/formSnapshot'
+import { snapshotSlots, type AdSlotSnapshotItem } from '../lib/adSlots'
+import { snapshotForm, isFormLive, type FormSnapshot } from '../lib/formSnapshot'
 
 export class LandingPageRenderService {
   async serve(
@@ -35,9 +36,22 @@ export class LandingPageRenderService {
       },
     })
 
-    const form = (await isFormLive(db, page.publishedVersion.formId))
-      ? ((page.publishedVersion.formSnapshot as unknown as FormSnapshot | null) ?? null) // In a real app we'd loadFormForRender if needed, but for refactoring we'll keep it simple or import it
+    // Same fallback as LandingPageSubmissionService.submit: a PublishedPageVersion that predates
+    // the formSnapshot column (or any future row where the snapshot write failed) must still
+    // render its live form rather than silently rendering with no form at all.
+    const form: FormSnapshot | null = (await isFormLive(db, page.publishedVersion.formId))
+      ? ((page.publishedVersion.formSnapshot as unknown as FormSnapshot | null) ??
+        (await snapshotForm(db, page.publishedVersion.formId)))
       : null
+    const storedSlots = page.publishedVersion.adSlotSnapshot as AdSlotSnapshotItem[] | null
+    const adSlots =
+      storedSlots ??
+      snapshotSlots(
+        await db.landingPageAdSlot.findMany({
+          where: { landingPageId: page.id },
+          orderBy: { sortOrder: 'asc' },
+        }),
+      )
     return {
       sidToken: visitor.token,
       html: renderLandingPageHtml({
@@ -48,6 +62,7 @@ export class LandingPageRenderService {
         form,
         submitActionUrl: landingPageSubmitUrl(page.id),
         sessionToken: visitor.token,
+        adSlots,
       }),
     }
   }

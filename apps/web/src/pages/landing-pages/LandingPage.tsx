@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Rocket, ExternalLink } from 'lucide-react'
 import { useFlatPages } from '@/hooks/useFlatPages'
 import { SectionEditor } from './components/SectionEditor'
+import { AdSlotsEditor } from './components/AdSlotsEditor'
 import { TemplateSection } from './components/types'
 import { useLandingPageEditor } from './hooks/useLandingPageEditor'
 
@@ -19,6 +20,7 @@ export function LandingPage() {
     exportQuery,
     updateMutation,
     publishMutation,
+    replaceSlots,
     setDestinationMutation,
     content,
     setContent,
@@ -26,6 +28,8 @@ export function LandingPage() {
     setTheme,
     formId,
     setFormId,
+    slots,
+    setSlots,
     dirty,
     setDirty,
     campaignId,
@@ -66,7 +70,7 @@ export function LandingPage() {
           <Button
             variant="outline"
             onClick={handleSave}
-            loading={updateMutation.isPending}
+            loading={updateMutation.isPending || replaceSlots.isPending}
             disabled={!dirty}
           >
             Save Draft
@@ -93,6 +97,17 @@ export function LandingPage() {
               }}
             />
           ))}
+
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Ad spaces
+          </h2>
+          <AdSlotsEditor
+            slots={slots}
+            onChange={(next) => {
+              setSlots(next)
+              setDirty(true)
+            }}
+          />
 
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             Theme

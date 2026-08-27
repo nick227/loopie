@@ -1,4 +1,5 @@
 import { db } from '../../src/client'
+import { SYSTEM_LEAD_GEN_TEMPLATE_ID, SYSTEM_LEAD_GEN_SCHEMA } from '../../src/leadGenTemplate'
 import type { Prisma } from '@prisma/client'
 
 export async function seedRiversideDemo(businessId: string) {
@@ -170,31 +171,17 @@ export async function seedRiversideDemo(businessId: string) {
 
 async function seedCapture(businessId: string, campaignId: string, creativeId: string) {
   const leadGenTemplate = await db.landingPageTemplate.upsert({
-    where: { id: 'system-template-lead-gen' },
+    where: { id: SYSTEM_LEAD_GEN_TEMPLATE_ID },
     update: {},
     create: {
-      id: 'system-template-lead-gen',
+      id: SYSTEM_LEAD_GEN_TEMPLATE_ID,
       isSystem: true,
       name: 'Simple Lead Gen',
       description:
         'Hero, feature grid, embedded form, footer — a single-purpose lead capture page.',
       category: 'lead-gen',
       formatVersion: '1.0',
-      schema: {
-        sections: [
-          {
-            key: 'hero',
-            type: 'hero',
-            order: 0,
-            hideable: false,
-            editable: ['headline', 'subheadline', 'ctaLabel', 'ctaLink'],
-          },
-          { key: 'features', type: 'feature-grid', order: 1, hideable: true, editable: ['items'] },
-          { key: 'form', type: 'form-embed', order: 2, hideable: false, editable: [] },
-          { key: 'footer', type: 'footer', order: 3, hideable: true, editable: ['text'] },
-        ],
-        themeTokens: ['primaryColor', 'backgroundColor', 'fontFamily'],
-      },
+      schema: SYSTEM_LEAD_GEN_SCHEMA,
     },
   })
 
@@ -304,6 +291,16 @@ async function seedCapture(businessId: string, campaignId: string, creativeId: s
       destinationLandingPageId: landingPage.id,
       impressions: 3200,
       clicks: 140,
+    },
+  })
+
+  await db.landingPageAdSlot.deleteMany({ where: { landingPageId: landingPage.id } })
+  await db.landingPageAdSlot.create({
+    data: {
+      landingPageId: landingPage.id,
+      sortOrder: 0,
+      placement: 'AFTER_HERO',
+      adUnitId: 'demo-ad-unit-native',
     },
   })
 

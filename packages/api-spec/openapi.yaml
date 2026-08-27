@@ -1076,7 +1076,34 @@ components:
         publishedVersionId: { type: string, nullable: true }
         hostedUrl: { type: string, description: "LOOPIE-hosted URL — GET /p/{slug}." }
         formStartCount: { type: integer, description: "Approximate — not deduplicated by session." }
+        adSlotCount: { type: integer }
+        slots:
+          type: array
+          items: { $ref: '#/components/schemas/LandingPageAdSlot' }
         createdAt: { type: string, format: date-time }
+
+    LandingPageAdSlot:
+      type: object
+      required: [id, sortOrder, placement]
+      properties:
+        id: { type: string }
+        sortOrder: { type: integer }
+        placement: { type: string, enum: [AFTER_HERO, BEFORE_FORM, AFTER_FORM, BOTTOM] }
+        adUnitId: { type: string, nullable: true }
+
+    ReplaceLandingPageAdSlotsInput:
+      type: object
+      required: [slots]
+      properties:
+        slots:
+          type: array
+          maxItems: 24
+          items:
+            type: object
+            required: [placement]
+            properties:
+              placement: { type: string, enum: [AFTER_HERO, BEFORE_FORM, AFTER_FORM, BOTTOM] }
+              adUnitId: { type: string, nullable: true }
 
     CreateLandingPageInput:
       type: object
@@ -1335,6 +1362,12 @@ components:
         sourceDeploymentId: { type: string, nullable: true }
         sourceAdUnitId: { type: string, nullable: true }
         notes: { type: string, nullable: true }
+        idempotencyKey:
+          type: string
+          nullable: true
+          description: >
+            Client-supplied dedup key from CreateSaleInput. Nullable only because a handful of
+            Sale rows predate this field; every sale created going forward has one.
         reversedAt:
           type: string
           format: date-time
@@ -1349,7 +1382,7 @@ components:
 
     CreateSaleInput:
       type: object
-      required: [contactId, amount, date]
+      required: [contactId, amount, date, idempotencyKey]
       properties:
         contactId: { type: string }
         leadId: { type: string }
@@ -1357,6 +1390,15 @@ components:
         date: { type: string, format: date-time }
         productOrService: { type: string }
         notes: { type: string }
+        idempotencyKey:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: >
+            Client-generated once per sale-recording attempt and resent unchanged on any retry —
+            a retried request or a double-submitted form returns the original Sale instead of
+            recording the economic event twice. Same convention as every finance-writing endpoint
+            (RecordFundingInput, ApplyCreditInput, etc.).
 
     Interaction:
       type: object
@@ -3644,6 +3686,28 @@ paths:
                 type: object
                 properties:
                   data: { type: object, nullable: true }
+
+  /landing-pages/{landingPageId}/ad-slots:
+    put:
+      operationId: replaceLandingPageAdSlots
+      summary: Replace the ad spaces on a landing page
+      tags: [landing-pages]
+      parameters:
+        - $ref: '#/components/parameters/LandingPageId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReplaceLandingPageAdSlotsInput' }
+      responses:
+        '200':
+          description: Draft slots saved — publish to freeze them onto the hosted page
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/LandingPage' }
 
   /landing-pages/{landingPageId}/publish:
     post:

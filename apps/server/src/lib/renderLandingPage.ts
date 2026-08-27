@@ -54,7 +54,9 @@ function renderFormHtml(form: RenderForm, submitActionUrl: string, sessionToken?
       }
       if (field.type === 'SELECT') {
         const options = Array.isArray(field.options) ? (field.options as string[]) : []
-        const optionsHtml = options.map((o) => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')
+        const optionsHtml = options
+          .map((o) => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`)
+          .join('')
         return `<div class="lp-field">${label}<select id="${fieldId}" name="${escapeHtml(field.fieldKey)}" ${requiredAttr}>${optionsHtml}</select></div>`
       }
       if (field.type === 'CHECKBOX') {
@@ -100,22 +102,67 @@ ${fieldsHtml}
 </script>`
 }
 
-function renderSection(section: TemplateSection, content: SectionContent, formHtml: string): string {
+function renderAdSlot(embedUrl: string, sessionToken?: string): string {
+  const src = sessionToken ? `${embedUrl}?sid=${encodeURIComponent(sessionToken)}` : embedUrl
+  return `<section class="lp-section lp-ad"><iframe src="${escapeHtml(src)}" title="Ad" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></section>`
+}
+
+function slotsAt(
+  slots: { placement: string; embedUrl: string | null }[],
+  placement: string,
+  sessionToken?: string,
+) {
+  return slots
+    .filter((slot) => slot.placement === placement && slot.embedUrl)
+    .map((slot) => renderAdSlot(slot.embedUrl!, sessionToken))
+    .join('\n')
+}
+
+function renderBody(
+  sections: TemplateSection[],
+  content: PageContent,
+  formHtml: string,
+  adSlots: { placement: string; embedUrl: string | null }[],
+  sessionToken?: string,
+) {
+  const chunks: string[] = []
+  for (const section of sections) {
+    if (section.type === 'form-embed') chunks.push(slotsAt(adSlots, 'BEFORE_FORM', sessionToken))
+    chunks.push(renderSection(section, content.sections?.[section.key] ?? {}, formHtml))
+    if (section.type === 'hero') chunks.push(slotsAt(adSlots, 'AFTER_HERO', sessionToken))
+    if (section.type === 'form-embed') chunks.push(slotsAt(adSlots, 'AFTER_FORM', sessionToken))
+  }
+  chunks.push(slotsAt(adSlots, 'BOTTOM', sessionToken))
+  return chunks.filter(Boolean).join('\n')
+}
+
+function renderSection(
+  section: TemplateSection,
+  content: SectionContent,
+  formHtml: string,
+): string {
   if (content.hidden) return ''
 
   switch (section.type) {
     case 'hero': {
       const headline = content.headline ? `<h1>${escapeHtml(content.headline)}</h1>` : ''
-      const subheadline = content.subheadline ? `<p class="lp-subheadline">${escapeHtml(content.subheadline)}</p>` : ''
+      const subheadline = content.subheadline
+        ? `<p class="lp-subheadline">${escapeHtml(content.subheadline)}</p>`
+        : ''
       const cta = content.ctaLabel
         ? `<a class="lp-cta" href="${escapeHtml(content.ctaLink ?? '#form')}">${escapeHtml(content.ctaLabel)}</a>`
         : ''
       return `<section class="lp-section lp-hero">${headline}${subheadline}${cta}</section>`
     }
     case 'feature-grid': {
-      const items = Array.isArray(content.items) ? (content.items as { title: string; body: string }[]) : []
+      const items = Array.isArray(content.items)
+        ? (content.items as { title: string; body: string }[])
+        : []
       const itemsHtml = items
-        .map((item) => `<div class="lp-feature"><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.body)}</p></div>`)
+        .map(
+          (item) =>
+            `<div class="lp-feature"><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.body)}</p></div>`,
+        )
         .join('')
       return `<section class="lp-section lp-features"><div class="lp-feature-grid">${itemsHtml}</div></section>`
     }
@@ -136,12 +183,17 @@ export function renderLandingPageHtml(input: {
   form: RenderForm
   submitActionUrl: string
   sessionToken?: string
+  adSlots?: { placement: string; embedUrl: string | null }[]
 }): string {
   const sections = [...(input.templateSchema.sections ?? [])].sort((a, b) => a.order - b.order)
   const formHtml = renderFormHtml(input.form, input.submitActionUrl, input.sessionToken)
-  const bodyHtml = sections
-    .map((section) => renderSection(section, input.content.sections?.[section.key] ?? {}, formHtml))
-    .join('\n')
+  const bodyHtml = renderBody(
+    sections,
+    input.content,
+    formHtml,
+    input.adSlots ?? [],
+    input.sessionToken,
+  )
 
   const theme = input.theme ?? {}
   const primaryColor = theme.primaryColor ?? '#111827'
@@ -167,6 +219,7 @@ body { margin: 0; font-family: ${escapeHtml(fontFamily)}; background: var(--lp-b
 input, textarea, select { padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px; font: inherit; }
 button[type="submit"] { padding: 0.75rem 1.5rem; background: var(--lp-primary); color: white; border: none; border-radius: 8px; cursor: pointer; }
 .lp-footer { text-align: center; color: #6b7280; font-size: 0.875rem; }
+.lp-ad iframe { width: 100%; min-height: 280px; border: 0; display: block; }
 </style>
 </head>
 <body>

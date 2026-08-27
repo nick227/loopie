@@ -1,5 +1,6 @@
 import { db, hashSessionToken, randomSessionToken } from '@project/db'
 import bcrypt from 'bcryptjs'
+import { provisionDefaultPage } from '../lib/provisionDefaultPage'
 import { normalizeEmail } from '../lib/identityResolution'
 
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
@@ -30,13 +31,20 @@ export class AuthService {
     const email = normalizeEmail(data.email)
     if (!email) throw { statusCode: 400, message: 'Email is required' }
     const hash = await bcrypt.hash(data.password, 12)
-    const user = await db.user.create({
-      data: {
-        email,
-        passwordHash: hash,
-        business: { create: { name: data.businessName } },
-      },
-      include: { business: true },
+    const user = await db.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          email,
+          passwordHash: hash,
+          business: { create: { name: data.businessName } },
+        },
+        include: { business: true },
+      })
+      await provisionDefaultPage(tx, {
+        businessId: created.businessId,
+        businessName: created.business.name,
+      })
+      return created
     })
     const session = await this._createSession(user.id)
     return { user: toUserDTO(user), token: session.token }

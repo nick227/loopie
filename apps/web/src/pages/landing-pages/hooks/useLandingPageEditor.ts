@@ -6,9 +6,11 @@ import {
   useExportLandingPage,
   useUpdateLandingPage,
   usePublishLandingPage,
+  useReplaceLandingPageAdSlots,
   useUpdateCampaign,
 } from '@project/sdk'
 import { SectionContent } from '../components/types'
+import type { AdSlotDraft } from '../components/AdSlotsEditor'
 
 export function useLandingPageEditor() {
   const { landingPageId } = useParams<{ landingPageId: string }>()
@@ -22,11 +24,13 @@ export function useLandingPageEditor() {
 
   const updateMutation = useUpdateLandingPage()
   const publishMutation = usePublishLandingPage()
+  const replaceSlots = useReplaceLandingPageAdSlots(landingPageId!)
   const setDestinationMutation = useUpdateCampaign()
 
   const [content, setContent] = useState<Record<string, SectionContent>>({})
   const [theme, setTheme] = useState<Record<string, string>>({})
   const [formId, setFormId] = useState('')
+  const [slots, setSlots] = useState<AdSlotDraft[]>([])
   const [dirty, setDirty] = useState(false)
   const [campaignId, setCampaignId] = useState('')
   const [savedAt, setSavedAt] = useState<number | null>(null)
@@ -40,6 +44,12 @@ export function useLandingPageEditor() {
     )
     setTheme((page.theme as Record<string, string> | null) ?? {})
     setFormId(page.formId ?? '')
+    setSlots(
+      (page.slots ?? []).map((slot) => ({
+        placement: slot.placement,
+        adUnitId: slot.adUnitId ?? null,
+      })),
+    )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page?.id])
 
@@ -61,6 +71,7 @@ export function useLandingPageEditor() {
       theme,
       formId: formId || null,
     })
+    await replaceSlots.mutateAsync(slots)
     setDirty(false)
     setSavedAt(Date.now())
     exportQuery.refetch()
@@ -84,6 +95,7 @@ export function useLandingPageEditor() {
     exportQuery,
     updateMutation,
     publishMutation,
+    replaceSlots,
     setDestinationMutation,
     content,
     setContent,
@@ -91,6 +103,8 @@ export function useLandingPageEditor() {
     setTheme,
     formId,
     setFormId,
+    slots,
+    setSlots,
     dirty,
     setDirty,
     campaignId,

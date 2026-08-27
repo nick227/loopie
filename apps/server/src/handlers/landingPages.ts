@@ -1,10 +1,12 @@
 import { LandingPageTemplateService } from '../services/LandingPageTemplateService'
 import { LandingPageService } from '../services/LandingPageService'
+import { LandingPageAdSlotService } from '../services/LandingPageAdSlotService'
 import { LandingPageSubmissionService } from '../services/LandingPageSubmissionService'
 import { LandingPageRenderService } from '../services/LandingPageRenderService'
 
 const templateService = new LandingPageTemplateService()
 const landingPageService = new LandingPageService()
+const slotService = new LandingPageAdSlotService()
 const submissionService = new LandingPageSubmissionService()
 const renderService = new LandingPageRenderService()
 
@@ -45,6 +47,15 @@ export async function updateLandingPage(request: any, reply: any) {
 export async function deleteLandingPage(request: any, reply: any) {
   await landingPageService.delete(request.user.businessId, request.params.landingPageId)
   return reply.send({ data: null })
+}
+
+export async function replaceLandingPageAdSlots(request: any, reply: any) {
+  const page = await slotService.replace(
+    request.user.businessId,
+    request.params.landingPageId,
+    request.body.slots,
+  )
+  return reply.send({ data: page })
 }
 
 export async function publishLandingPage(request: any, reply: any) {

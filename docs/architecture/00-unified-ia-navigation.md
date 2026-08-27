@@ -15,10 +15,10 @@ A user saying "I want to text my customers" should still never have to understan
 ## Top-Level Navigation
 
 ```text
-Home · Campaigns · Messages · Ads · Media · Affiliates
+Home · Campaigns · Messages · Ads · Pages · Media · Affiliates
 ```
 
-`Affiliates` is ADMIN-only (LOOPIE staff). Affiliate logins get a different shell: Home · Team · Payouts (`/portal`). Shop `USER` accounts keep Home · Campaigns · Messages · Ads · Media.
+`Affiliates` is ADMIN-only (LOOPIE staff). Affiliate logins get a different shell: Home · Team · Payouts (`/portal`). Shop `USER` accounts keep Home · Campaigns · Messages · Ads · Pages · Media.
 
 ```text
 Campaigns
@@ -29,7 +29,7 @@ Campaigns
     Creatives         (attached to this campaign; links out to the full reusable library)
     Ad Units          (scoped to this campaign)
     Leads             (campaign-scoped outcomes; click opens Contact timeline)
-    Landing Pages     (reusable library, reached from overview destination)
+    Destination       (a published page from Pages)
     Platforms / Deployments
     Performance       (this campaign's funnel: views → clicks → leads → sales)
 
@@ -45,6 +45,11 @@ Messages
 
 Ads
   Reusable creative library (assembled ads, not source files)
+
+Pages
+  Hosted landing pages — a first-class publishing surface. Users create pages, set how many ad
+  spaces they have and where those spaces sit, and place first-party ads on them. New accounts
+  start with a published Home page and two empty ad spaces.
 
 Media
   Shared library of source files (image / video / audio / text)
@@ -80,6 +85,12 @@ Automations lives under Messages, since its actions are messaging actions (send 
 ## Contacts Lives Under Messages, Not Top-Level
 
 Reverses the prior revision's "Contacts as Top-Level Is a Deliberate Departure" section outright. Contacts is still the shared spine both surfaces feed — that hasn't changed, and still isn't up for debate — but _browsing_ contacts is now reached through `Messages → Contacts`, not a standalone top-level tab. The practical case for this: a business's day-to-day contact-browsing habit (who replied, who needs a follow-up, whose stage needs updating) is almost always tied to a communication task, which already lives in Messages; a Lead that originated from a Campaign is still the exact same Contact record and still shows up there, so nothing about a paid-sourced lead becomes harder to find — it's one hop through Messages → Contacts either way, the same distance a top-level tab would have been.
+
+## Pages Are a First-Class Publishing Surface
+
+Landing pages are reusable across campaigns (`LandingPage` has no owning `campaignId`) **and** they are inventory: a page can hold many first-party `AdUnit` placements. That earns a top-level **Pages** nav item, same rule as Media.
+
+Campaign detail can still link a page as a click destination. Managing pages, ad spaces, and publish lives on `/landing-pages`.
 
 ## Landing Pages and Creatives Are Reusable Libraries, Reached Through Campaign Detail
 

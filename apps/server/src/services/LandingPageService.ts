@@ -5,8 +5,26 @@ import { hostedPageUrl, landingPageSubmitUrl } from '../lib/urls'
 import { renderLandingPageHtml, defaultContentFromSchema } from '../lib/renderLandingPage'
 import { resolveContactAndLead } from '../lib/identityResolution'
 import { snapshotForm, isFormLive, type FormSnapshot } from '../lib/formSnapshot'
+import { ACTIVE_SALE_WHERE } from '../lib/salePredicates'
+import { snapshotSlots, toSlotDTO } from '../lib/adSlots'
 
-function toLandingPageDTO(page: any) {
+function toLandingPageDTO(page: {
+  id: string
+  businessId: string
+  templateId: string
+  formId: string | null
+  name: string
+  slug: string
+  customDomain: string | null
+  status: string
+  content: unknown
+  theme: unknown
+  publishedVersionId: string | null
+  formStartCount: number
+  createdAt: Date
+  adSlots?: { id: string; sortOrder: number; placement: string; adUnitId: string | null }[]
+}) {
+  const slots = (page.adSlots ?? []).map(toSlotDTO)
   return {
     id: page.id,
     businessId: page.businessId,
@@ -21,6 +39,8 @@ function toLandingPageDTO(page: any) {
     publishedVersionId: page.publishedVersionId,
     hostedUrl: hostedPageUrl(page.slug),
     formStartCount: page.formStartCount,
+    adSlotCount: slots.length,
+    slots,
     createdAt: page.createdAt.toISOString(),
   }
 }
@@ -67,6 +87,7 @@ export class LandingPageService {
       where: { businessId, deletedAt: null, ...(AND.length ? { AND } : {}) },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
+      include: { adSlots: { orderBy: { sortOrder: 'asc' as const } } },
     })
     const hasMore = pages.length > limit
     const items = hasMore ? pages.slice(0, limit) : pages
@@ -103,7 +124,9 @@ export class LandingPageService {
         slug: data.slug,
         content: data.content ?? (defaultContentFromSchema(template.schema as any) as any),
         theme: data.theme,
+        adSlots: { create: [{ sortOrder: 0, placement: 'AFTER_HERO' }] },
       },
+      include: { adSlots: { orderBy: { sortOrder: 'asc' as const } } },
     })
     return toLandingPageDTO(page)
   }
@@ -134,6 +157,7 @@ export class LandingPageService {
         ...(data.content !== undefined ? { content: data.content } : {}),
         ...(data.theme !== undefined ? { theme: data.theme } : {}),
       },
+      include: { adSlots: { orderBy: { sortOrder: 'asc' as const } } },
     })
     return toLandingPageDTO(page)
   }
@@ -168,6 +192,10 @@ export class LandingPageService {
       // Freeze the form's fields as they exist right now — this version must keep rendering and
       // validating against exactly this snapshot even if the live Form is edited afterward.
       const formSnapshot = await snapshotForm(tx, current.formId)
+      const slots = await tx.landingPageAdSlot.findMany({
+        where: { landingPageId },
+        orderBy: { sortOrder: 'asc' },
+      })
 
       const version = await tx.publishedPageVersion.create({
         data: {
@@ -177,6 +205,7 @@ export class LandingPageService {
           theme: current.theme as Prisma.InputJsonValue | undefined,
           formId: current.formId,
           formSnapshot: formSnapshot as unknown as Prisma.InputJsonValue | undefined,
+          adSlotSnapshot: snapshotSlots(slots) as unknown as Prisma.InputJsonValue,
           publishedBy,
         },
       })
@@ -228,6 +257,10 @@ export class LandingPageService {
       where: { id: page.templateId },
     })
     const form = await loadFormForRender(page.formId)
+    const slots = await db.landingPageAdSlot.findMany({
+      where: { landingPageId: page.id },
+      orderBy: { sortOrder: 'asc' },
+    })
     const html = renderLandingPageHtml({
       pageName: page.name,
       templateSchema: template.schema as any,
@@ -235,6 +268,7 @@ export class LandingPageService {
       theme: page.theme as any,
       form,
       submitActionUrl: landingPageSubmitUrl(page.id),
+      adSlots: snapshotSlots(slots),
     })
     return { filename: `${page.slug}.html`, html }
   }
@@ -252,11 +286,17 @@ export class LandingPageService {
     ])
     const uniqueSessions = uniqueSessionRows.length
     const submissions = submissionRows.length
-    const leadIds = submissionRows.map((r) => r.leadId).filter((v): v is string => !!v)
+    // Distinct leads, not raw submission rows — see CampaignPerformanceService's identical fix.
+    const leadIds = [
+      ...new Set(submissionRows.map((r) => r.leadId).filter((v): v is string => !!v)),
+    ]
 
     const [sales, revenueAgg] = await Promise.all([
-      db.sale.count({ where: { businessId, leadId: { in: leadIds } } }),
-      db.sale.aggregate({ where: { businessId, leadId: { in: leadIds } }, _sum: { amount: true } }),
+      db.sale.count({ where: { businessId, leadId: { in: leadIds }, ...ACTIVE_SALE_WHERE } }),
+      db.sale.aggregate({
+        where: { businessId, leadId: { in: leadIds }, ...ACTIVE_SALE_WHERE },
+        _sum: { amount: true },
+      }),
     ])
 
     return {
@@ -276,6 +316,7 @@ export class LandingPageService {
   private async _find(businessId: string, landingPageId: string) {
     const page = await db.landingPage.findFirst({
       where: { id: landingPageId, businessId, deletedAt: null },
+      include: { adSlots: { orderBy: { sortOrder: 'asc' as const } } },
     })
     if (!page) throw { statusCode: 404, message: 'Landing page not found' }
     return page

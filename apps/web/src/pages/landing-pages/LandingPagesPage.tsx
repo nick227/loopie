@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useLandingPages } from '@project/sdk'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -14,8 +14,9 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 export function LandingPagesPage() {
+  const navigate = useNavigate()
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useLandingPages()
-  const items = useFlatPages({ data: data })
+  const items = useFlatPages({ data })
 
   if (isLoading)
     return (
@@ -27,12 +28,17 @@ export function LandingPagesPage() {
     )
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Landing Pages</h1>
+        <div>
+          <h1 className="text-2xl font-semibold">Pages</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Hosted pages you publish ads on and capture leads from.
+          </p>
+        </div>
         <Link to="/landing-pages/new">
           <Button size="sm">
-            <Plus size={14} /> New
+            <Plus size={14} /> New page
           </Button>
         </Link>
       </div>
@@ -40,11 +46,11 @@ export function LandingPagesPage() {
       {items.length === 0 ? (
         <EmptyState
           icon={LayoutTemplate}
-          title="No landing pages yet"
-          description="Create one to capture leads from a campaign or ad."
+          title="No pages yet"
+          description="Create a page, add ad spaces, and publish. New accounts start with one already live."
           action={{
-            label: 'New Landing Page',
-            onClick: () => (window.location.href = '/landing-pages/new'),
+            label: 'New page',
+            onClick: () => navigate('/landing-pages/new'),
           }}
         />
       ) : (
@@ -54,7 +60,12 @@ export function LandingPagesPage() {
               <CardContent className="py-4 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium">{item.name}</p>
-                  <p className="text-xs text-muted-foreground">/p/{item.slug}</p>
+                  <p className="text-xs text-muted-foreground">
+                    /p/{item.slug}
+                    {item.adSlotCount
+                      ? ` · ${item.adSlotCount} ad space${item.adSlotCount === 1 ? '' : 's'}`
+                      : ''}
+                  </p>
                 </div>
                 <span className="text-xs rounded-full px-2 py-1 bg-accent text-accent-foreground shrink-0">
                   {STATUS_LABEL[item.status] ?? item.status}

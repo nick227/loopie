@@ -26,7 +26,9 @@ export function useLandingPageTemplates(params?: { limit?: number }) {
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
       const client = getApiClient()
-      const result = await client.GET('/landing-page-templates', { params: { query: { ...params, cursor: pageParam } } })
+      const result = await client.GET('/landing-page-templates', {
+        params: { query: { ...params, cursor: pageParam } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -42,7 +44,9 @@ export function useLandingPageTemplate(templateId: string) {
     queryKey: ['landingPageTemplate', templateId],
     queryFn: async () => {
       const client = getApiClient()
-      const result = await client.GET('/landing-page-templates/{templateId}', { params: { path: { templateId } } })
+      const result = await client.GET('/landing-page-templates/{templateId}', {
+        params: { path: { templateId } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -59,7 +63,9 @@ export function useLandingPages(params?: { status?: string; limit?: number }) {
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
       const client = getApiClient()
-      const result = await client.GET('/landing-pages', { params: { query: { ...params, cursor: pageParam } as any } })
+      const result = await client.GET('/landing-pages', {
+        params: { query: { ...params, cursor: pageParam } as any },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -75,7 +81,9 @@ export function useLandingPage(landingPageId: string) {
     queryKey: ['landingPage', landingPageId],
     queryFn: async () => {
       const client = getApiClient()
-      const result = await client.GET('/landing-pages/{landingPageId}', { params: { path: { landingPageId } } })
+      const result = await client.GET('/landing-pages/{landingPageId}', {
+        params: { path: { landingPageId } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -211,6 +219,34 @@ export function usePublishLandingPage() {
     onSuccess: (_data, landingPageId) => {
       queryClient.invalidateQueries({ queryKey: ['landingPage', landingPageId] })
       queryClient.invalidateQueries({ queryKey: ['landingPage', landingPageId, 'versions'] })
+    },
+  })
+}
+
+export function useReplaceLandingPageAdSlots(landingPageId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (
+      slots: {
+        placement: 'AFTER_HERO' | 'BEFORE_FORM' | 'AFTER_FORM' | 'BOTTOM'
+        adUnitId: string | null
+      }[],
+    ) => {
+      const client = getApiClient()
+      const result = await client.PUT('/landing-pages/{landingPageId}/ad-slots', {
+        params: { path: { landingPageId } },
+        body: { slots },
+      })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as { error: string }).error)
+      return data!
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['landingPage', landingPageId] })
+      queryClient.invalidateQueries({ queryKey: ['landingPages', 'list'] })
+      queryClient.invalidateQueries({ queryKey: ['landingPage', landingPageId, 'export'] })
     },
   })
 }

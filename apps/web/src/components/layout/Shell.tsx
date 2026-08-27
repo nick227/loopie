@@ -8,6 +8,7 @@ import {
   Handshake,
   CreditCard,
   Clapperboard,
+  LayoutTemplate,
   type LucideIcon,
   Bell,
   Search,
@@ -23,6 +24,7 @@ const SHOP_NAV: NavItem[] = [
   { to: '/campaigns', label: 'Campaigns', icon: Megaphone },
   { to: '/messages', label: 'Messages', icon: Mail },
   { to: '/ads', label: 'Ads', icon: Image },
+  { to: '/landing-pages', label: 'Pages', icon: LayoutTemplate },
   { to: '/media', label: 'Media', icon: Clapperboard },
 ]
 

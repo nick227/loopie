@@ -1132,6 +1132,23 @@ export interface paths {
     patch: operations['updateLandingPage']
     trace?: never
   }
+  '/landing-pages/{landingPageId}/ad-slots': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /** Replace the ad spaces on a landing page */
+    put: operations['replaceLandingPageAdSlots']
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/landing-pages/{landingPageId}/publish': {
     parameters: {
       query?: never
@@ -2541,8 +2558,24 @@ export interface components {
       hostedUrl?: string
       /** @description Approximate — not deduplicated by session. */
       formStartCount: number
+      adSlotCount?: number
+      slots?: components['schemas']['LandingPageAdSlot'][]
       /** Format: date-time */
       createdAt: string
+    }
+    LandingPageAdSlot: {
+      id: string
+      sortOrder: number
+      /** @enum {string} */
+      placement: 'AFTER_HERO' | 'BEFORE_FORM' | 'AFTER_FORM' | 'BOTTOM'
+      adUnitId?: string | null
+    }
+    ReplaceLandingPageAdSlotsInput: {
+      slots: {
+        /** @enum {string} */
+        placement: 'AFTER_HERO' | 'BEFORE_FORM' | 'AFTER_FORM' | 'BOTTOM'
+        adUnitId?: string | null
+      }[]
     }
     CreateLandingPageInput: {
       templateId: string
@@ -2765,6 +2798,8 @@ export interface components {
       sourceDeploymentId?: string | null
       sourceAdUnitId?: string | null
       notes?: string | null
+      /** @description Client-supplied dedup key from CreateSaleInput. Nullable only because a handful of Sale rows predate this field; every sale created going forward has one. */
+      idempotencyKey?: string | null
       /**
        * Format: date-time
        * @description Set by POST /sales/{saleId}/reverse. Not a status enum — matches Lead.closedAt/Automation.pausedAt.
@@ -2784,6 +2819,8 @@ export interface components {
       date: string
       productOrService?: string
       notes?: string
+      /** @description Client-generated once per sale-recording attempt and resent unchanged on any retry — a retried request or a double-submitted form returns the original Sale instead of recording the economic event twice. Same convention as every finance-writing endpoint (RecordFundingInput, ApplyCreditInput, etc.). */
+      idempotencyKey: string
     }
     Interaction: {
       id: string
@@ -5719,6 +5756,34 @@ export interface operations {
     }
     responses: {
       /** @description Updated draft — does not affect the currently published version */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['LandingPage']
+          }
+        }
+      }
+    }
+  }
+  replaceLandingPageAdSlots: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        landingPageId: components['parameters']['LandingPageId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ReplaceLandingPageAdSlotsInput']
+      }
+    }
+    responses: {
+      /** @description Draft slots saved — publish to freeze them onto the hosted page */
       200: {
         headers: {
           [name: string]: unknown
