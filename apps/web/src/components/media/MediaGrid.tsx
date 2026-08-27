@@ -47,7 +47,7 @@ export function MediaGrid({
           type="button"
           onClick={() => fetchNextPage()}
           disabled={isFetchingNextPage}
-          className="w-full py-3 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          className="min-h-11 w-full py-3 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
         >
           {isFetchingNextPage ? 'Loading...' : 'Load more'}
         </button>

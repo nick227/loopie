@@ -62,10 +62,15 @@ export function MediaPicker({
       toolbar={
         <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
           <div className="min-w-0 flex-1">
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search media" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search media"
+              className="h-11 text-base sm:h-10 sm:text-sm"
+            />
           </div>
           {lockedType ? null : (
-            <div className="flex shrink-0 flex-wrap gap-1">
+            <div className="-mx-1 flex gap-1 overflow-x-auto overscroll-x-contain px-1 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {[
                 { value: '' as const, label: 'All' },
                 ...MEDIA_TYPES.map((value) => ({
@@ -77,7 +82,7 @@ export function MediaPicker({
                   key={row.value || 'all'}
                   type="button"
                   onClick={() => setType(row.value)}
-                  className={`rounded-md px-2.5 py-1.5 text-xs ${
+                  className={`shrink-0 rounded-md px-3 min-h-11 text-sm sm:min-h-0 sm:px-2.5 sm:py-1.5 sm:text-xs ${
                     type === row.value
                       ? 'bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-900'
                       : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100'
@@ -91,11 +96,16 @@ export function MediaPicker({
         </div>
       }
       footer={
-        <div className="flex w-full items-center justify-between gap-3">
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm tabular-nums text-muted-foreground">
             {count === 0 ? 'None selected' : `${count} selected`}
           </p>
-          <Button type="button" size="sm" onClick={onConfirm} disabled={!canUse}>
+          <Button
+            type="button"
+            className="min-h-11 w-full sm:min-h-0 sm:w-auto"
+            onClick={onConfirm}
+            disabled={!canUse}
+          >
             Use selected
           </Button>
         </div>
@@ -103,14 +113,14 @@ export function MediaPicker({
     >
       <div className="flex min-h-0 flex-1 flex-col">
         <MediaUploadBar adding={adding} lockedType={lockedType} onAdd={onAdd} />
-        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-3 sm:p-5">
           {showSkeletons ? (
             <GridSkeletons />
           ) : assets.length === 0 ? (
             <EmptyState
               icon={Image}
               title={q || type ? 'No matching media' : 'No media yet'}
-              description={q || type ? 'Try a different search.' : 'Drop a file to add media.'}
+              description={q || type ? 'Try a different search.' : 'Upload a file to add media.'}
             />
           ) : (
             <MediaGrid

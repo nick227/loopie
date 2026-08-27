@@ -68,7 +68,7 @@ export function MediaUploadBar({
   }
 
   return (
-    <div className="shrink-0 space-y-2 px-4 pt-3 sm:px-5">
+    <div className="shrink-0 space-y-2 px-3 pt-3 sm:px-5">
       <label
         onDragOver={(event) => {
           event.preventDefault()
@@ -77,14 +77,21 @@ export function MediaUploadBar({
         onDragLeave={() => setOver(false)}
         onDrop={onDrop}
         className={cn(
-          'flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-3 text-sm',
+          'flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-3 text-sm',
           over ? 'border-foreground bg-muted' : 'border-input-border bg-muted/40',
           adding && 'pointer-events-none opacity-60',
         )}
       >
         {adding ? <Spinner size="sm" /> : <Upload size={16} className="text-muted-foreground" />}
         <span className="text-muted-foreground">
-          {adding ? 'Uploading…' : 'Drop a file or click to upload'}
+          {adding ? (
+            'Uploading…'
+          ) : (
+            <>
+              <span className="md:hidden">Tap to upload</span>
+              <span className="hidden md:inline">Drop a file or click to upload</span>
+            </>
+          )}
         </span>
         <input
           type="file"
