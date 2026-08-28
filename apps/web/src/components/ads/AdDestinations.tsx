@@ -2,6 +2,7 @@ import type { components } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { DestinationRow } from '@/components/ads/AdDestinationRow'
 import { PAID_TARGETS, pageIdFromKey, pageKey, runDestinationKey } from '@/lib/adPreview'
+import { AD_DESTINATIONS_HINT } from '@/lib/adCopy'
 
 type AdRun = components['schemas']['AdRun']
 type LandingPage = { id: string; name: string; status: string }
@@ -56,9 +57,7 @@ export function AdDestinations({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-medium">Where it runs</p>
-          <p className="text-sm text-muted-foreground">
-            Amounts are per day. A running buy stays checked until you pause it.
-          </p>
+          <p className="text-sm text-muted-foreground">{AD_DESTINATIONS_HINT}</p>
         </div>
         {runs.length > 0 ? (
           <div className="flex gap-2">

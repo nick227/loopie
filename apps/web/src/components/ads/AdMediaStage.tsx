@@ -20,11 +20,13 @@ function Media({ asset }: { asset: Asset }) {
     )
   }
   return (
-    <div className="flex h-full items-center justify-center text-xs uppercase tracking-wider text-zinc-500">
+    <div className="flex h-full items-center justify-center text-xs uppercase tracking-wider text-muted-foreground">
       {asset.type}
     </div>
   )
 }
+
+export const AD_MEDIA_STAGE_HEIGHT = 'h-[27rem]'
 
 function Remove({ onRemove }: { onRemove: () => void }) {
   return (
@@ -32,7 +34,7 @@ function Remove({ onRemove }: { onRemove: () => void }) {
       type="button"
       onClick={onRemove}
       aria-label="Remove"
-      className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-zinc-700 shadow-sm hover:bg-white dark:bg-zinc-900/90 dark:text-zinc-200"
+      className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface/90 text-surface-foreground shadow-sm hover:bg-surface"
     >
       <X size={16} />
     </button>
@@ -54,23 +56,29 @@ export function AdMediaStage({
 
   return (
     <div className="space-y-3">
-      {mobile ? (
-        <div className="flex justify-center py-2">
-          <div className="relative overflow-hidden rounded-[2.5rem] border-[8px] border-zinc-900 shadow-xl transition-all duration-300">
+      <div
+        data-testid="ad-preview"
+        className={cn(
+          'flex w-full items-center justify-center overflow-hidden',
+          AD_MEDIA_STAGE_HEIGHT,
+        )}
+      >
+        {mobile ? (
+          <div className="relative overflow-hidden rounded-[2.5rem] border-[8px] border-zinc-900 shadow-xl">
             <Remove onRemove={onRemove} />
             <div className="aspect-[9/16] w-56 overflow-hidden">
               <Media asset={asset} />
             </div>
           </div>
-        </div>
-      ) : (
-        <div className="relative overflow-hidden rounded-xl">
-          <Remove onRemove={onRemove} />
-          <div className="aspect-video w-full overflow-hidden">
-            <Media asset={asset} />
+        ) : (
+          <div className="relative w-full overflow-hidden rounded-xl">
+            <Remove onRemove={onRemove} />
+            <div className="aspect-video w-full overflow-hidden">
+              <Media asset={asset} />
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="flex justify-center gap-1">
         {PREVIEW_FRAMES.map((row) => (
@@ -81,8 +89,8 @@ export function AdMediaStage({
             className={cn(
               'rounded-md px-3 min-h-11 text-sm sm:min-h-0 sm:py-1.5 sm:text-xs',
               frameId === row.id
-                ? 'bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-900'
-                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100',
+                ? 'bg-foreground text-background'
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
             {row.label}
@@ -95,7 +103,12 @@ export function AdMediaStage({
 
 export function AdMediaEmpty({ onChoose }: { onChoose: () => void }) {
   return (
-    <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-dashed border-input-border bg-muted/40">
+    <div
+      className={cn(
+        'flex w-full items-center justify-center rounded-xl border border-dashed border-input-border bg-muted/40',
+        AD_MEDIA_STAGE_HEIGHT,
+      )}
+    >
       <button
         type="button"
         onClick={onChoose}

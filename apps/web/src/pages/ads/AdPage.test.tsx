@@ -97,7 +97,10 @@ describe('AdPage', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('heading', { name: 'Test Ad Name' })).toBeTruthy()
+    expect(screen.getByText(/Save keeps the draft/)).toBeTruthy()
+    expect(screen.getByText(/only preview how the file crops/)).toBeTruthy()
+    expect(screen.getByText(/Check a destination, then Start/)).toBeTruthy()
+    expect(screen.getByText(/Start only the destinations you just checked/)).toBeTruthy()
     expect(screen.getByRole('checkbox', { name: 'Meta Feed' })).toBeTruthy()
     expect(screen.getByText(/Running/)).toBeTruthy()
     expect(screen.getByText(/\/day/)).toBeTruthy()

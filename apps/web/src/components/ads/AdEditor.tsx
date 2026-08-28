@@ -3,16 +3,18 @@ import { useAsset, useLandingPages } from '@project/sdk'
 import type { components } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { MediaPicker } from '@/components/media/MediaPicker'
 import type { AddMediaInput } from '@/components/media/AddMediaForm'
-import { AdMediaEmpty, AdMediaStage } from '@/components/ads/AdMediaStage'
+import { AdMediaEmpty, AdMediaStage, AD_MEDIA_STAGE_HEIGHT } from '@/components/ads/AdMediaStage'
 import {
   AdDestinations,
   selectedToPublishTargets,
   type PublishTarget,
 } from '@/components/ads/AdDestinations'
 import { useFlatPages } from '@/hooks/useFlatPages'
+import { AD_MEDIA_HINT, AD_SETUP_INTRO, AD_START_HINT } from '@/lib/adCopy'
 import { runDestinationKey, type PreviewFrameId } from '@/lib/adPreview'
 
 type AdRun = components['schemas']['AdRun']
@@ -67,11 +69,12 @@ export function AdEditor({
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full max-w-2xl space-y-8">
-      <h1 className="text-center text-xl font-semibold">{heading}</h1>
+      <PageHeader variant="editor" title={heading} description={AD_SETUP_INTRO} />
       <Input value={name} onChange={(e) => onName(e.target.value)} placeholder="Ad name" required />
 
       <div className="space-y-2">
         <p className="text-center text-sm font-medium">Media</p>
+        <p className="text-center text-sm text-muted-foreground">{AD_MEDIA_HINT}</p>
         {onDeckId && onDeck ? (
           <AdMediaStage
             asset={onDeck}
@@ -80,7 +83,7 @@ export function AdEditor({
             onRemove={() => onAssetIds([])}
           />
         ) : onDeckId ? (
-          <Skeleton className="min-h-56 w-full rounded-xl" />
+          <Skeleton className={`${AD_MEDIA_STAGE_HEIGHT} w-full rounded-xl`} />
         ) : (
           <AdMediaEmpty onChoose={() => setOpen(true)} />
         )}
@@ -108,18 +111,21 @@ export function AdEditor({
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-        <Button type="submit" disabled={pending || !name || assetIds.length === 0}>
-          Save
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={pending || !name || assetIds.length === 0 || pendingKeys.length === 0}
-          onClick={() => onStartNew(selectedToPublishTargets(pendingKeys, budgets))}
-        >
-          Start
-        </Button>
+      <div className="space-y-2">
+        <p className="text-center text-sm text-muted-foreground">{AD_START_HINT}</p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+          <Button type="submit" disabled={pending || !name || assetIds.length === 0}>
+            Save
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={pending || !name || assetIds.length === 0 || pendingKeys.length === 0}
+            onClick={() => onStartNew(selectedToPublishTargets(pendingKeys, budgets))}
+          >
+            Start
+          </Button>
+        </div>
       </div>
 
       {open ? (
