@@ -36,7 +36,7 @@ import {
   PricingBlock,
   ComparisonBlock,
   StickyMediaBlock,
-} from '@/types/content'
+} from '@project/db/src/content'
 import { useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 

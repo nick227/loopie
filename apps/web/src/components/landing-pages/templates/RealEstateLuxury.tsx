@@ -29,7 +29,7 @@ import {
   HotspotViewerBlock,
   FloatingDockBlock,
   ServiceSelectorBlock,
-} from '@/types/content'
+} from '@project/db/src/content'
 
 // --- Block Components ---
 

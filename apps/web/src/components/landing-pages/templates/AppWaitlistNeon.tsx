@@ -5,14 +5,14 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
+import { PageModel } from '@project/db/src/content'
 import {
-  PageModel,
   HeroBlock,
   FeatureGridBlock,
   TestimonialBlock,
   TimelineBlock,
   CalculatorBlock,
-} from '@/types/content'
+} from '@project/db/src/content'
 
 const formSchema = z.object({
   email: z.string().email('Please enter a valid email address.'),

@@ -2,14 +2,14 @@ import { Terminal, Cpu, Network, Zap, ChevronRight, Copy, Check } from 'lucide-r
 import { Container } from '@/components/layout/Container'
 import { MobileNav } from '@/components/ui/MobileNav'
 import { useState, useEffect, useRef } from 'react'
+import { PageModel } from '@project/db/src/content'
 import {
-  PageModel,
   HeroBlock,
   FeatureGridBlock,
   ServiceSelectorBlock,
   StickyMediaBlock,
   ComparisonBlock,
-} from '@/types/content'
+} from '@project/db/src/content'
 
 // --- Block Components ---
 

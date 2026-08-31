@@ -20,7 +20,7 @@ import {
   TestimonialBlock,
   ProductBrowserBlock,
   CalculatorBlock,
-} from '@/types/content'
+} from '@project/db/src/content'
 import { X } from 'lucide-react'
 
 // --- Block Components ---

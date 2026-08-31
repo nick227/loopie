@@ -24,7 +24,7 @@ import {
   TestimonialBlock,
   CaseStudyBrowserBlock,
   MarqueeBlock,
-} from '@/types/content'
+} from '@project/db/src/content'
 import { motion, AnimatePresence } from 'framer-motion'
 
 // --- Block Components ---

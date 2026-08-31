@@ -221,7 +221,7 @@ export function LandingPage() {
             <AdvancedTemplateRenderer
               templateId={templateId}
               content={content}
-              setContent={setContent}
+              setContent={setContent as any}
               setDirty={setDirty}
             />
           ) : (

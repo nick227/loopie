@@ -13,7 +13,7 @@ import {
   VideoChapterBlock,
   MetricsBlock,
   FloatingDockBlock,
-} from '@/types/content'
+} from '@project/db/src/content'
 
 // --- Block Components ---
 

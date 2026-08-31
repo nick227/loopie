@@ -29,7 +29,7 @@ import {
   TimelineBlock,
   CalculatorBlock,
   MetricsBlock,
-} from '@/types/content'
+} from '@project/db/src/content'
 import { Button } from '@/components/ui/Button'
 
 // --- Block Components ---
