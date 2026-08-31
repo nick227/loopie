@@ -31,9 +31,16 @@ export function useUpdateBusiness() {
       if (err) throw new ApiError(status, (err as any).error)
       return data!
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['business'] })
-      queryClient.invalidateQueries({ queryKey: ['me'] })
+    // Awaited (not fire-and-forget): callers that navigate right after a successful save — see
+    // BusinessIdentityForm.tsx's onSaved -> navigate('/home') — depend on the ['me'] cache
+    // (businessIdentityCompletedAt) already reflecting the save by the time mutateAsync resolves.
+    // Found live: without awaiting, InboxRoute's guard (RequireRole.tsx) could still read the
+    // stale pre-save cache on the very next render and bounce straight back to /business/setup.
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['business'] }),
+        queryClient.invalidateQueries({ queryKey: ['me'] }),
+      ])
     },
   })
 }
