@@ -11,10 +11,10 @@ type Run = {
 
 function runLabel(run: Run) {
   if (run.platform === 'LOOPIE') return 'Pages'
-  if (run.platform === 'META' && run.placement === 'REEL') return 'Meta Reels'
-  if (run.platform === 'TIKTOK') return 'TikTok'
-  if (run.platform === 'META') return 'Meta Feed'
+  if (run.platform === 'GOOGLE' && run.placement === 'YOUTUBE') return 'YouTube'
   if (run.platform === 'GOOGLE') return 'Google'
+  if (run.platform === 'META') return 'Facebook'
+  if (run.platform === 'TIKTOK') return 'TikTok'
   return run.platform
 }
 

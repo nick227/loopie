@@ -223,6 +223,11 @@ export function usePublishLandingPage() {
     onSuccess: (_data, landingPageId) => {
       queryClient.invalidateQueries({ queryKey: ['landingPage', landingPageId] })
       queryClient.invalidateQueries({ queryKey: ['landingPage', landingPageId, 'versions'] })
+      // Inbox's Running "Pages" doorway and the Pages collection both read this same query key —
+      // without this, a page that just went live reads stale (still "Draft") for up to
+      // queryClient's 30s staleTime on Back to either surface. Found while wiring the Pages
+      // reference-implementation acceptance flow (docs/strategy/03-product-principles.md).
+      queryClient.invalidateQueries({ queryKey: ['landingPages', 'list'] })
     },
   })
 }

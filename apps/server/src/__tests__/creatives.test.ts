@@ -10,9 +10,10 @@ const createdIds: Record<string, string> = { default: '00000000-0000-0000-0000-0
 describe('creatives API', () => {
   it('runs CRUD lifecycle', async (ctx) => {
     const errors: Error[] = []
+    // Skipped createCreative because payload could not be generated
 
     // listCreatives
-    
+
     // listCreatives - auth check
     try {
       if (!'/creatives'.includes('{') || createdIds['creatives']) {
@@ -32,7 +33,10 @@ describe('creatives API', () => {
           // payload: {},
         })
         if (reslistCreatives.statusCode !== 200) {
-          console.error('listCreatives failed with ' + reslistCreatives.statusCode, reslistCreatives.json().message || reslistCreatives.json())
+          console.error(
+            'listCreatives failed with ' + reslistCreatives.statusCode,
+            reslistCreatives.json().message || reslistCreatives.json(),
+          )
         }
         expect(reslistCreatives.statusCode).toBe(200)
         await validateResponse('listCreatives', 200, reslistCreatives.json())
@@ -40,14 +44,16 @@ describe('creatives API', () => {
     } catch (e: any) {
       errors.push(new Error('listCreatives failed: ' + e.message))
     }
-    // Skipped createCreative because payload could not be generated
 
     // getCreative
-    
+
     // getCreative - auth check
     try {
       if (!'/creatives/{creativeId}'.includes('{') || createdIds['creatives']) {
-        const resgetCreativeAuth = await app.inject({ method: 'GET', url: `/creatives/${createdIds['creatives'] || '00000000-0000-0000-0000-000000000001'}` })
+        const resgetCreativeAuth = await app.inject({
+          method: 'GET',
+          url: `/creatives/${createdIds['creatives'] || '00000000-0000-0000-0000-000000000001'}`,
+        })
         expect(resgetCreativeAuth.statusCode).toBe(401)
       }
     } catch (e: any) {
@@ -63,7 +69,10 @@ describe('creatives API', () => {
           // payload: {},
         })
         if (resgetCreative.statusCode !== 200) {
-          console.error('getCreative failed with ' + resgetCreative.statusCode, resgetCreative.json().message || resgetCreative.json())
+          console.error(
+            'getCreative failed with ' + resgetCreative.statusCode,
+            resgetCreative.json().message || resgetCreative.json(),
+          )
         }
         expect(resgetCreative.statusCode).toBe(200)
         await validateResponse('getCreative', 200, resgetCreative.json())
@@ -74,11 +83,14 @@ describe('creatives API', () => {
     // Skipped updateCreative because payload could not be generated
 
     // deleteCreative
-    
+
     // deleteCreative - auth check
     try {
       if (!'/creatives/{creativeId}'.includes('{') || createdIds['creatives']) {
-        const resdeleteCreativeAuth = await app.inject({ method: 'DELETE', url: `/creatives/${createdIds['creatives'] || '00000000-0000-0000-0000-000000000001'}` })
+        const resdeleteCreativeAuth = await app.inject({
+          method: 'DELETE',
+          url: `/creatives/${createdIds['creatives'] || '00000000-0000-0000-0000-000000000001'}`,
+        })
         expect(resdeleteCreativeAuth.statusCode).toBe(401)
       }
     } catch (e: any) {
@@ -94,7 +106,10 @@ describe('creatives API', () => {
           // payload: {},
         })
         if (resdeleteCreative.statusCode !== 200) {
-          console.error('deleteCreative failed with ' + resdeleteCreative.statusCode, resdeleteCreative.json().message || resdeleteCreative.json())
+          console.error(
+            'deleteCreative failed with ' + resdeleteCreative.statusCode,
+            resdeleteCreative.json().message || resdeleteCreative.json(),
+          )
         }
         expect(resdeleteCreative.statusCode).toBe(200)
         await validateResponse('deleteCreative', 200, resdeleteCreative.json())
@@ -103,7 +118,7 @@ describe('creatives API', () => {
       errors.push(new Error('deleteCreative failed: ' + e.message))
     }
     if (errors.length > 0) {
-      throw new Error('Lifecycle failed:\n' + errors.map(e => e.message).join('\n'))
+      throw new Error('Lifecycle failed:\n' + errors.map((e) => e.message).join('\n'))
     }
   })
 })

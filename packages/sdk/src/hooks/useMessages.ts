@@ -2,21 +2,17 @@ import { useQuery, useMutation, useInfiniteQuery, useQueryClient } from '@tansta
 import { getApiClient, ApiError } from '../client'
 
 type CreateMessageInput = {
-  channel: 'EMAIL' | 'TEXT' | 'SOCIAL'
   subject?: string
   body: string
-  audienceId: string
-  templateId?: string
-  automationId?: string
-  scheduledAt?: string
+  contactIds?: string[]
+  testEmail?: string
 }
 
 type UpdateMessageInput = {
   messageId: string
   subject?: string | null
   body?: string
-  audienceId?: string
-  scheduledAt?: string | null
+  contactIds?: string[]
 }
 
 export function useMessages(params?: { status?: string; channel?: string; limit?: number }) {
@@ -25,7 +21,9 @@ export function useMessages(params?: { status?: string; channel?: string; limit?
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
       const client = getApiClient()
-      const result = await client.GET('/messages', { params: { query: { ...params, cursor: pageParam } as any } })
+      const result = await client.GET('/messages', {
+        params: { query: { ...params, cursor: pageParam } as any },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -57,7 +55,9 @@ export function useMessagePerformance(messageId: string) {
     queryKey: ['message', messageId, 'performance'],
     queryFn: async () => {
       const client = getApiClient()
-      const result = await client.GET('/messages/{messageId}/performance', { params: { path: { messageId } } })
+      const result = await client.GET('/messages/{messageId}/performance', {
+        params: { path: { messageId } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -89,7 +89,10 @@ export function useUpdateMessage() {
   return useMutation({
     mutationFn: async ({ messageId, ...body }: UpdateMessageInput) => {
       const client = getApiClient()
-      const result = await client.PATCH('/messages/{messageId}', { params: { path: { messageId } }, body })
+      const result = await client.PATCH('/messages/{messageId}', {
+        params: { path: { messageId } },
+        body,
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -108,7 +111,9 @@ export function useDeleteMessage() {
   return useMutation({
     mutationFn: async (messageId: string) => {
       const client = getApiClient()
-      const result = await client.DELETE('/messages/{messageId}', { params: { path: { messageId } } })
+      const result = await client.DELETE('/messages/{messageId}', {
+        params: { path: { messageId } },
+      })
       const err = result.error
       const status = result.response.status
       if (err) throw new ApiError(status, (err as any).error)
@@ -122,7 +127,9 @@ export function useSendMessage() {
   return useMutation({
     mutationFn: async (messageId: string) => {
       const client = getApiClient()
-      const result = await client.POST('/messages/{messageId}/send', { params: { path: { messageId } } })
+      const result = await client.POST('/messages/{messageId}/send', {
+        params: { path: { messageId } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
@@ -138,7 +145,13 @@ export function useSendMessage() {
 
 export function useTestSendMessage() {
   return useMutation({
-    mutationFn: async ({ messageId, toEmailOrPhone }: { messageId: string; toEmailOrPhone: string }) => {
+    mutationFn: async ({
+      messageId,
+      toEmailOrPhone,
+    }: {
+      messageId: string
+      toEmailOrPhone: string
+    }) => {
       const client = getApiClient()
       const result = await client.POST('/messages/{messageId}/test-send', {
         params: { path: { messageId } },

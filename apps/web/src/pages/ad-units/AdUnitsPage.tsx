@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useAdUnits } from '@project/sdk'
 import { Card, CardContent } from '@/components/ui/Card'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PanelsTopLeft } from 'lucide-react'
@@ -28,10 +29,11 @@ export function AdUnitsPage() {
 
   return (
     <div className="space-y-3">
-      <h1 className="text-xl font-semibold">Ad Units</h1>
-      <p className="text-xs text-muted-foreground">
-        Ad units belong to a campaign. Open the campaign to create or activate one.
-      </p>
+      <PageHeader
+        variant="list"
+        title="Ad Units"
+        description="Ad units belong to a campaign. Open the campaign to create or activate one."
+      />
 
       {items.length === 0 ? (
         <EmptyState

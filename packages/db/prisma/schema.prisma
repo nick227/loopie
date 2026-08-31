@@ -40,25 +40,41 @@ datasource db {
 model Business {
   id                   String   @id @default(cuid())
   name                 String
+  // Identity fields (2026-08-29) — see docs/strategy/03-product-principles.md's "First-Login
+  // Experience" step 0. Freeform strings, not enums: no spec exists yet for a controlled
+  // industry/audience vocabulary, and forcing one here would block real onboarding on a
+  // classification problem nobody's solved. socialProfiles is a JSON array of
+  // { platform, url } rather than a new table — there's no need to query/join on it.
+  location            String?
+  industry             String?
+  targetAudience       String?
+  socialProfiles       Json?
+  logoUrl              String?
+  // Stamped the first time the business identity is saved (setup or a later edit) — not set at
+  // registration, since only `name` exists then. Nullable, not a boolean: distinguishes "never
+  // completed" from a real timestamp worth keeping.
+  identityCompletedAt  DateTime?
   stripeCustomerId     String?  @unique
   stripeSubscriptionId String?
   subscriptionStatus   String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
-  users        User[]
-  contacts     Contact[]
-  audiences    Audience[]
-  assets       Asset[]
-  templates    Template[]
-  creatives    Creative[]
-  messages     Message[]
-  automations  Automation[]
-  campaigns    Campaign[]
-  advertisements Advertisement[]
-  leads        Lead[]
-  sales        Sale[]
-  interactions Interaction[]
+  users               User[]
+  contacts            Contact[]
+  audiences           Audience[]
+  assets              Asset[]
+  templates           Template[]
+  creatives           Creative[]
+  messages            Message[]
+  automations         Automation[]
+  campaigns           Campaign[]
+  advertisements      Advertisement[]
+  mediaOrderRevisions MediaOrderRevision[]
+  inboxThreads        InboxThread[]
+  leads               Lead[]
+  sales               Sale[]
+  interactions        Interaction[]
 
   landingPageTemplates LandingPageTemplate[]
   landingPages         LandingPage[]
@@ -87,6 +103,7 @@ model Business {
   externalContactRecords ExternalContactRecord[]
   externalEvents         ExternalEvent[]
   loopieSessions         LoopieSession[]
+
 }
 
 enum UserRole {
@@ -107,9 +124,10 @@ model User {
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
-  business  Business   @relation(fields: [businessId], references: [id])
-  sessions  Session[]
-  affiliate Affiliate?
+  business          Business            @relation(fields: [businessId], references: [id])
+  sessions          Session[]
+  affiliate         Affiliate?
+
 
   @@index([businessId])
 }
@@ -147,7 +165,7 @@ model Contact {
   updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
 
-  business            Business         @relation(fields: [businessId], references: [id])
+  business            Business                @relation(fields: [businessId], references: [id])
   leads               Lead[]
   sales               Sale[]
   interactions        Interaction[]
@@ -157,6 +175,7 @@ model Contact {
   identifiers         ContactIdentifier[]
   externalRecords     ExternalContactRecord[]
   externalEvents      ExternalEvent[]
+  inboxThreads        InboxThread[]
 
   @@unique([businessId, email])
   @@unique([businessId, phone])
@@ -227,9 +246,9 @@ model Asset {
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
-  business  Business        @relation(fields: [businessId], references: [id])
-  templates TemplateMedia[]
-  creatives CreativeAsset[]
+  business       Business             @relation(fields: [businessId], references: [id])
+  templates      TemplateMedia[]
+  creatives      CreativeAsset[]
   advertisements AdvertisementAsset[]
 
   @@index([businessId, type])
@@ -489,9 +508,9 @@ model Campaign {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
-  business       Business           @relation(fields: [businessId], references: [id])
-  duplicatedFrom Campaign?          @relation("CampaignDuplicate", fields: [duplicatedFromId], references: [id])
-  duplicates     Campaign[]         @relation("CampaignDuplicate")
+  business             Business              @relation(fields: [businessId], references: [id])
+  duplicatedFrom       Campaign?             @relation("CampaignDuplicate", fields: [duplicatedFromId], references: [id])
+  duplicates           Campaign[]            @relation("CampaignDuplicate")
   runs                 CampaignAdRun[]
   creativeLinks        CampaignCreative[]
   deployments          Deployment[]
@@ -524,18 +543,21 @@ enum PlatformConnectionStatus {
 }
 
 model PlatformConnection {
-  id             String                    @id @default(cuid())
+  id             String                   @id @default(cuid())
   businessId     String
   platform       Platform
-  status         PlatformConnectionStatus  @default(INCOMPLETE)
-  accessTokenEnc String                    @db.Text
+  status         PlatformConnectionStatus @default(INCOMPLETE)
+  accessTokenEnc String                   @db.Text
   tokenExpiresAt DateTime?
   externalUserId String?
   adAccountId    String?
+  accountName    String?
+  currency       String?
+  timezone       String?
   pageId         String?
-  defaultCountry String                    @default("US")
-  createdAt      DateTime                  @default(now())
-  updatedAt      DateTime                  @updatedAt
+  defaultCountry String                   @default("US")
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
 
   business Business @relation(fields: [businessId], references: [id])
 
@@ -558,67 +580,310 @@ enum AdRunStatus {
   PROVISIONING_FAILED
 }
 
-model Advertisement {
-  id                       String           @id @default(cuid())
-  businessId               String
-  name                     String
-  createdAt                DateTime         @default(now())
-  updatedAt                DateTime         @updatedAt
+// The platform's own delivery state, normalized across connectors — deliberately a distinct axis
+// from AdRunStatus (LOOPIE's own order/lifecycle state). A run can be locally PENDING (never
+// touched since creation) while genuinely LIVE on the platform if a human activated it in Ads
+// Manager directly — these must never be collapsed into one status field.
+enum ProviderDeliveryState {
+  NOT_SENT
+  DRAFT_SENT
+  UNDER_REVIEW
+  ELIGIBLE
+  LIVE
+  PAUSED
+  LIMITED
+  REJECTED
+  ENDED
+  UNKNOWN
+}
 
-  business               Business     @relation(fields: [businessId], references: [id])
-  assets                 AdvertisementAsset[]
-  runs                   AdRun[]
+enum SyncHealth {
+  CURRENT
+  DELAYED
+  FAILED
+  DISCONNECTED
+  NEVER_SYNCED
+}
+
+model Advertisement {
+  id         String   @id @default(cuid())
+  businessId String
+  name       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business            Business             @relation(fields: [businessId], references: [id])
+  assets              AdvertisementAsset[]
+  runs                AdRun[]
+  mediaOrderRevisions MediaOrderRevision[]
+  inboxThreads        InboxThread[]
 
   @@index([businessId])
 }
 
+// Phase 1 (scoped down, see CLAUDE.md's Media Order Confirmation pass): a durable, immutable,
+// numbered record of exactly what was authorized for one (Advertisement, platform, placement)
+// destination — the thing this replaces was AdRun.orderSnapshot, a loose untyped JSON blob with
+// no numbering, no content hash, and no independent addressability. Deliberately NOT the full
+// proposal's MediaOrder/Approval state machine — no approval workflow or permissions exist yet,
+// so there is nothing for a header row with a state machine to actually track; a plain revision
+// row already satisfies "durable auditable authorization, not loose JSON."
+model MediaOrderRevision {
+  id                              String    @id @default(cuid())
+  businessId                      String
+  advertisementId                 String
+  platform                        Platform
+  placement                       String?
+  // Numbered per (advertisementId, platform, placement) — a relaunch to the same destination
+  // gets the next number in that sequence, never a new independent counter.
+  revision                        Int
+  goal                            String
+  successEvent                    String
+  country                         String
+  locationNote                    String?
+  // Radius (in miles) around locationNote, once locationNote resolves to a real point — nullable
+  // because a country-only revision (no locationNote) has no radius concept at all.
+  radiusMiles                     Int?
+  dailyBudgetMinor                Int
+  currency                        String    @default("USD")
+  startAt                         DateTime
+  endAt                           DateTime?
+  destinationLandingPageId        String?
+  destinationLandingPageVersionId String?
+  assetIds                        Json // string[], frozen from the Advertisement at this exact moment
+  accountName                     String?
+  accountCurrency                 String?
+  accountTimezone                 String?
+  adAccountId                     String?
+  // Deterministic hash of the fields above — lets two revisions be compared for "did anything
+  // actually change" without a field-by-field diff, and gives each revision a stable fingerprint
+  // independent of its row id.
+  contentHash                     String
+  createdByUserId                 String
+  createdAt                       DateTime  @default(now())
+
+  business      Business      @relation(fields: [businessId], references: [id])
+  advertisement Advertisement @relation(fields: [advertisementId], references: [id])
+  adRuns        AdRun[]
+
+  @@unique([advertisementId, platform, placement, revision])
+  @@index([businessId])
+  @@index([advertisementId])
+}
+
+// ---------- Inbox ----------
+// The curated, user-facing home for "what happened and what needs a response" — deliberately
+// separate from the concurrent session's Activity feed (a comprehensive internal audit trail of
+// every projected domain event) and from Message (outbound campaign sends to an Audience). Inbox
+// is neither: it's the surface a business owner actually reads, eventually unifying system
+// narration (this pass), inbound/outbound email and SMS (a later, separate migration), and any
+// future internal/agent notes into one thread-per-conversation model. The product decision
+// recorded 2026-08-28 deliberately keeps this thin — no saved views, no default views, just
+// threads and messages — but revised 2026-08-28 (same day, before any real data existed) to fix a
+// structural mistake: the first version tied InboxThread to Advertisement via an opaque
+// `sourceType`/`sourceId` string pair, which is exactly the kind of ad-shaped assumption that
+// would have needed generalizing the moment Contact-based (email/SMS) threads arrived. Inbox owns
+// threads; ads and contacts attach to them via real, typed, nullable FKs instead — a Contact
+// thread and an Advertisement thread are structurally equal citizens now, not "the ad case plus a
+// someday case." `type` names which FK is actually populated (app-level discriminant, not a DB
+// constraint — matches this schema's existing precedent, e.g. AttributionEvent.deploymentId/
+// adUnitId).
+// Generalized 2026-08-28 (schema-only — see CLAUDE.md's "omni inbox" note) to reflect the actual
+// product principle: Inbox is a cross-system stream (Contacts, Advertisements, Pages,
+// Integrations), not a messages-plus-ads special case. CRM (Lead stage changes, page views on a
+// known contact) is deliberately NOT a fifth type here — those events post as messages *into* the
+// same CONTACT thread as that person's real communications, per the product's own worked example
+// (a Contact thread mixes SMS replies with "Lead status changed" and "Page viewed" system lines
+// in one chronological timeline). Only PAGE and INTEGRATION are genuinely new thread kinds, since
+// neither is about one specific Contact. No event source for either is wired yet — this is the
+// foundation the next slices build on, not a claim that Page/Integration threads exist today.
+model InboxThread {
+  id              String        @id @default(cuid())
+  businessId      String
+  type            InboxThreadType
+  contactId       String?
+  advertisementId String?
+  // Only meaningful when type = ADVERTISEMENT — an Advertisement can run on more than one
+  // platform at once, so the thread key is the (Advertisement, platform) pair, not the
+  // Advertisement alone (see the compound unique below).
+  platform        String?
+  // Only meaningful when type = PAGE — one thread per landing page (e.g. rolling submission
+  // volume), not per submission.
+  landingPageId   String?
+  // Only meaningful when type = INTEGRATION — which connector this is about (e.g. "META",
+  // "TWILIO"). A plain string, not the Platform enum: an integration thread should be able to
+  // exist for something that isn't a Platform-enum ad connector at all (Twilio is the product's
+  // own example, and no email/SMS provider is installed yet — see CLAUDE.md's Plugins section).
+  integrationPlatform String?
+  subject         String
+  // Simple thread-level read state (revised 2026-08-28's "Messages -> Inbox, keep it narrow"
+  // slice) — a thread is unread if its most recent message postdates this. No per-message read
+  // state, no saved/default views, matching the explicit narrow scope of that slice.
+  lastReadAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  business      Business       @relation(fields: [businessId], references: [id])
+  contact       Contact?       @relation(fields: [contactId], references: [id])
+  advertisement Advertisement? @relation(fields: [advertisementId], references: [id])
+  landingPage   LandingPage?   @relation(fields: [landingPageId], references: [id])
+  messages      InboxMessage[]
+
+  // Four independent compound uniques, safe alongside each other precisely because each is scoped
+  // to a different `type` in practice — a CONTACT thread has null advertisementId/platform/
+  // landingPageId/integrationPlatform, an ADVERTISEMENT thread has null contactId/landingPageId/
+  // integrationPlatform, and so on — and MySQL's unique indexes treat every NULL as distinct from
+  // every other NULL, so rows of any "other" type never collide on a constraint meant for a
+  // different one. Same nullable-unique reasoning already established for Sale.idempotencyKey and
+  // AdRun.idempotencyKey elsewhere in this schema. contactId/advertisementId/landingPageId don't
+  // need businessId in their own key — each already belongs to exactly one business via its own
+  // FK — but integrationPlatform is a bare string with no such natural scoping, so it needs
+  // businessId explicitly or two different businesses' "META" integration threads would collide.
+  @@unique([contactId])
+  @@unique([advertisementId, platform])
+  @@unique([landingPageId])
+  @@unique([businessId, integrationPlatform])
+  @@index([businessId])
+}
+
+enum InboxThreadType {
+  CONTACT
+  ADVERTISEMENT
+  PAGE
+  INTEGRATION
+  // Reserved for a thread that isn't about one specific Contact, Advertisement, Page, or
+  // Integration (e.g. a platform-wide notice) — not populated by anything yet, kept only so
+  // InboxMessage.direction's INTERNAL case has a home to point at once something needs it.
+  SYSTEM
+}
+
+enum InboxMessageKind {
+  SYSTEM
+  // Not produced by anything yet — the transactional email/SMS plugins aren't installed (see
+  // CLAUDE.md's Plugins section). Declared now, alongside SYSTEM, so the enum already expresses
+  // the full target vocabulary and adding real EMAIL/SMS messages later is a data change, not
+  // another schema migration.
+  EMAIL
+  SMS
+}
+
+enum InboxMessageDirection {
+  INBOUND
+  OUTBOUND
+  // Every message this pass produces — LOOPIE narrating to the business owner, not a message from
+  // or to an external party on a channel.
+  INTERNAL
+}
+
+model InboxMessage {
+  id        String                 @id @default(cuid())
+  threadId  String
+  kind      InboxMessageKind       @default(SYSTEM)
+  direction InboxMessageDirection  @default(INTERNAL)
+  // Nullable — an inbound SMS reply, for instance, has no subject-line concept at all. Every
+  // SYSTEM message this pass produces still sets one (see lib/adRunInbox.ts).
+  subject   String?
+  body      String                 @db.Text
+  // Structured detail behind the human-readable subject/body (e.g. { adRunId, event, from, to })
+  // — for a future UI to link back to the source object, never itself rendered as prose.
+  meta      Json?
+  createdAt DateTime               @default(now())
+
+  thread InboxThread @relation(fields: [threadId], references: [id])
+
+  @@index([threadId])
+}
+
 model AdRun {
-  id                       String           @id @default(cuid())
+  id                       String                 @id @default(cuid())
   advertisementId          String
   platform                 Platform
   placement                String?
-  status                   AdRunStatus      @default(PENDING)
-  budget                   Decimal?         @db.Decimal(12, 2)
+  status                   AdRunStatus            @default(PENDING)
+  budget                   Decimal?               @db.Decimal(12, 2)
   startDate                DateTime?
   endDate                  DateTime?
   externalCampaignId       String?
   externalAdSetId          String?
   externalAdId             String?
-  previewUrl               String?          // Link to see the ad "in the wild"
-  managerUrl               String?          // Link to open the ad in the platform's manager
-  errorMessage             String?          // Holds failure reason if status is VALIDATION_FAILED
-  spend                    Decimal          @default(0) @db.Decimal(12, 2)
-  impressions              Int              @default(0)
-  clicks                   Int              @default(0)
-  conversions              Int              @default(0)
+  previewUrl               String? // Link to see the ad "in the wild"
+  managerUrl               String? // Link to open the ad in the platform's manager
+  errorMessage             String? // Holds failure reason if status is VALIDATION_FAILED
+  spend                    Decimal                @default(0) @db.Decimal(12, 2)
+  impressions              Int                    @default(0)
+  reach                    Int? // Unique-person reach, distinct from raw impressions — provider-reported, nullable until first synced
+  clicks                   Int                    @default(0)
+  conversions              Int                    @default(0)
+  // Provider delivery truth, pulled by AdRunSyncService — independent of `status` (LOOPIE's own
+  // order/lifecycle state) by design. See ProviderDeliveryState's own doc comment.
+  providerState            ProviderDeliveryState?
+  providerStateRaw         String? // The connector's own unmapped status string, kept for audit/debugging
+  syncHealth               SyncHealth             @default(NEVER_SYNCED)
+  syncError                String? // Last sync failure reason, cleared on the next successful sync
+  effectiveBudget          Decimal?               @db.Decimal(12, 2) // Provider-reported daily budget, for drift comparison against `budget`
+  effectiveStartDate       DateTime? // Provider-reported schedule, for drift comparison against `startDate`/`endDate`
+  effectiveEndDate         DateTime?
+  // Requested targeting — same "current value, live-editable" role budget/startDate/endDate play
+  // above. country defaults from the platform connection's own defaultCountry at send time (see
+  // MediaOrderRevision.country); locationNote/radiusMiles are null when targeting is country-only.
+  country                  String?
+  locationNote             String?
+  radiusMiles              Int?
+  // Provider-reported targeting, for drift comparison against country/locationNote/radiusMiles —
+  // same role effectiveBudget/effectiveStartDate play above. effectiveLocationNote is a best-effort
+  // human-readable description of whatever the platform's own read-back resolves to (e.g. a
+  // resolved location name), not guaranteed to round-trip locationNote's exact original text.
+  effectiveCountry         String?
+  effectiveLocationNote    String?
+  effectiveRadiusMiles     Int?
+  // Review/rejection reasons from the platform's own last sync (e.g. Meta's issues_info messages)
+  // — string[], null until first synced or when the platform reports none.
+  providerIssues           Json?
   lastSyncedAt             DateTime?
   destinationLandingPageId String?
+  orderSnapshot            Json?
+  // The prior AdRun (same Advertisement) this one replaces, when created via a RECREATE
+  // (relaunch/replace-creative/replace-destination) rather than a first send — explicit, queryable
+  // lineage alongside the MediaOrderRevision sequence, which only numbers revisions, not runs.
+  // That prior run is marked ENDED at the same time this FK is set (see AdRunService), never left
+  // live alongside its replacement.
+  supersedesRunId          String?
+  // The durable, immutable, numbered record this run was actually sent against — see
+  // MediaOrderRevision's own doc comment. Nullable only because it postdates orderSnapshot: rows
+  // created before this column existed keep orderSnapshot as their sole record; every new send
+  // populates both (orderSnapshot stays for the existing frontend read path, unchanged this pass).
+  mediaOrderRevisionId     String?
   // Client-supplied dedup key for the declarative create-and-provision command (POST
   // /advertisements/{advertisementId}/runs) — a retry must return the same AdRun and must never
   // trigger a second connector push. Same convention as Sale.idempotencyKey. Nullable at the DB
   // level for the same reason: MySQL's unique index treats multiple NULLs as distinct, so rows
   // created before this column existed (or via direct db.adRun.create in tests) never collide.
   idempotencyKey           String?
-  createdAt                DateTime         @default(now())
-  updatedAt                DateTime         @updatedAt
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
 
-  advertisement          Advertisement @relation(fields: [advertisementId], references: [id])
-  destinationLandingPage LandingPage?  @relation(fields: [destinationLandingPageId], references: [id])
+  advertisement          Advertisement       @relation(fields: [advertisementId], references: [id])
+  destinationLandingPage LandingPage?        @relation(fields: [destinationLandingPageId], references: [id])
+  mediaOrderRevision     MediaOrderRevision? @relation(fields: [mediaOrderRevisionId], references: [id])
+  supersedes             AdRun?              @relation("AdRunSupersedes", fields: [supersedesRunId], references: [id])
+  supersededBy           AdRun[]             @relation("AdRunSupersedes")
 
-  attributionEvents AttributionEvent[]
-  leadsSourced      Lead[]             @relation("LeadSourceAdRun")
-  salesSourced      Sale[]             @relation("SaleSourceAdRun")
-  interactions      Interaction[]      @relation("InteractionSourceAdRun")
-  adSpends          AdSpend[]
-  campaignLinks     CampaignAdRun[]
+  attributionEvents    AttributionEvent[]
+  leadsSourced         Lead[]                        @relation("LeadSourceAdRun")
+  salesSourced         Sale[]                        @relation("SaleSourceAdRun")
+  interactions         Interaction[]                 @relation("InteractionSourceAdRun")
+  adSpends             AdSpend[]
+  campaignLinks        CampaignAdRun[]
   budgetAuthorizations BudgetAuthorization[]
-  reconciliations   Reconciliation[]
-  ledgerEntries     LedgerEntry[]
-  slotAssignments   LandingPageAdSlotAssignment[]
+  reconciliations      Reconciliation[]
+  ledgerEntries        LedgerEntry[]
+  slotAssignments      LandingPageAdSlotAssignment[]
 
   @@unique([advertisementId, idempotencyKey])
   @@index([advertisementId])
   @@index([destinationLandingPageId])
+  @@index([supersedesRunId])
+  @@index([mediaOrderRevisionId])
 }
 
 // Join table for future-proofing optional Campaign grouping
@@ -628,8 +893,8 @@ model CampaignAdRun {
   adRunId    String
   createdAt  DateTime @default(now())
 
-  campaign   Campaign @relation(fields: [campaignId], references: [id])
-  adRun      AdRun    @relation(fields: [adRunId], references: [id])
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+  adRun    AdRun    @relation(fields: [adRunId], references: [id])
 
   @@unique([campaignId, adRunId])
   @@index([adRunId])
@@ -737,14 +1002,14 @@ enum PayoutCadence {
 }
 
 model AffiliateClass {
-  id                   String   @id @default(cuid())
-  businessId           String
-  name                 String
-  maxAffiliateRateBps  Int
-  maxManagerShareBps   Int
-  defaultDealId        String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  businessId          String
+  name                String
+  maxAffiliateRateBps Int
+  maxManagerShareBps  Int
+  defaultDealId       String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   business    Business        @relation(fields: [businessId], references: [id])
   defaultDeal AffiliateDeal?  @relation("ClassDefaultDeal", fields: [defaultDealId], references: [id])
@@ -756,20 +1021,20 @@ model AffiliateClass {
 }
 
 model AffiliateDeal {
-  id                         String             @id @default(cuid())
-  businessId                 String
-  classId                    String?
-  name                       String
-  commissionRuleType         CommissionRuleType @default(PERCENTAGE)
-  affiliateRateBps           Int?
-  fixedAmountMinor           Int?
-  managerShareBps            Int
-  eligibilityWindowDays      Int?
-  payoutThresholdMinor       Int?
-  payoutCadence              PayoutCadence      @default(MANUAL)
-  isActive                   Boolean            @default(true)
-  createdAt                  DateTime           @default(now())
-  updatedAt                  DateTime           @updatedAt
+  id                    String             @id @default(cuid())
+  businessId            String
+  classId               String?
+  name                  String
+  commissionRuleType    CommissionRuleType @default(PERCENTAGE)
+  affiliateRateBps      Int?
+  fixedAmountMinor      Int?
+  managerShareBps       Int
+  eligibilityWindowDays Int?
+  payoutThresholdMinor  Int?
+  payoutCadence         PayoutCadence      @default(MANUAL)
+  isActive              Boolean            @default(true)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
 
   business          Business         @relation(fields: [businessId], references: [id])
   class             AffiliateClass?  @relation("DealClass", fields: [classId], references: [id])
@@ -781,47 +1046,47 @@ model AffiliateDeal {
 }
 
 model Affiliate {
-  id                        String    @id @default(cuid())
-  businessId                String
-  name                      String
-  email                     String?
-  referralCode              String // globally unique like LandingPage.slug — a clean public link, no business-id prefix
+  id                         String             @id @default(cuid())
+  businessId                 String
+  name                       String
+  email                      String?
+  referralCode               String // globally unique like LandingPage.slug — a clean public link, no business-id prefix
   // Policy fields below are leftover from when rate lived on Affiliate. Source of truth is the
   // assigned Deal (class default or dealId) plus optional rate overrides. Do not read these for
   // new commissions or cadence payouts.
-  commissionRuleType        CommissionRuleType @default(PERCENTAGE)
-  commissionRateBps         Int?
+  commissionRuleType         CommissionRuleType @default(PERCENTAGE)
+  commissionRateBps          Int?
   commissionFixedAmountMinor Int?
-  eligibilityWindowDays     Int?
-  payoutThresholdMinor      Int?
-  payoutCadence             PayoutCadence @default(MANUAL)
-  lastPayoutAt              DateTime?
-  classId                   String?
-  dealId                    String?
-  managerId                 String?
-  userId                    String?   @unique
-  affiliateRateOverrideBps  Int?
-  managerShareOverrideBps   Int?
-  destinationLandingPageId  String?
-  destinationUrl            String? // fallback if no landing page set — same pattern as Campaign.destinationUrl / Deployment.destinationLandingPageId
-  stripeConnectAccountId    String?   @unique
-  stripePayoutsEnabled      Boolean   @default(false)
-  stripeDetailsSubmitted    Boolean   @default(false)
-  stripeDisabledReason      String?
-  isActive                  Boolean   @default(true)
-  pausedAt                  DateTime?
-  createdAt                 DateTime  @default(now())
+  eligibilityWindowDays      Int?
+  payoutThresholdMinor       Int?
+  payoutCadence              PayoutCadence      @default(MANUAL)
+  lastPayoutAt               DateTime?
+  classId                    String?
+  dealId                     String?
+  managerId                  String?
+  userId                     String?            @unique
+  affiliateRateOverrideBps   Int?
+  managerShareOverrideBps    Int?
+  destinationLandingPageId   String?
+  destinationUrl             String? // fallback if no landing page set — same pattern as Campaign.destinationUrl / Deployment.destinationLandingPageId
+  stripeConnectAccountId     String?            @unique
+  stripePayoutsEnabled       Boolean            @default(false)
+  stripeDetailsSubmitted     Boolean            @default(false)
+  stripeDisabledReason       String?
+  isActive                   Boolean            @default(true)
+  pausedAt                   DateTime?
+  createdAt                  DateTime           @default(now())
 
-  business                Business                 @relation(fields: [businessId], references: [id])
-  class                   AffiliateClass?          @relation(fields: [classId], references: [id])
-  deal                    AffiliateDeal?           @relation(fields: [dealId], references: [id])
-  manager                 Affiliate?               @relation("AffiliateManager", fields: [managerId], references: [id])
-  downline                Affiliate[]              @relation("AffiliateManager")
-  user                    User?                    @relation(fields: [userId], references: [id])
-  destinationLandingPage  LandingPage?             @relation(fields: [destinationLandingPageId], references: [id])
-  clicks                  AffiliateReferralClick[]
-  referringSplits         SaleAffiliateSplit[]     @relation("SplitReferrer")
-  managerSplits           SaleAffiliateSplit[]     @relation("SplitManager")
+  business               Business                 @relation(fields: [businessId], references: [id])
+  class                  AffiliateClass?          @relation(fields: [classId], references: [id])
+  deal                   AffiliateDeal?           @relation(fields: [dealId], references: [id])
+  manager                Affiliate?               @relation("AffiliateManager", fields: [managerId], references: [id])
+  downline               Affiliate[]              @relation("AffiliateManager")
+  user                   User?                    @relation(fields: [userId], references: [id])
+  destinationLandingPage LandingPage?             @relation(fields: [destinationLandingPageId], references: [id])
+  clicks                 AffiliateReferralClick[]
+  referringSplits        SaleAffiliateSplit[]     @relation("SplitReferrer")
+  managerSplits          SaleAffiliateSplit[]     @relation("SplitManager")
 
   @@unique([referralCode])
   @@index([businessId])
@@ -868,19 +1133,19 @@ enum LeadStage {
 }
 
 model Lead {
-  id                 String     @id @default(cuid())
-  businessId         String
-  contactId          String
-  stage              LeadStage  @default(NEW)
-  owner              String?
-  estimatedValue     Decimal?   @db.Decimal(12, 2)
-  sourceType         SourceType
-  sourceMessageId    String?
-  sourceDeploymentId String?
-  sourceAdRunId      String?
-  sourceAdUnitId     String?
-  clickId            String?
-  landingSessionId   String?
+  id                   String     @id @default(cuid())
+  businessId           String
+  contactId            String
+  stage                LeadStage  @default(NEW)
+  owner                String?
+  estimatedValue       Decimal?   @db.Decimal(12, 2)
+  sourceType           SourceType
+  sourceMessageId      String?
+  sourceDeploymentId   String?
+  sourceAdRunId        String?
+  sourceAdUnitId       String?
+  clickId              String?
+  landingSessionId     String?
   // Which affiliate (if any) referred this lead — deliberately separate from sourceType/source*Id
   // above (those answer "how did this lead reach us"; this answers "who gets credit"), stamped
   // once at creation only (see resolveContactAndLead in lib/identityResolution.ts). Plain field,
@@ -888,18 +1153,18 @@ model Lead {
   referringAffiliateId String?
   // 'OPEN' while stage is not WON/LOST; null once closed. Unique with contactId so
   // concurrent form submits cannot insert a second active lead for the same person.
-  openSlot           String?
-  openedAt           DateTime   @default(now())
-  closedAt           DateTime?
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
+  openSlot             String?
+  openedAt             DateTime   @default(now())
+  closedAt             DateTime?
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
 
-  business         Business    @relation(fields: [businessId], references: [id])
-  contact          Contact     @relation(fields: [contactId], references: [id])
-  sourceMessage    Message?    @relation("LeadSourceMessage", fields: [sourceMessageId], references: [id])
-  sourceDeployment Deployment? @relation("LeadSourceDeployment", fields: [sourceDeploymentId], references: [id])
-  sourceAdRun      AdRun?      @relation("LeadSourceAdRun", fields: [sourceAdRunId], references: [id])
-  sourceAdUnit     AdUnit?     @relation("LeadSourceAdUnit", fields: [sourceAdUnitId], references: [id])
+  business         Business         @relation(fields: [businessId], references: [id])
+  contact          Contact          @relation(fields: [contactId], references: [id])
+  sourceMessage    Message?         @relation("LeadSourceMessage", fields: [sourceMessageId], references: [id])
+  sourceDeployment Deployment?      @relation("LeadSourceDeployment", fields: [sourceDeploymentId], references: [id])
+  sourceAdRun      AdRun?           @relation("LeadSourceAdRun", fields: [sourceAdRunId], references: [id])
+  sourceAdUnit     AdUnit?          @relation("LeadSourceAdUnit", fields: [sourceAdUnitId], references: [id])
   sales            Sale[]
   formSubmissions  FormSubmission[]
 
@@ -940,13 +1205,13 @@ model Sale {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
-  business         Business    @relation(fields: [businessId], references: [id])
-  contact          Contact     @relation(fields: [contactId], references: [id])
-  lead             Lead?       @relation(fields: [leadId], references: [id])
-  sourceMessage    Message?    @relation("SaleSourceMessage", fields: [sourceMessageId], references: [id])
-  sourceDeployment Deployment? @relation("SaleSourceDeployment", fields: [sourceDeploymentId], references: [id])
-  sourceAdRun      AdRun?      @relation("SaleSourceAdRun", fields: [sourceAdRunId], references: [id])
-  sourceAdUnit     AdUnit?     @relation("SaleSourceAdUnit", fields: [sourceAdUnitId], references: [id])
+  business         Business            @relation(fields: [businessId], references: [id])
+  contact          Contact             @relation(fields: [contactId], references: [id])
+  lead             Lead?               @relation(fields: [leadId], references: [id])
+  sourceMessage    Message?            @relation("SaleSourceMessage", fields: [sourceMessageId], references: [id])
+  sourceDeployment Deployment?         @relation("SaleSourceDeployment", fields: [sourceDeploymentId], references: [id])
+  sourceAdRun      AdRun?              @relation("SaleSourceAdRun", fields: [sourceAdRunId], references: [id])
+  sourceAdUnit     AdUnit?             @relation("SaleSourceAdUnit", fields: [sourceAdUnitId], references: [id])
   affiliateSplit   SaleAffiliateSplit?
   externalEvents   ExternalEvent[]
 
@@ -978,8 +1243,8 @@ model SaleAffiliateSplit {
   affiliateCommissionMinor Int
   createdAt                DateTime           @default(now())
 
-  sale               Sale      @relation(fields: [saleId], references: [id])
-  referringAffiliate Affiliate @relation("SplitReferrer", fields: [referringAffiliateId], references: [id])
+  sale               Sale       @relation(fields: [saleId], references: [id])
+  referringAffiliate Affiliate  @relation("SplitReferrer", fields: [referringAffiliateId], references: [id])
   managerAffiliate   Affiliate? @relation("SplitManager", fields: [managerAffiliateId], references: [id])
 
   @@index([referringAffiliateId])
@@ -1002,7 +1267,7 @@ enum InteractionType {
 }
 
 model Interaction {
-  id                 String           @id @default(cuid())
+  id                 String          @id @default(cuid())
   businessId         String
   contactId          String
   type               InteractionType
@@ -1012,8 +1277,8 @@ model Interaction {
   sourceAdRunId      String?
   sourceAdUnitId     String?
   metadata           Json?
-  occurredAt         DateTime         @default(now())
-  createdAt          DateTime         @default(now())
+  occurredAt         DateTime        @default(now())
+  createdAt          DateTime        @default(now())
 
   business         Business    @relation(fields: [businessId], references: [id])
   contact          Contact     @relation(fields: [contactId], references: [id])
@@ -1094,6 +1359,7 @@ model LandingPage {
   pageViews         PageView[]
   formSubmissions   FormSubmission[]
   adSlots           LandingPageAdSlot[]
+  inboxThreads      InboxThread[]
 
   @@index([businessId, status])
 }
@@ -1108,28 +1374,28 @@ enum AdSlotPlacement {
 // A page is a publishing surface: N spaces, each holding at most one first-party AdUnit.
 // Draft slots live here; publish freezes them onto PublishedPageVersion.adSlotSnapshot.
 model LandingPageAdSlot {
-  id            String           @id @default(cuid())
+  id            String          @id @default(cuid())
   landingPageId String
   sortOrder     Int
   placement     AdSlotPlacement
-  createdAt     DateTime         @default(now())
+  createdAt     DateTime        @default(now())
 
-  landingPage   LandingPage      @relation(fields: [landingPageId], references: [id])
-  assignments   LandingPageAdSlotAssignment[]
+  landingPage LandingPage                   @relation(fields: [landingPageId], references: [id])
+  assignments LandingPageAdSlotAssignment[]
 
   @@index([landingPageId])
 }
 
 model LandingPageAdSlotAssignment {
-  id            String           @id @default(cuid())
-  slotId        String
-  adRunId       String
-  status        AdRunStatus      @default(ACTIVE)
-  weight        Int              @default(1)
-  createdAt     DateTime         @default(now())
+  id        String      @id @default(cuid())
+  slotId    String
+  adRunId   String
+  status    AdRunStatus @default(ACTIVE)
+  weight    Int         @default(1)
+  createdAt DateTime    @default(now())
 
-  slot          LandingPageAdSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
-  adRun         AdRun             @relation(fields: [adRunId], references: [id], onDelete: Cascade)
+  slot  LandingPageAdSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  adRun AdRun             @relation(fields: [adRunId], references: [id], onDelete: Cascade)
 
   @@index([slotId])
   @@index([adRunId])
@@ -1138,25 +1404,25 @@ model LandingPageAdSlotAssignment {
 // Immutable snapshot written on every publish — content/theme/formId frozen at that moment,
 // so editing a draft after publishing never changes what's already live or already reported on.
 model PublishedPageVersion {
-  id          String    @id @default(cuid())
-  landingPageId String
-  version     Int
-  content     Json
-  theme       Json?
-  formId      String?
+  id             String    @id @default(cuid())
+  landingPageId  String
+  version        Int
+  content        Json
+  theme          Json?
+  formId         String?
   // Frozen copy of the Form's submitLabel/successMessage/fields as they were at publish time —
   // formId alone is just a pointer to a live, mutable Form row, so without this, editing a
   // Form's fields after publishing would silently change what an already-published page renders
   // and validates against. Null for versions published before this field existed and for pages
   // with no form attached (see CLAUDE.md "Landing-Page Capture Immutability").
-  formSnapshot Json?
+  formSnapshot   Json?
   adSlotSnapshot Json?
   // Frozen template schema at publish time. The live LandingPage.templateId can change in draft
   // (layout switch) without rewriting this, so /p/{slug} keeps rendering the published layout.
   schemaSnapshot Json?
-  publishedAt DateTime  @default(now())
-  publishedBy String? // userId — no admin/RBAC in V1, kept optional
-  archivedAt  DateTime? // set when a newer version supersedes this one; row is kept for history
+  publishedAt    DateTime  @default(now())
+  publishedBy    String? // userId — no admin/RBAC in V1, kept optional
+  archivedAt     DateTime? // set when a newer version supersedes this one; row is kept for history
 
   landingPage LandingPage  @relation("PageVersions", fields: [landingPageId], references: [id])
   currentFor  LandingPage? @relation("CurrentPublished")
@@ -1174,7 +1440,7 @@ model PageView {
   landingPageId          String
   publishedPageVersionId String?
   sessionId              String?
-  referrer                String?
+  referrer               String?
   utmSource              String?
   utmMedium              String?
   utmCampaign            String?
@@ -1192,13 +1458,13 @@ model PageView {
 // across landing pages, and a submission always resolves through one canonical path.
 
 model Form {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   businessId     String
   name           String
-  submitLabel    String   @default("Submit")
+  submitLabel    String    @default("Submit")
   successMessage String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
 
   business    Business         @relation(fields: [businessId], references: [id])
@@ -1467,23 +1733,23 @@ model FinancialAccount {
 
 // Immutable once posted. Status never changes; a reversal is a new row pointing here.
 model LedgerTransaction {
-  id                    String                   @id @default(cuid())
+  id                    String                  @id @default(cuid())
   businessId            String
-  currency              String                   @db.VarChar(3)
+  currency              String                  @db.VarChar(3)
   type                  LedgerTransactionType
-  status                LedgerTransactionStatus  @default(POSTED)
+  status                LedgerTransactionStatus @default(POSTED)
   idempotencyKey        String
   externalRef           String?
   externalProvider      String?
   metadata              Json?
-  reversesTransactionId String?                  @unique
-  postedAt              DateTime                 @default(now())
-  createdAt             DateTime                 @default(now())
+  reversesTransactionId String?                 @unique
+  postedAt              DateTime                @default(now())
+  createdAt             DateTime                @default(now())
 
-  business  Business           @relation(fields: [businessId], references: [id])
-  reverses  LedgerTransaction? @relation("LedgerReversal", fields: [reversesTransactionId], references: [id])
+  business   Business           @relation(fields: [businessId], references: [id])
+  reverses   LedgerTransaction? @relation("LedgerReversal", fields: [reversesTransactionId], references: [id])
   reversedBy LedgerTransaction? @relation("LedgerReversal")
-  entries   LedgerEntry[]
+  entries    LedgerEntry[]
 
   payments             Payment[]
   refunds              Refund[]
@@ -1503,7 +1769,7 @@ model LedgerEntry {
   businessId    String
   transactionId String
   accountId     String
-  campaignId    String?         // @deprecated
+  campaignId    String? // @deprecated
   adRunId       String?
   direction     LedgerDirection
   amountMinor   Int
@@ -1523,20 +1789,20 @@ model LedgerEntry {
 }
 
 model Payment {
-  id                  String        @id @default(cuid())
-  businessId          String
-  amountMinor         Int
-  currency            String        @db.VarChar(3)
-  status              PaymentStatus @default(POSTED)
-  processor              String?
-  externalRef            String?
-  stripePaymentIntentId  String?
-  stripeChargeId         String?
-  idempotencyKey         String
-  ledgerTransactionId String
-  metadata            Json?
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  id                    String        @id @default(cuid())
+  businessId            String
+  amountMinor           Int
+  currency              String        @db.VarChar(3)
+  status                PaymentStatus @default(POSTED)
+  processor             String?
+  externalRef           String?
+  stripePaymentIntentId String?
+  stripeChargeId        String?
+  idempotencyKey        String
+  ledgerTransactionId   String
+  metadata              Json?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   business          Business          @relation(fields: [businessId], references: [id])
   ledgerTransaction LedgerTransaction @relation(fields: [ledgerTransactionId], references: [id])
@@ -1571,23 +1837,23 @@ model Refund {
 }
 
 model BudgetAuthorization {
-  id                     String                    @id @default(cuid())
-  businessId             String
-  campaignId             String?                   // @deprecated
-  adRunId                String?
-  currency               String                    @db.VarChar(3)
-  authorizedAmountMinor  Int
-  status                 BudgetAuthorizationStatus @default(ACTIVE)
-  idempotencyKey         String
-  ledgerTransactionId    String?
-  createdAt              DateTime                  @default(now())
-  updatedAt              DateTime                  @updatedAt
+  id                    String                    @id @default(cuid())
+  businessId            String
+  campaignId            String? // @deprecated
+  adRunId               String?
+  currency              String                    @db.VarChar(3)
+  authorizedAmountMinor Int
+  status                BudgetAuthorizationStatus @default(ACTIVE)
+  idempotencyKey        String
+  ledgerTransactionId   String?
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
 
-  business          Business          @relation(fields: [businessId], references: [id])
-  campaign          Campaign?         @relation(fields: [campaignId], references: [id])
-  adRun             AdRun?            @relation(fields: [adRunId], references: [id])
-  ledgerTransaction     LedgerTransaction? @relation(fields: [ledgerTransactionId], references: [id])
-  adSpends              AdSpend[]
+  business          Business           @relation(fields: [businessId], references: [id])
+  campaign          Campaign?          @relation(fields: [campaignId], references: [id])
+  adRun             AdRun?             @relation(fields: [adRunId], references: [id])
+  ledgerTransaction LedgerTransaction? @relation(fields: [ledgerTransactionId], references: [id])
+  adSpends          AdSpend[]
 
   @@unique([businessId, idempotencyKey])
   @@index([businessId])
@@ -1597,36 +1863,36 @@ model BudgetAuthorization {
 }
 
 model AdSpend {
-  id                       String                  @id @default(cuid())
-  businessId               String
-  campaignId               String?                 // @deprecated
-  adRunId                  String?
-  budgetAuthorizationId    String?
-  deploymentId             String?
-  adUnitId                 String?
-  platform                 Platform
-  externalChargeId         String
-  periodStart              DateTime
-  periodEnd                DateTime
-  currency                 String                  @db.VarChar(3)
-  reportedAmountMinor      Int
-  settledAmountMinor       Int                     @default(0)
-  settlementStatus         AdSpendSettlementStatus @default(REPORTED)
-  idempotencyKey           String
-  ledgerTransactionId      String?
-  settlementTransactionId  String?
-  createdAt                DateTime                @default(now())
-  updatedAt                DateTime                @updatedAt
+  id                      String                  @id @default(cuid())
+  businessId              String
+  campaignId              String? // @deprecated
+  adRunId                 String?
+  budgetAuthorizationId   String?
+  deploymentId            String?
+  adUnitId                String?
+  platform                Platform
+  externalChargeId        String
+  periodStart             DateTime
+  periodEnd               DateTime
+  currency                String                  @db.VarChar(3)
+  reportedAmountMinor     Int
+  settledAmountMinor      Int                     @default(0)
+  settlementStatus        AdSpendSettlementStatus @default(REPORTED)
+  idempotencyKey          String
+  ledgerTransactionId     String?
+  settlementTransactionId String?
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
 
-  business               Business           @relation(fields: [businessId], references: [id])
-  campaign               Campaign?          @relation(fields: [campaignId], references: [id])
-  adRun                  AdRun?             @relation(fields: [adRunId], references: [id])
-  budgetAuthorization    BudgetAuthorization? @relation(fields: [budgetAuthorizationId], references: [id])
-  deployment             Deployment?        @relation(fields: [deploymentId], references: [id])
-  adUnit                 AdUnit?            @relation(fields: [adUnitId], references: [id])
-  ledgerTransaction      LedgerTransaction? @relation("AdSpendPosted", fields: [ledgerTransactionId], references: [id])
-  settlementTransaction  LedgerTransaction? @relation("AdSpendSettled", fields: [settlementTransactionId], references: [id])
-  reconciliations        Reconciliation[]
+  business              Business             @relation(fields: [businessId], references: [id])
+  campaign              Campaign?            @relation(fields: [campaignId], references: [id])
+  adRun                 AdRun?               @relation(fields: [adRunId], references: [id])
+  budgetAuthorization   BudgetAuthorization? @relation(fields: [budgetAuthorizationId], references: [id])
+  deployment            Deployment?          @relation(fields: [deploymentId], references: [id])
+  adUnit                AdUnit?              @relation(fields: [adUnitId], references: [id])
+  ledgerTransaction     LedgerTransaction?   @relation("AdSpendPosted", fields: [ledgerTransactionId], references: [id])
+  settlementTransaction LedgerTransaction?   @relation("AdSpendSettled", fields: [settlementTransactionId], references: [id])
+  reconciliations       Reconciliation[]
 
   @@unique([businessId, idempotencyKey])
   @@unique([businessId, externalChargeId])
@@ -1697,21 +1963,21 @@ model PayoutItem {
 }
 
 model Reconciliation {
-  id                           String                @id @default(cuid())
-  businessId                   String
-  campaignId                   String?               // @deprecated
-  adRunId                      String?
-  adSpendId                    String?
-  currency                     String                @db.VarChar(3)
-  trackedAmountMinor           Int
-  platformReportedAmountMinor  Int
-  settledAmountMinor           Int
-  discrepancyMinor             Int
-  status                       ReconciliationStatus
-  notes                        String?
-  idempotencyKey               String
-  createdAt                    DateTime              @default(now())
-  updatedAt                    DateTime              @updatedAt
+  id                          String               @id @default(cuid())
+  businessId                  String
+  campaignId                  String? // @deprecated
+  adRunId                     String?
+  adSpendId                   String?
+  currency                    String               @db.VarChar(3)
+  trackedAmountMinor          Int
+  platformReportedAmountMinor Int
+  settledAmountMinor          Int
+  discrepancyMinor            Int
+  status                      ReconciliationStatus
+  notes                       String?
+  idempotencyKey              String
+  createdAt                   DateTime             @default(now())
+  updatedAt                   DateTime             @updatedAt
 
   business Business  @relation(fields: [businessId], references: [id])
   campaign Campaign? @relation(fields: [campaignId], references: [id])
@@ -1795,10 +2061,10 @@ model Integration {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
-  business        Business               @relation(fields: [businessId], references: [id])
-  identifiers     ContactIdentifier[]
-  contactRecords  ExternalContactRecord[]
-  events          ExternalEvent[]
+  business       Business                @relation(fields: [businessId], references: [id])
+  identifiers    ContactIdentifier[]
+  contactRecords ExternalContactRecord[]
+  events         ExternalEvent[]
 
   @@unique([businessId, provider, externalAccountId])
   @@index([businessId, provider])
@@ -1818,7 +2084,7 @@ model ImportJob {
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
 
-  business Business               @relation(fields: [businessId], references: [id])
+  business Business                @relation(fields: [businessId], references: [id])
   records  ExternalContactRecord[]
 
   @@index([businessId, createdAt])
@@ -1897,18 +2163,18 @@ model ExternalEvent {
 }
 
 model LoopieSession {
-  id                 String    @id
-  businessId         String
-  firstAdRunId       String?
-  firstDeploymentId  String?
-  firstSourceType    String?
-  platformClickIds   Json?
-  utms               Json?
-  firstSeenAt        DateTime  @default(now())
-  lastSeenAt         DateTime  @default(now())
-  expiresAt          DateTime
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  id                String   @id
+  businessId        String
+  firstAdRunId      String?
+  firstDeploymentId String?
+  firstSourceType   String?
+  platformClickIds  Json?
+  utms              Json?
+  firstSeenAt       DateTime @default(now())
+  lastSeenAt        DateTime @default(now())
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   business Business @relation(fields: [businessId], references: [id])
 
@@ -1931,4 +2197,129 @@ model RateLimitBucket {
   expiresAt DateTime
 
   @@index([expiresAt])
+}
+
+// ---------- Activity Command Center ----------
+
+enum ActivitySourceKind {
+  LOOPIE
+  PLATFORM
+  WEBSITE
+  CHANNEL
+  USER
+  AUTOMATION
+}
+
+enum ActivityAttentionState {
+  INFORMATION
+  ACTION_REQUIRED
+  FAILURE
+}
+
+model ActivityItem {
+  id         String @id @default(cuid())
+  businessId String
+
+  // Stable source identity for idempotency
+  sourceKind       ActivitySourceKind
+  sourceRecordType String
+  sourceRecordId   String
+  eventKey         String
+
+  taxonomyVersion String
+  type            String
+
+  occurredAt  DateTime
+  observedAt  DateTime
+  projectedAt DateTime @default(now())
+
+  storyId String
+
+  // Denormalized source info for querying
+  sourceLabel     String
+  sourceAccountId String?
+
+  // Actor info
+  actorKind  String // CONTACT, USER, SYSTEM, AUTOMATION
+  actorId    String?
+  actorLabel String
+
+  status    String?
+  attention ActivityAttentionState
+  summary   String
+  detail    String?                @db.Text
+
+  // Explicit canonical references
+  personId    String?
+  leadId      String?
+  adId        String?
+  runId       String?
+  pageId      String?
+  formId      String?
+  messageId   String?
+  broadcastId String?
+  saleId      String?
+
+  // Polymorphic extras
+  aggregation Json?
+  actions     Json?
+
+  attentionItem AttentionItem?
+
+  // Constraint for idempotency: The same canonical event projects into the same Activity item
+  @@unique([businessId, sourceKind, sourceRecordType, sourceRecordId, eventKey])
+  // Expected query shape indexes
+  @@index([businessId, occurredAt])
+  @@index([businessId, type])
+  @@index([businessId, sourceKind])
+  @@index([businessId, attention])
+  // High-value reference lookups
+  @@index([businessId, personId])
+  @@index([businessId, runId])
+  @@index([businessId, messageId])
+}
+
+model ActivityProjectionFailure {
+  id               String    @id @default(cuid())
+  businessId       String
+  sourceRecordType String
+  sourceRecordId   String
+  error            String    @db.Text
+  resolvedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([businessId, resolvedAt])
+}
+
+
+
+enum AttentionItemState {
+  NEEDS_ACTION
+  IN_PROGRESS
+  SNOOZED
+  RESOLVED
+}
+
+model AttentionItem {
+  id           String             @id @default(cuid())
+  activityId   String             @unique
+  state        AttentionItemState @default(NEEDS_ACTION)
+  assigneeId   String?
+  priority     String?
+  dueAt        DateTime?
+  snoozedUntil DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  activityItem ActivityItem @relation(fields: [activityId], references: [id], onDelete: Cascade)
+}
+
+model ActivitySeenState {
+  id         String   @id @default(cuid())
+  userId     String
+  businessId String
+  seenAt     DateTime
+
+  @@unique([userId, businessId])
 }

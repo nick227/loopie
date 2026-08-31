@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { CampaignPlatformConnect } from '@/components/campaigns/CampaignPlatformConnect'
 import { PLATFORM_LABEL } from '@/components/campaigns/buildCampaignAds'
 
@@ -52,19 +53,16 @@ export function CampaignIdentity({
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-        {STATUS_LABEL[status] ?? status} · starts {new Date(startDate).toLocaleDateString()}
-      </p>
-      <input
-        aria-label="Name"
-        defaultValue={name}
-        onBlur={(e) => {
-          const next = e.target.value.trim()
-          if (next && next !== name) onSave({ name: next })
-        }}
-        className={`${ghost} text-3xl font-semibold tracking-tight w-full`}
-      />
+    <PageHeader
+      variant="detail"
+      title={name}
+      editableTitle={{ value: name, onCommit: (next) => onSave({ name: next }), ariaLabel: 'Name' }}
+      meta={
+        <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+          {STATUS_LABEL[status] ?? status} · starts {new Date(startDate).toLocaleDateString()}
+        </p>
+      }
+    >
       <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
         <label className="flex flex-col gap-1">
           <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -121,6 +119,6 @@ export function CampaignIdentity({
         </fieldset>
       </div>
       <CampaignPlatformConnect platforms={draftPlatforms} />
-    </div>
+    </PageHeader>
   )
 }

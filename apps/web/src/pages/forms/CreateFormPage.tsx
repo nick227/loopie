@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { Button } from '@/components/ui/Button'
+import { PageHeader } from '@/components/ui/PageHeader'
 import {
   FormFieldsEditor,
   emptyField,
@@ -56,7 +57,7 @@ export function CreateFormPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">New Form</h1>
+      <PageHeader variant="editor" title="New Form" />
       <Card>
         <CardContent className="py-4 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">

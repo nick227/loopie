@@ -21,22 +21,30 @@ import { ensureSystemTemplates } from '../lib/ensureSystemTemplates'
 import { withResolvedMedia } from '../lib/pageMedia'
 import { assertYoutubeUrlsInContent } from '../lib/youtubeContent'
 
-function toLandingPageDTO(page: {
-  id: string
-  businessId: string
-  templateId: string
-  formId: string | null
-  name: string
-  slug: string
-  customDomain: string | null
-  status: string
-  content: unknown
-  theme: unknown
-  publishedVersionId: string | null
-  formStartCount: number
-  createdAt: Date
-  adSlots?: { id: string; sortOrder: number; placement: string; adUnitId: string | null }[]
-}) {
+function toLandingPageDTO(
+  page: {
+    id: string
+    businessId: string
+    templateId: string
+    formId: string | null
+    name: string
+    slug: string
+    customDomain: string | null
+    status: string
+    content: unknown
+    theme: unknown
+    publishedVersionId: string | null
+    formStartCount: number
+    createdAt: Date
+    adSlots?: {
+      id: string
+      sortOrder: number
+      placement: string
+      assignments: { id: string; slotId: string; adRunId: string; status: string; weight: number }[]
+    }[]
+  },
+  submissionCount = 0,
+) {
   const slots = (page.adSlots ?? []).map(toSlotDTO)
   return {
     id: page.id,
@@ -53,6 +61,10 @@ function toLandingPageDTO(page: {
     hostedUrl: hostedPageUrl(page.slug),
     previewUrl: landingPagePreviewUrl(page.id),
     formStartCount: page.formStartCount,
+    // Real completed submissions, distinct from formStartCount (abandoned attempts count too) —
+    // added for the Inbox "Running" panel's Pages card (docs/strategy/03-product-principles.md),
+    // which needs the actionable outcome, not the funnel's top of it.
+    submissionCount,
     adSlotCount: slots.length,
     slots,
     createdAt: page.createdAt.toISOString(),
@@ -106,7 +118,9 @@ export class LandingPageService {
       where: { businessId, deletedAt: null, ...(AND.length ? { AND } : {}) },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
-      include: { adSlots: { orderBy: { sortOrder: 'asc' as const } } },
+      include: {
+        adSlots: { include: { assignments: true }, orderBy: { sortOrder: 'asc' as const } },
+      },
     })
     const hasMore = pages.length > limit
     const items = hasMore ? pages.slice(0, limit) : pages
@@ -115,7 +129,26 @@ export class LandingPageService {
       hasMore && last
         ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
         : null
-    return { data: items.map(toLandingPageDTO), meta: { hasMore, nextCursor } }
+
+    // One batched groupBy for the whole page, not N+1 count queries per row.
+    const pageIds = items.map((p) => p.id)
+    const submissionRows = pageIds.length
+      ? await db.formSubmission.groupBy({
+          by: ['landingPageId'],
+          where: { landingPageId: { in: pageIds } },
+          _count: { _all: true },
+        })
+      : []
+    const submissionCountByPageId = new Map(
+      submissionRows
+        .filter((row): row is typeof row & { landingPageId: string } => row.landingPageId !== null)
+        .map((row) => [row.landingPageId, row._count._all]),
+    )
+
+    return {
+      data: items.map((page) => toLandingPageDTO(page, submissionCountByPageId.get(page.id) ?? 0)),
+      meta: { hasMore, nextCursor },
+    }
   }
 
   async create(businessId: string, data: any) {
@@ -175,14 +208,18 @@ export class LandingPageService {
             ],
           },
         },
-        include: { adSlots: { orderBy: { sortOrder: 'asc' as const } } },
+        include: {
+          adSlots: { include: { assignments: true }, orderBy: { sortOrder: 'asc' as const } },
+        },
       })
     })
     return toLandingPageDTO(page)
   }
 
   async get(businessId: string, landingPageId: string) {
-    return toLandingPageDTO(await this._find(businessId, landingPageId))
+    const page = await this._find(businessId, landingPageId)
+    const submissionCount = await db.formSubmission.count({ where: { landingPageId: page.id } })
+    return toLandingPageDTO(page, submissionCount)
   }
 
   async update(businessId: string, landingPageId: string, data: any) {
@@ -216,9 +253,12 @@ export class LandingPageService {
         ...(data.content !== undefined ? { content: data.content } : {}),
         ...(data.theme !== undefined ? { theme: data.theme } : {}),
       },
-      include: { adSlots: { orderBy: { sortOrder: 'asc' as const } } },
+      include: {
+        adSlots: { include: { assignments: true }, orderBy: { sortOrder: 'asc' as const } },
+      },
     })
-    return toLandingPageDTO(page)
+    const submissionCount = await db.formSubmission.count({ where: { landingPageId: page.id } })
+    return toLandingPageDTO(page, submissionCount)
   }
 
   async delete(businessId: string, landingPageId: string) {
@@ -230,7 +270,7 @@ export class LandingPageService {
   }
 
   async publish(businessId: string, landingPageId: string, publishedBy?: string) {
-    return db.$transaction(async (tx) => {
+    const result = await db.$transaction(async (tx) => {
       const current = await tx.landingPage.findFirst({
         where: { id: landingPageId, businessId, deletedAt: null },
         include: { template: true },
@@ -254,6 +294,7 @@ export class LandingPageService {
       const formSnapshot = await snapshotForm(tx, current.formId)
       const slots = await tx.landingPageAdSlot.findMany({
         where: { landingPageId },
+        include: { assignments: true },
         orderBy: { sortOrder: 'asc' },
       })
 
@@ -271,13 +312,28 @@ export class LandingPageService {
         },
       })
 
-      await tx.landingPage.update({
+      const updatedPage = await tx.landingPage.update({
         where: { id: landingPageId },
         data: { status: 'PUBLISHED', publishedVersionId: version.id },
       })
 
-      return toVersionDTO(version)
+      return { page: updatedPage, version }
     })
+
+    try {
+      const { ActivityProjectionService } = await import('./activity/ActivityProjectionService')
+      await ActivityProjectionService.project(
+        result.page.businessId,
+        'LandingPage',
+        result.page.id,
+        'project',
+        result.page,
+      )
+    } catch (err) {
+      console.error('Failed to project page publication', err)
+    }
+
+    return toVersionDTO(result.version)
   }
 
   async listVersions(
@@ -320,6 +376,7 @@ export class LandingPageService {
     const form = await loadFormForRender(page.formId)
     const slots = await db.landingPageAdSlot.findMany({
       where: { landingPageId: page.id },
+      include: { assignments: true },
       orderBy: { sortOrder: 'asc' },
     })
     const content = await withResolvedMedia(page.businessId, page.content as never)
@@ -380,7 +437,9 @@ export class LandingPageService {
   private async _find(businessId: string, landingPageId: string) {
     const page = await db.landingPage.findFirst({
       where: { id: landingPageId, businessId, deletedAt: null },
-      include: { adSlots: { orderBy: { sortOrder: 'asc' as const } } },
+      include: {
+        adSlots: { include: { assignments: true }, orderBy: { sortOrder: 'asc' as const } },
+      },
     })
     if (!page) throw { statusCode: 404, message: 'Landing page not found' }
     return page

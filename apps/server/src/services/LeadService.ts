@@ -1,6 +1,7 @@
 import { db } from '@project/db'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { scheduleAutomationRuns } from '../lib/automationScheduling'
+import { notifyLeadStageChanged } from '../lib/leadInbox'
 
 function toLeadDTO(lead: any) {
   return {
@@ -105,6 +106,24 @@ export class LeadService {
         triggerSourceId: interaction.id,
         triggerEventAt: interaction.occurredAt,
       })
+    }
+
+    if (stageChanged) {
+      try {
+        const { ActivityProjectionService } = await import('./activity/ActivityProjectionService')
+        await ActivityProjectionService.project(
+          lead.businessId,
+          'Lead',
+          lead.id,
+          'projectStatusChange',
+          lead,
+          { id: current.contactId },
+          current.stage,
+        )
+      } catch (err) {
+        console.error('Failed to project lead status change', err)
+      }
+      await notifyLeadStageChanged(businessId, current.contactId, current.stage, lead.stage)
     }
 
     return toLeadDTO(lead)

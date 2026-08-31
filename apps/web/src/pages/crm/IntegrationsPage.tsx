@@ -8,6 +8,7 @@ import {
 } from '@project/sdk'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Input } from '@/components/ui/Input'
 import { useFlatPages } from '@/hooks/useFlatPages'
@@ -43,12 +44,11 @@ export function IntegrationsPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-semibold">CRM</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Inbound only. LOOPIE keeps name, email, phone, and consent when it already has them.
-        </p>
-      </div>
+      <PageHeader
+        variant="list"
+        title="Integrations"
+        description="Inbound only. LOOPIE keeps name, email, phone, and consent when it already has them."
+      />
       <CrmNav />
       {catalog.isLoading || list.isLoading ? (
         <Skeleton className="h-32 w-full" />

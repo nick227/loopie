@@ -220,6 +220,20 @@ export class SaleService {
       )
     }
 
+    try {
+      const { ActivityProjectionService } = await import('./activity/ActivityProjectionService')
+      await ActivityProjectionService.project(
+        result.sale.businessId,
+        'Sale',
+        result.sale.id,
+        'project',
+        result.sale,
+        contact,
+      )
+    } catch (projErr) {
+      console.error('Failed to project sale recorded', projErr)
+    }
+
     return toSaleDTO(result.sale)
   }
 
@@ -280,6 +294,22 @@ export class SaleService {
           `reverse-commission:${sale.id}:${commission.id}`,
           data.reason ?? 'Sale reversed',
         )
+      }
+
+      try {
+        const reversedSale = await db.sale.findUniqueOrThrow({ where: { id: sale.id } })
+        const contact = await db.contact.findUniqueOrThrow({ where: { id: sale.contactId } })
+        const { ActivityProjectionService } = await import('./activity/ActivityProjectionService')
+        await ActivityProjectionService.project(
+          reversedSale.businessId,
+          'Sale',
+          reversedSale.id,
+          'project',
+          reversedSale,
+          contact,
+        )
+      } catch (projErr) {
+        console.error('Failed to project sale reversed', projErr)
       }
     }
 

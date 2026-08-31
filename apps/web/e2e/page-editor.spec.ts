@@ -11,6 +11,12 @@ async function registerAndOpenHome(page: Page) {
   await page.getByLabel(/^password/i).fill('password123')
   await page.getByLabel(/business name/i).fill(`Canvas Co ${unique}`)
   await page.getByRole('button', { name: /create account/i }).click()
+  // A brand-new business hasn't saved its identity yet, so First-Login lands on the one-calm-
+  // screen setup (docs/strategy/03-product-principles.md) before Inbox — the demo/seeded accounts
+  // used elsewhere in this suite are pre-onboarded (see packages/db/prisma/seed/accounts.ts) so
+  // this is the one spec that actually exercises a genuinely fresh signup.
+  await page.waitForURL(/\/business\/setup/)
+  await page.getByRole('button', { name: /continue to inbox/i }).click()
   await page.waitForURL(/\/home/)
   await page.goto('/landing-pages')
   await page.getByRole('link', { name: 'Edit' }).click()

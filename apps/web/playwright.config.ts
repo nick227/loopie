@@ -18,14 +18,12 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
 
-  projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-  ],
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
 
   // Start both servers before running tests. DATABASE_URL etc. must already be exported in the
   // shell that invokes `pnpm test:e2e` — these commands inherit the parent process env.
   // Remove webServer blocks if you start them manually.
-  webServer: [
+  _webServer: [
     {
       command: 'pnpm --filter server dev',
       url: `${apiURL}/health`,

@@ -1,0 +1,250 @@
+// UNAPPLIED DRAFT — DO NOT pass this file to prisma db push.
+// Companion RFC: docs/architecture/embeddable-published-objects-v1.md
+// This fragment prepares additive Phase 1 schema code while Phase 0 remains open.
+
+enum EmbedObjectType {
+  PAGE
+  ADVERTISEMENT
+}
+
+enum EmbedDeploymentStatus {
+  ACTIVE
+  PAUSED
+  UNPUBLISHED
+}
+
+enum EmbedDomainPolicy {
+  ANY
+  ALLOWLIST
+}
+
+enum EmbedEventType {
+  EMBED_LOADED
+  PAGE_VIEWED
+  FORM_STARTED
+  FORM_SUBMITTED
+  FORM_SUCCEEDED
+  FORM_FAILED
+  AD_LOADED
+  AD_IMPRESSION
+  AD_CLICKED
+}
+
+// Add to the existing PublishedPageVersion model:
+//   rendererFormatVersion String @default("page-embed-v1")
+//   checksum              String @db.Char(64)
+//   successBehavior       Json
+//   activeEmbedDeployments EmbedDeployment[] @relation("ActiveEmbedPageVersion")
+//   embedBootstrapNonces   EmbedBootstrapNonce[] @relation("EmbedBootstrapPageVersion")
+//   embedInstances         EmbedInstance[]   @relation("EmbedInstancePageVersion")
+//   embedEvents            EmbedEvent[]      @relation("EmbedEventPageVersion")
+
+model PublishedAdvertisementVersion {
+  id                    String   @id @default(cuid())
+  advertisementId       String
+  version               Int
+  rendererFormatVersion String   @default("advertisement-embed-v1")
+  creativeSnapshot      Json
+  destinationUrl        String   @db.Text
+  width                 Int?
+  height                Int?
+  aspectRatio           String?
+  accessibleLabel       String
+  checksum              String   @db.Char(64)
+  publishedBy           String?
+  publishedAt           DateTime @default(now())
+
+  advertisement       Advertisement   @relation(fields: [advertisementId], references: [id])
+  activeDeployments   EmbedDeployment[] @relation("ActiveEmbedAdvertisementVersion")
+  embedBootstrapNonces EmbedBootstrapNonce[] @relation("EmbedBootstrapAdvertisementVersion")
+  embedInstances      EmbedInstance[]   @relation("EmbedInstanceAdvertisementVersion")
+  embedEvents         EmbedEvent[]      @relation("EmbedEventAdvertisementVersion")
+
+  @@unique([advertisementId, version])
+  @@index([advertisementId, publishedAt])
+  @@index([checksum])
+}
+
+model EmbedDeployment {
+  id                           String                @id @default(cuid())
+  businessId                   String
+  publicId                     String                @unique
+  objectType                   EmbedObjectType
+  landingPageId                String?
+  advertisementId              String?
+  activePageVersionId          String?
+  activeAdvertisementVersionId String?
+  status                       EmbedDeploymentStatus @default(ACTIVE)
+  domainPolicy                 EmbedDomainPolicy     @default(ANY)
+  createdAt                    DateTime              @default(now())
+  updatedAt                    DateTime              @updatedAt
+
+  business                   Business                       @relation(fields: [businessId], references: [id])
+  landingPage                LandingPage?                   @relation(fields: [landingPageId], references: [id])
+  advertisement              Advertisement?                 @relation(fields: [advertisementId], references: [id])
+  activePageVersion          PublishedPageVersion?          @relation("ActiveEmbedPageVersion", fields: [activePageVersionId], references: [id])
+  activeAdvertisementVersion PublishedAdvertisementVersion? @relation("ActiveEmbedAdvertisementVersion", fields: [activeAdvertisementVersionId], references: [id])
+  allowedOrigins             EmbedAllowedOrigin[]
+  bootstrapNonces            EmbedBootstrapNonce[]
+  instances                  EmbedInstance[]
+  events                     EmbedEvent[]
+
+  @@index([businessId, objectType, status])
+  @@index([landingPageId])
+  @@index([advertisementId])
+  @@index([activePageVersionId])
+  @@index([activeAdvertisementVersionId])
+}
+
+model EmbedAllowedOrigin {
+  id           String   @id @default(cuid())
+  deploymentId String
+  origin       String   @db.VarChar(512)
+  createdAt    DateTime @default(now())
+
+  deployment           EmbedDeployment                @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  pageVersion          PublishedPageVersion?          @relation("EmbedBootstrapPageVersion", fields: [pageVersionId], references: [id])
+  advertisementVersion PublishedAdvertisementVersion? @relation("EmbedBootstrapAdvertisementVersion", fields: [advertisementVersionId], references: [id])
+
+  @@unique([deploymentId, origin])
+  @@index([origin])
+}
+
+model EmbedBootstrapNonce {
+  id                           String    @id @default(cuid())
+  deploymentId                 String
+  tokenHash                    String    @unique @db.Char(64)
+  authorizedOrigin             String    @db.VarChar(512)
+  pageVersionId                String?
+  advertisementVersionId       String?
+  snapshotChecksum             String    @db.Char(64)
+  expiresAt                    DateTime
+  consumedAt                   DateTime?
+  createdAt                    DateTime  @default(now())
+
+  deployment EmbedDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+
+  @@index([deploymentId, expiresAt])
+  @@index([expiresAt, consumedAt])
+}
+
+model EmbedInstance {
+  id                     String          @id @default(cuid())
+  businessId             String
+  objectType             EmbedObjectType
+  objectId               String
+  deploymentId           String
+  pageVersionId          String?
+  advertisementVersionId String?
+  snapshotChecksum       String          @db.Char(64)
+  protocolVersion       String
+  authorizedOrigin       String          @db.VarChar(512)
+  attributionSessionId   String?
+  createdAt              DateTime        @default(now())
+
+  business             Business                       @relation(fields: [businessId], references: [id])
+  deployment           EmbedDeployment                @relation(fields: [deploymentId], references: [id])
+  pageVersion          PublishedPageVersion?          @relation("EmbedInstancePageVersion", fields: [pageVersionId], references: [id])
+  advertisementVersion PublishedAdvertisementVersion? @relation("EmbedInstanceAdvertisementVersion", fields: [advertisementVersionId], references: [id])
+  events               EmbedEvent[]
+
+  @@index([deploymentId, createdAt])
+  @@index([businessId, createdAt])
+  @@index([pageVersionId])
+  @@index([advertisementVersionId])
+  @@index([attributionSessionId])
+}
+
+model EmbedEvent {
+  id                     String         @id @default(cuid())
+  businessId             String
+  eventType              EmbedEventType
+  idempotencyKey         String         @unique
+  oncePerInstanceKey     String?        @unique
+  objectType             EmbedObjectType
+  objectId               String
+  deploymentId           String
+  instanceId             String
+  pageVersionId          String?
+  advertisementVersionId String?
+  snapshotChecksum       String         @db.Char(64)
+  protocolVersion       String
+  authorizedOrigin       String         @db.VarChar(512)
+  hostUrl                String?        @db.Text
+  referrer               String?        @db.Text
+  utmSource              String?
+  utmMedium              String?
+  utmCampaign            String?
+  attributionSessionId   String?
+  upstreamClickId        String?
+  safeMetadata           Json?
+  occurredAt             DateTime
+  createdAt              DateTime       @default(now())
+
+  business             Business                       @relation(fields: [businessId], references: [id])
+  deployment           EmbedDeployment                @relation(fields: [deploymentId], references: [id])
+  instance             EmbedInstance                  @relation(fields: [instanceId], references: [id])
+  pageVersion          PublishedPageVersion?          @relation("EmbedEventPageVersion", fields: [pageVersionId], references: [id])
+  advertisementVersion PublishedAdvertisementVersion? @relation("EmbedEventAdvertisementVersion", fields: [advertisementVersionId], references: [id])
+
+  @@index([businessId, occurredAt])
+  @@index([deploymentId, occurredAt])
+  @@index([instanceId, occurredAt])
+  @@index([objectType, objectId, occurredAt])
+  @@index([attributionSessionId])
+  @@index([upstreamClickId])
+}
+
+model EmbedProjectionOutbox {
+  id             String    @id @default(cuid())
+  businessId     String
+  idempotencyKey String    @unique
+  eventType      String
+  aggregateType  String
+  aggregateId    String
+  payload        Json
+  availableAt    DateTime  @default(now())
+  attempts       Int       @default(0)
+  lastError      String?   @db.Text
+  claimedAt      DateTime?
+  processedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@index([processedAt, availableAt])
+  @@index([businessId, createdAt])
+}
+
+// Additive fields prepared for existing attribution models:
+//
+// AttributionEvent
+//   embedAdDeploymentId String?
+//   embedAdVersionId    String?
+//   embedAdInstanceId   String?
+//   // plus typed relations and indexes to each referenced Embed model
+//
+// FormSubmission
+//   embedSubmissionKey       String? @unique
+//   embedPageDeploymentId    String?
+//   embedPageInstanceId      String?
+//   upstreamEmbedAdDeploymentId String?
+//   upstreamEmbedAdVersionId String?
+//   upstreamEmbedAdInstanceId String?
+//   // plus typed relations and indexes for Page and upstream Advertisement identity
+//
+// Lead
+//   sourceEmbedAdDeploymentId String?
+//   sourceEmbedAdVersionId    String?
+//   sourceEmbedAdInstanceId   String?
+//   sourceEmbedPageDeploymentId String?
+//   sourceEmbedPageVersionId  String?
+//   sourceEmbedPageInstanceId String?
+//   // plus typed relations and indexes; extend SourceType with EMBED_ADVERTISEMENT
+//
+// Existing model inverse fields are also required on Business, LandingPage, Advertisement, and
+// PublishedPageVersion. They are omitted here to keep this draft additive and reviewable.
+//
+// Prisma cannot express the required exactly-one object/version checks. The eventual migration
+// must add database CHECK constraints after Prisma creates the columns, and service tests must
+// still validate that the selected version belongs to the selected object and tenant.

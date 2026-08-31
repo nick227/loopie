@@ -29,7 +29,7 @@ export function TemplatesPage() {
           description="Items will appear here once created."
         />
       ) : (
-        items.map((item: any) => (
+        items.map((item) => (
           <Card key={item.id}>
             <CardContent className="py-4">
               {/* TODO: replace with real fields */}

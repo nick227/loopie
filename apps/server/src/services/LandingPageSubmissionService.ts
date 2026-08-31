@@ -3,6 +3,7 @@ import type { Prisma, SourceType } from '@prisma/client'
 import { resolveContactAndLead } from '../lib/identityResolution'
 import { snapshotForm, isFormLive, type FormSnapshot } from '../lib/formSnapshot'
 import { resolveAttributionSource, sourceTypeForKind } from '../lib/attributionSource'
+import { notifyFormSubmission } from '../lib/submissionInbox'
 
 export class LandingPageSubmissionService {
   async submit(
@@ -46,16 +47,20 @@ export class LandingPageSubmissionService {
       }
     }
 
-    return db.$transaction(async (tx) => {
+    const result = await db.$transaction(async (tx) => {
       const existing = await tx.formSubmission.findFirst({
         where: { landingPageId: page.id, sessionId },
       })
       if (existing?.contactId && existing.leadId) {
+        const contact = await tx.contact.findUnique({ where: { id: existing.contactId } })
+        const lead = await tx.lead.findUnique({ where: { id: existing.leadId } })
         return {
-          submissionId: existing.id,
-          contactId: existing.contactId,
-          leadId: existing.leadId,
+          submission: existing,
+          contact,
+          lead,
+          leadCreated: false,
           successMessage: form.successMessage,
+          adAttribution: null as { name: string; platform: string } | null,
         }
       }
 
@@ -157,12 +162,63 @@ export class LandingPageSubmissionService {
       }
 
       return {
-        submissionId: submission.id,
-        contactId: contact.id,
-        leadId: lead.id,
+        submission,
+        contact,
+        lead,
+        leadCreated,
         successMessage: form.successMessage,
+        adAttribution: attributed?.adRun
+          ? { name: attributed.adRun.advertisement.name, platform: attributed.adRun.platform }
+          : null,
       }
     })
+
+    try {
+      const { ActivityProjectionService } = await import('./activity/ActivityProjectionService')
+      if (result.leadCreated) {
+        await ActivityProjectionService.project(
+          page.businessId,
+          'Lead',
+          result.lead.id,
+          'projectCreated',
+          result.lead,
+          result.contact,
+        )
+      }
+      await ActivityProjectionService.project(
+        page.businessId,
+        'Interaction',
+        result.submission.id,
+        'project',
+        result.submission,
+        form,
+        result.contact,
+      )
+    } catch (err) {
+      console.error('Failed to project landing page submission', err)
+    }
+
+    // FormSnapshot (the frozen `form` above) has no name field — the live Form's own name is only
+    // needed for this one human-readable Inbox sentence, so it's fetched fresh here rather than
+    // added to the immutable snapshot. result.contact is guarded (not just asserted, unlike the
+    // pre-existing accesses below) since tx.contact.findUnique genuinely can return null.
+    if (result.contact) {
+      const liveForm = await db.form.findUnique({ where: { id: form.id }, select: { name: true } })
+      await notifyFormSubmission(
+        page.businessId,
+        { id: result.contact.id, name: result.contact.name },
+        { id: page.id, name: page.name },
+        liveForm?.name ?? 'form',
+        { leadCreated: result.leadCreated, adAttribution: result.adAttribution },
+      )
+    }
+
+    return {
+      submissionId: result.submission.id,
+      contactId: result.contact.id,
+      leadId: result.lead.id,
+      successMessage: result.successMessage,
+    }
   }
 
   async recordFormStart(landingPageId: string) {

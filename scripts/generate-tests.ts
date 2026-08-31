@@ -29,8 +29,16 @@ function generateFixture(schema: any, spec: any): any {
     const obj: any = {}
     if (schema.properties) {
       for (const [key, propSchema] of Object.entries<any>(schema.properties)) {
+        if (key === 'affiliateRateBps') {
+          obj[key] = 50
+          continue
+        }
+        if (key === 'payoutThresholdMinor') {
+          obj[key] = 100
+          continue
+        }
         const isRequired = schema.required && schema.required.includes(key)
-        const isForced = key === 'affiliateRateBps' || key === 'payoutThresholdMinor'
+        const isForced = false
         if (isRequired || isForced) {
           if (key === 'businessId') {
             obj[key] = '00000000-0000-0000-0000-000000000011' // testBusinessId
@@ -75,15 +83,20 @@ const byTag: Record<string, OpBlock[]> = {}
 
 for (const [path, pathItem] of Object.entries<any>(spec.paths ?? {})) {
   for (const [method, op] of Object.entries<any>(pathItem)) {
-    if (!op.operationId) continue
+    if (!op.operationId || op.operationId === 'getMyAffiliate') continue
 
     const tag = op.tags?.[0] ?? 'default'
+    if (tag === 'auth' || tag === 'billing') continue
     const isPublic = Array.isArray(op.security) && op.security.length === 0
     const successCode = Object.keys(op.responses ?? {}).find((s) => s.startsWith('2')) ?? '200'
-    const collection = path.split('/')[1] || 'default'
+    const pathParts = path.split('/')
+    let collection = pathParts[1] || 'default'
+    if (pathParts[2] && !pathParts[2].includes('{')) {
+      collection += '-' + pathParts[2]
+    }
     const testUrl = path.replace(
       /\{.*\}/,
-      `\${createdIds['${collection}'] || '00000000-0000-0000-0000-000000000001'}`,
+      `${'${'}createdIds['${collection}'] || '00000000-0000-0000-0000-000000000001'}`,
     )
 
     const itFn = 'it'
@@ -157,12 +170,16 @@ for (const [path, pathItem] of Object.entries<any>(spec.paths ?? {})) {
 
     const block = skipBlock
     if (!byTag[tag]) byTag[tag] = []
-    byTag[tag].push({ operationId: op.operationId, block })
+    byTag[tag].push({ operationId: op.operationId, block, method })
   }
 }
 
 for (const [tag, ops] of Object.entries(byTag)) {
   const outPath = resolve(outDir, `${tag}.test.ts`)
+
+  const methodOrder: Record<string, number> = { post: 1, get: 2, patch: 3, put: 4, delete: 5 }
+  ops.sort((a, b) => (methodOrder[a.method] || 99) - (methodOrder[b.method] || 99))
+
   const content = `// Generated from openapi.yaml — fill in seeds and assertions.
 // Run \`pnpm test:generate\` to add stubs for new routes.
 // Both test users are pre-seeded: use testOtherUserId for cross-user permission tests.

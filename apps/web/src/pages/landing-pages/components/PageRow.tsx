@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import type { components } from '@project/sdk'
-import { Card, CardContent } from '@/components/ui/Card'
+import { UniversalRow } from '@/components/ui/UniversalRow'
+import { relativeTime } from '@/components/home/homeFormat'
 import { LayoutTemplate } from 'lucide-react'
 
 type LandingPage = components['schemas']['LandingPage']
@@ -12,7 +12,24 @@ const STATUS: Record<string, string> = {
   ARCHIVED: 'Archived',
 }
 
-function thumbUrl(content: LandingPage['content']): string | null {
+// Same tint-pair status-pill convention as AdRow — a live page is a success state, everything
+// else stays neutral rather than claiming a status that hasn't happened.
+const STATUS_STYLE: Record<string, string> = {
+  DRAFT: 'bg-muted text-muted-foreground',
+  PUBLISHED: 'bg-success/10 text-success',
+  ARCHIVED: 'bg-muted text-muted-foreground',
+}
+
+// The row's one headline number (docs/strategy/03-product-principles.md's Collection grammar):
+// the real outcome (submissionCount — completed submissions, not formStartCount's funnel-top
+// count of abandoned attempts too, same distinction the Inbox Running card already draws).
+// Everything else that used to be crammed into this one string now gets its own meta pill below,
+// so a glance at the row surfaces more, not less.
+function rowSubtitle(page: LandingPage): string {
+  return `${page.submissionCount.toLocaleString()} submission${page.submissionCount === 1 ? '' : 's'}`
+}
+
+export function thumbUrl(content: LandingPage['content']): string | null {
   const sections = content.sections
   if (!sections || typeof sections !== 'object' || Array.isArray(sections)) return null
   for (const key of ['image', 'split'] as const) {
@@ -27,58 +44,53 @@ function thumbUrl(content: LandingPage['content']): string | null {
 export function PageRow({ page }: { page: LandingPage }) {
   const [broken, setBroken] = useState(false)
   const src = thumbUrl(page.content)
-  const editor = `/landing-pages/${page.id}`
 
   return (
-    <Card className="overflow-hidden border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-      <CardContent className="flex flex-col items-stretch p-0 sm:flex-row">
-        <div className="flex min-h-[120px] w-full shrink-0 items-center justify-center overflow-hidden border-r border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 sm:w-48">
-          {src && !broken ? (
-            <img
-              src={src}
-              alt=""
-              className="h-full min-h-[120px] w-full object-cover"
-              onError={() => setBroken(true)}
-            />
-          ) : (
-            <div className="flex flex-col items-center gap-2 text-zinc-400">
-              <LayoutTemplate size={24} />
-              <span className="text-[10px] font-semibold uppercase tracking-wider">No image</span>
-            </div>
-          )}
-        </div>
-        <div className="flex flex-1 flex-col justify-between p-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <Link to={editor} className="hover:underline">
-                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
-                  {page.name}
-                </h3>
-              </Link>
-              <div className="mt-1.5 flex items-center gap-2">
-                <span className="inline-flex items-center rounded bg-zinc-100 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-                  {STATUS[page.status] ?? page.status}
-                </span>
-                {page.status === 'PUBLISHED' ? (
-                  <span className="truncate text-xs text-zinc-500">/p/{page.slug}</span>
-                ) : null}
-              </div>
-            </div>
-            <Link
-              to={editor}
-              className="inline-flex h-8 items-center rounded-lg px-3 text-xs font-medium text-zinc-500 hover:bg-accent hover:text-zinc-900"
-            >
-              Edit
-            </Link>
+    <UniversalRow
+      density="featured"
+      href={`/landing-pages/${page.id}`}
+      state={{ from: 'Pages', fromTo: '/landing-pages' }}
+      leading={
+        src && !broken ? (
+          <img
+            src={src}
+            alt=""
+            className="h-full w-full object-cover"
+            onError={() => setBroken(true)}
+          />
+        ) : (
+          <div className="grid h-full w-full place-items-center text-muted-foreground">
+            <LayoutTemplate size={22} />
           </div>
-          <p className="mt-4 text-xs text-zinc-500">
-            {page.formStartCount.toLocaleString()} form starts
-            {page.adSlotCount
-              ? ` · ${page.adSlotCount} ad space${page.adSlotCount === 1 ? '' : 's'}`
-              : ''}
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+        )
+      }
+      title={page.name}
+      subtitle={rowSubtitle(page)}
+      meta={
+        <>
+          <span
+            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider ${STATUS_STYLE[page.status] ?? 'bg-muted text-muted-foreground'}`}
+          >
+            {STATUS[page.status] ?? page.status}
+          </span>
+          {page.status === 'PUBLISHED' ? (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              /p/{page.slug}
+            </span>
+          ) : null}
+          {page.formStartCount > 0 ? (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              {Math.round((page.submissionCount / page.formStartCount) * 100)}% conversion
+            </span>
+          ) : null}
+          {page.adSlotCount ? (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              {page.adSlotCount} ad space{page.adSlotCount === 1 ? '' : 's'}
+            </span>
+          ) : null}
+        </>
+      }
+      trailing={`Created ${relativeTime(page.createdAt)}`}
+    />
   )
 }

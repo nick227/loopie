@@ -1,45 +1,44 @@
 import { z } from 'zod'
 import type { FieldConfig } from '@/components/ui/Form'
 
-export const messageBaseSchema = z.object({
-  channel: z.enum(['EMAIL', 'TEXT', 'SOCIAL']),
-  subject: z.string().optional().or(z.literal('')),
-  body: z.string().min(1),
-  audienceId: z.string(),
-  templateId: z.string().optional().or(z.literal('')),
-  automationId: z.string().optional().or(z.literal('')),
-  scheduledAt: z.string().optional().or(z.literal('')),
+export const messageBaseSchema = z.discriminatedUnion('channel', [
+  z.object({
+    channel: z.literal('EMAIL'),
+    subject: z.string().min(1, 'Subject is required'),
+    body: z.string().min(1, 'Body is required'),
+    templateId: z.string().optional(),
+    contactIds: z.array(z.string()).default([]),
+    audienceIds: z.array(z.string()).default([]),
+    rawEmails: z.array(z.string().email()).default([]),
+    testEmail: z.string().email().optional().or(z.literal('')),
+  }),
+  z.object({
+    channel: z.literal('SMS'),
+    body: z.string().min(1, 'Body is required').max(160, 'SMS must be 160 characters or less'),
+    contactIds: z.array(z.string()).default([]),
+    audienceIds: z.array(z.string()).default([]),
+    rawEmails: z.array(z.string().email()).default([]),
+  }),
+  z.object({
+    channel: z.literal('SOCIAL'),
+    body: z.string().min(1, 'Caption is required'),
+    mediaUrls: z.array(z.string()).default([]), // For POC
+    platforms: z.array(z.string()).default([]),
+    contactIds: z.array(z.string()).default([]),
+    audienceIds: z.array(z.string()).default([]),
+    rawEmails: z.array(z.string().email()).default([]),
+  }),
+])
+
+export type MessageFormData = z.infer<typeof messageBaseSchema>
+
+export const messageUpdateSchema = z.object({
+  subject: z.string().optional(),
+  body: z.string().min(1, 'Body is required'),
+  audienceId: z.string().optional(),
 })
 
-export const messageUpdateSchema = messageBaseSchema
-  .pick({
-    subject: true,
-    body: true,
-    audienceId: true,
-    scheduledAt: true,
-  })
-  .partial()
-
-export const messageFields: FieldConfig[] = [
-  {
-    name: 'channel',
-    label: 'Channel',
-    type: 'select',
-    voice: false,
-    required: true,
-    options: ['EMAIL', 'TEXT', 'SOCIAL'],
-  },
-  { name: 'subject', label: 'Subject', type: 'text', voice: false, required: false },
-  { name: 'body', label: 'Body', type: 'textarea', voice: true, required: true, rows: 4 },
-  { name: 'audienceId', label: 'Audience Id', type: 'text', voice: false, required: true },
-  { name: 'templateId', label: 'Template Id', type: 'text', voice: false, required: false },
-  { name: 'automationId', label: 'Automation Id', type: 'text', voice: false, required: false },
-  { name: 'scheduledAt', label: 'Scheduled At', type: 'text', voice: false, required: false },
-]
-
-export const messageUpdateFields: FieldConfig[] = [
-  { name: 'subject', label: 'Subject', type: 'text', voice: false, required: false },
-  { name: 'body', label: 'Body', type: 'textarea', voice: true, required: false, rows: 4 },
-  { name: 'audienceId', label: 'Audience Id', type: 'text', voice: false, required: false },
-  { name: 'scheduledAt', label: 'Scheduled At', type: 'text', voice: false, required: false },
+export const messageUpdateFields: FieldConfig<z.infer<typeof messageUpdateSchema>>[] = [
+  { name: 'subject', label: 'Subject', type: 'text' },
+  { name: 'body', label: 'Body', type: 'textarea' },
 ]

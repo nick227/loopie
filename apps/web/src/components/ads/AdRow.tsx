@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Image } from 'lucide-react'
+import { ExternalLink, Image, LayoutTemplate } from 'lucide-react'
 import type { components } from '@project/sdk'
-import { Card, CardContent } from '@/components/ui/Card'
+import { UniversalRow } from '@/components/ui/UniversalRow'
+import { relativeTime } from '@/components/home/homeFormat'
 import { mediaSrc } from '@/lib/media'
 
 type Advertisement = components['schemas']['Advertisement']
@@ -25,91 +25,123 @@ const STATUS: Record<string, string> = {
   FAILED: 'Failed',
 }
 
+// Tint-pair status pill, keyed to the same semantic tokens as everywhere else — a running ad is a
+// positive/success state, a failure is destructive, a pause is worth a second look (warning);
+// draft/ready are pre-launch and stay neutral rather than claiming a status that hasn't happened.
+const STATUS_STYLE: Record<string, string> = {
+  DRAFT: 'bg-muted text-muted-foreground',
+  READY: 'bg-muted text-muted-foreground',
+  RUNNING: 'bg-success/10 text-success',
+  PAUSED: 'bg-warning/10 text-warning',
+  FAILED: 'bg-destructive/10 text-destructive',
+}
+
 function money(value: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
 }
 
-function mediaLine(asset: Asset | undefined) {
-  if (!asset) return 'No media'
-  const size = asset.widthPx && asset.heightPx ? `${asset.widthPx}×${asset.heightPx}` : null
-  return [asset.type, size, asset.aspectRatio].filter(Boolean).join(' · ')
-}
-
+// One useful performance line, not a dashboard row — same discipline as PageRow's
+// submissions/conversion line. Spend and results (LOOPIE's own attribution outcome, the same
+// tier PaidRunRow elevates above platform-reported metrics — docs/strategy/03-product-
+// principles.md's Ownership Rule) are the two decision-relevant numbers once money has moved;
+// views/clicks stay on the entity's own per-run monitoring, not repeated here. Where this runs
+// (Pages vs. external platforms) moves to the row's meta line as its own badges, see
+// DestinationBadge below.
 function buyLine(ad: AdListItem) {
-  const parts: string[] = []
-  if (ad.destinations?.length) parts.push(ad.destinations.join(', '))
-  if (ad.dailyBudget) parts.push(`${money(ad.dailyBudget)}`)
-  if (ad.spend) parts.push(`${money(ad.spend)} spent`)
-  if (ad.impressions) parts.push(`${ad.impressions.toLocaleString()} views`)
-  if (ad.clicks) parts.push(`${ad.clicks.toLocaleString()} clicks`)
-  if (ad.conversions) parts.push(`${ad.conversions.toLocaleString()} results`)
-  return parts.join(' · ') || 'No buys yet'
+  if (ad.spend) {
+    const parts = [`${money(ad.spend)} spent`]
+    if (ad.conversions)
+      parts.push(`${ad.conversions.toLocaleString()} result${ad.conversions === 1 ? '' : 's'}`)
+    return parts.join(' · ')
+  }
+  if (ad.dailyBudget) return `${money(ad.dailyBudget)}/day budget`
+  return 'No buys yet'
 }
 
+// Distinguishes LOOPIE-owned delivery (served through a Page's own ad slot — see
+// advertisementSummary.ts's runLabel, which already labels a LOOPIE run "Pages") from a
+// connected external platform, without splitting them into two visually separate lists — both
+// render as the same pill shape, inline together, differing only in icon/tint. Matches the
+// Ownership Rule's "LOOPIE owns what it creates directly, connects to what other platforms own"
+// distinction (docs/strategy/03-product-principles.md) at row level.
+function DestinationBadge({ label }: { label: string }) {
+  const owned = label === 'Pages'
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+        owned ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
+      }`}
+    >
+      {owned ? <LayoutTemplate size={10} /> : <ExternalLink size={10} />}
+      {label}
+    </span>
+  )
+}
+
+// Sized and clipped by UniversalRow's leading container — fills it, never dictates its own size.
 function Thumb({ asset }: { asset: Asset | undefined }) {
   const [broken, setBroken] = useState(false)
   const src = mediaSrc(asset?.url)
 
   if (src && !broken) {
     if (asset?.type === 'VIDEO') {
-      return (
-        <video src={src} className="h-full min-h-[120px] w-full object-cover" muted playsInline />
-      )
+      return <video src={src} className="h-full w-full object-cover" muted playsInline />
     }
     return (
       <img
         src={src}
         alt=""
-        className="h-full min-h-[120px] w-full object-cover"
+        className="h-full w-full object-cover"
         onError={() => setBroken(true)}
       />
     )
   }
 
   return (
-    <div className="flex flex-col items-center gap-2 text-zinc-400">
-      <Image size={24} />
-      <span className="text-[10px] font-semibold uppercase tracking-wider">No media</span>
+    <div className="grid h-full w-full place-items-center text-muted-foreground">
+      <Image size={22} />
     </div>
   )
 }
 
 export function AdRow({ ad }: { ad: AdListItem }) {
   const visual = ad.assets?.find((asset) => asset.type === 'IMAGE' || asset.type === 'VIDEO')
-  const editor = `/ads/${ad.id}`
   const status = ad.status ?? 'DRAFT'
+  const impressions = ad.impressions ?? 0
+  const clicks = ad.clicks ?? 0
+  const ctr = impressions > 0 ? ((clicks / impressions) * 100).toFixed(1) : null
 
   return (
-    <Card className="overflow-hidden border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-      <CardContent className="flex flex-col items-stretch p-0 sm:flex-row">
-        <div className="flex min-h-[120px] w-full shrink-0 items-center justify-center overflow-hidden border-r border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 sm:w-48">
-          <Thumb asset={visual} />
-        </div>
-        <div className="flex flex-1 flex-col justify-between p-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <Link to={editor} className="hover:underline">
-                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
-                  {ad.name}
-                </h3>
-              </Link>
-              <div className="mt-1.5 flex items-center gap-2">
-                <span className="inline-flex items-center rounded bg-zinc-100 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-                  {STATUS[status] ?? status}
-                </span>
-                <span className="truncate text-xs text-zinc-500">{mediaLine(visual)}</span>
-              </div>
-            </div>
-            <Link
-              to={editor}
-              className="inline-flex h-8 items-center rounded-lg px-3 text-xs font-medium text-zinc-500 hover:bg-accent hover:text-zinc-900"
-            >
-              Edit
-            </Link>
-          </div>
-          <p className="mt-4 text-xs text-zinc-500">{buyLine(ad)}</p>
-        </div>
-      </CardContent>
-    </Card>
+    <UniversalRow
+      density="featured"
+      href={`/ads/${ad.id}`}
+      state={{ from: 'Advertising', fromTo: '/ads' }}
+      leading={<Thumb asset={visual} />}
+      title={ad.name}
+      subtitle={buyLine(ad)}
+      meta={
+        <>
+          <span
+            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider ${STATUS_STYLE[status] ?? 'bg-muted text-muted-foreground'}`}
+          >
+            {STATUS[status] ?? status}
+          </span>
+          {ad.destinations?.map((label) => (
+            <DestinationBadge key={label} label={label} />
+          ))}
+          {impressions > 0 ? (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              {impressions.toLocaleString()} impressions
+            </span>
+          ) : null}
+          {ctr !== null ? (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              {ctr}% CTR
+            </span>
+          ) : null}
+        </>
+      }
+      trailing={`Updated ${relativeTime(ad.updatedAt)}`}
+    />
   )
 }

@@ -10,29 +10,45 @@ export class LandingPageAdSlotService {
       throw { statusCode: 400, message: `A page can have at most ${MAX_AD_SLOTS} ad spaces` }
     }
     await pages.get(businessId, landingPageId)
-    const adUnitIds = slots.map((slot) => slot.adUnitId).filter((id): id is string => Boolean(id))
-    if (adUnitIds.length) {
-      const found = await db.adUnit.findMany({
-        where: { id: { in: adUnitIds }, businessId },
+
+    const adRunIds = slots.flatMap((s) => s.adRunIds || [])
+    if (adRunIds.length) {
+      // Validate that all adRunIds exist and belong to the business's advertisements
+      const found = await db.adRun.findMany({
+        where: { id: { in: adRunIds }, advertisement: { businessId } },
         select: { id: true },
       })
-      if (found.length !== new Set(adUnitIds).size) {
-        throw { statusCode: 404, message: 'Ad unit not found' }
+      if (found.length !== new Set(adRunIds).size) {
+        throw { statusCode: 404, message: 'Ad run not found or unauthorized' }
       }
     }
+
     await db.$transaction(async (tx) => {
+      // Cascade delete on relations handles assignments automatically, but we can be explicit
       await tx.landingPageAdSlot.deleteMany({ where: { landingPageId } })
-      if (slots.length) {
-        await tx.landingPageAdSlot.createMany({
-          data: slots.map((slot, sortOrder) => ({
+
+      for (let sortOrder = 0; sortOrder < slots.length; sortOrder++) {
+        const slot = slots[sortOrder]
+        const createdSlot = await tx.landingPageAdSlot.create({
+          data: {
             landingPageId,
             sortOrder,
             placement: asPlacement(slot.placement),
-            adUnitId: slot.adUnitId,
-          })),
+          },
         })
+
+        if (slot.adRunIds?.length) {
+          await tx.landingPageAdSlotAssignment.createMany({
+            data: slot.adRunIds.map((adRunId) => ({
+              slotId: createdSlot.id,
+              adRunId,
+              weight: 1,
+            })),
+          })
+        }
       }
     })
+
     return pages.get(businessId, landingPageId)
   }
 }

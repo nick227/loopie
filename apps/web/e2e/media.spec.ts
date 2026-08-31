@@ -61,7 +61,7 @@ test.describe('media library', () => {
     await expect(page.locator('section').filter({ hasText: 'Used in' })).toContainText('1 ad')
   })
 
-  test('picker fills a phone screen', async ({ page }) => {
+  test('picker opens as a phone sheet with visible backdrop', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await loginAs(page)
     await page.goto('/ads/new')
@@ -72,7 +72,8 @@ test.describe('media library', () => {
     await expect(page.getByRole('button', { name: 'Use selected' })).toBeVisible()
     const box = await dialog.boundingBox()
     const viewport = page.viewportSize()
-    expect(box?.y ?? 1).toBeLessThan(8)
+    expect(box?.y ?? 0).toBeGreaterThan(24)
+    expect(box?.y ?? 100).toBeLessThan(80)
     expect(box?.height ?? 0).toBeGreaterThan((viewport?.height ?? 0) * 0.9)
   })
 })

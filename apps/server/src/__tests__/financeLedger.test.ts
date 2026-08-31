@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { db } from '@project/db'
-import { buildTestApp, asAuth, testUserId, testOtherUserId, testBusinessId, testOtherBusinessId } from './helpers'
+import {
+  buildTestApp,
+  asAuth,
+  testUserId,
+  testOtherUserId,
+  testBusinessId,
+  testOtherBusinessId,
+} from './helpers'
 import { FinanceService } from '../services/FinanceService'
 import { ensureChartOfAccounts } from '../lib/finance/accounts'
 import { postLedger, transactionBalance } from '../lib/finance/ledger'
@@ -36,7 +43,12 @@ describe('money & ledger MVP', () => {
       method: 'POST',
       url: '/finance/funding',
       headers: asAuth(testUserId),
-      payload: { amountMinor: 100000, currency: 'USD', idempotencyKey: 'fund-1000', externalRef: 'pi_1000' },
+      payload: {
+        amountMinor: 100000,
+        currency: 'USD',
+        idempotencyKey: 'fund-1000',
+        externalRef: 'pi_1000',
+      },
     })
     expect(fundRes.statusCode).toBe(201)
 
@@ -96,7 +108,13 @@ describe('money & ledger MVP', () => {
       method: 'POST',
       url: '/finance/fees',
       headers: asAuth(testUserId),
-      payload: { amountMinor: 1500, currency: 'USD', idempotencyKey: 'fee-15', description: 'management fee' },
+      payload: {
+        amountMinor: 1500,
+        currency: 'USD',
+        idempotencyKey: 'fee-15',
+        description: 'management fee',
+        campaignId: campaign.id,
+      },
     })
     expect(feeRes.statusCode).toBe(201)
 
@@ -104,7 +122,12 @@ describe('money & ledger MVP', () => {
       method: 'POST',
       url: '/finance/credits',
       headers: asAuth(testUserId),
-      payload: { amountMinor: 2500, currency: 'USD', idempotencyKey: 'credit-25', reason: 'courtesy credit' },
+      payload: {
+        amountMinor: 2500,
+        currency: 'USD',
+        idempotencyKey: 'credit-25',
+        reason: 'courtesy credit',
+      },
     })
     expect(creditRes.statusCode).toBe(201)
 
@@ -112,7 +135,12 @@ describe('money & ledger MVP', () => {
       method: 'POST',
       url: '/finance/commissions',
       headers: asAuth(testUserId),
-      payload: { amountMinor: 4000, currency: 'USD', payeeRef: 'affiliate-1', idempotencyKey: 'comm-40' },
+      payload: {
+        amountMinor: 4000,
+        currency: 'USD',
+        payeeRef: 'affiliate-1',
+        idempotencyKey: 'comm-40',
+      },
     })
     expect(commissionRes.statusCode).toBe(201)
     expect(commissionRes.json().data.status).toBe('PENDING')
@@ -131,7 +159,11 @@ describe('money & ledger MVP', () => {
       method: 'POST',
       url: '/finance/payouts',
       headers: asAuth(testUserId),
-      payload: { commissionIds: [commissionId], payeeRef: 'affiliate-1', idempotencyKey: 'payout-40' },
+      payload: {
+        commissionIds: [commissionId],
+        payeeRef: 'affiliate-1',
+        idempotencyKey: 'payout-40',
+      },
     })
     expect(payoutRes.statusCode).toBe(201)
 
@@ -161,13 +193,16 @@ describe('money & ledger MVP', () => {
       const credit = entries
         .filter((row) => row.accountId === account.id && row.direction === 'CREDIT')
         .reduce((sum, row) => sum + row.amountMinor, 0)
-      reconstructed[account.kind] = account.kind === 'LOOPIE_CASH' || account.kind === 'PROCESSOR_CLEARING' || account.kind === 'REFUNDS_CREDITS'
-        ? debit - credit
-        : credit - debit
+      reconstructed[account.kind] =
+        account.kind === 'LOOPIE_CASH' ||
+        account.kind === 'PROCESSOR_CLEARING' ||
+        account.kind === 'REFUNDS_CREDITS'
+          ? debit - credit
+          : credit - debit
     }
     expect(fromApi).toEqual(reconstructed)
-    expect(fromApi.CLIENT_AD_FUNDS).toBe(21000)
-    expect(fromApi.CLIENT_FUNDS_RESERVED).toBe(67463)
+    expect(fromApi.CLIENT_AD_FUNDS).toBe(22500)
+    expect(fromApi.CLIENT_FUNDS_RESERVED).toBe(65963)
     expect(fromApi.LOOPIE_CASH).toBe(83463)
     expect(fromApi.AD_PLATFORM_CLEARING).toBe(0)
     expect(fromApi.AFFILIATE_PAYABLE).toBe(0)
@@ -183,10 +218,10 @@ describe('money & ledger MVP', () => {
     const funding = fundingRes.json().data
     expect(funding.planningBudget).toBe(800)
     expect(funding.authorizedAmountMinor).toBe(80000)
-    expect(funding.reservedAmountMinor).toBe(67463)
+    expect(funding.reservedAmountMinor).toBe(65963)
     expect(funding.platformReportedAmountMinor).toBe(12537)
     expect(funding.settledAmountMinor).toBe(12537)
-    expect(funding.clientAvailableAmountMinor).toBe(21000)
+    expect(funding.clientAvailableAmountMinor).toBe(22500)
   })
 
   it('rejects duplicate idempotency keys without double-crediting', async () => {
@@ -232,7 +267,10 @@ describe('money & ledger MVP', () => {
     expect(bobGet.statusCode).toBe(404)
 
     await expect(
-      finance.reverseTransaction(testOtherBusinessId, { transactionId: aliceTxId, idempotencyKey: 'bob-reverse' }),
+      finance.reverseTransaction(testOtherBusinessId, {
+        transactionId: aliceTxId,
+        idempotencyKey: 'bob-reverse',
+      }),
     ).rejects.toMatchObject({ statusCode: 404 })
   })
 
@@ -296,7 +334,9 @@ describe('money & ledger MVP', () => {
     })
     const still = await db.ledgerEntry.findMany({ where: { transactionId: original.id } })
     expect(still).toHaveLength(original.entries.length)
-    expect(still.map((row) => row.amountMinor)).toEqual(original.entries.map((row) => row.amountMinor))
+    expect(still.map((row) => row.amountMinor)).toEqual(
+      original.entries.map((row) => row.amountMinor),
+    )
     expect(transactionBalance(reversal.entries)).toBe(0)
     expect(reversal.reversesTransactionId).toBe(original.id)
   })

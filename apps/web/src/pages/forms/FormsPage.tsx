@@ -35,7 +35,7 @@ export function FormsPage() {
           hasNextPage={!!hasNextPage}
           isFetchingNextPage={isFetchingNextPage}
           fetchNextPage={fetchNextPage}
-          renderItem={(item: any) => (
+          renderItem={(item) => (
             <Card key={item.id}>
               <CardContent className="py-4">
                 {/* TODO: replace with real fields */}

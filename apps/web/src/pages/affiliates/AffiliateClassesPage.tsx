@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card, CardContent } from '@/components/ui/Card'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { AffiliateNav } from '@/components/affiliates/AffiliateNav'
 import { SELECT_CLASS } from '@/components/affiliates/DestinationPicker'
@@ -43,11 +44,12 @@ export function AffiliateClassesPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Classes & Deals</h1>
-      <AffiliateNav />
-      <p className="text-sm text-muted-foreground">
-        Named packages. Setting a default is explicit — creating a deal does not change it.
-      </p>
+      <PageHeader variant="list" title="Classes & Deals">
+        <AffiliateNav />
+        <p className="text-sm text-muted-foreground">
+          Named packages. Setting a default is explicit — creating a deal does not change it.
+        </p>
+      </PageHeader>
       <NewClassForm />
       <NewDealForm classes={classes} />
       {classes.map((cls) => (

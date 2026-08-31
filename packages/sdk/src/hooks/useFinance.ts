@@ -117,7 +117,7 @@ export function useApplyFinanceCredit() {
 export function useIssueFinanceRefund() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (body: MoneyBody & { paymentId?: string; reason?: string }) => {
+    mutationFn: async (body: MoneyBody & { paymentId: string; reason?: string }) => {
       const client = getApiClient()
       const result = await client.POST('/finance/refunds', { body })
       const err = result.error
@@ -133,7 +133,14 @@ export function useIssueFinanceRefund() {
 export function useReverseLedgerTransaction() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ transactionId, ...body }: { transactionId: string; idempotencyKey: string; reason?: string }) => {
+    mutationFn: async ({
+      transactionId,
+      ...body
+    }: {
+      transactionId: string
+      idempotencyKey: string
+      reason?: string
+    }) => {
       const client = getApiClient()
       const result = await client.POST('/finance/transactions/{transactionId}/reverse', {
         params: { path: { transactionId } },

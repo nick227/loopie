@@ -1,45 +1,13 @@
 import { db } from '@project/db'
 import { ACTIVE_SALE_WHERE } from '../lib/salePredicates'
+import { buildHomeOverview } from './homeOverview'
 
 export class DashboardService {
   // Operational, "what needs me today" — the training pack's Start of Day checklist
   // (docs/02-daily-account-operations.md), made into the landing screen per
   // docs/00-unified-ia-navigation.md.
-  async home(businessId: string) {
-    const [newLeads, followUpsDue, failedSends, unansweredReplies, automationErrors] =
-      await Promise.all([
-        db.lead.count({ where: { businessId, stage: 'NEW' } }),
-        // Real due-today count now that AutomationExecutorService's poller exists — pending runs
-        // whose runAt has arrived, not just a count of active rules (see the "FIXED" note this
-        // replaced in CLAUDE.md).
-        db.automationRun.count({
-          where: { status: 'PENDING', runAt: { lte: new Date() }, automation: { businessId } },
-        }),
-        db.message.count({ where: { businessId, status: 'FAILED' } }),
-        // "Unanswered" approximates as replies in the last 7 days — a precise definition needs
-        // to check for a later outbound interaction on the same contact, not yet computed here.
-        db.interaction.count({
-          where: {
-            businessId,
-            type: 'REPLY',
-            occurredAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-          },
-        }),
-        db.automationLog.count({
-          where: {
-            outcome: 'FAILED',
-            automation: { businessId },
-            triggeredAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
-          },
-        }),
-      ])
-    return {
-      newLeads,
-      unansweredReplies,
-      followUpsDue,
-      failedSends,
-      automationErrors,
-    }
+  async home(businessId: string, utcOffsetMinutes = 0) {
+    return buildHomeOverview(businessId, utcOffsetMinutes)
   }
 
   // Retrospective, blended funnel across Advertising spend and organic Messages —

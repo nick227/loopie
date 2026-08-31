@@ -84,8 +84,8 @@ export function MediaPicker({
                   onClick={() => setType(row.value)}
                   className={`shrink-0 rounded-md px-3 min-h-11 text-sm sm:min-h-0 sm:px-2.5 sm:py-1.5 sm:text-xs ${
                     type === row.value
-                      ? 'bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-900'
-                      : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100'
+                      ? 'bg-foreground text-background'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   {row.label}

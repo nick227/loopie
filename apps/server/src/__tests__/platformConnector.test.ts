@@ -36,7 +36,11 @@ function mockGraph() {
       return json({ access_token: 'RAW_TOKEN', expires_in: 3600 })
     }
     if (url.includes('/me/adaccounts')) {
-      return json({ data: [{ id: 'act_1', name: 'Acme Ads' }] })
+      return json({
+        data: [
+          { id: 'act_1', name: 'Acme Ads', currency: 'USD', timezone_name: 'America/Chicago' },
+        ],
+      })
     }
     if (url.includes('/me/accounts')) {
       return json({ data: [{ id: 'page_1', name: 'Acme Page' }] })
@@ -178,6 +182,43 @@ describe('platform connectors', () => {
     expect(row.accessTokenEnc).not.toContain('RAW_TOKEN')
     expect(unsealToken(row.accessTokenEnc)).toBe('RAW_TOKEN')
     expect(row.status).toBe('INCOMPLETE')
+  })
+
+  it('selecting an ad account fetches and persists its real name/currency/timezone', async () => {
+    enableMeta()
+    mockGraph()
+    await db.platformConnection.create({
+      data: {
+        businessId: testBusinessId,
+        platform: 'META',
+        accessTokenEnc: sealToken('RAW_TOKEN'),
+        status: 'INCOMPLETE',
+      },
+    })
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/platforms/META',
+      headers: asAuth(testUserId),
+      payload: { adAccountId: 'act_1' },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().data.accountName).toBe('Acme Ads')
+    expect(res.json().data.currency).toBe('USD')
+    expect(res.json().data.timezone).toBe('America/Chicago')
+
+    // Re-sending the same adAccountId (a no-op PATCH, e.g. also setting pageId) must not refetch —
+    // the identity is only re-resolved on a genuine account change.
+    const calls = mockGraph()
+    const again = await app.inject({
+      method: 'PATCH',
+      url: '/platforms/META',
+      headers: asAuth(testUserId),
+      payload: { adAccountId: 'act_1', pageId: 'page_1' },
+    })
+    expect(again.statusCode).toBe(200)
+    expect(again.json().data.accountName).toBe('Acme Ads')
+    expect(calls.some((call) => call.url.includes('/me/adaccounts'))).toBe(false)
   })
 
   it('rejects push without a mapped Page; writes external ids as PENDING; second push is a no-op', async () => {

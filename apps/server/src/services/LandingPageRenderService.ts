@@ -4,6 +4,7 @@ import { renderLandingPageHtml } from '../lib/renderLandingPage'
 import { snapshotSlots, type AdSlotSnapshotItem } from '../lib/adSlots'
 import { snapshotForm, isFormLive, type FormSnapshot } from '../lib/formSnapshot'
 import { withResolvedMedia } from '../lib/pageMedia'
+import { notifyKnownContactPageView } from '../lib/pageViewInbox'
 
 export class LandingPageRenderService {
   async serve(
@@ -36,6 +37,11 @@ export class LandingPageRenderService {
         utmCampaign: opts.utmCampaign,
       },
     })
+    // Deliberately not awaited — this is the public hosted-page render, a hot path; resolving
+    // "is this session a known contact" and posting an Inbox message must never add latency to a
+    // real visitor's page load. The function has its own try/catch, so an unhandled rejection
+    // here isn't possible.
+    void notifyKnownContactPageView(page.businessId, visitor.sessionId, page.id, page.name)
 
     // Same fallback as LandingPageSubmissionService.submit: a PublishedPageVersion that predates
     // the formSnapshot column (or any future row where the snapshot write failed) must still
@@ -50,6 +56,7 @@ export class LandingPageRenderService {
       snapshotSlots(
         await db.landingPageAdSlot.findMany({
           where: { landingPageId: page.id },
+          include: { assignments: true },
           orderBy: { sortOrder: 'asc' },
         }),
       )

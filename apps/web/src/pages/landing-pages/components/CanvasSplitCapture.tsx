@@ -6,6 +6,7 @@ export function CanvasSplitCapture({
   headline,
   assetId,
   imageUrl,
+  hasForm,
   formFields,
   submitLabel,
   onHeadline,
@@ -15,6 +16,7 @@ export function CanvasSplitCapture({
   headline: string
   assetId: string | undefined
   imageUrl: string | undefined
+  hasForm: boolean
   formFields: FormFieldDraft[]
   submitLabel: string
   onHeadline: (headline: string) => void
@@ -46,30 +48,38 @@ export function CanvasSplitCapture({
           className="mb-6 text-[1.7rem] font-semibold leading-snug"
         />
         <div className="max-w-xs space-y-3">
-          {formFields.map((field) => (
-            <label key={field.fieldKey} className="flex flex-col gap-1 text-sm">
-              {field.label}
-              <input
-                disabled
-                aria-label={field.label}
-                type={field.type === 'EMAIL' ? 'email' : 'text'}
-                className="rounded border px-2.5 py-2"
-                style={{
-                  borderColor: 'color-mix(in srgb, var(--lp-ink) 18%, var(--lp-card))',
-                  backgroundColor: 'var(--lp-bg)',
-                  color: 'var(--lp-ink)',
-                }}
-              />
-            </label>
-          ))}
-          <button
-            type="button"
-            disabled
-            className="rounded-md px-5 py-2.5 text-sm font-medium"
-            style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
-          >
-            {submitLabel}
-          </button>
+          {!hasForm ? (
+            <div className="rounded border border-dashed p-4 text-sm opacity-65">
+              Choose a reusable form above to embed real fields here.
+            </div>
+          ) : (
+            formFields.map((field) => (
+              <label key={field.fieldKey} className="flex flex-col gap-1 text-sm">
+                {field.label}
+                <input
+                  disabled
+                  aria-label={field.label}
+                  type={field.type === 'EMAIL' ? 'email' : 'text'}
+                  className="rounded border px-2.5 py-2"
+                  style={{
+                    borderColor: 'color-mix(in srgb, var(--lp-ink) 18%, var(--lp-card))',
+                    backgroundColor: 'var(--lp-bg)',
+                    color: 'var(--lp-ink)',
+                  }}
+                />
+              </label>
+            ))
+          )}
+          {hasForm ? (
+            <button
+              type="button"
+              disabled
+              className="rounded-md px-5 py-2.5 text-sm font-medium"
+              style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+            >
+              {submitLabel}
+            </button>
+          ) : null}
         </div>
       </div>
     </section>

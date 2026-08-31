@@ -43,10 +43,29 @@ test.describe('ads library', () => {
     await page.getByRole('button', { name: 'Mobile' }).click()
     const mobileBox = await page.getByTestId('ad-preview').boundingBox()
     expect(desktopBox?.height).toBe(mobileBox?.height)
-    await page.getByRole('checkbox', { name: 'Meta Feed' }).check()
-    await page.getByRole('button', { name: 'Start', exact: true }).click()
+    // The demo business has no Meta connection — the preflight must block the send rather than
+    // allow a mysterious pseudo-send, offering to connect Facebook instead of "Send draft".
+    await page.getByRole('checkbox', { name: 'Facebook' }).check()
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await expect(page.getByRole('heading', { name: 'Media order · Facebook' })).toBeVisible()
+    await expect(page.getByText('Get Leads · Lead created')).toBeVisible()
+    // The authorization sentence, generated live from the in-progress order.
+    await expect(page.getByText(/^Spend .* to Get Leads from US on Facebook Feed/)).toBeVisible()
+    await expect(page.getByText('Needs attention')).toBeVisible()
+    await expect(page.getByText('Facebook is not connected')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Connect Facebook' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Send paused draft/ })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Back' }).click()
+    await page.getByRole('checkbox', { name: 'Facebook' }).uncheck()
+
+    // A Page placement is LOOPIE's own delivery — no platform connection, no money modal — and
+    // sends straight from "Put ad on page" on the destination row itself.
+    const pageCheckbox = page.locator('input[type=checkbox]').nth(2)
+    await pageCheckbox.check()
+    await page.getByRole('button', { name: 'Put ad on page' }).click()
     await page.waitForURL(/\/ads\/(?!new$)[^/]+$/)
     await expect(page.getByRole('heading', { name: adName })).toBeVisible()
+    await expect(page.getByText('On this page')).toBeVisible()
     await page.getByRole('button', { name: 'Remove' }).click()
     await expect(page.getByRole('button', { name: 'Choose media' })).toBeVisible()
     await page.getByRole('button', { name: 'Choose media' }).click()
@@ -67,6 +86,6 @@ test.describe('ads library', () => {
     await expect(page.getByRole('button', { name: 'Choose media' })).toHaveCount(0)
 
     await page.goto('/ads')
-    await expect(page.getByRole('link', { name: adName })).toBeVisible()
+    await expect(page.getByRole('heading', { name: adName, exact: true })).toBeVisible()
   })
 })

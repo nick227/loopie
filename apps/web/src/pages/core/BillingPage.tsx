@@ -2,6 +2,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useCreateBillingCheckout, useCreateBillingPortal, useBilling } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
 import {
   billingActionError,
@@ -30,7 +31,7 @@ export function BillingPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Billing</h1>
+      <PageHeader variant="detail" title="Billing" />
       <Card>
         <CardContent className="py-4 space-y-3">
           <p className="text-sm">

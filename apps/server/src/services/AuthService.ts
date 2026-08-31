@@ -11,7 +11,11 @@ type UserWithBusiness = {
   businessId: string
   role: string
   createdAt: Date
-  business: { name: string; subscriptionStatus: string | null }
+  business: {
+    name: string
+    subscriptionStatus: string | null
+    identityCompletedAt: Date | null
+  }
 }
 
 export function toUserDTO(user: UserWithBusiness) {
@@ -22,6 +26,7 @@ export function toUserDTO(user: UserWithBusiness) {
     businessName: user.business.name,
     role: user.role,
     subscriptionStatus: user.business.subscriptionStatus,
+    businessIdentityCompletedAt: user.business.identityCompletedAt?.toISOString() ?? null,
     createdAt: user.createdAt.toISOString(),
   }
 }

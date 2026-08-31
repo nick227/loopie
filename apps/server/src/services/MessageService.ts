@@ -132,6 +132,17 @@ export class MessageService {
     const message = await this._find(businessId, messageId)
     if (message.status === 'SENT') throw { statusCode: 409, message: 'Message already sent' }
 
+    if (message.channel === 'SOCIAL') {
+      const { SocialDeliveryService } = await import('./SocialDeliveryService')
+      const delivery = new SocialDeliveryService()
+      const result = await delivery.publish(message.id, businessId)
+      if (!result.success) {
+        // Mark failed if external delivery fails
+        await db.message.update({ where: { id: messageId }, data: { status: 'FAILED' } })
+        throw { statusCode: 500, message: `Social delivery failed: ${result.reason}` }
+      }
+    }
+
     const audience = await db.audience.findFirst({ where: { id: message.audienceId, businessId } })
     if (!audience) throw { statusCode: 404, message: 'Audience not found' }
 
@@ -149,8 +160,26 @@ export class MessageService {
     }
     const where = eligibilityField ? { ...baseWhere, [eligibilityField]: true } : baseWhere
 
-    const recipients = await db.contact.findMany({ where, select: { id: true } })
+    const recipients = await db.contact.findMany({
+      where,
+      select: { id: true, name: true, email: true },
+    })
     const interactionType = interactionTypeForChannel(message.channel)
+
+    if (message.channel === 'EMAIL' && recipients.length > 0) {
+      const emails = recipients.map((r) => r.email).filter((e): e is string => Boolean(e))
+      const { EmailDeliveryService } = await import('./EmailDeliveryService')
+      const emailDelivery = new EmailDeliveryService()
+      const result = await emailDelivery.publishBatch(message.subject ?? '', message.body, emails)
+
+      if (!result.success) {
+        await db.message.update({ where: { id: messageId }, data: { status: 'FAILED' } })
+        throw {
+          statusCode: 500,
+          message: `Email delivery failed for some or all recipients: ${result.errors[0]}`,
+        }
+      }
+    }
 
     // Atomic: a crash partway through must not leave the interaction/contact writes committed
     // while status stays DRAFT/SCHEDULED — that would make a retry re-send to every recipient
@@ -193,6 +222,27 @@ export class MessageService {
             triggerSourceId: `${message.id}:${r.id}`,
             triggerEventAt: sent.sentAt ?? new Date(),
           }),
+        ),
+      )
+    }
+
+    // Best-effort, non-blocking, outside the transaction — same discipline as
+    // scheduleAutomationRuns above. Ensures each recipient's Inbox thread exists and its
+    // updatedAt reflects this send, so InboxService.list can sort/preview off persisted thread
+    // metadata alone without an N+1 scan of every business's contacts on every list call. Never
+    // writes message content here — InboxService reads that live from this Interaction, joined
+    // back to this Message, on every request (see InboxService's own doc comment for why).
+    // SOCIAL is a broadcast post, not a 1:1 conversation — no thread for it.
+    if (recipients.length && message.channel !== 'SOCIAL') {
+      await Promise.all(
+        recipients.map((r) =>
+          db.inboxThread
+            .upsert({
+              where: { contactId: r.id },
+              update: { updatedAt: new Date() },
+              create: { businessId, type: 'CONTACT', contactId: r.id, subject: r.name },
+            })
+            .catch((err) => console.error('Failed to ensure Inbox thread for contact', err)),
         ),
       )
     }

@@ -116,6 +116,48 @@ export function useSyncIntegration() {
   })
 }
 
+export function useUpdateIntegration() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      integrationId: string
+      status?: 'CONNECTED' | 'PAUSED' | 'NEEDS_REAUTH'
+      label?: string
+    }) => {
+      const { integrationId, ...body } = input
+      const client = getApiClient()
+      const result = await client.PATCH('/integrations/{integrationId}', {
+        params: { path: { integrationId } },
+        body,
+      })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
+      return data!
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations', 'list'] }),
+  })
+}
+
+export function useDisconnectIntegration() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (integrationId: string) => {
+      const client = getApiClient()
+      const result = await client.POST('/integrations/{integrationId}/disconnect', {
+        params: { path: { integrationId } },
+      })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
+      return data!
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations', 'list'] }),
+  })
+}
+
 export function useResolveContactMatch() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -131,6 +173,15 @@ export function useResolveContactMatch() {
       if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contact-matches'] }),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['contact-matches'] })
+      // Resolving a match links an ExternalContactRecord onto this Contact (ContactMatchService
+      // #resolve) — its `records`/provenance change, which the Contacts collection's synced-
+      // source badge and the Contact entity's "Linked systems" card both read. Same stale-query
+      // class found and fixed on the Pages/Advertising side (usePublishLandingPage,
+      // useAdvertisements.ts's run mutations).
+      queryClient.invalidateQueries({ queryKey: ['contacts'] })
+      queryClient.invalidateQueries({ queryKey: ['contact', variables.contactId] })
+    },
   })
 }

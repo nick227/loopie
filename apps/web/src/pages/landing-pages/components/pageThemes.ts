@@ -9,6 +9,8 @@ export type PageThemePreset = {
   fontFamily: string
   headingFont: string
   googleFonts: string
+  radius: string
+  spacing: string
 }
 
 export const PAGE_THEME_PRESETS: PageThemePreset[] = [
@@ -23,6 +25,8 @@ export const PAGE_THEME_PRESETS: PageThemePreset[] = [
     fontFamily: '"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif',
     headingFont: '"IBM Plex Serif", Georgia, serif',
     googleFonts: 'family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600',
+    radius: '0.375rem',
+    spacing: 'normal',
   },
   {
     id: 'shopfront',
@@ -35,6 +39,8 @@ export const PAGE_THEME_PRESETS: PageThemePreset[] = [
     fontFamily: '"Source Sans 3", ui-sans-serif, system-ui, sans-serif',
     headingFont: 'Oswald, "Arial Narrow", sans-serif',
     googleFonts: 'family=Oswald:wght@500;600&family=Source+Sans+3:wght@400;600',
+    radius: '0rem',
+    spacing: 'relaxed',
   },
   {
     id: 'workshop',
@@ -47,6 +53,8 @@ export const PAGE_THEME_PRESETS: PageThemePreset[] = [
     fontFamily: 'Karla, ui-sans-serif, system-ui, sans-serif',
     headingFont: 'Newsreader, Georgia, serif',
     googleFonts: 'family=Karla:wght@400;600&family=Newsreader:wght@500;600',
+    radius: '0.25rem',
+    spacing: 'relaxed',
   },
   {
     id: 'night-desk',
@@ -59,6 +67,8 @@ export const PAGE_THEME_PRESETS: PageThemePreset[] = [
     fontFamily: '"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif',
     headingFont: '"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif',
     googleFonts: 'family=IBM+Plex+Sans:wght@400;500;600',
+    radius: '0.75rem',
+    spacing: 'compact',
   },
 ]
 
@@ -73,6 +83,8 @@ export function themeFromPreset(preset: PageThemePreset): Record<string, string>
     fontFamily: preset.fontFamily,
     headingFont: preset.headingFont,
     googleFonts: preset.googleFonts,
+    radius: preset.radius,
+    spacing: preset.spacing,
   }
 }
 

@@ -171,7 +171,13 @@ export async function seedRiversideDemo(businessId: string) {
   })
 
   const landingPage = await seedCapture(businessId, campaign.id, creative.id)
-  return { jane, campaign, landingPage }
+  return {
+    jane,
+    campaign,
+    landingPage,
+    audienceId: past90DaysAudience.id,
+    imageAssetId: image.id,
+  }
 }
 
 async function seedCapture(businessId: string, campaignId: string, creativeId: string) {
@@ -317,7 +323,6 @@ async function seedCapture(businessId: string, campaignId: string, creativeId: s
       landingPageId: landingPage.id,
       sortOrder: 0,
       placement: 'AFTER_HERO',
-      adUnitId: 'demo-ad-unit-native',
     },
   })
 

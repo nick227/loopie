@@ -1,18 +1,25 @@
 export const AD_SLOT_PLACEMENTS = ['AFTER_HERO', 'BEFORE_FORM', 'AFTER_FORM', 'BOTTOM'] as const
 export type AdSlotPlacement = (typeof AD_SLOT_PLACEMENTS)[number]
 
-export type AdSlotInput = { placement: AdSlotPlacement; adUnitId: string | null }
+export type AdSlotInput = { placement: AdSlotPlacement; adRunIds: string[] }
+export type AdSlotAssignmentDTO = {
+  id: string
+  slotId: string
+  adRunId: string
+  status: string
+  weight: number
+}
 export type AdSlotDTO = {
   id: string
   sortOrder: number
   placement: AdSlotPlacement
-  adUnitId: string | null
+  assignments: AdSlotAssignmentDTO[]
 }
 export type AdSlotSnapshotItem = {
   placement: AdSlotPlacement
   sortOrder: number
-  adUnitId: string | null
-  embedUrl: string | null
+  adRunIds: string[]
+  embedUrls: string[]
 }
 
 const AD_SERVER_URL =
@@ -20,33 +27,36 @@ const AD_SERVER_URL =
 
 export const MAX_AD_SLOTS = 24
 
-export function embedUrlFor(adUnitId: string | null) {
-  if (!adUnitId) return null
-  return `${AD_SERVER_URL}/embed/${adUnitId}`
+export function embedUrlFor(adRunId: string | null) {
+  if (!adRunId) return null
+  return `${AD_SERVER_URL}/embed/${adRunId}` // For V1, LOOPIE embed resolves via AdRun
 }
 
 export function snapshotSlots(
-  slots: { sortOrder: number; placement: string; adUnitId: string | null }[],
+  slots: { sortOrder: number; placement: string; assignments: { adRunId: string }[] }[],
 ): AdSlotSnapshotItem[] {
-  return slots.map((slot) => ({
-    placement: slot.placement as AdSlotPlacement,
-    sortOrder: slot.sortOrder,
-    adUnitId: slot.adUnitId,
-    embedUrl: embedUrlFor(slot.adUnitId),
-  }))
+  return slots.map((slot) => {
+    const adRunIds = slot.assignments.map((a) => a.adRunId)
+    return {
+      placement: slot.placement as AdSlotPlacement,
+      sortOrder: slot.sortOrder,
+      adRunIds,
+      embedUrls: adRunIds.map((id) => embedUrlFor(id)!),
+    }
+  })
 }
 
 export function toSlotDTO(slot: {
   id: string
   sortOrder: number
   placement: string
-  adUnitId: string | null
+  assignments: { id: string; slotId: string; adRunId: string; status: string; weight: number }[]
 }): AdSlotDTO {
   return {
     id: slot.id,
     sortOrder: slot.sortOrder,
     placement: slot.placement as AdSlotPlacement,
-    adUnitId: slot.adUnitId,
+    assignments: slot.assignments,
   }
 }
 

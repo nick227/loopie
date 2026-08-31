@@ -29,6 +29,7 @@ type UpdateContactInput = {
 export function useContacts(params?: {
   q?: string
   tag?: string
+  source?: string
   lifecycleStatus?: 'LEAD' | 'CUSTOMER' | 'PAST_CUSTOMER' | 'NONE'
   limit?: number
 }) {

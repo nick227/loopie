@@ -72,12 +72,14 @@ export function useLandingPageEditor() {
   const saveForm = updateForm.mutateAsync
 
   const [content, setContent] = useState<Record<string, SectionContent>>({})
+  const [name, setName] = useState('')
   const [theme, setTheme] = useState<Record<string, string>>({})
   const [formId, setFormId] = useState('')
   const [fields, setFields] = useState<FormFieldDraft[]>([])
   const [submitLabel, setSubmitLabel] = useState('Get in touch')
   const [slots, setSlots] = useState<AdSlotDraft[]>([])
   const [dirty, setDirty] = useState(false)
+  const [publishPending, setPublishPending] = useState(false)
   const [savedAt, setSavedAt] = useState<number | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const writes = useRef(Promise.resolve())
@@ -90,6 +92,8 @@ export function useLandingPageEditor() {
   useEffect(() => {
     if (!page || hydratedPageId.current === page.id) return
     hydratedPageId.current = page.id
+    setName(page.name)
+    setPublishPending(page.status !== 'PUBLISHED')
     setContent(
       (page.content as { sections?: Record<string, SectionContent> } | null)?.sections ?? {},
     )
@@ -120,12 +124,13 @@ export function useLandingPageEditor() {
   }, [template?.id, template?.schema])
 
   const persist = useCallback(async () => {
-    if (!landingPageId) return
+    if (!landingPageId || !name.trim()) return
     setSaveError(null)
     const mine = generation.current
     const job = async () => {
       await updatePage({
         landingPageId,
+        name: name.trim(),
         content: { sections: content },
         theme,
         templateId: templateId || undefined,
@@ -157,6 +162,7 @@ export function useLandingPageEditor() {
     }
   }, [
     landingPageId,
+    name,
     content,
     theme,
     templateId,
@@ -170,16 +176,17 @@ export function useLandingPageEditor() {
   ])
 
   useEffect(() => {
-    if (!dirty) return
+    if (!dirty || !name.trim()) return
     const timer = window.setTimeout(() => {
       void persist().catch(() => undefined)
     }, 800)
     return () => window.clearTimeout(timer)
-  }, [dirty, persist])
+  }, [dirty, name, persist])
 
   function markDirty(_dirty?: boolean) {
     generation.current += 1
     setDirty(true)
+    setPublishPending(true)
   }
 
   async function handlePublish() {
@@ -191,6 +198,7 @@ export function useLandingPageEditor() {
     }
     try {
       await publishMutation.mutateAsync(landingPageId!)
+      setPublishPending(false)
     } catch {
       setSaveError('This Page could not be published. Your saved draft is still available.')
     }
@@ -205,6 +213,8 @@ export function useLandingPageEditor() {
     templateId,
     setTemplateId,
     publishMutation,
+    name,
+    setName,
     content,
     setContent,
     theme,
@@ -217,6 +227,7 @@ export function useLandingPageEditor() {
     slots,
     setSlots,
     dirty,
+    publishPending,
     setDirty: markDirty,
     savedAt,
     saveError,

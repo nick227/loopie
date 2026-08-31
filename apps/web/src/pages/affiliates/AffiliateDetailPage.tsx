@@ -1,11 +1,17 @@
-import { useLocation, useParams, Link } from 'react-router-dom'
-import { useAffiliate, useAffiliateEarnings, usePauseAffiliate, useResumeAffiliate } from '@project/sdk'
+import { useLocation, useParams } from 'react-router-dom'
+import {
+  useAffiliate,
+  useAffiliateEarnings,
+  usePauseAffiliate,
+  useResumeAffiliate,
+} from '@project/sdk'
 import { AffiliateAssignmentForm } from '@/components/affiliates/AffiliateAssignmentForm'
 import { CommissionLedger } from '@/components/affiliates/CommissionLedger'
 import { CopyText } from '@/components/affiliates/CopyText'
 import { SplitPreview } from '@/components/affiliates/SplitPreview'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { formatBps, formatUsd } from '@/lib/money'
 import { ConnectStatusBadge } from '@/components/affiliates/ConnectStatusBadge'
@@ -28,8 +34,11 @@ export function AffiliateDetailPage() {
 
   return (
     <div className="space-y-4">
-      <Link to="/affiliates" className="text-xs text-muted-foreground hover:text-foreground">Directory</Link>
-      <h1 className="text-xl font-semibold">{affiliate.name}</h1>
+      <PageHeader
+        variant="detail"
+        title={affiliate.name}
+        breadcrumb={{ label: 'Directory', to: '/affiliates' }}
+      />
       {initialPassword && (
         <div className="rounded border px-3 py-2 space-y-1">
           <p className="text-sm">Login password (shown once)</p>
@@ -62,16 +71,23 @@ export function AffiliateDetailPage() {
       <Card>
         <CardContent className="py-4 space-y-2">
           <p className="text-sm">
-            Pending {formatUsd(affiliate.pendingMinor)} · Payable {formatUsd(affiliate.payableMinor)} · Paid {formatUsd(affiliate.paidMinor)}
+            Pending {formatUsd(affiliate.pendingMinor)} · Payable{' '}
+            {formatUsd(affiliate.payableMinor)} · Paid {formatUsd(affiliate.paidMinor)}
           </p>
-          {earnings && <CommissionLedger commissions={earnings.commissions} payouts={earnings.payouts} />}
+          {earnings && (
+            <CommissionLedger commissions={earnings.commissions} payouts={earnings.payouts} />
+          )}
         </CardContent>
       </Card>
       {affiliate.isActive ? (
         <Button
           variant="outline"
           onClick={() => {
-            if (window.confirm('Pause this person? New referral clicks stop. Past commissions stay frozen.')) {
+            if (
+              window.confirm(
+                'Pause this person? New referral clicks stop. Past commissions stay frozen.',
+              )
+            ) {
               pause.mutate(affiliate.id)
             }
           }}

@@ -60,6 +60,25 @@ export function useUpdatePlatformConnection(platform: string) {
   })
 }
 
+export function useDisconnectPlatformConnection() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (platform: string) => {
+      const client = getApiClient()
+      const result = await client.POST('/platforms/{platform}/disconnect', {
+        params: { path: { platform: platform as Platform } },
+      })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as { error: string }).error)
+      return data!
+    },
+    onSuccess: (_data, platform) =>
+      queryClient.invalidateQueries({ queryKey: ['platform', platform] }),
+  })
+}
+
 export function usePlatformAccounts(platform: string | undefined, enabled: boolean) {
   return useQuery({
     queryKey: ['platform', platform, 'accounts'],

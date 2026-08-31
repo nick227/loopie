@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { useAutomation, useAutomationLogs } from '@project/sdk'
 import { Card, CardContent } from '@/components/ui/Card'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { AutomationLogs } from '@/components/automations/AutomationLogs'
 import { actionLabel, automationStatusLabel, triggerLabel } from '@/lib/automationCopy'
@@ -20,15 +21,18 @@ export function AutomationPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <h1 className="text-xl font-semibold">{item.name}</h1>
-        <Link
-          to={item.isActive ? `/automations/${item.id}/pause` : `/automations/${item.id}/resume`}
-          className="shrink-0 rounded border border-input-border px-3 py-1.5 text-xs hover:bg-accent"
-        >
-          {item.isActive ? 'Pause' : 'Resume'}
-        </Link>
-      </div>
+      <PageHeader
+        variant="detail"
+        title={item.name}
+        primaryAction={
+          <Link
+            to={item.isActive ? `/automations/${item.id}/pause` : `/automations/${item.id}/resume`}
+            className="shrink-0 rounded border border-input-border px-3 py-1.5 text-xs hover:bg-accent"
+          >
+            {item.isActive ? 'Pause' : 'Resume'}
+          </Link>
+        }
+      />
       <Card>
         <CardContent className="py-4 space-y-2">
           <p className="text-sm">{automationStatusLabel(item.isActive)}</p>

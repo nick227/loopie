@@ -64,21 +64,33 @@ export function Modal({
       type="button"
       onClick={onClose}
       className={cn(
-        'shrink-0 text-muted-foreground hover:text-foreground',
+        'shrink-0 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         full
-          ? 'inline-flex h-11 w-11 items-center justify-center rounded-lg sm:h-8 sm:w-8'
+          ? 'inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium shadow-sm hover:bg-muted'
           : 'text-sm',
       )}
       aria-label="Close"
     >
-      {full ? <X size={18} /> : 'Close'}
+      {full ? (
+        <>
+          <X size={16} aria-hidden="true" />
+          <span>Close</span>
+        </>
+      ) : (
+        'Close'
+      )}
     </button>
   )
 
   const node = (
-    <div className={cn('fixed z-[80]', full ? 'inset-0 md:left-64 md:top-16' : 'inset-0')}>
+    <div className="fixed inset-0 z-[80]">
       {full ? (
-        <div className="modal-backdrop absolute inset-0 bg-background" />
+        <button
+          type="button"
+          className="modal-backdrop absolute inset-0 cursor-default bg-foreground/45 backdrop-blur-[2px]"
+          aria-label="Close dialog"
+          onClick={onClose}
+        />
       ) : (
         <button
           type="button"
@@ -96,7 +108,7 @@ export function Modal({
         className={cn(
           'absolute z-10 flex min-h-0 flex-col overflow-hidden bg-background',
           full
-            ? 'modal-panel inset-0 border-border md:border-l md:border-t'
+            ? 'modal-sheet bottom-0 left-0 right-0 h-[94dvh] rounded-t-[1.25rem] border border-b-0 border-border shadow-2xl sm:h-[88dvh] sm:max-h-[56rem] sm:rounded-t-2xl'
             : cn(
                 'left-1/2 top-1/2 w-full -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border',
                 size === 'xl' ? 'max-w-4xl' : 'max-w-lg',
@@ -105,11 +117,14 @@ export function Modal({
         )}
       >
         {full ? (
-          <div className="shrink-0 border-b border-border pt-[env(safe-area-inset-top)]">
-            <div className="flex items-center gap-2 px-3 py-1.5 sm:px-5 sm:py-3">
+          <div className="shrink-0 border-b border-border">
+            <div className="flex h-5 items-center justify-center" aria-hidden="true">
+              <div className="h-1 w-10 rounded-full bg-border" />
+            </div>
+            <div className="flex items-center gap-3 px-3 pb-2 sm:px-5 sm:pb-3">
               <h2
                 id={titleId}
-                className="min-w-0 flex-1 truncate text-sm font-medium uppercase tracking-wide"
+                className="min-w-0 flex-1 truncate text-sm font-semibold uppercase tracking-wide"
               >
                 {title}
               </h2>

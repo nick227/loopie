@@ -10,8 +10,10 @@
     --surface: 240 5% 96%;
     --surface-foreground: 240 6% 20%;
 
-    --primary: 240 6% 10%;
-    --primary-foreground: 0 0% 98%;
+    /* Primary: violet. Does real structural work (buttons, active nav, selected states, focus,
+       links, emphasis) — not a decorative accent. See docs/design/00-design-language-spec.md. */
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 100%;
 
     --muted: 240 5% 96%;
     --muted-foreground: 240 4% 46%;
@@ -21,10 +23,25 @@
 
     --border: 240 6% 90%;
     --input-border: 240 6% 82%;
-    --ring: 240 6% 10%;
+    /* Ring tracks primary, not a separate neutral — a focused control should read as "activated
+       in the brand color," matching the active-nav/selected-state convention below. */
+    --ring: 262 83% 58%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
+
+    /* Semantic status set. Used almost entirely via Tailwind's opacity modifier as a tint pair
+       (e.g. `bg-success/10 text-success`) — the same pattern already established by
+       `--destructive` elsewhere in this codebase (see AdDestinationRow.tsx). DEFAULT/foreground
+       both exist for the less common solid-fill case (a filled badge or button), mirroring
+       --destructive/--destructive-foreground exactly. Color always carries meaning here — never
+       decoration; see the design spec's "Rule for using color." */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 21 90% 48%;
+    --warning-foreground: 0 0% 100%;
+    --info: 221 83% 53%;
+    --info-foreground: 0 0% 100%;
 
     --radius: 0.5rem;
     --radius-sm: 0.25rem;
@@ -39,8 +56,11 @@
     --surface: 0 0% 4%; /* Slightly lighter than background */
     --surface-foreground: 0 0% 65%; /* Soft gray */
 
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 6% 10%;
+    /* Same violet, lifted slightly lighter for pop against true black — primary stays vivid in
+       dark mode (unlike the muted treatment below for success/warning/info), since it's a call
+       to action, not an alert. */
+    --primary: 262 83% 66%;
+    --primary-foreground: 0 0% 100%;
 
     --muted: 0 0% 6%; /* Deep gray for muted areas */
     --muted-foreground: 0 0% 55%; /* Medium gray for muted text */
@@ -50,10 +70,19 @@
 
     --border: 0 0% 12%; /* Very subtle borders */
     --input-border: 0 0% 18%; /* Slightly stronger input borders */
-    --ring: 0 0% 98%; /* White focus rings */
+    --ring: 262 83% 66%; /* Tracks primary, same as light mode */
 
+    /* Same muting convention as --destructive's own light→dark delta (lower saturation and
+       lightness, not higher) — a full-saturation alert color reads as too loud against true
+       black; still plenty legible at these values since 0% is the floor. */
     --destructive: 0 63% 48%;
     --destructive-foreground: 0 0% 98%;
+    --success: 142 55% 38%;
+    --success-foreground: 0 0% 100%;
+    --warning: 21 70% 40%;
+    --warning-foreground: 0 0% 100%;
+    --info: 221 65% 46%;
+    --info-foreground: 0 0% 100%;
   }
 
   * {
@@ -99,10 +128,16 @@
       slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
+  .modal-sheet {
+    animation: sheet-rise 0.48s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    will-change: transform;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .animate-in,
     .modal-backdrop,
-    .modal-panel {
+    .modal-panel,
+    .modal-sheet {
       animation: none;
     }
   }
@@ -120,6 +155,15 @@
 @keyframes slide-up {
   from {
     transform: translateY(8px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheet-rise {
+  from {
+    transform: translateY(100%);
   }
   to {
     transform: translateY(0);

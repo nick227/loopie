@@ -227,4 +227,68 @@ describe('AdServeService', () => {
     expect(html).toContain(absolute)
     expect(html).not.toContain('src="/uploads/')
   })
+
+  it('stops serving a creative once it has been soft-deleted, even though the ad unit is still active', async () => {
+    const deletedCreative = await db.creative.create({
+      data: { businessId, name: 'Pulled Creative', deletedAt: new Date() },
+    })
+    const adUnit = await db.adUnit.create({
+      data: {
+        businessId,
+        campaignId,
+        creativeId: deletedCreative.id,
+        format: 'DISPLAY_BANNER',
+        status: 'ACTIVE',
+      },
+    })
+
+    const payload = await service.getServePayload(adUnit.id)
+    expect(payload.creative).toBeNull()
+  })
+
+  it('does not serve or record a click for an ad unit whose campaign has passed its endDate', async () => {
+    const expiredCampaign = await db.campaign.create({
+      data: {
+        businessId,
+        name: 'Expired First-Party Campaign',
+        budget: 20,
+        startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        endDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        platforms: ['LOOPIE'],
+        creativeLinks: { create: [{ creativeId }] },
+      },
+    })
+    const adUnit = await db.adUnit.create({
+      data: {
+        businessId,
+        campaignId: expiredCampaign.id,
+        creativeId,
+        format: 'DISPLAY_BANNER',
+        status: 'ACTIVE',
+      },
+    })
+
+    await expect(service.getServePayload(adUnit.id)).rejects.toMatchObject({ statusCode: 404 })
+    await expect(service.recordImpression(adUnit.id)).rejects.toMatchObject({ statusCode: 404 })
+    await expect(service.recordClick(adUnit.id)).rejects.toMatchObject({ statusCode: 404 })
+
+    await db.adUnit.deleteMany({ where: { campaignId: expiredCampaign.id } })
+    await db.campaignCreative.deleteMany({ where: { campaignId: expiredCampaign.id } })
+    await db.campaign.deleteMany({ where: { id: expiredCampaign.id } })
+  })
+
+  it('fetches the ad unit only once when rendering an embed (impression recording reuses the already-loaded row)', async () => {
+    const adUnit = await db.adUnit.create({
+      data: { businessId, campaignId, creativeId, format: 'EMBED', status: 'ACTIVE' },
+    })
+
+    let findUniqueCalls = 0
+    db.$use(async (params, next) => {
+      if (params.model === 'AdUnit' && params.action === 'findUnique') findUniqueCalls++
+      return next(params)
+    })
+
+    await service.renderEmbed(adUnit.id)
+    expect(findUniqueCalls).toBe(1)
+  })
 })

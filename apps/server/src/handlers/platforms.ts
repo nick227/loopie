@@ -28,6 +28,14 @@ export async function updatePlatformConnection(
   return reply.send({ data })
 }
 
+export async function disconnectPlatformConnection(
+  request: { user: { businessId: string }; params: { platform: string } },
+  reply: { send: (body: unknown) => unknown },
+) {
+  const data = await platformService.disconnect(request.user.businessId, request.params.platform)
+  return reply.send({ data })
+}
+
 export async function startPlatformOAuth(
   request: {
     user: { businessId: string }

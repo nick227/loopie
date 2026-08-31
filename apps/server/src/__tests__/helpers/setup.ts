@@ -49,6 +49,7 @@ afterEach(async () => {
   await db.advertisementAsset.deleteMany()
   await db.campaignAdRun.deleteMany()
   await db.adRun.deleteMany()
+  await db.mediaOrderRevision.deleteMany()
   await db.advertisement.deleteMany()
   await db.affiliateClass.updateMany({ data: { defaultDealId: null } })
   await db.affiliate.deleteMany()
@@ -74,9 +75,15 @@ afterEach(async () => {
   await db.session.deleteMany()
   await db.user.deleteMany()
   await db.platformConnection.deleteMany()
+  await db.inboxMessage.deleteMany()
+  await db.inboxThread.deleteMany()
   await db.business.deleteMany()
 
   // Not FK-scoped to Business/User (rate limiting is per ip+route, not per tenant) — wiped
   // separately so no test's rate-limit test can leak counters into another's.
   await db.rateLimitBucket.deleteMany()
+
+  await db.attentionItem.deleteMany()
+  await db.activityItem.deleteMany()
+  await db.activitySeenState.deleteMany()
 })

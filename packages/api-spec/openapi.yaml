@@ -99,6 +99,11 @@ components:
       name: adRunId
       required: true
       schema: { type: string }
+    InboxThreadId:
+      in: path
+      name: threadId
+      required: true
+      schema: { type: string }
     AdvertisementId:
       in: path
       name: advertisementId
@@ -174,6 +179,17 @@ components:
       name: recordId
       required: true
       schema: { type: string }
+    ActivityId:
+      in: path
+      name: activityId
+      required: true
+      schema: { type: string }
+    AttentionId:
+      in: path
+      name: attentionId
+      required: true
+      schema: { type: string }
+
 
   schemas:
     PaginatedMeta:
@@ -201,6 +217,13 @@ components:
         businessName: { type: string }
         role: { type: string, enum: [USER, ADMIN, AFFILIATE] }
         subscriptionStatus: { type: string, nullable: true }
+        businessIdentityCompletedAt:
+          {
+            type: string,
+            format: date-time,
+            nullable: true,
+            description: 'Null until the business identity (docs/strategy/03-product-principles.md First-Login step 0) has been saved at least once — the frontend uses this to route a brand-new user to /business/setup before Inbox.',
+          }
         createdAt: { type: string, format: date-time }
 
     RegisterInput:
@@ -223,6 +246,41 @@ components:
       required: [data]
       properties:
         data: { $ref: '#/components/schemas/User' }
+
+    SocialProfileLink:
+      type: object
+      required: [platform, url]
+      properties:
+        platform: { type: string, minLength: 1, maxLength: 40 }
+        url: { type: string, minLength: 1, maxLength: 500 }
+
+    Business:
+      type: object
+      required: [id, name, socialProfiles]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        location: { type: string, nullable: true }
+        industry: { type: string, nullable: true }
+        targetAudience: { type: string, nullable: true }
+        socialProfiles:
+          type: array
+          items: { $ref: '#/components/schemas/SocialProfileLink' }
+        logoUrl: { type: string, nullable: true }
+        identityCompletedAt: { type: string, format: date-time, nullable: true }
+
+    UpdateBusinessInput:
+      type: object
+      description: 'Partial update — an omitted field is left unchanged; socialProfiles, if sent, replaces the whole list.'
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        location: { type: string, maxLength: 200, nullable: true }
+        industry: { type: string, maxLength: 120, nullable: true }
+        targetAudience: { type: string, maxLength: 300, nullable: true }
+        socialProfiles:
+          type: array
+          items: { $ref: '#/components/schemas/SocialProfileLink' }
+        logoUrl: { type: string, maxLength: 2000, nullable: true }
 
     Billing:
       type: object
@@ -1352,7 +1410,7 @@ components:
     # ---------- Media/Advertisement/AdRun (2026-08-27) — see CLAUDE.md's migration audit ----------
     Advertisement:
       type: object
-      required: [id, businessId, name, assetIds, createdAt]
+      required: [id, businessId, name, assetIds, createdAt, updatedAt]
       description: >
         The "Media" grouping entity in Media -> Advertisement -> AdRun — content comes directly
         from Asset via AdvertisementAsset, not the older per-campaign Creative model. Media is
@@ -1370,6 +1428,25 @@ components:
           items:
             $ref: '#/components/schemas/Asset'
         createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        status:
+          type: string
+          enum: [DRAFT, READY, RUNNING, PAUSED, FAILED]
+          description: >
+            Derived from current AdRuns. DRAFT = none, READY = created but not live,
+            RUNNING = at least one active buy, PAUSED = buys exist but none active,
+            FAILED = a buy failed.
+        spend: { type: number }
+        impressions: { type: integer }
+        clicks: { type: integer }
+        conversions: { type: integer }
+        dailyBudget:
+          type: number
+          description: Sum of daily budgets on ACTIVE buys.
+        destinations:
+          type: array
+          items: { type: string }
+          description: 'Labels for current non-ended buys, e.g. Meta Feed.'
 
     CreateAdvertisementInput:
       type: object
@@ -1402,6 +1479,10 @@ components:
           impressions,
           clicks,
           conversions,
+          leads,
+          sales,
+          revenue,
+          syncHealth,
           trackedUrl,
           createdAt,
         ]
@@ -1410,12 +1491,89 @@ components:
         advertisementId: { type: string }
         platform: { type: string, enum: [META, GOOGLE, TIKTOK, LOOPIE] }
         placement: { type: string, nullable: true }
-        status: { type: string, enum: [PENDING, ACTIVE, PAUSED, ENDED, VALIDATION_FAILED] }
+        status: { type: string, enum: [PENDING, ACTIVE, PAUSED, ENDED, VALIDATION_FAILED, PROVISIONING_FAILED] }
         budget: { type: number, nullable: true }
         spend: { type: number }
         impressions: { type: integer }
+        reach:
+          type: integer
+          nullable: true
+          description: Unique-person reach, provider-reported — distinct from raw impressions. Null until first synced.
         clicks: { type: integer }
         conversions: { type: integer }
+        providerState:
+          type: string
+          nullable: true
+          enum: [NOT_SENT, DRAFT_SENT, UNDER_REVIEW, ELIGIBLE, LIVE, PAUSED, LIMITED, REJECTED, ENDED, UNKNOWN]
+          description: The platform's own delivery state, normalized — independent of `status` (LOOPIE's order state). Null until first synced.
+        providerStateRaw:
+          type: string
+          nullable: true
+          description: The connector's own unmapped status string (e.g. Meta's effective_status), for audit/debugging.
+        syncHealth:
+          type: string
+          enum: [CURRENT, DELAYED, FAILED, DISCONNECTED, NEVER_SYNCED]
+          description: CURRENT downgrades to DELAYED at read time once lastSyncedAt exceeds the freshness SLA.
+        syncError:
+          type: string
+          nullable: true
+          description: The most recent sync failure's message. Cleared on the next successful sync.
+        effectiveBudget:
+          type: number
+          nullable: true
+          description: Provider-reported daily budget, for comparison against `budget` (LOOPIE's requested value). Null until synced or when the platform doesn't report one.
+        effectiveStartDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: Provider-reported schedule start, for comparison against `startDate`. Null until synced.
+        effectiveEndDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: Provider-reported schedule end, for comparison against `endDate`. Null until synced, or when the platform reports no end date.
+        country:
+          type: string
+          nullable: true
+          description: Requested targeting country. Defaults from the platform connection's own default at send time.
+        locationNote:
+          type: string
+          nullable: true
+          description: Requested targeting location (free text), resolved into a real radius-targeted spot by connectors that support it. Null means country-only targeting.
+        radiusMiles:
+          type: integer
+          nullable: true
+          description: Requested radius in miles around locationNote. Null when locationNote is null.
+        effectiveCountry:
+          type: string
+          nullable: true
+          description: Provider-reported targeting country, for comparison against `country`. Null until synced.
+        effectiveLocationNote:
+          type: string
+          nullable: true
+          description: Provider-reported targeting location, best-effort — not guaranteed to echo `locationNote`'s exact text. Null until synced, or when the platform reports country-only targeting.
+        effectiveRadiusMiles:
+          type: integer
+          nullable: true
+          description: Provider-reported radius in miles, for comparison against `radiusMiles`. Null until synced, or when the platform reports country-only targeting.
+        providerIssues:
+          type: array
+          items: { type: string }
+          nullable: true
+          description: Review/rejection reasons from the platform's own last sync (e.g. Meta's issues_info messages). Null until synced, or when the platform reports none.
+        supersedesRunId:
+          type: string
+          nullable: true
+          description: The prior AdRun (same Advertisement) this one replaced, when created via relaunch/replace-creative/replace-destination rather than a first send.
+        leads:
+          type: integer
+          description: Leads whose sourceAdRunId is this run, live-computed (not denormalized).
+        sales:
+          type: integer
+          description: Active (non-reversed) sales attributed to this run's leads.
+        revenue:
+          type: number
+          description: Sum of active sale amounts attributed to this run's leads.
         startDate: { type: string, format: date-time, nullable: true }
         endDate: { type: string, format: date-time, nullable: true }
         externalCampaignId: { type: string, nullable: true }
@@ -1432,9 +1590,116 @@ components:
           nullable: true
           description: Populates only once the external platform object genuinely exists — never speculative.
         destinationLandingPageId: { type: string, nullable: true }
+        orderSnapshot:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: Frozen media-order fields at send time. Superseded by mediaOrderRevision for runs sent after that column existed; kept for older rows and as the existing read path.
+        mediaOrderRevisionId: { type: string, nullable: true }
+        mediaOrderRevision:
+          type: object
+          allOf: [{ $ref: '#/components/schemas/MediaOrderRevision' }]
+          nullable: true
+          description: The durable, immutable, numbered authorization record this run was actually sent against. Null for rows sent before this existed.
         trackedUrl:
           type: string
           description: Redirect URL for this ad run — GET /r/adrun/{adRunId}.
+        lastSyncedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When this run's data (or its provisioning) was last written from a connector.
+        createdAt: { type: string, format: date-time }
+
+    InboxThreadSummary:
+      type: object
+      description: A thread's list-view/detail-header shape — same object for both listInboxThreads and getInboxThread.
+      required: [id, type, subject, unread, lastMessageAt, createdAt]
+      properties:
+        id: { type: string }
+        type: { type: string, enum: [CONTACT, ADVERTISEMENT, PAGE, INTEGRATION, SYSTEM] }
+        subject: { type: string }
+        contactId: { type: string, nullable: true }
+        advertisementId: { type: string, nullable: true }
+        platform: { type: string, nullable: true }
+        landingPageId: { type: string, nullable: true, description: Only set when type is PAGE. }
+        integrationPlatform: { type: string, nullable: true, description: Only set when type is INTEGRATION. }
+        previewKind:
+          type: string
+          enum: [SYSTEM, EMAIL, SMS]
+          nullable: true
+          description: The most recent message's kind, for a list-row preview icon/label.
+        previewBody: { type: string, nullable: true }
+        unread:
+          type: boolean
+          description: True when the thread's most recent message postdates its read watermark.
+        lastMessageAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+
+    InboxMessage:
+      type: object
+      description: >
+        One message in a thread. For an ADVERTISEMENT thread, a real persisted row. For a CONTACT
+        thread, read live from Interaction joined back to Message and given a stable id (the
+        Interaction's own id) — never a second persisted copy of the same content.
+      required: [id, kind, direction, body, createdAt]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [SYSTEM, EMAIL, SMS] }
+        direction: { type: string, enum: [INBOUND, OUTBOUND, INTERNAL] }
+        subject: { type: string, nullable: true }
+        body: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    MediaOrderRevision:
+      type: object
+      description: >
+        A durable, immutable, numbered record of exactly what was authorized for one
+        (Advertisement, platform, placement) destination — replaces AdRun.orderSnapshot's loose
+        untyped JSON for runs sent after this existed. Numbered per (advertisementId, platform,
+        placement): a relaunch to the same destination continues that sequence.
+      required:
+        [
+          id,
+          revision,
+          goal,
+          successEvent,
+          country,
+          dailyBudgetMinor,
+          currency,
+          startAt,
+          assetIds,
+          contentHash,
+          createdAt,
+        ]
+      properties:
+        id: { type: string }
+        revision: { type: integer }
+        goal: { type: string }
+        successEvent: { type: string }
+        country: { type: string }
+        locationNote: { type: string, nullable: true }
+        radiusMiles:
+          type: integer
+          nullable: true
+          description: Radius in miles around locationNote. Null when locationNote is null (country-only targeting).
+        dailyBudgetMinor: { type: integer }
+        currency: { type: string }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time, nullable: true }
+        destinationLandingPageId: { type: string, nullable: true }
+        destinationLandingPageVersionId: { type: string, nullable: true }
+        assetIds:
+          type: array
+          items: { type: string }
+          description: Frozen from the Advertisement's attached media at the exact moment of this revision.
+        accountName: { type: string, nullable: true }
+        accountCurrency: { type: string, nullable: true }
+        accountTimezone: { type: string, nullable: true }
+        adAccountId: { type: string, nullable: true }
+        contentHash:
+          type: string
+          description: Deterministic hash of the authorized fields — lets two revisions be compared for "did anything actually change."
         createdAt: { type: string, format: date-time }
 
     CreateAdRunInput:
@@ -1454,6 +1719,16 @@ components:
         startDate: { type: string, format: date-time }
         endDate: { type: string, format: date-time }
         destinationLandingPageId: { type: string }
+        orderSnapshot:
+          type: object
+          additionalProperties: true
+          description: Frozen media-order fields at send time.
+        supersedesRunId:
+          type: string
+          description: >
+            A prior AdRun on the same Advertisement this new one replaces (a "new version" relaunch,
+            not a first send). That run is marked ENDED once this one is created — never left live
+            alongside it. Omit for a first send to a destination.
         idempotencyKey:
           type: string
           minLength: 1
@@ -1466,7 +1741,7 @@ components:
       description: Manual metrics/status entry, same "no live platform sync in V1" model as Deployment. Cannot change platform or advertisementId — an AdRun's source identity is immutable once created.
       type: object
       properties:
-        status: { type: string, enum: [PENDING, ACTIVE, PAUSED, ENDED, VALIDATION_FAILED] }
+        status: { type: string, enum: [PENDING, ACTIVE, PAUSED, ENDED, VALIDATION_FAILED, PROVISIONING_FAILED] }
         spend: { type: number, minimum: 0 }
         budget: { type: number, minimum: 0 }
         impressions: { type: integer, minimum: 0 }
@@ -1493,7 +1768,7 @@ components:
 
     PlatformCapabilities:
       type: object
-      required: [oauth, mappingFields, pushDraft, pullSpend, activate]
+      required: [oauth, mappingFields, pushDraft, pullSpend, pullStatus, activate, pause, end]
       properties:
         oauth: { type: boolean }
         mappingFields:
@@ -1501,7 +1776,43 @@ components:
           items: { type: string, enum: [adAccount, page, defaultCountry] }
         pushDraft: { type: boolean }
         pullSpend: { type: boolean }
-        activate: { type: boolean }
+        pullStatus:
+          type: boolean
+          description: Can fetch the pushed object's real delivery state and performance metrics back from the platform.
+        activate:
+          type: boolean
+          description: Can remotely activate spend — a Resume actually turns delivery on at the platform, not just locally.
+        pause:
+          type: boolean
+          description: Can remotely pause an already-active run.
+        end:
+          type: boolean
+          description: Can remotely end (archive) a run — one-way.
+        editBudget: { type: boolean }
+        editSchedule: { type: boolean }
+        editAudience: { type: boolean }
+        editModes:
+          type: object
+          description: >
+            Per-field edit-mode classification (NONE/IN_PLACE/RECREATE — see EditMode's doc comment
+            in apps/server/src/lib/platforms/types.ts). Additive to editBudget/editSchedule above,
+            which stay the load-bearing flags gating whether a live editor actually exists; this is
+            the richer contract the UI reads to explain what changing a field costs the business
+            before they commit to it, including for fields with no editor built yet.
+          properties:
+            budget: { $ref: '#/components/schemas/EditMode' }
+            schedule: { $ref: '#/components/schemas/EditMode' }
+            creative: { $ref: '#/components/schemas/EditMode' }
+            destination: { $ref: '#/components/schemas/EditMode' }
+            targeting: { $ref: '#/components/schemas/EditMode' }
+
+    EditMode:
+      type: string
+      enum: [NONE, IN_PLACE, RECREATE]
+      description: >
+        NONE = can't be changed from LOOPIE yet. IN_PLACE = a PATCH-style request against the
+        existing ad/ad-set/campaign object. RECREATE = requires a new provider execution (the
+        "Create new version" relaunch flow), never an in-place patch of the current run.
 
     PlatformConnection:
       type: object
@@ -1510,6 +1821,18 @@ components:
         platform: { type: string, enum: [META, GOOGLE, TIKTOK] }
         status: { type: string, enum: [DISCONNECTED, INCOMPLETE, CONNECTED, NEEDS_REAUTH] }
         adAccountId: { type: string, nullable: true }
+        accountName:
+          type: string
+          nullable: true
+          description: The ad account's own display name, fetched from the platform when adAccountId was set.
+        currency:
+          type: string
+          nullable: true
+          description: The ad account's billing currency, as reported by the platform.
+        timezone:
+          type: string
+          nullable: true
+          description: The ad account's own timezone, as reported by the platform — not a LOOPIE business timezone.
         pageId: { type: string, nullable: true }
         defaultCountry: { type: string }
         capabilities: { $ref: '#/components/schemas/PlatformCapabilities' }
@@ -1528,6 +1851,8 @@ components:
       properties:
         id: { type: string }
         name: { type: string }
+        currency: { type: string, nullable: true }
+        timezone: { type: string, nullable: true }
 
     OAuthStart:
       type: object
@@ -1620,6 +1945,7 @@ components:
           status,
           content,
           formStartCount,
+          submissionCount,
           createdAt,
           previewUrl,
         ]
@@ -1649,6 +1975,11 @@ components:
             description: 'Authenticated draft preview — GET /landing-pages/{id}/preview.',
           }
         formStartCount: { type: integer, description: 'Approximate — not deduplicated by session.' }
+        submissionCount:
+          {
+            type: integer,
+            description: 'Completed submissions (FormSubmission rows) — the real outcome, distinct from formStartCount which also counts abandoned attempts.',
+          }
         adSlotCount: { type: integer }
         slots:
           type: array
@@ -2120,9 +2451,56 @@ components:
         detail: { type: string }
         href: { type: string }
 
+    LivePresenceStat:
+      type: object
+      required: [value, label]
+      properties:
+        value: { type: integer }
+        label: { type: string }
+
+    LivePresenceItem:
+      type: object
+      description: >
+        A real, recently-active object from Pages, Advertising, or Messages, unioned and sorted by
+        recency for the Home/collection "Live presence" grid — see docs/strategy's welcome-section
+        redesign. Every stat is backed by real tracked data (page views, ad impressions, message
+        recipient/lead counts) — no fabricated engagement/open-rate numbers.
+      required: [type, id, title, href, updatedAt, statusLabel, thumbnailUrl, stat1, stat2]
+      properties:
+        type: { type: string, enum: [PAGE, AD, MESSAGE] }
+        channel: { type: string, enum: [EMAIL, SOCIAL], nullable: true }
+        id: { type: string }
+        title: { type: string }
+        href: { type: string }
+        updatedAt: { type: string, format: date-time }
+        statusLabel: { type: string }
+        thumbnailUrl: { type: string, nullable: true }
+        stat1: { $ref: '#/components/schemas/LivePresenceStat' }
+        stat2: { $ref: '#/components/schemas/LivePresenceStat' }
+
+    WeeklyMetric:
+      type: object
+      required: [value, previousValue, deltaPct]
+      properties:
+        value: { type: number }
+        previousValue: { type: number, description: The same measure for the prior week — shown alongside deltaPct so the comparison isn't hidden behind a percentage alone. }
+        deltaPct:
+          type: number
+          nullable: true
+          description: Percent change vs. the prior week. Null when there's no prior-week baseline to compare against (never a fabricated 0%/Infinity).
+
+    WeeklyResults:
+      type: object
+      required: [leads, customers, revenue, messagesSent]
+      properties:
+        leads: { $ref: '#/components/schemas/WeeklyMetric' }
+        customers: { $ref: '#/components/schemas/WeeklyMetric' }
+        revenue: { $ref: '#/components/schemas/WeeklyMetric' }
+        messagesSent: { $ref: '#/components/schemas/WeeklyMetric' }
+
     HomeSummary:
       type: object
-      required: [businessName, generatedAt, brief, rail, inbox, activity, systems]
+      required: [businessName, generatedAt, brief, rail, inbox, activity, systems, livePresence, weeklyResults]
       properties:
         businessName: { type: string }
         generatedAt: { type: string, format: date-time }
@@ -2156,6 +2534,10 @@ components:
         systems:
           type: array
           items: { $ref: '#/components/schemas/HomeSystemStatus' }
+        livePresence:
+          type: array
+          items: { $ref: '#/components/schemas/LivePresenceItem' }
+        weeklyResults: { $ref: '#/components/schemas/WeeklyResults' }
         newLeads: { type: integer }
         unansweredReplies: { type: integer }
         followUpsDue: { type: integer }
@@ -2666,7 +3048,228 @@ components:
         idempotencyKey: { type: string, minLength: 1, maxLength: 128 }
         notes: { type: string }
 
+    ActivitySource:
+      type: string
+      enum: [LOOPIE, PLATFORM, WEBSITE, CHANNEL, USER, AUTOMATION]
+
+    ActivityType:
+      type: string
+      enum: [FORM_SUBMISSION, LEAD_CREATED, AD_RUN_FAILED, MESSAGE_REPLY, STATUS_CHANGE, PUBLISH, SALE, PAYMENT, AUTOMATION_EXECUTION, SYNC, IDENTITY_MATCH, BROADCAST]
+
+    AttentionState:
+      type: string
+      enum: [NEEDS_ACTION, IN_PROGRESS, SNOOZED, RESOLVED]
+
+    AttentionItem:
+      type: object
+      required: [id, state]
+      properties:
+        id: { type: string }
+        state: { $ref: '#/components/schemas/AttentionState' }
+        assigneeId: { type: string, nullable: true }
+        priority: { type: string, nullable: true }
+        dueAt: { type: string, format: date-time, nullable: true }
+        snoozedUntil: { type: string, format: date-time, nullable: true }
+
+    ActivityAction:
+      type: object
+      required: [id, label]
+      properties:
+        id: { type: string }
+        label: { type: string }
+        href: { type: string, nullable: true }
+        command: { type: string, nullable: true }
+
+    ActivityAggregation:
+      type: object
+      required: [key, count, windowStart, windowEnd]
+      properties:
+        key: { type: string }
+        count: { type: integer }
+        windowStart: { type: string, format: date-time }
+        windowEnd: { type: string, format: date-time }
+
+    ActivityItem:
+      type: object
+      required: [id, businessId, taxonomyVersion, occurredAt, observedAt, projectedAt, storyId, source, type, actor, attention, summary, references, actions]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        taxonomyVersion: { type: string }
+        occurredAt: { type: string, format: date-time }
+        observedAt: { type: string, format: date-time }
+        projectedAt: { type: string, format: date-time }
+        storyId: { type: string }
+        source:
+          type: object
+          required: [kind, label]
+          properties:
+            kind: { $ref: '#/components/schemas/ActivitySource' }
+            id: { type: string, nullable: true }
+            label: { type: string }
+            accountId: { type: string, nullable: true }
+        type: { $ref: '#/components/schemas/ActivityType' }
+        actor:
+          type: object
+          required: [kind, label]
+          properties:
+            kind: { type: string, enum: [CONTACT, USER, SYSTEM, AUTOMATION] }
+            id: { type: string, nullable: true }
+            label: { type: string }
+        status: { type: string, nullable: true }
+        attention: { type: string, enum: [INFORMATION, ACTION_REQUIRED, FAILURE] }
+        summary: { type: string }
+        detail: { type: string, nullable: true }
+        references:
+          type: object
+          properties:
+            personId: { type: string, nullable: true }
+            leadId: { type: string, nullable: true }
+            adId: { type: string, nullable: true }
+            runId: { type: string, nullable: true }
+            pageId: { type: string, nullable: true }
+            formId: { type: string, nullable: true }
+            messageId: { type: string, nullable: true }
+            broadcastId: { type: string, nullable: true }
+            saleId: { type: string, nullable: true }
+        aggregation: { $ref: '#/components/schemas/ActivityAggregation', nullable: true }
+        attentionItem: { $ref: '#/components/schemas/AttentionItem', nullable: true }
+        actions:
+          type: array
+          items: { $ref: '#/components/schemas/ActivityAction' }
+
+
 paths:
+  # ---------- Activity ----------
+  /activity:
+    get:
+      operationId: getActivityStream
+      summary: Get the Activity stream
+      tags: [activity]
+      parameters:
+        - in: query
+          name: source
+          schema: { type: string }
+        - in: query
+          name: type
+          schema: { type: string }
+        - in: query
+          name: personId
+          schema: { type: string }
+        - in: query
+          name: adId
+          schema: { type: string }
+        - in: query
+          name: pageId
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: needsAction
+          schema: { type: boolean }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated Activity items
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ActivityItem' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+
+  /activity/health:
+    get:
+      operationId: getActivityHealth
+      summary: Get projection health (unresolved failures)
+      tags: [activity]
+      responses:
+        '200':
+          description: Health status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [unresolvedFailures, status]
+                properties:
+                  unresolvedFailures: { type: integer }
+                  status: { type: string }
+
+  /activity/checkpoint:
+    get:
+      operationId: getActivityCheckpoint
+      summary: Get latest observed time for new item notices
+      tags: [activity]
+      responses:
+        '200':
+          description: Latest observedAt timestamp
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [observedAt]
+                    properties:
+                      observedAt: { type: string, format: date-time }
+
+  /activity/{activityId}:
+    get:
+      operationId: getActivityItem
+      summary: Get a single Activity item
+      tags: [activity]
+      parameters:
+        - $ref: '#/components/parameters/ActivityId'
+      responses:
+        '200':
+          description: Detailed Activity item
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/ActivityItem' }
+
+  /activity/attention/{attentionId}:
+    patch:
+      operationId: updateAttentionItem
+      summary: Mutate an AttentionItem
+      tags: [activity]
+      parameters:
+        - $ref: '#/components/parameters/AttentionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                state: { $ref: '#/components/schemas/AttentionState' }
+                assigneeId: { type: string, nullable: true }
+                priority: { type: string, nullable: true }
+                snoozedUntil: { type: string, format: date-time, nullable: true }
+      responses:
+        '200':
+          description: Updated AttentionItem
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AttentionItem' }
+
+
+
   # ---------- Auth ----------
   /auth/register:
     post:
@@ -2735,6 +3338,42 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/AuthResponse' }
 
+  # ---------- Business ----------
+  /business:
+    get:
+      operationId: getBusiness
+      summary: Get business profile
+      description: 'The current user''s business identity/profile — see docs/strategy/03-product-principles.md''s Singleton, Collection, Entity grammar (Business Profile is the one Singleton).'
+      tags: [business]
+      responses:
+        '200':
+          description: Business profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Business' }
+    patch:
+      operationId: updateBusiness
+      summary: Update business profile
+      description: 'Used both for first-login setup and later edits — the same object, always editable. Stamps identityCompletedAt on first save.'
+      tags: [business]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateBusinessInput' }
+      responses:
+        '200':
+          description: Updated business profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Business' }
+
   # ---------- Contacts ----------
   /contacts:
     get:
@@ -2751,6 +3390,10 @@ paths:
         - in: query
           name: lifecycleStatus
           schema: { type: string, enum: [LEAD, CUSTOMER, PAST_CUSTOMER, NONE] }
+        - in: query
+          name: source
+          description: Return contacts whose first-seen source matches this value.
+          schema: { type: string }
       responses:
         '200':
           description: Paginated contacts
@@ -2896,6 +3539,23 @@ paths:
       responses:
         '200':
           description: Integration updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Integration' }
+
+  /integrations/{integrationId}/disconnect:
+    post:
+      operationId: disconnectIntegration
+      summary: Remove stored access to a CRM integration
+      tags: [crm]
+      parameters:
+        - $ref: '#/components/parameters/IntegrationId'
+      responses:
+        '200':
+          description: Integration access removed
           content:
             application/json:
               schema:
@@ -3580,6 +4240,79 @@ paths:
                 type: object
                 properties:
                   data: { type: object, nullable: true }
+
+  # ---------- Inbox ----------
+  # Deliberately narrow per the Messages -> Inbox slice (2026-08-28): no archive, no saved/default
+  # views, no filters beyond all/unread, no send/reply here yet (that's a later slice once
+  # email/SMS transport is connected — compose still lives at POST /messages/{id}/send).
+  /inbox/threads:
+    get:
+      operationId: listInboxThreads
+      summary: List Inbox threads
+      description: >
+        CONTACT and ADVERTISEMENT threads together, most-recent-activity first. A CONTACT
+        thread's preview/messages are read live from Interaction joined back to Message — real
+        communications are never copied into a second row (see InboxService's own doc comment).
+        Known limitation: no inbound-reply capture exists yet, so CONTACT threads only ever show
+        outbound sent messages.
+      tags: [inbox]
+      parameters:
+        - in: query
+          name: filter
+          schema: { type: string, enum: [all, unread], default: all }
+      responses:
+        '200':
+          description: Inbox threads
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/InboxThreadSummary' }
+
+  /inbox/threads/{threadId}:
+    get:
+      operationId: getInboxThread
+      summary: Get an Inbox thread and its messages, chronological
+      tags: [inbox]
+      parameters:
+        - $ref: '#/components/parameters/InboxThreadId'
+      responses:
+        '200':
+          description: Thread and messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [thread, messages]
+                    properties:
+                      thread: { $ref: '#/components/schemas/InboxThreadSummary' }
+                      messages:
+                        type: array
+                        items: { $ref: '#/components/schemas/InboxMessage' }
+
+  /inbox/threads/{threadId}/read:
+    post:
+      operationId: markInboxThreadRead
+      summary: Mark an Inbox thread read
+      description: Sets the thread's read watermark to now. Thread-level only — no per-message read state.
+      tags: [inbox]
+      parameters:
+        - $ref: '#/components/parameters/InboxThreadId'
+      responses:
+        '200':
+          description: Updated thread
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/InboxThreadSummary' }
 
   # ---------- Messages ----------
   /messages:
@@ -4761,6 +5494,227 @@ paths:
                 properties:
                   data: { $ref: '#/components/schemas/AdRun' }
 
+  /ad-runs/{adRunId}/sync:
+    post:
+      operationId: syncAdRun
+      summary: Pull the run's real provider status/spend/performance now
+      description: >
+        On-demand pull sync — fetches provider delivery state, spend, and performance for a
+        run already sent to a platform, and persists them. Never mutates the platform; read-only.
+        409s if the run has no externalAdId yet (nothing to pull).
+      tags: [advertisements]
+      parameters:
+        - $ref: '#/components/parameters/AdRunId'
+      responses:
+        '200':
+          description: Synced ad run
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdRun' }
+
+  /ad-runs/{adRunId}/budget:
+    post:
+      operationId: updateAdRunBudget
+      summary: Request a real budget change at the platform
+      description: >
+        Capability-gated remote budget mutation (requires capabilities.editBudget). Freezes a new
+        MediaOrderRevision before attempting the change; if the platform rejects it, that revision
+        never becomes this run's effective one and AdRun.budget is left untouched. Resyncs
+        immediately after a successful mutation so effectiveBudget reflects the platform's own
+        confirmed value. 409s if this run has no external identity, the connector can't edit
+        budget, or the business is currently disconnected — never silently edits only the local
+        value for a run with a real external identity.
+      tags: [advertisements]
+      parameters:
+        - $ref: '#/components/parameters/AdRunId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dailyBudget]
+              properties:
+                dailyBudget:
+                  type: number
+                  minimum: 0.01
+                  description: The new requested daily budget, in whole currency units.
+      responses:
+        '200':
+          description: Updated ad run
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdRun' }
+
+  /ad-runs/{adRunId}/schedule:
+    post:
+      operationId: updateAdRunSchedule
+      summary: Request a real schedule change at the platform
+      description: >
+        Capability-gated remote schedule mutation (requires capabilities.editSchedule). Freezes a
+        new MediaOrderRevision before attempting the change; if the platform rejects it, that
+        revision never becomes this run's effective one and AdRun.startDate/endDate are left
+        untouched. Resyncs immediately after a successful mutation so effectiveStartDate/
+        effectiveEndDate reflect the platform's own confirmed schedule. endDate omitted or null
+        means an explicit no-end schedule. 409s if this run has no external identity, the
+        connector can't edit schedule, or the business is currently disconnected — never silently
+        edits only the local value for a run with a real external identity.
+      tags: [advertisements]
+      parameters:
+        - $ref: '#/components/parameters/AdRunId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [startDate]
+              properties:
+                startDate:
+                  type: string
+                  format: date-time
+                  description: The new requested start instant.
+                endDate:
+                  type: string
+                  format: date-time
+                  nullable: true
+                  description: The new requested end instant, or null/omitted for no end date.
+      responses:
+        '200':
+          description: Updated ad run
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdRun' }
+
+  /ad-runs/{adRunId}/targeting:
+    post:
+      operationId: updateAdRunTargeting
+      summary: Request a real targeting change at the platform
+      description: >
+        Capability-gated remote targeting mutation (requires capabilities.editAudience). Freezes a
+        new MediaOrderRevision before attempting the change; if the platform rejects it (including
+        a location that can't be resolved to a real targetable spot), that revision never becomes
+        this run's effective one and AdRun.country/locationNote/radiusMiles are left untouched.
+        Resyncs immediately after a successful mutation so effectiveCountry/effectiveLocationNote/
+        effectiveRadiusMiles reflect the platform's own confirmed targeting. Omitting locationNote
+        means country-only targeting. 409s if this run has no external identity, the connector
+        can't edit targeting, or the business is currently disconnected — never silently edits only
+        the local value for a run with a real external identity.
+      tags: [advertisements]
+      parameters:
+        - $ref: '#/components/parameters/AdRunId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [country]
+              properties:
+                country:
+                  type: string
+                  description: The new requested targeting country.
+                locationNote:
+                  type: string
+                  nullable: true
+                  description: A free-text location to resolve into a real radius-targeted spot, or null/omitted for country-only targeting.
+                radiusMiles:
+                  type: integer
+                  nullable: true
+                  description: Radius in miles around locationNote. Ignored when locationNote is null/omitted.
+      responses:
+        '200':
+          description: Updated ad run
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdRun' }
+
+  /ad-runs/{adRunId}/replace-creative:
+    post:
+      operationId: replaceAdRunCreative
+      summary: Replace this run's creative with a new provider execution
+      description: >
+        A RECREATE mutation, not an in-place edit (capabilities.editModes.creative is RECREATE for
+        every connector today — Meta creatives are immutable at the API). Reuses the Advertisement's
+        current attached assets — the same createAndProvision path a first send uses — to stand up
+        a brand-new provider execution (new campaign/ad-set/ad, a fresh MediaOrderRevision at the
+        next sequence number), then ends this run once the replacement's own send attempt has
+        resolved (successful or not — a failed replacement must not silently strand the business
+        with no visible run at all). The new run's supersedesRunId points back at this one. 400s if
+        the Advertisement's current assets are identical to this run's last revision (nothing to
+        replace).
+      tags: [advertisements]
+      parameters:
+        - $ref: '#/components/parameters/AdRunId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                idempotencyKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+                  description: Client-generated once per replacement attempt and resent unchanged on any retry.
+      responses:
+        '201':
+          description: The new, replacement ad run
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdRun' }
+
+  /ad-runs/{adRunId}/replace-destination:
+    post:
+      operationId: replaceAdRunDestination
+      summary: Replace this run's destination with a new provider execution
+      description: >
+        Same RECREATE contract as replace-creative (capabilities.editModes.destination is RECREATE
+        — Meta's click-through URL lives inside the immutable creative, not as an independently
+        editable field), but for the click destination instead of the media. 400s if the new
+        destinationLandingPageId matches this run's last revision (nothing to replace).
+      tags: [advertisements]
+      parameters:
+        - $ref: '#/components/parameters/AdRunId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [destinationLandingPageId]
+              properties:
+                destinationLandingPageId: { type: string }
+                idempotencyKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+                  description: Client-generated once per replacement attempt and resent unchanged on any retry.
+      responses:
+        '201':
+          description: The new, replacement ad run
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdRun' }
+
   /platform-capabilities:
     get:
       operationId: getPlatformCapabilities
@@ -4806,6 +5760,23 @@ paths:
       responses:
         '200':
           description: Updated connection
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/PlatformConnection' }
+
+  /platforms/{platform}/disconnect:
+    post:
+      operationId: disconnectPlatformConnection
+      summary: Remove stored access to an advertising platform
+      tags: [platforms]
+      parameters:
+        - $ref: '#/components/parameters/AdPlatform'
+      responses:
+        '200':
+          description: Platform access removed
           content:
             application/json:
               schema:

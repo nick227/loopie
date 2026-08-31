@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useWindowVirtualizer } from '@tanstack/react-virtual'
 
 export interface VirtualInfiniteListProps<T> {
@@ -19,11 +19,23 @@ export function VirtualInfiniteList<T>({
   estimateSize = 100,
 }: VirtualInfiniteListProps<T>) {
   const listRef = useRef<HTMLDivElement>(null)
+  const [scrollMargin, setScrollMargin] = useState(0)
+
+  useLayoutEffect(() => {
+    function measureOffset() {
+      if (!listRef.current) return
+      setScrollMargin(listRef.current.getBoundingClientRect().top + window.scrollY)
+    }
+    measureOffset()
+    window.addEventListener('resize', measureOffset)
+    return () => window.removeEventListener('resize', measureOffset)
+  }, [])
 
   const virtualizer = useWindowVirtualizer({
     count: hasNextPage ? items.length + 1 : items.length,
     estimateSize: () => estimateSize,
     overscan: 5,
+    scrollMargin,
   })
 
   const virtualItems = virtualizer.getVirtualItems()
@@ -60,7 +72,7 @@ export function VirtualInfiniteList<T>({
               top: 0,
               left: 0,
               width: '100%',
-              transform: `translateY(${virtualItem.start}px)`,
+              transform: `translateY(${virtualItem.start - scrollMargin}px)`,
               paddingBottom: '12px', // gap equivalent
             }}
           >

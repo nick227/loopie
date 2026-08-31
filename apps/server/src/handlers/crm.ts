@@ -42,6 +42,12 @@ export async function updateIntegration(request: any, reply: any) {
   })
 }
 
+export async function disconnectIntegration(request: any, reply: any) {
+  return reply.send({
+    data: await integrations.disconnect(request.user.businessId, request.params.integrationId),
+  })
+}
+
 export async function startCrmOAuth(request: any, reply: any) {
   const data = await oauth.start(request.user.businessId, request.params.provider, {
     shop: request.query?.shop,

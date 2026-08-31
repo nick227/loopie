@@ -1,6 +1,7 @@
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useAutomation, useAutomationLogs } from '@project/sdk'
 import { Card, CardContent } from '@/components/ui/Card'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { AutomationLogs } from '@/components/automations/AutomationLogs'
 
@@ -16,15 +17,11 @@ export function AutomationLogsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="space-y-1">
-        <Link
-          to={`/automations/${item.id}`}
-          className="text-xs text-muted-foreground hover:underline"
-        >
-          {item.name}
-        </Link>
-        <h1 className="text-xl font-semibold">Logs</h1>
-      </div>
+      <PageHeader
+        variant="detail"
+        title="Logs"
+        breadcrumb={{ label: item.name, to: `/automations/${item.id}` }}
+      />
       <Card>
         <CardContent className="py-4">
           <AutomationLogs logs={logsQuery.data?.data ?? []} />

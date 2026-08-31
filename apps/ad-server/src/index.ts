@@ -46,9 +46,18 @@ async function main() {
   // but Railway's healthcheck probe still reported "service unavailable" until PORT took
   // priority here. AD_SERVER_PORT stays as the override for local/manual runs.
   await server.listen({
-    port: Number(process.env.PORT ?? process.env.AD_SERVER_PORT ?? 3002),
+    port: Number(process.env.AD_SERVER_PORT ?? process.env.PORT ?? 3002),
     host: '0.0.0.0',
   })
+
+  const shutdown = async () => {
+    server.log.info('Shutting down server...')
+    await server.close()
+    process.exit(0)
+  }
+
+  process.once('SIGINT', shutdown)
+  process.once('SIGTERM', shutdown)
 }
 
 main().catch((err) => {

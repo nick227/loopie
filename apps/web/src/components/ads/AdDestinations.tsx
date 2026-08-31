@@ -1,21 +1,37 @@
 import type { components } from '@project/sdk'
-import { Button } from '@/components/ui/Button'
-import { DestinationRow } from '@/components/ads/AdDestinationRow'
-import { PAID_TARGETS, pageIdFromKey, pageKey, runDestinationKey } from '@/lib/adPreview'
+import { DestinationIntentRow, PageRunRow, PaidRunRow } from '@/components/ads/AdDestinationRow'
 import { AD_DESTINATIONS_HINT } from '@/lib/adCopy'
+import type { AdOrder } from '@/lib/adOrder'
+import {
+  PAID_TARGETS,
+  pageIdFromKey,
+  pageKey,
+  paidTargetByKey,
+  runDestinationKey,
+} from '@/lib/adPreview'
 
-type AdRun = components['schemas']['AdRun']
-type LandingPage = { id: string; name: string; status: string }
-
-export type PublishTarget = {
-  platform: 'META' | 'TIKTOK' | 'LOOPIE'
-  placement: string
-  budget: number
-  destinationLandingPageId?: string
+type AdRun = components['schemas']['AdRun'] & { orderSnapshot?: unknown }
+type LandingPage = {
+  id: string
+  name: string
+  status: string
+  hostedUrl?: string | null
+  slug?: string
 }
 
-function canStart(status: string) {
-  return status === 'PENDING' || status === 'PAUSED'
+export type PublishTarget = {
+  platform: 'META' | 'GOOGLE' | 'LOOPIE'
+  placement: string
+  budget: number
+  startDate?: string
+  endDate?: string
+  destinationLandingPageId?: string
+  orderSnapshot?: Record<string, unknown>
+  supersedesRunId?: string
+}
+
+function runFailoverPriority(run: AdRun) {
+  return run.status === 'VALIDATION_FAILED' || run.status === 'PROVISIONING_FAILED' ? 0 : 1
 }
 
 export function AdDestinations({
@@ -23,80 +39,170 @@ export function AdDestinations({
   pages,
   runs,
   selected,
-  budgets,
+  advertisementUpdatedAt,
   onToggle,
-  onBudget,
-  onStart,
-  onPause,
-  onStartAll,
-  onPauseAll,
+  onPausePage,
+  onRelaunch,
+  onSync,
+  syncingRunId,
+  onPauseRun,
+  onResumeRun,
+  onEndRun,
+  actionPendingRunId,
+  onEditBudget,
+  editBudgetPendingRunId,
+  editBudgetErrorRunId,
+  editBudgetError,
+  onEditSchedule,
+  editSchedulePendingRunId,
+  editScheduleErrorRunId,
+  editScheduleError,
+  onEditTargeting,
+  editTargetingPendingRunId,
+  editTargetingErrorRunId,
+  editTargetingError,
+  onReplaceCreative,
+  replaceCreativePendingRunId,
+  replaceCreativeErrorRunId,
+  replaceCreativeError,
+  onReplaceDestination,
+  replaceDestinationPendingRunId,
+  replaceDestinationErrorRunId,
+  replaceDestinationError,
 }: {
   mediaType: 'IMAGE' | 'VIDEO' | 'TEXT' | undefined
   pages: LandingPage[]
   runs: AdRun[]
   selected: string[]
-  budgets: Record<string, number>
+  advertisementUpdatedAt?: string
   onToggle: (key: string) => void
-  onBudget: (key: string, value: number) => void
-  onStart?: (runId: string) => void
-  onPause?: (runId: string) => void
-  onStartAll?: () => void
-  onPauseAll?: () => void
+  onPausePage?: (runId: string) => void
+  onRelaunch?: (run: AdRun) => void
+  onSync?: (run: AdRun) => void
+  syncingRunId?: string
+  onPauseRun?: (run: AdRun) => void
+  onResumeRun?: (run: AdRun) => void
+  onEndRun?: (run: AdRun) => void
+  actionPendingRunId?: string
+  onEditBudget?: (run: AdRun, dailyBudget: number) => Promise<void>
+  editBudgetPendingRunId?: string
+  editBudgetErrorRunId?: string
+  editBudgetError?: string | null
+  onEditSchedule?: (run: AdRun, startIso: string, endIso: string | null) => Promise<void>
+  editSchedulePendingRunId?: string
+  editScheduleErrorRunId?: string
+  editScheduleError?: string | null
+  onEditTargeting?: (
+    run: AdRun,
+    country: string,
+    locationNote: string | null,
+    radiusMiles: number | null,
+  ) => Promise<void>
+  editTargetingPendingRunId?: string
+  editTargetingErrorRunId?: string
+  editTargetingError?: string | null
+  onReplaceCreative?: (run: AdRun) => Promise<void>
+  replaceCreativePendingRunId?: string
+  replaceCreativeErrorRunId?: string
+  replaceCreativeError?: string | null
+  onReplaceDestination?: (run: AdRun, pageId: string) => Promise<void>
+  replaceDestinationPendingRunId?: string
+  replaceDestinationErrorRunId?: string
+  replaceDestinationError?: string | null
 }) {
   const paid = PAID_TARGETS.filter((row) => !mediaType || row.types.includes(mediaType))
   const byKey = new Map<string, AdRun>()
   for (const run of runs) {
     if (run.status === 'ENDED') continue
-    byKey.set(runDestinationKey(run), run)
+    const key = runDestinationKey(run)
+    const existing = byKey.get(key)
+    // A replace-creative/replace-destination (or generic relaunch) attempt that fails leaves its
+    // own new row non-ENDED (VALIDATION_FAILED/PROVISIONING_FAILED) alongside the prior run,
+    // which explicitly stays live and running until a replacement actually succeeds — see
+    // AdRunService.createAndProvision. Two non-ENDED rows can briefly share one destination key;
+    // the still-delivering one must win the slot here, never the failed attempt silently hiding
+    // it. Equal-priority ties (the normal case — one live run per key) keep prior last-one-wins
+    // behavior.
+    if (!existing || runFailoverPriority(run) >= runFailoverPriority(existing)) {
+      byKey.set(key, run)
+    }
   }
-  const anyOn = runs.some((run) => run.status === 'ACTIVE')
-  const anyOff = runs.some((run) => canStart(run.status))
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium">Where it runs</p>
-          <p className="text-sm text-muted-foreground">{AD_DESTINATIONS_HINT}</p>
-        </div>
-        {runs.length > 0 ? (
-          <div className="flex gap-2">
-            {anyOn && onPauseAll ? (
-              <Button type="button" size="sm" variant="outline" onClick={onPauseAll}>
-                Pause all
-              </Button>
-            ) : null}
-            {anyOff && onStartAll ? (
-              <Button type="button" size="sm" onClick={onStartAll}>
-                Start all
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
+      <div>
+        <p className="text-sm font-medium">Where should this ad appear?</p>
+        <p className="text-sm text-muted-foreground">{AD_DESTINATIONS_HINT}</p>
       </div>
 
-      {paid.length > 0 ? (
-        <div className="space-y-2">
-          {paid.map((row) => {
-            const run = byKey.get(row.key)
+      <div className="space-y-2">
+        {paid.map((row) => {
+          const run = byKey.get(row.key)
+          if (run)
             return (
-              <DestinationRow
+              <PaidRunRow
                 key={row.key}
-                id={row.key}
-                label={row.label}
+                brand={row.brand}
                 run={run}
-                selected={selected.includes(row.key)}
-                budget={budgets[row.key] ?? 10}
-                paid
-                onToggle={() => onToggle(row.key)}
-                onBudget={(value) => onBudget(row.key, value)}
-                onStart={run && onStart && canStart(run.status) ? () => onStart(run.id) : undefined}
-                onPause={run?.status === 'ACTIVE' && onPause ? () => onPause(run.id) : undefined}
+                advertisementUpdatedAt={advertisementUpdatedAt}
+                onRelaunch={onRelaunch ? () => onRelaunch(run) : undefined}
+                onSync={onSync ? () => onSync(run) : undefined}
+                syncing={syncingRunId === run.id}
+                onPause={onPauseRun ? () => onPauseRun(run) : undefined}
+                onResume={onResumeRun ? () => onResumeRun(run) : undefined}
+                onEnd={onEndRun ? () => onEndRun(run) : undefined}
+                actionPending={actionPendingRunId === run.id}
+                onEditBudget={
+                  onEditBudget ? (dailyBudget) => onEditBudget(run, dailyBudget) : undefined
+                }
+                editBudgetPending={editBudgetPendingRunId === run.id}
+                editBudgetError={editBudgetErrorRunId === run.id ? editBudgetError : undefined}
+                onEditSchedule={
+                  onEditSchedule
+                    ? (startIso, endIso) => onEditSchedule(run, startIso, endIso)
+                    : undefined
+                }
+                editSchedulePending={editSchedulePendingRunId === run.id}
+                editScheduleError={
+                  editScheduleErrorRunId === run.id ? editScheduleError : undefined
+                }
+                onEditTargeting={
+                  onEditTargeting
+                    ? (country, locationNote, radiusMiles) =>
+                        onEditTargeting(run, country, locationNote, radiusMiles)
+                    : undefined
+                }
+                editTargetingPending={editTargetingPendingRunId === run.id}
+                editTargetingError={
+                  editTargetingErrorRunId === run.id ? editTargetingError : undefined
+                }
+                pages={pages}
+                onReplaceCreative={onReplaceCreative ? () => onReplaceCreative(run) : undefined}
+                replaceCreativePending={replaceCreativePendingRunId === run.id}
+                replaceCreativeError={
+                  replaceCreativeErrorRunId === run.id ? replaceCreativeError : undefined
+                }
+                onReplaceDestination={
+                  onReplaceDestination ? (pageId) => onReplaceDestination(run, pageId) : undefined
+                }
+                replaceDestinationPending={replaceDestinationPendingRunId === run.id}
+                replaceDestinationError={
+                  replaceDestinationErrorRunId === run.id ? replaceDestinationError : undefined
+                }
               />
             )
-          })}
-        </div>
-      ) : null}
+          return (
+            <DestinationIntentRow
+              key={row.key}
+              id={row.key}
+              label={row.brand}
+              format={row.format}
+              selected={selected.includes(row.key)}
+              onToggle={() => onToggle(row.key)}
+            />
+          )
+        })}
+      </div>
 
       <div className="space-y-2">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Pages</p>
@@ -106,19 +212,25 @@ export function AdDestinations({
           pages.map((page) => {
             const key = pageKey(page.id)
             const run = byKey.get(key)
+            if (run) {
+              return (
+                <PageRunRow
+                  key={key}
+                  label={page.name}
+                  onPause={
+                    run.status === 'ACTIVE' && onPausePage ? () => onPausePage(run.id) : undefined
+                  }
+                />
+              )
+            }
             return (
-              <DestinationRow
+              <DestinationIntentRow
                 key={key}
                 id={key}
                 label={page.name}
-                hint={page.status === 'PUBLISHED' ? undefined : 'Draft'}
-                run={run}
+                format={page.status === 'PUBLISHED' ? undefined : 'Draft'}
                 selected={selected.includes(key)}
-                budget={0}
-                paid={false}
                 onToggle={() => onToggle(key)}
-                onStart={run && onStart && canStart(run.status) ? () => onStart(run.id) : undefined}
-                onPause={run?.status === 'ACTIVE' && onPause ? () => onPause(run.id) : undefined}
               />
             )
           })
@@ -128,15 +240,7 @@ export function AdDestinations({
   )
 }
 
-export function selectedToPublishTargets(
-  selected: string[],
-  budgets: Record<string, number>,
-): PublishTarget[] {
-  const paid = PAID_TARGETS.filter((row) => selected.includes(row.key)).map((row) => ({
-    platform: row.platform,
-    placement: row.placement,
-    budget: budgets[row.key] ?? 10,
-  }))
+export function selectedPageTargets(selected: string[]): PublishTarget[] {
   const pages: PublishTarget[] = []
   for (const key of selected) {
     const id = pageIdFromKey(key)
@@ -149,5 +253,24 @@ export function selectedToPublishTargets(
       })
     }
   }
-  return [...paid, ...pages]
+  return pages
+}
+
+export function paidOrderTarget(
+  key: string,
+  order: AdOrder,
+  supersedesRunId?: string,
+): PublishTarget | null {
+  const row = paidTargetByKey(key)
+  if (!row) return null
+  return {
+    platform: row.platform,
+    placement: row.placement,
+    budget: order.dailyBudget,
+    startDate: order.startDate,
+    endDate: order.endDate || undefined,
+    destinationLandingPageId: order.destinationLandingPageId || undefined,
+    orderSnapshot: { ...order, where: row.where },
+    supersedesRunId,
+  }
 }

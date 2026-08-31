@@ -45,6 +45,7 @@ function toAdvertisementDTO(row: AdvertisementRow) {
     assetIds: row.assets.map((a) => a.assetId),
     assets: row.assets.map((a) => toNestedAsset(a.asset)),
     createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
     ...advertisementSummary(row.runs),
   }
 }

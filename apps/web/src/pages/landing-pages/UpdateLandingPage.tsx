@@ -43,7 +43,15 @@ type FormData = z.infer<typeof schema>
 
 const fields: FieldConfig[] = [
   { name: 'name', label: 'Name', type: 'text', voice: true, required: false },
-  { name: 'slug', label: 'Slug', type: 'text', voice: false, required: false },
+  {
+    name: 'slug',
+    label: 'Page URL',
+    type: 'text',
+    placeholder: 'spring-detailing-promo',
+    description: 'Example: your-site.com/p/spring-detailing-promo. Enter only the final part.',
+    voice: false,
+    required: false,
+  },
   { name: 'customDomain', label: 'Custom Domain', type: 'text', voice: false, required: false },
   { name: 'formId', label: 'Form Id', type: 'text', voice: false, required: false },
   { name: 'content', label: 'Content', type: 'json', voice: false, required: false },

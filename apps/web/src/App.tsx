@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { CreativeToAd, CreativeEditToAd } from '@/pages/ads/CreativeRedirects'
@@ -14,9 +14,6 @@ const ContactsPage = lazy(() =>
 const CreateContactPage = lazy(() =>
   import('@/pages/contacts/CreateContactPage').then((m) => ({ default: m.CreateContactPage })),
 )
-const ImportContactsPage = lazy(() =>
-  import('@/pages/contacts/ImportContactsPage').then((m) => ({ default: m.ImportContactsPage })),
-)
 const ContactPage = lazy(() =>
   import('@/pages/contacts/ContactPage').then((m) => ({ default: m.ContactPage })),
 )
@@ -28,11 +25,11 @@ const ContactInteractionsPage = lazy(() =>
     default: m.ContactInteractionsPage,
   })),
 )
-const IntegrationsPage = lazy(() =>
-  import('@/pages/crm/IntegrationsPage').then((m) => ({ default: m.IntegrationsPage })),
-)
 const ContactMatchesPage = lazy(() =>
   import('@/pages/crm/ContactMatchesPage').then((m) => ({ default: m.ContactMatchesPage })),
+)
+const IntegrationsPage = lazy(() =>
+  import('@/pages/crm/IntegrationsPage').then((m) => ({ default: m.IntegrationsPage })),
 )
 const AudiencesPage = lazy(() =>
   import('@/pages/audiences/AudiencesPage').then((m) => ({ default: m.AudiencesPage })),
@@ -79,6 +76,9 @@ const CreateAdPage = lazy(() =>
 const AdPage = lazy(() => import('@/pages/ads/AdPage').then((m) => ({ default: m.AdPage })))
 const UpdateAdPage = lazy(() =>
   import('@/pages/ads/UpdateAdPage').then((m) => ({ default: m.UpdateAdPage })),
+)
+const InboxThreadPage = lazy(() =>
+  import('@/pages/inbox/InboxThreadPage').then((m) => ({ default: m.InboxThreadPage })),
 )
 const MessagesPage = lazy(() =>
   import('@/pages/messages/MessagesPage').then((m) => ({ default: m.MessagesPage })),
@@ -213,9 +213,6 @@ const LandingPageTemplatePage = lazy(() =>
 const LandingPagesPage = lazy(() =>
   import('@/pages/landing-pages/LandingPagesPage').then((m) => ({ default: m.LandingPagesPage })),
 )
-const CreateLandingPage = lazy(() =>
-  import('@/pages/landing-pages/CreateLandingPage').then((m) => ({ default: m.CreateLandingPage })),
-)
 const LandingPage = lazy(() =>
   import('@/pages/landing-pages/LandingPage').then((m) => ({ default: m.LandingPage })),
 )
@@ -282,9 +279,26 @@ const ResultsSummaryPage = lazy(() =>
 const BillingPage = lazy(() =>
   import('@/pages/core/BillingPage').then((m) => ({ default: m.BillingPage })),
 )
+const ProfilePage = lazy(() =>
+  import('@/pages/core/ProfilePage').then((m) => ({ default: m.ProfilePage })),
+)
+const BusinessSetupPage = lazy(() =>
+  import('@/pages/core/BusinessSetupPage').then((m) => ({ default: m.BusinessSetupPage })),
+)
 import { AuthGuard } from '@/lib/AuthGuard'
+import { ActivityPage } from './pages/activity/ActivityPage'
 import { ErrorBoundary } from '@/components/layout/ErrorBoundary'
-import { RequireRole, RequireNonAffiliate, HomeRoute } from '@/lib/RequireRole'
+import { RequireRole, RequireNonAffiliate, InboxRoute } from '@/lib/RequireRole'
+import { SaaSCleanCrispPreview } from '@/pages/landing-pages/SaaSCleanCrispPreview'
+import { AppWaitlistNeonPreview } from '@/pages/landing-pages/AppWaitlistNeonPreview'
+import { EcommerceGradientPreview } from '@/pages/landing-pages/EcommerceGradientPreview'
+import { AgencyOrganicPreview } from '@/pages/landing-pages/AgencyOrganicPreview'
+import { CreatorBrutalistPreview } from '@/pages/landing-pages/CreatorBrutalistPreview'
+import { EventPastelPreview } from '@/pages/landing-pages/EventPastelPreview'
+import { DevToolCyberpunkPreview } from '@/pages/landing-pages/DevToolCyberpunkPreview'
+import { RealEstateLuxuryPreview } from '@/pages/landing-pages/RealEstateLuxuryPreview'
+import { HealthcareTelehealthPreview } from '@/pages/landing-pages/HealthcareTelehealthPreview'
+import { Web3CryptoPreview } from '@/pages/landing-pages/Web3CryptoPreview'
 import { Shell } from '@/components/layout/Shell'
 const PlatformsPage = lazy(() =>
   import('@/pages/platforms/PlatformsPage').then((m) => ({ default: m.PlatformsPage })),
@@ -333,24 +347,59 @@ function ResettableErrorBoundary({ children }: { children: React.ReactNode }) {
   return <ErrorBoundary key={location.pathname}>{children}</ErrorBoundary>
 }
 
+// Plain BrowserRouter/Routes (not a data router) does no scroll management on its own — a normal
+// SPA navigation otherwise leaves window.scrollY wherever it was. Every route starts at the top
+// except /home, which restores its own saved position instead (see InboxSummaryPage's
+// useRestoreHomeScroll / docs/strategy/03-product-principles.md's state-continuity requirement)
+// — this runs first on remount, then Home's own effect repositions it, so the two never fight.
+function ScrollToTop() {
+  const location = useLocation()
+  useEffect(() => {
+    if (location.pathname !== '/home') window.scrollTo(0, 0)
+  }, [location.pathname])
+  return null
+}
+
 export function App() {
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <ResettableErrorBoundary>
+        <ScrollToTop />
         <Suspense fallback={<Skeleton className="h-48 w-full" />}>
           <Routes>
             {/* Public / auth routes */}
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/preview/saas-clean-crisp" element={<SaaSCleanCrispPreview />} />
+            <Route path="/preview/app-waitlist-neon" element={<AppWaitlistNeonPreview />} />
+            <Route path="/preview/ecommerce-gradient" element={<EcommerceGradientPreview />} />
+            <Route path="/preview/agency-organic" element={<AgencyOrganicPreview />} />
+            <Route path="/preview/creator-brutalist" element={<CreatorBrutalistPreview />} />
+            <Route path="/preview/event-pastel" element={<EventPastelPreview />} />
+            <Route path="/preview/devtool-cyberpunk" element={<DevToolCyberpunkPreview />} />
+            <Route path="/preview/real-estate-luxury" element={<RealEstateLuxuryPreview />} />
+            <Route
+              path="/preview/healthcare-telehealth"
+              element={<HealthcareTelehealthPreview />}
+            />
+            <Route path="/preview/web3-crypto" element={<Web3CryptoPreview />} />
 
             {/* Protected routes */}
             <Route element={<AuthGuard />}>
+              {/* No Shell chrome — the first-login "one calm screen," not a page reached through
+                  navigation. See docs/strategy/03-product-principles.md's First-Login step 0. */}
+              <Route path="/business/setup" element={<BusinessSetupPage />} />
               <Route element={<Shell />}>
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/activity" element={<ActivityPage />} />
                 <Route element={<RequireNonAffiliate />}>
                   <Route index element={<Navigate to="/home" replace />} />
                   <Route path="/contacts" element={<ContactsPage />} />
                   <Route path="/contacts/new" element={<CreateContactPage />} />
-                  <Route path="/contacts/import/new" element={<ImportContactsPage />} />
+                  <Route
+                    path="/contacts/import/new"
+                    element={<Navigate to="/contacts#import" replace />}
+                  />
                   <Route path="/contacts/:contactId" element={<ContactPage />} />
                   <Route path="/contacts/:contactId/edit" element={<UpdateContactPage />} />
                   <Route
@@ -384,6 +433,7 @@ export function App() {
                   <Route path="/creatives/new" element={<Navigate to="/ads/new" replace />} />
                   <Route path="/creatives/:creativeId" element={<CreativeToAd />} />
                   <Route path="/creatives/:creativeId/edit" element={<CreativeEditToAd />} />
+                  <Route path="/inbox/:threadId" element={<InboxThreadPage />} />
                   <Route path="/messages" element={<MessagesPage />} />
                   <Route path="/messages/new" element={<CreateMessagePage />} />
                   <Route path="/messages/:messageId" element={<MessagePage />} />
@@ -458,7 +508,10 @@ export function App() {
                     element={<LandingPageTemplatePage />}
                   />
                   <Route path="/landing-pages" element={<LandingPagesPage />} />
-                  <Route path="/landing-pages/new" element={<CreateLandingPage />} />
+                  <Route
+                    path="/landing-pages/new"
+                    element={<Navigate to="/landing-pages" replace />}
+                  />
                   <Route path="/landing-pages/:landingPageId" element={<LandingPage />} />
                   <Route
                     path="/landing-pages/:landingPageId/edit"
@@ -494,7 +547,8 @@ export function App() {
                   <Route path="/sales" element={<SalesPage />} />
                   <Route path="/sales/new" element={<CreateSalePage />} />
                   <Route path="/sales/:saleId" element={<SalePage />} />
-                  <Route path="/home" element={<HomeRoute />} />
+                  <Route path="/home" element={<InboxRoute />} />
+                  <Route path="/inbox" element={<Navigate to="/home" replace />} />
                   <Route path="/results" element={<ResultsSummaryPage />} />
                   <Route path="/platforms" element={<PlatformsPage />} />
                   <Route

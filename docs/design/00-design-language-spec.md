@@ -1,0 +1,139 @@
+# Design Language Spec (2026-08-28)
+
+## Status
+
+Preparatory. Nothing in this doc is implemented yet — it's the visual/system-level language extracted from four reference mockups in `/art` (all named after the app itself, LOOPIE — this is inspiration for our own redesign, not a third-party reference), calibrated against what's actually shipped today (`apps/web/tailwind.config.ts`, `apps/web/src/index.css`, `components/ui/*`). Page-specific application (which page gets touched first, exact copy, exact layout) is deliberately out of scope here — see `docs/architecture/00-unified-ia-navigation.md` for IA/nav and CLAUDE.md for what pages currently exist. This doc answers "what should the system feel like," not "what should page X look like."
+
+## The Big Decision This Spec Forces — Resolved (2026-08-28)
+
+**Locked: full violet-primary system, not a monochrome UI with occasional purple accents.** Confirmed explicitly — violet does real structural work (primary actions, active navigation, selected states, focus, links, emphasis, certain status treatments), it isn't a decorative accent layered onto the existing black/white system. Today's `index.css` is a monochrome "Linear/obsidian" system (`--primary` near-black in light mode / near-white in dark mode, no accent color anywhere, the only semantic status color that exists at all is `--destructive`); that's being replaced, not preserved-and-accented. Every section below inherits this — where it matters, it's called out as **Current** (what ships today) vs **Direction** (what this locks in).
+
+**With restraint, though**: most surfaces stay light and quiet. Violet defines _hierarchy_ — what's actionable, what's active, what's focused — not _decoration_. A screen that uses violet everywhere loses the ability to use it to mean anything. See "Rule for using color" below.
+
+## Color & Semantic Accent System
+
+**Locked mapping:**
+
+| Role    | Color                             | Used for                                                                                                                                                                              |
+| ------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Primary | Violet                            | Primary buttons, active nav state, selected states, focus rings, links, emphasis                                                                                                      |
+| Success | Green                             | Running/active/positive/won status                                                                                                                                                    |
+| Warning | Orange                            | Needs-attention/review-issue/paused-with-concern status                                                                                                                               |
+| Danger  | Red                               | Error/rejected/failed/destructive-action status (maps onto the existing `--destructive` token — no rename needed, just confirms it as part of the semantic set rather than a one-off) |
+| Info    | Blue                              | Informational/link-adjacent context — platform badges, info icons, narrow use only                                                                                                    |
+| Neutral | White / near-white / gray / black | Everything else — the vast majority of every surface                                                                                                                                  |
+
+**Observed (mockups):** violet (~`#7C3AED`–`#6D28D9` range) exactly as locked above. The semantic set appears as a **tint pair**: a very light, low-saturation background + a saturated foreground of the same hue (a badge, an icon circle, a status pill) — never a solid saturated fill covering a large area except on primary buttons and the active-nav pill. This tint-pair discipline _is_ the restraint mechanism — it's how the mockups stay "light and quiet" while still using five colors.
+
+**Current:** `--primary`/`--destructive` only; no success/warning/info tokens exist in `index.css` at all. `--accent` exists but is a neutral gray used for hover states, not a color-semantic token — don't confuse the two when adding real semantic tokens.
+
+**Direction:** add `--success`, `--warning`, `--info` alongside the existing `--primary`/`--destructive` pattern (`DEFAULT` + `-foreground`, HSL, light and `.dark` variants each), and repoint `--primary` at violet. Every semantic color needs both a light-mode and dark-mode value, following the same `.dark` block convention already established for the monochrome tokens — don't invent a second theming mechanism.
+
+**Rule for using color**: color always carries meaning (status, urgency, category, or primary action), never decoration. A card or row is never colored just to look lively — the tint-pair pattern (soft bg + saturated fg) is reserved for: status pills, icon-tile leading icons on stat tiles/list rows, and left-border accent stripes on activity/inbox-style rows keyed to source type (contact=one hue, ads=another, pages=another, integration=another — pick four distinct hues from the semantic set plus one neutral, don't invent new ones per surface). Everything else — page backgrounds, card surfaces, body text, most borders — stays neutral (white/near-white/gray/black). If most of a screen is violet, that's a sign the pattern's been misapplied, not a sign of brand commitment.
+
+## Typography
+
+**Observed:** bold, tight-tracking display headings for page titles (`Home`, `Advertisements`, `Inbox`, `CRM`) — large, black-weight, no letter-spacing tricks. Body copy is a plain, high-legibility sans at a comfortable size, generous line-height. Numbers in stat tiles are large and bold, set apart from their label (which is small, often lowercase, muted). No evidence of a monospace/mono treatment anywhere in the mockups, including in data-dense contexts (the CRM table's dollar values, dates) — everything stays in the same sans family.
+
+**Current:** already has a defined scale via `PageHeader`'s three variants (`list`/`detail`: `text-2xl font-bold`; `editor`: `text-xl font-semibold`, deliberately one step down) — see CLAUDE.md's "Frontend design-language audit" section. Font stack is `Geist Sans`/`Inter` with a separate `Geist Mono` already defined but apparently unused by design intent (data stays in the sans family per the same audit).
+
+**Direction:** keep the existing `PageHeader` scale and the "no mono for data" rule — both already match the mockups. What's new: stat-tile numerals should be a clear step larger and bolder than their label, more than typical `CardTitle`/`CardDescription` pairing currently provides (mockups' stat numbers read as roughly `text-3xl`–`text-4xl` font-bold against an `text-xs`/`text-sm` muted label) — this is a new tile pattern, not a change to the heading scale itself.
+
+## Spacing & Radius
+
+**Observed:** generous internal card padding (visually ~20–24px, not the tighter ~16px common in dense SaaS UI), consistent gap rhythm between stacked cards (~12–16px), and a distinctly rounder corner radius than typical — cards read as `rounded-2xl`/`rounded-3xl` (16–24px), not the tighter `rounded-lg`/`rounded-xl` common elsewhere. Buttons and pills are fully rounded (`rounded-full`) for status badges and tab pills; primary action buttons use a large-but-not-full radius.
+
+**Current:** `--radius: 0.5rem` (8px), `--radius-lg: 0.75rem` (12px) — `Card` uses `rounded-xl` (12px). Noticeably tighter than the mockups.
+
+**Direction:** add a rounder tier — either raise `--radius-lg` to ~1rem (16px) or add a new `--radius-xl` (~1.25rem/20px) token specifically for card-level surfaces (stat tiles, list-item cards, the split-pane detail panel), while leaving small controls (inputs, small buttons, icon buttons) on the existing tighter scale so the whole UI doesn't turn uniformly bulbous. This is a token-scale addition, not a wholesale replacement — the existing `--radius`/`--radius-sm` for controls stay as-is.
+
+## Universal List Row — Superseded and Implemented (2026-08-28)
+
+Supersedes the original "Cards vs. Flat Lists" guidance below (kept for its historical reasoning, not as current direction): that section treated "big card" vs. "flat dense row" as two legitimate patterns to choose between per-surface. In practice this produced exactly the drift the rest of this doc warns against — six pages (Inbox, CRM, Advertisements, Pages, Media, Affiliates) each ended up with their _own_ hand-rolled row shape, different thumbnail sizes, different divider treatment, different hover/selected states, different action affordances. Explicit correction: **one shared row primitive, `UniversalRow` (`apps/web/src/components/ui/UniversalRow.tsx`), every list renders through it.** A page decides what data occupies which slot; it never decides how the slot itself looks.
+
+- **Three density modes, not per-page variants**: `comfortable` (the default list row — leading visual + title/subtitle/meta + trailing, used by Inbox/CRM/Advertisements/Pages/Affiliates), `compact` (same shape, smaller leading visual and tighter padding — Home's "Live work" feed), `media` (a vertical tile — big square thumbnail on top, title/subtitle below — meant to sit in a CSS grid, not a divided list; this is Media's shape).
+- **Slots, not layout**: `leading` (avatar/thumbnail/icon, `leadingShape="circle"` for identity or `"square"` for a thumbnail — sized and clipped by the row itself, never by the page), `accent` (the left-edge color stripe, one of the six semantic keys — `primary`/`success`/`warning`/`info`/`destructive`/`neutral` — never an arbitrary color), `title`, `subtitle`, `meta` (small inline badges under the subtitle — this is where status pills live), `trailing` (right-aligned text, usually one or two stacked lines), `action` (an explicit button distinct from the row's own click target), `chevron` (defaults to true whenever the row is clickable — the same "click to open" affordance everywhere, not a per-page choice).
+- **The divider lives on the row, not the container.** `UniversalRowList` (the shared bordered/rounded wrapper) does _not_ use `divide-y` — each row draws its own `border-b`. This was a real, non-obvious finding: `VirtualInfiniteList` (used by Advertisements/Pages/Affiliates for pagination) absolutely-positions each row via `transform: translateY(...)`, which breaks CSS `divide-y` between siblings entirely. Putting the divider on the row itself means "same divider" holds whether the list underneath is virtualized or a plain `.map()` — a container-level rule would have silently only worked for half the surfaces.
+- **What converged, concretely**: Advertisements and Pages went from a large two-column card (thumbnail spanning the full card width/height, a separate "Edit" link, no whole-row click) to the same lean clickable row as everything else — a real behavior change (bigger clickable area, dropped the redundant explicit Edit link in favor of the row + chevron), not just a reskin. Affiliates went from a bespoke generic `Card` with no leading visual to a proper avatar-led row. Media's full-library grid kept its grid _container_ (CSS grid, not a divided list — `media` density is designed for exactly this) but each tile now renders through the same primitive, including trading a per-asset dynamic aspect ratio for the same uniform square crop every other thumbnail in the app uses (a deliberate "same thumbnail sizes" trade, not an oversight). Media's separate _picker_ modal (dense press-to-select tiles inside a compose flow) was deliberately left on its own bespoke markup — a different interaction, not a browsing list, and out of scope for this convergence.
+- **What's still page-specific, correctly**: CRM's per-source hash-based avatar coloring (`SOURCE_STYLES`) is categorical, not semantic — it doesn't use the `accent` prop's six-key semantic set, and shouldn't; forcing it through `accent` would have created false meaning (a `SHOPIFY` source landing on "destructive" red by hash coincidence). It's passed as a custom `leading` node instead, exactly as the primitive's API allows.
+
+### Cards vs. Flat Lists (historical — superseded above)
+
+This was the original reasoning that led to the six-way drift: cards (bordered containers, generous padding) for short, metadata-rich lists where browsing is the primary action; flat dense rows (shared container border, thin dividers) for long/paginated/filterable lists. Both still used a left-border accent stripe. Kept here for the record — `UniversalRow` is the actual answer now, not a choice between these two.
+
+## Status Pills & Badges
+
+**Observed:** fully-rounded pill badges, tint-pair colored (soft bg + saturated text, no border in most cases), used for lifecycle/status state only (`Running`, `Review issue`, `Contacted`, `Won`, `Lost`) — never for arbitrary categorization. Text is short, sentence case, no all-caps. A small solid dot (no pill) is used specifically for "unread"/"needs attention" — a different, lighter-weight signal than a full status pill.
+
+**Current:** status badges exist ad hoc per page (e.g. Campaign status labels) without one shared component — worth consolidating into a `StatusPill` primitive keyed to the new semantic tokens (`success`/`warning`/`destructive`/neutral) rather than each page picking its own Tailwind color classes, which is exactly the kind of drift CLAUDE.md's "zinc-token sweep" already had to clean up once.
+
+## Icon Tiles (Stat Tiles & Leading Icons)
+
+**Observed:** a soft-tint circular or rounded-square background (very light version of a semantic hue) containing a single-color icon (the saturated version of the same hue) — used for stat-tile leading icons (Home's CRM/Advertisements/Pages/Media tiles) and list-row leading icons. This is the single most repeated visual motif across all four mockups.
+
+**Direction:** a small `IconTile` primitive (icon + semantic color name in, tint-pair styling out) would prevent every page from hand-rolling its own `bg-{color}-100 text-{color}-600`-style pairing — codify the tint-pair relationship once.
+
+## Desktop: Split Panes & the Pipeline Stepper
+
+**Observed:** the CRM desktop view uses a persistent two-pane layout — a list/table on the left (fixed width or flexible), a detail panel on the right that appears once a row is selected (not a full navigation, not a modal). The detail panel includes a horizontal dot-and-line stage stepper (pipeline stage progress: New → Contacted → Qualified → Quoted → Won, filled dots for passed/current stages, connecting line, current stage highlighted).
+
+**Direction:** this is a genuinely new interaction pattern relative to what's shipped — current detail views (`ContactPage.tsx` etc.) are full-page navigations, not inline split panes. Worth a dedicated `SplitDetailLayout` (list + slide-in-from-right detail pane, collapsible) and a `PipelineStepper` component if CRM adopts this pattern — both reusable beyond just Contacts (anywhere with a linear stage/lifecycle: Automation runs, AdRun provider state, a Sale's status). Don't build `PipelineStepper` as CRM-specific.
+
+## Mobile: Bottom Navigation
+
+**Observed:** fixed bottom tab bar, icon + label per item, active item in the violet primary (both icon and label), inactive items muted gray. Five items shown across the mockups (`Home · CRM · Ads · Pages · More`), iOS safe-area-aware bottom padding.
+
+**Current:** `Shell.tsx` already implements exactly this shape (fixed bottom nav, icon+label, active/inactive states, `env(safe-area-inset-bottom)` padding) — see the "Mobile Bottom Navigation" block. This part needs re-skinning (active-state color → violet, current active state uses `text-primary` which will follow automatically once `--primary` is repointed) rather than rebuilding. Nav is now five items (`Home · CRM · Advertisements · Pages · Media`) — Inbox was folded into Home's own feed (2026-08-28, later same day than the token/restyle pass — see `docs/architecture/00-unified-ia-navigation.md`), which also resolved the original six-vs-mockup's-five mismatch this note used to flag.
+
+## Detail Drawers (Inferred, Not Directly Observed)
+
+None of the four mockups show a mobile equivalent of the desktop split-pane detail view — this is a gap in the reference set, not a decided pattern. The reasonable inference (a bottom sheet or full-screen push replacing the split pane at mobile width) is consistent with the existing `.modal-sheet` animation already defined in `index.css` (`sheet-rise` keyframe, already used somewhere in the app), but should be treated as a recommendation to validate, not something this spec asserts the mockups actually show.
+
+## Empty States
+
+**Observed:** Inbox's empty state uses a soft, rounded illustration (message-bubble and colored-bar shapes suggesting chat/message content) paired with a hand-drawn-style arrow annotation and a short instructional caption ("Select a thread to view the full conversation or activity timeline") — friendly and explanatory, not just "nothing here."
+
+**Current:** `EmptyState.tsx` is icon + title + description + optional action button — functional, no illustration, no annotation style. This is a real gap: illustrated empty states are a bigger investment (need actual illustration assets or an SVG-based generative approach per context) than a token/color change. Worth a deliberate scope call — full illustrated empty states everywhere, or reserve the richer treatment for a few flagship surfaces (Home, Inbox) and keep the plain icon+text version for everything else, the same "flagship exception vs. shared primitive" logic CLAUDE.md already applied to Home's dashboard widgets.
+
+## Avatars & Platform Marks
+
+**Observed:** real circular photo avatars (not initials-in-a-circle) for the logged-in user and for contacts throughout — CRM's contact rows/detail panel, Home's "what needs attention" cards. Platform identity (Meta, Google) is shown as a small circular brand-mark badge directly next to the campaign/ad name, not just as text.
+
+**Current:** `Shell.tsx`'s user avatar is an initial-letter circle (`{me.data?.data?.email?.charAt(0).toUpperCase()}`), not a photo — real user photo upload isn't necessarily in scope for this pass, but the _component_ should support an image with graceful initials-fallback rather than assuming initials-only forever. `AdRow.tsx` shows a media thumbnail per ad but no distinct platform-brand badge separate from that — worth adding as a small `PlatformMark` primitive (Meta/Google/LOOPIE icon in a small circle) reusable anywhere a run/deployment's platform needs a quick visual identity, not just Advertisements rows.
+
+## Responsive Behavior
+
+**Observed pattern, consistent across all four:** mobile is single-column, full-width stacked cards, bottom tab nav, a light header (logo + user avatar, no persistent search bar visible in the mobile shots). Desktop adds a persistent left icon+label sidebar, a top bar with search + notification bell (with unread count badge) + help + user menu, and unlocks multi-column/split-pane layouts that don't exist at all on mobile (the CRM split pane collapses to list-only on mobile, per the Detail Drawers section above).
+
+**Current:** `Shell.tsx` already has this exact skeleton (`hidden md:flex` sidebar, `md:hidden` bottom nav, always-present top bar with search input + notification bell + avatar link) — this is already structurally correct and mostly needs the token-level restyle (color, radius, spacing) described above, not a rebuild. The one real gap: the current top bar's search input is always visible at `sm:` and up, including on some intermediate widths where the mockups' mobile view shows no search bar at all — worth checking the actual breakpoint behavior once tokens are updated, not assumed correct as-is.
+
+## Interaction Pattern: Editing Something Backed by an External System
+
+**Resolved (2026-08-29, later same day) — was in tension with `docs/strategy/03-product-principles.md`'s Ownership Rule, now reconciled.** `docs/architecture/01-external-ad-monitoring-contract.md` scoped the data contract, then the same pass rebuilt `AdDestinationRow.tsx`'s external-`AdRun` row against it: mutation (the routine-fields-edit-in-place machinery this section describes) moved behind a capability-gated `Manage` action instead of sitting inline as the default, and requested-vs-effective now only renders when the two actually disagree, not unconditionally. This section's underlying shape (routine-vs-recreate, drift shown when real) still describes the _mechanics_ correctly — what changed is that those mechanics are no longer what a user sees first. First-party `AdUnit`/Pages editing is unaffected — LOOPIE genuinely is the author there, so in-place-by-default stays exactly right.
+
+Not Advertisements-specific — this is the general rule for any field whose value lives partly on a third-party platform (today: Meta/Google ad runs via `apps/server/src/lib/platforms/types.ts`'s `EditMode` contract; potentially relevant to any future external sync). Locked as of 2026-08-28, resolving what had been an unfinished wiring gap on the Advertisements detail page (see CLAUDE.md/session history — `BudgetEditor`/`ScheduleEditor`/`TargetingEditor` existed fully built but had no live entry point; now wired):
+
+- **Routine mutable fields edit in place.** Budget, schedule, targeting — anything the connector reports as `EditMode: IN_PLACE` — get a direct, scoped editor (a small "Edit" affordance next to the field's own current-value display, not a generic settings menu). No full relaunch for a routine change.
+- **Creative and destination changes recreate/version.** These live _inside_ the ad's creative object on most platforms and can't be edited in place — "Replace creative" / "Change destination" submit a new provider version while the current one keeps delivering, never a silent in-place mutation of something the platform doesn't allow editing.
+- **Provider drift always shows requested vs. effective**, regardless of edit mode — "LOOPIE ordered: X" next to "{platform} effective: Y" — so a user can see when what they asked for hasn't caught up to what the platform is actually doing, independent of whether that field is even editable from LOOPIE.
+- **Relaunch is reserved for cases the platform's own semantics require** — not a catch-all "edit" button. If a field's `EditMode` is `NONE`, nothing offers to relaunch over it either; the consequence copy just says it can't be changed from LOOPIE yet.
+
+This is a content/interaction-model decision, not a token/color one — flagged here because it's exactly the kind of pattern a design spec needs to get right structurally before restyling, or the visual layer ends up dressing up a wrong interaction model.
+
+## What This Spec Deliberately Does Not Cover
+
+- Exact hex/HSL values for the new violet primary or the success/warning/info set — those should be chosen (or generated) as an actual token-writing pass, informed by this doc's _relationships_ (tint-pair pattern, which hues map to which meanings), not guessed here.
+- Which page gets rebuilt first, or in what order — a separate, sequencing decision.
+- Illustration asset sourcing for empty states — flagged as a gap above, not resolved.
+- Anything about the Advertisements/AdRun page's own information architecture beyond the interaction-model rule above (exact layout, copy, which metrics live where) — this spec speaks to its visual language once built on top of the token system above, not its content design. The interaction model itself **is** locked (see above) — Ads editing is explicitly not relaunch-only; routine fields (budget/schedule/targeting) edit in place, and only creative/destination genuinely recreate.
+
+## Information Hierarchy Pass — Home & CRM (2026-08-28)
+
+A follow-on critique after the token/UniversalRow work landed: the design language itself was judged restrained enough, but Home and CRM still read as "navigation + modules" (a desktop admin product) rather than "my business, my people, my ads, my pages" (the ownership-driven direction). Two structural corrections, not visual polish:
+
+- **No cross-system KPI strips.** Home's original top row (Inbox/Reach/Responses/Spend/Leads/Revenue) blended six unrelated dimensions — messaging, media performance, ad spend, and CRM leads — into one horizontal strip that stole visual priority from the actual product. Removed outright (`BusinessSignalRail.tsx` deleted) rather than trimmed to "2-3 numbers," since any subset still forces a cross-domain comparison that doesn't belong on one shared line. **Rule going forward: a number only ever appears on the page that owns it.** Business-wide "today" figures (like ad spend) are allowed _inside_ that domain's own card, never pooled across domains in a shared strip.
+- **`OwnedSystemCard`** (`components/home/OwnedSystemCard.tsx`) replaced the old single-count `SummaryPanel` (which was also silently broken — it read a `meta.total` field that doesn't exist anywhere in this API, so every count rendered `0`). Each card is a real doorway: an icon tile, the system's name, and up to three honest stat lines sourced from that system's own real data — never fabricated numbers to fill a slot. Where an exact total isn't cheaply available (no endpoint in this API returns list counts — `PaginatedMeta` has no `total` field), the card uses the same "N+" imprecise-but-honest convention CRM's own list already established, not a fake precise number.
+- **Home's hierarchy inverts**: the Inbox feed — the most differentiated part of the product — is now the dominant, first section on the page, not one widget among several. "Your business" (the four `OwnedSystemCard`s: Advertisements/Pages/CRM/Media) is a secondary section below it, not a peer.
+- **CRM stopped being "a directory + filters + import + integrations."** Source chips (a long row of pill buttons) moved into `SearchFilterBar`'s dropdown — metadata is filtering, not a primary control. Import shrank from a permanent page section to a single button opening a `Modal`. Integrations moved off the page entirely, onto its own real route (`/integrations`, rendering the already-built-but-unrouted `IntegrationsPage.tsx` — it existed on disk the whole time, just wired to a dead-end redirect) reachable via `CrmNav`. Rows became state-driven: a lifecycle-status pill (`bg-info`/`bg-success`/neutral tint-pair, same convention as every other status pill in the app) plus a real relationship-activity line (`lastContactedAt` or `createdAt`, relative-time formatted) and revenue when a contact has any — replacing the old avatar+email+source-badge+date shape, which was directory metadata, not relationship state.
+- **Not done this pass, deliberately**: the more radical CRM restructure the critique also raised (a pipeline-stage-counts strip plus a curated "recent people" view, with the full searchable directory demoted to a drill-down) — that's a bigger IA change than the six concrete fixes above, and wasn't in the user's own distilled priority list. Worth its own pass if wanted.
+- **Global, not page-specific**: `Shell.tsx`'s sidebar now visually separates the five core product surfaces from business-administration utility items (Affiliates/Billing) — the utility items sit in their own smaller, muted block just above Log out, under a "Business admin" label, instead of reading as more entries in the same list. The content column's width constraint was also loosened (`max-w-7xl` → effectively full-width) so desktop no longer reads as a mobile layout centered in a large empty viewport.

@@ -60,7 +60,11 @@ export function useRecordAdSpend() {
 export function useSettleAdSpend() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (body: { adSpendId: string; settledAmountMinor: number; idempotencyKey: string }) => {
+    mutationFn: async (body: {
+      adSpendId: string
+      settledAmountMinor: number
+      idempotencyKey: string
+    }) => {
       const { adSpendId, ...payload } = body
       const client = getApiClient()
       const result = await client.POST('/finance/ad-spend/{adSpendId}/settle', {
@@ -84,7 +88,7 @@ export function useRecordLoopieFee() {
       amountMinor: number
       currency: string
       idempotencyKey: string
-      campaignId?: string
+      campaignId: string
       description?: string
     }) => {
       const client = getApiClient()
@@ -185,7 +189,11 @@ export function useCancelCommission() {
 export function useCreatePayout() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (body: { commissionIds: string[]; payeeRef: string; idempotencyKey: string }) => {
+    mutationFn: async (body: {
+      commissionIds: string[]
+      payeeRef: string
+      idempotencyKey: string
+    }) => {
       const client = getApiClient()
       const result = await client.POST('/finance/payouts', { body })
       const err = result.error

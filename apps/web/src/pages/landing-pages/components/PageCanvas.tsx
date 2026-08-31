@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { CanvasSection } from './CanvasSection'
 import { CanvasAdBand } from './CanvasAdBand'
 import type { FormFieldDraft } from '@/components/forms/FormFieldsEditor'
@@ -9,6 +10,7 @@ export function PageCanvas({
   content,
   theme,
   slots,
+  hasForm,
   formFields,
   submitLabel,
   onSection,
@@ -19,6 +21,7 @@ export function PageCanvas({
   content: Record<string, SectionContent>
   theme: Record<string, string>
   slots: AdSlotDraft[]
+  hasForm: boolean
   formFields: FormFieldDraft[]
   submitLabel: string
   onSection: (key: string, next: SectionContent) => void
@@ -34,7 +37,21 @@ export function PageCanvas({
   const cardColor = theme.cardColor ?? '#FFFFFF'
   const googleFonts =
     theme.googleFonts ?? 'family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600'
+  const radius = theme.radius ?? '0.5rem'
+  const spacing = theme.spacing ?? 'normal'
   const hasBottom = slots.some((slot) => slot.placement === 'BOTTOM')
+
+  useEffect(() => {
+    if (!googleFonts) return
+    const url = `https://fonts.googleapis.com/css2?${googleFonts}&display=swap`
+    let link = document.querySelector(`link[href="${url}"]`) as HTMLLinkElement
+    if (!link) {
+      link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = url
+      document.head.appendChild(link)
+    }
+  }, [googleFonts])
 
   return (
     <div
@@ -49,9 +66,9 @@ export function PageCanvas({
         ['--lp-heading' as string]: headingFont,
         ['--lp-ink' as string]: inkColor,
         ['--lp-card' as string]: cardColor,
+        ['--lp-radius' as string]: radius,
       }}
     >
-      <style>{`@import url('https://fonts.googleapis.com/css2?${googleFonts}&display=swap');`}</style>
       {sections.map((section) => (
         <div key={section.key}>
           {section.type === 'form-embed' ? (
@@ -61,6 +78,7 @@ export function PageCanvas({
             section={section}
             content={content[section.key] ?? { hidden: false }}
             onChange={(next) => onSection(section.key, next)}
+            hasForm={hasForm}
             formFields={formFields}
             onFormFields={onFormFields}
             submitLabel={submitLabel}

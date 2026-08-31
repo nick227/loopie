@@ -173,6 +173,12 @@ describe('landing-page capture immutability', () => {
       current.publishedVersionId,
     )
 
+    // The hosted GET /p/{slug} render must fall back to a live form lookup the same way submit
+    // does — a null formSnapshot must not mean "render with no form at all".
+    const serveRes = await app.inject({ method: 'GET', url: `/p/${page.slug}` })
+    expect(serveRes.statusCode).toBe(200)
+    expect(serveRes.body).toContain('name="email"')
+
     const submitRes = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,

@@ -45,6 +45,7 @@ export async function createAdRun(request: any, reply: any) {
     request.user.businessId,
     request.params.advertisementId,
     request.body,
+    request.user.id,
   )
   return reply.status(201).send({ data: adRun })
 }
@@ -77,4 +78,59 @@ export async function resumeAdRun(request: any, reply: any) {
 export async function endAdRun(request: any, reply: any) {
   const adRun = await adRuns.end(request.user.businessId, request.params.adRunId)
   return reply.send({ data: adRun })
+}
+
+export async function syncAdRun(request: any, reply: any) {
+  const adRun = await adRuns.sync(request.user.businessId, request.params.adRunId)
+  return reply.send({ data: adRun })
+}
+
+export async function updateAdRunBudget(request: any, reply: any) {
+  const adRun = await adRuns.updateBudget(
+    request.user.businessId,
+    request.params.adRunId,
+    request.body,
+    request.user.id,
+  )
+  return reply.send({ data: adRun })
+}
+
+export async function updateAdRunSchedule(request: any, reply: any) {
+  const adRun = await adRuns.updateSchedule(
+    request.user.businessId,
+    request.params.adRunId,
+    request.body,
+    request.user.id,
+  )
+  return reply.send({ data: adRun })
+}
+
+export async function updateAdRunTargeting(request: any, reply: any) {
+  const adRun = await adRuns.updateTargeting(
+    request.user.businessId,
+    request.params.adRunId,
+    request.body,
+    request.user.id,
+  )
+  return reply.send({ data: adRun })
+}
+
+export async function replaceAdRunCreative(request: any, reply: any) {
+  const adRun = await adRuns.replaceCreative(
+    request.user.businessId,
+    request.params.adRunId,
+    request.body ?? {},
+    request.user.id,
+  )
+  return reply.code(201).send({ data: adRun })
+}
+
+export async function replaceAdRunDestination(request: any, reply: any) {
+  const adRun = await adRuns.replaceDestination(
+    request.user.businessId,
+    request.params.adRunId,
+    request.body,
+    request.user.id,
+  )
+  return reply.code(201).send({ data: adRun })
 }

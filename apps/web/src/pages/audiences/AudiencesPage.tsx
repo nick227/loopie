@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useAudiences, useCreateAudience } from '@project/sdk'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { List } from 'lucide-react'
@@ -32,12 +33,11 @@ export function AudiencesPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-semibold">Audiences</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Live queries over the customer graph — not copied import lists.
-        </p>
-      </div>
+      <PageHeader
+        variant="list"
+        title="Audiences"
+        description="Live queries over the customer graph — not copied import lists."
+      />
 
       <div className="flex flex-wrap gap-2">
         {SUGGESTED.filter((row) => !items.some((item) => item.name === row.name)).map((row) => (

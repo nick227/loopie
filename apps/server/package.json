@@ -2,9 +2,12 @@
   "name": "server",
   "version": "0.0.1",
   "scripts": {
-    "dev": "tsx watch --env-file=../../.env src/index.ts",
+    "dev": "concurrently \"pnpm:dev:api\" \"pnpm:dev:worker\"",
+    "dev:api": "tsx watch --env-file=../../.env src/index.ts",
+    "dev:worker": "tsx watch --env-file=../../.env src/worker.ts",
     "build": "tsc",
     "start": "tsx --env-file=../../.env src/index.ts",
+    "start:worker": "tsx --env-file=../../.env src/worker.ts",
     "test": "vitest run",
     "shadow-compare": "tsx --env-file=../../.env scripts/shadow-compare.ts",
     "typecheck": "tsc --noEmit",

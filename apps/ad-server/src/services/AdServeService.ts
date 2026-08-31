@@ -1,4 +1,11 @@
-import { db, clickRedirectUrl, trackBaseClick, withSid, absoluteMediaUrl } from '@project/db'
+import {
+  db,
+  clickRedirectUrl,
+  trackBaseClick,
+  withSid,
+  isCampaignEnded,
+  absoluteMediaUrl,
+} from '@project/db'
 import { escapeHtml } from '../lib/html'
 
 const PRIMARY_APP_URL = process.env.PRIMARY_APP_URL ?? 'http://localhost:3001'
@@ -12,8 +19,75 @@ function hostedPageUrl(slug: string) {
 export class AdServeService {
   async getServePayload(adUnitId: string) {
     const adUnit = await this._findServable(adUnitId)
-    const creative = await db.creative.findUnique({
-      where: { id: adUnit.creativeId },
+    return this._buildPayload(adUnit)
+  }
+
+  async renderEmbed(adUnitId: string, sessionId?: string) {
+    const adUnit = await this._findServable(adUnitId)
+    const payload = await this._buildPayload(adUnit)
+    await this._recordImpressionFor(adUnit.id)
+
+    const clickUrl = `${payload.clickUrl}?sid=${encodeURIComponent(sessionId ?? '')}`
+    const image = payload.creative?.assets.find((a) => a.type === 'IMAGE')
+    const headline = payload.creative?.assets.find((a) => a.type === 'TEXT')
+    const alt = escapeHtml(payload.creative?.name ?? '')
+    const headlineText = headline?.textContent ? escapeHtml(headline.textContent) : ''
+    const imageUrl = image?.url ? escapeHtml(image.url) : ''
+
+    return `<!doctype html>
+<html><head><meta charset="utf-8" /><style>body{margin:0}a{display:block;text-decoration:none;color:inherit}img{max-width:100%;display:block}</style></head>
+<body>
+<a href="${escapeHtml(clickUrl)}" target="_top">
+${imageUrl ? `<img src="${imageUrl}" alt="${alt}" />` : ''}
+${headlineText ? `<div style="padding:8px;font-family:system-ui,sans-serif">${headlineText}</div>` : ''}
+</a>
+</body></html>`
+  }
+
+  async recordImpression(adUnitId: string) {
+    const adUnit = await this._findServable(adUnitId)
+    await this._recordImpressionFor(adUnit.id)
+  }
+
+  async recordClick(adUnitId: string, sessionId?: string, clickId?: string) {
+    const adUnit = await db.adUnit.findUnique({
+      where: { id: adUnitId },
+      include: { campaign: true, destinationLandingPage: true },
+    })
+    if (!adUnit || adUnit.status !== 'ACTIVE' || isCampaignEnded(adUnit.campaign))
+      throw { statusCode: 404, message: 'Ad unit not available' }
+
+    const redirectBase = clickRedirectUrl(
+      adUnit.destinationLandingPage,
+      adUnit.destinationUrl ?? adUnit.campaign.destinationUrl,
+      hostedPageUrl,
+    )
+    if (!redirectBase) throw { statusCode: 404, message: 'Ad unit not available' }
+
+    const sidToken = await trackBaseClick({
+      campaignId: adUnit.campaignId,
+      creativeId: adUnit.creativeId,
+      adUnitId: adUnit.id,
+      landingPageId: adUnit.destinationLandingPageId,
+      platform: 'LOOPIE',
+      sessionId,
+      clickId,
+      onRecord: async () => {
+        await db.adUnit.update({
+          where: { id: adUnit.id },
+          data: { clicks: { increment: 1 }, lastServedAt: new Date() },
+        })
+      },
+    })
+
+    return { redirectUrl: withSid(redirectBase, sidToken), sessionId: sidToken }
+  }
+
+  private async _buildPayload(adUnit: { id: string; format: string; creativeId: string }) {
+    // Soft-deleted creatives (e.g. pulled for compliance) must stop serving on live embeds/pixels
+    // immediately, same as every other creative lookup in the codebase.
+    const creative = await db.creative.findFirst({
+      where: { id: adUnit.creativeId, deletedAt: null },
       include: { assets: { include: { asset: true } } },
     })
 
@@ -38,71 +112,19 @@ export class AdServeService {
     }
   }
 
-  async renderEmbed(adUnitId: string, sessionId?: string) {
-    const payload = await this.getServePayload(adUnitId)
-    await this.recordImpression(adUnitId)
-
-    const clickUrl = `${payload.clickUrl}?sid=${encodeURIComponent(sessionId ?? '')}`
-    const image = payload.creative?.assets.find((a) => a.type === 'IMAGE')
-    const headline = payload.creative?.assets.find((a) => a.type === 'TEXT')
-    const alt = escapeHtml(payload.creative?.name ?? '')
-    const headlineText = headline?.textContent ? escapeHtml(headline.textContent) : ''
-    const imageUrl = image?.url ? escapeHtml(image.url) : ''
-
-    return `<!doctype html>
-<html><head><meta charset="utf-8" /><style>body{margin:0}a{display:block;text-decoration:none;color:inherit}img{max-width:100%;display:block}</style></head>
-<body>
-<a href="${escapeHtml(clickUrl)}" target="_top">
-${imageUrl ? `<img src="${imageUrl}" alt="${alt}" />` : ''}
-${headlineText ? `<div style="padding:8px;font-family:system-ui,sans-serif">${headlineText}</div>` : ''}
-</a>
-</body></html>`
-  }
-
-  async recordImpression(adUnitId: string) {
-    await this._findServable(adUnitId)
+  private async _recordImpressionFor(adUnitId: string) {
     await db.adUnit.update({
       where: { id: adUnitId },
       data: { impressions: { increment: 1 }, lastServedAt: new Date() },
     })
   }
 
-  async recordClick(adUnitId: string, sessionId?: string) {
+  private async _findServable(adUnitId: string) {
     const adUnit = await db.adUnit.findUnique({
       where: { id: adUnitId },
-      include: { campaign: true, destinationLandingPage: true },
+      include: { campaign: true },
     })
-    if (!adUnit || adUnit.status !== 'ACTIVE')
-      throw { statusCode: 404, message: 'Ad unit not available' }
-
-    const redirectBase = clickRedirectUrl(
-      adUnit.destinationLandingPage,
-      adUnit.destinationUrl ?? adUnit.campaign.destinationUrl,
-      hostedPageUrl,
-    )
-    if (!redirectBase) throw { statusCode: 404, message: 'Ad unit not available' }
-
-    const sidToken = await trackBaseClick({
-      campaignId: adUnit.campaignId,
-      creativeId: adUnit.creativeId,
-      adUnitId: adUnit.id,
-      landingPageId: adUnit.destinationLandingPageId,
-      platform: 'LOOPIE',
-      sessionId,
-      onRecord: async () => {
-        await db.adUnit.update({
-          where: { id: adUnit.id },
-          data: { clicks: { increment: 1 }, lastServedAt: new Date() },
-        })
-      },
-    })
-
-    return { redirectUrl: withSid(redirectBase, sidToken), sessionId: sidToken }
-  }
-
-  private async _findServable(adUnitId: string) {
-    const adUnit = await db.adUnit.findUnique({ where: { id: adUnitId } })
-    if (!adUnit || adUnit.status !== 'ACTIVE')
+    if (!adUnit || adUnit.status !== 'ACTIVE' || isCampaignEnded(adUnit.campaign))
       throw { statusCode: 404, message: 'Ad unit not available' }
     return adUnit
   }

@@ -12,8 +12,6 @@ import * as security from './plugins/security'
 import { mapErrorToReply } from './plugins/errorHandler'
 import { publicRateLimit } from './plugins/publicRateLimit'
 import { BODY_LIMIT_BYTES, registerUploadStatic } from './lib/mediaStorage'
-import { runDueAutomations } from './services/AutomationExecutorService'
-import { runDuePayouts } from './services/AffiliatePayoutService'
 import { db, cleanupExpiredRateLimitBuckets } from '@project/db'
 
 const server = Fastify({ logger: true, bodyLimit: BODY_LIMIT_BYTES })
@@ -90,31 +88,6 @@ async function main() {
       return reply.send({ received: true })
     })
   })
-
-  // Automation execution poller — no queue/worker infra exists, so this is a plain interval on
-  // the one server process (matches the existing single-process Railway deployment). Guarded
-  // out of NODE_ENV=test so tests (which don't import this file at all today, but might via a
-  // future full-app harness) never get a background timer racing their own DB assertions.
-  if (process.env.NODE_ENV !== 'test') {
-    const intervalMs = Number(process.env.AUTOMATION_POLL_INTERVAL_MS ?? 60_000)
-    setInterval(() => {
-      runDueAutomations().catch((err) => server.log.error(err))
-    }, intervalMs)
-
-    const payoutIntervalMs = Number(process.env.AFFILIATE_PAYOUT_POLL_INTERVAL_MS ?? 60 * 60_000)
-    setInterval(() => {
-      runDuePayouts().catch((err) => server.log.error(err))
-    }, payoutIntervalMs)
-
-    // Sweeps expired RateLimitBucket rows (see publicRateLimit.ts) — shared with apps/ad-server,
-    // safe to run from either or both processes.
-    const rateLimitCleanupIntervalMs = Number(
-      process.env.RATE_LIMIT_CLEANUP_INTERVAL_MS ?? 10 * 60_000,
-    )
-    setInterval(() => {
-      cleanupExpiredRateLimitBuckets(db).catch((err) => server.log.error(err))
-    }, rateLimitCleanupIntervalMs)
-  }
 
   await server.listen({
     port: Number(process.env.PORT ?? 3001),

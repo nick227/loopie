@@ -11,8 +11,47 @@ describe('templates API', () => {
   it('runs CRUD lifecycle', async (ctx) => {
     const errors: Error[] = []
 
+    // createTemplate
+
+    // createTemplate - auth check
+    try {
+      if (!'/templates'.includes('{') || createdIds['templates']) {
+        const rescreateTemplateAuth = await app.inject({ method: 'POST', url: `/templates` })
+        expect(rescreateTemplateAuth.statusCode).toBe(401)
+      }
+    } catch (e: any) {
+      errors.push(new Error('createTemplate auth failed: ' + e.message))
+    }
+
+    try {
+      if (!'/templates'.includes('{') || createdIds['templates']) {
+        const rescreateTemplate = await app.inject({
+          method: 'POST',
+          url: `/templates`,
+          headers: asAuth(testUserId),
+          payload: {
+            name: 'test_string',
+            channel: 'EMAIL',
+            body: 'test_string',
+          },
+        })
+        if (rescreateTemplate.statusCode === 201 && rescreateTemplate.json().data?.id)
+          createdIds['templates'] = rescreateTemplate.json().data.id
+        if (rescreateTemplate.statusCode !== 201) {
+          console.error(
+            'createTemplate failed with ' + rescreateTemplate.statusCode,
+            rescreateTemplate.json().message || rescreateTemplate.json(),
+          )
+        }
+        expect(rescreateTemplate.statusCode).toBe(201)
+        await validateResponse('createTemplate', 201, rescreateTemplate.json())
+      }
+    } catch (e: any) {
+      errors.push(new Error('createTemplate failed: ' + e.message))
+    }
+
     // listTemplates
-    
+
     // listTemplates - auth check
     try {
       if (!'/templates'.includes('{') || createdIds['templates']) {
@@ -32,7 +71,10 @@ describe('templates API', () => {
           // payload: {},
         })
         if (reslistTemplates.statusCode !== 200) {
-          console.error('listTemplates failed with ' + reslistTemplates.statusCode, reslistTemplates.json().message || reslistTemplates.json())
+          console.error(
+            'listTemplates failed with ' + reslistTemplates.statusCode,
+            reslistTemplates.json().message || reslistTemplates.json(),
+          )
         }
         expect(reslistTemplates.statusCode).toBe(200)
         await validateResponse('listTemplates', 200, reslistTemplates.json())
@@ -41,47 +83,15 @@ describe('templates API', () => {
       errors.push(new Error('listTemplates failed: ' + e.message))
     }
 
-    // createTemplate
-    
-    // createTemplate - auth check
-    try {
-      if (!'/templates'.includes('{') || createdIds['templates']) {
-        const rescreateTemplateAuth = await app.inject({ method: 'POST', url: `/templates` })
-        expect(rescreateTemplateAuth.statusCode).toBe(401)
-      }
-    } catch (e: any) {
-      errors.push(new Error('createTemplate auth failed: ' + e.message))
-    }
-
-    try {
-      if (!'/templates'.includes('{') || createdIds['templates']) {
-        const rescreateTemplate = await app.inject({
-          method: 'POST',
-          url: `/templates`,
-          headers: asAuth(testUserId),
-          payload: {
-  "name": "test_string",
-  "channel": "EMAIL",
-  "body": "test_string"
-},
-        })
-        if (rescreateTemplate.statusCode === 201 && rescreateTemplate.json().data?.id) createdIds['templates'] = rescreateTemplate.json().data.id
-        if (rescreateTemplate.statusCode !== 201) {
-          console.error('createTemplate failed with ' + rescreateTemplate.statusCode, rescreateTemplate.json().message || rescreateTemplate.json())
-        }
-        expect(rescreateTemplate.statusCode).toBe(201)
-        await validateResponse('createTemplate', 201, rescreateTemplate.json())
-      }
-    } catch (e: any) {
-      errors.push(new Error('createTemplate failed: ' + e.message))
-    }
-
     // getTemplate
-    
+
     // getTemplate - auth check
     try {
       if (!'/templates/{templateId}'.includes('{') || createdIds['templates']) {
-        const resgetTemplateAuth = await app.inject({ method: 'GET', url: `/templates/${createdIds['templates'] || '00000000-0000-0000-0000-000000000001'}` })
+        const resgetTemplateAuth = await app.inject({
+          method: 'GET',
+          url: `/templates/${createdIds['templates'] || '00000000-0000-0000-0000-000000000001'}`,
+        })
         expect(resgetTemplateAuth.statusCode).toBe(401)
       }
     } catch (e: any) {
@@ -97,7 +107,10 @@ describe('templates API', () => {
           // payload: {},
         })
         if (resgetTemplate.statusCode !== 200) {
-          console.error('getTemplate failed with ' + resgetTemplate.statusCode, resgetTemplate.json().message || resgetTemplate.json())
+          console.error(
+            'getTemplate failed with ' + resgetTemplate.statusCode,
+            resgetTemplate.json().message || resgetTemplate.json(),
+          )
         }
         expect(resgetTemplate.statusCode).toBe(200)
         await validateResponse('getTemplate', 200, resgetTemplate.json())
@@ -107,11 +120,14 @@ describe('templates API', () => {
     }
 
     // updateTemplate
-    
+
     // updateTemplate - auth check
     try {
       if (!'/templates/{templateId}'.includes('{') || createdIds['templates']) {
-        const resupdateTemplateAuth = await app.inject({ method: 'PATCH', url: `/templates/${createdIds['templates'] || '00000000-0000-0000-0000-000000000001'}` })
+        const resupdateTemplateAuth = await app.inject({
+          method: 'PATCH',
+          url: `/templates/${createdIds['templates'] || '00000000-0000-0000-0000-000000000001'}`,
+        })
         expect(resupdateTemplateAuth.statusCode).toBe(401)
       }
     } catch (e: any) {
@@ -127,7 +143,10 @@ describe('templates API', () => {
           payload: {},
         })
         if (resupdateTemplate.statusCode !== 200) {
-          console.error('updateTemplate failed with ' + resupdateTemplate.statusCode, resupdateTemplate.json().message || resupdateTemplate.json())
+          console.error(
+            'updateTemplate failed with ' + resupdateTemplate.statusCode,
+            resupdateTemplate.json().message || resupdateTemplate.json(),
+          )
         }
         expect(resupdateTemplate.statusCode).toBe(200)
         await validateResponse('updateTemplate', 200, resupdateTemplate.json())
@@ -137,11 +156,14 @@ describe('templates API', () => {
     }
 
     // deleteTemplate
-    
+
     // deleteTemplate - auth check
     try {
       if (!'/templates/{templateId}'.includes('{') || createdIds['templates']) {
-        const resdeleteTemplateAuth = await app.inject({ method: 'DELETE', url: `/templates/${createdIds['templates'] || '00000000-0000-0000-0000-000000000001'}` })
+        const resdeleteTemplateAuth = await app.inject({
+          method: 'DELETE',
+          url: `/templates/${createdIds['templates'] || '00000000-0000-0000-0000-000000000001'}`,
+        })
         expect(resdeleteTemplateAuth.statusCode).toBe(401)
       }
     } catch (e: any) {
@@ -157,7 +179,10 @@ describe('templates API', () => {
           // payload: {},
         })
         if (resdeleteTemplate.statusCode !== 200) {
-          console.error('deleteTemplate failed with ' + resdeleteTemplate.statusCode, resdeleteTemplate.json().message || resdeleteTemplate.json())
+          console.error(
+            'deleteTemplate failed with ' + resdeleteTemplate.statusCode,
+            resdeleteTemplate.json().message || resdeleteTemplate.json(),
+          )
         }
         expect(resdeleteTemplate.statusCode).toBe(200)
         await validateResponse('deleteTemplate', 200, resdeleteTemplate.json())
@@ -166,7 +191,7 @@ describe('templates API', () => {
       errors.push(new Error('deleteTemplate failed: ' + e.message))
     }
     if (errors.length > 0) {
-      throw new Error('Lifecycle failed:\n' + errors.map(e => e.message).join('\n'))
+      throw new Error('Lifecycle failed:\n' + errors.map((e) => e.message).join('\n'))
     }
   })
 })

@@ -1,4 +1,5 @@
 import { useAffiliates } from '@project/sdk'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { AffiliateNav } from '@/components/affiliates/AffiliateNav'
 import { OwedRow } from './components/OwedRow'
@@ -14,11 +15,12 @@ export function AffiliatePayoutsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Payouts</h1>
-      <AffiliateNav />
-      <p className="text-sm text-muted-foreground">
-        Frozen commissions only — there is no separate affiliate balance.
-      </p>
+      <PageHeader variant="list" title="Payouts">
+        <AffiliateNav />
+        <p className="text-sm text-muted-foreground">
+          Frozen commissions only — there is no separate affiliate balance.
+        </p>
+      </PageHeader>
       {owed.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nobody is owed right now.</p>
       ) : (

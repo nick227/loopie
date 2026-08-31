@@ -3,9 +3,8 @@ import { useCrmCatalog } from '@project/sdk'
 import { cn } from '@/lib/utils'
 
 const items = [
-  { to: '/contacts', label: 'People', end: true },
-  { to: '/contacts/import/new', label: 'Import' },
-  { to: '/integrations', label: 'Integrations' },
+  { to: '/contacts', label: 'Contacts', end: true },
+  { to: '/integrations', label: 'Integrations', end: true },
 ]
 
 export function CrmNav() {

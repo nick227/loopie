@@ -4,6 +4,91 @@
  */
 
 export interface paths {
+  '/activity': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get the Activity stream */
+    get: operations['getActivityStream']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/activity/health': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get projection health (unresolved failures) */
+    get: operations['getActivityHealth']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/activity/checkpoint': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get latest observed time for new item notices */
+    get: operations['getActivityCheckpoint']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/activity/{activityId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get a single Activity item */
+    get: operations['getActivityItem']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/activity/attention/{attentionId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /** Mutate an AttentionItem */
+    patch: operations['updateAttentionItem']
+    trace?: never
+  }
   '/auth/register': {
     parameters: {
       query?: never
@@ -70,6 +155,30 @@ export interface paths {
     options?: never
     head?: never
     patch?: never
+    trace?: never
+  }
+  '/business': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get business profile
+     * @description The current user's business identity/profile — see docs/strategy/03-product-principles.md's Singleton, Collection, Entity grammar (Business Profile is the one Singleton).
+     */
+    get: operations['getBusiness']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /**
+     * Update business profile
+     * @description Used both for first-login setup and later edits — the same object, always editable. Stamps identityCompletedAt on first save.
+     */
+    patch: operations['updateBusiness']
     trace?: never
   }
   '/contacts': {
@@ -161,6 +270,23 @@ export interface paths {
     head?: never
     /** Pause or update a CRM integration */
     patch: operations['updateIntegration']
+    trace?: never
+  }
+  '/integrations/{integrationId}/disconnect': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Remove stored access to a CRM integration */
+    post: operations['disconnectIntegration']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
     trace?: never
   }
   '/integrations/{provider}/oauth/start': {
@@ -498,6 +624,63 @@ export interface paths {
     head?: never
     /** Update creative */
     patch: operations['updateCreative']
+    trace?: never
+  }
+  '/inbox/threads': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Inbox threads
+     * @description CONTACT and ADVERTISEMENT threads together, most-recent-activity first. A CONTACT thread's preview/messages are read live from Interaction joined back to Message — real communications are never copied into a second row (see InboxService's own doc comment). Known limitation: no inbound-reply capture exists yet, so CONTACT threads only ever show outbound sent messages.
+     */
+    get: operations['listInboxThreads']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/inbox/threads/{threadId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get an Inbox thread and its messages, chronological */
+    get: operations['getInboxThread']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/inbox/threads/{threadId}/read': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Mark an Inbox thread read
+     * @description Sets the thread's read watermark to now. Thread-level only — no per-message read state.
+     */
+    post: operations['markInboxThreadRead']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
     trace?: never
   }
   '/messages': {
@@ -1237,6 +1420,126 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/ad-runs/{adRunId}/sync': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Pull the run's real provider status/spend/performance now
+     * @description On-demand pull sync — fetches provider delivery state, spend, and performance for a run already sent to a platform, and persists them. Never mutates the platform; read-only. 409s if the run has no externalAdId yet (nothing to pull).
+     */
+    post: operations['syncAdRun']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/ad-runs/{adRunId}/budget': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Request a real budget change at the platform
+     * @description Capability-gated remote budget mutation (requires capabilities.editBudget). Freezes a new MediaOrderRevision before attempting the change; if the platform rejects it, that revision never becomes this run's effective one and AdRun.budget is left untouched. Resyncs immediately after a successful mutation so effectiveBudget reflects the platform's own confirmed value. 409s if this run has no external identity, the connector can't edit budget, or the business is currently disconnected — never silently edits only the local value for a run with a real external identity.
+     */
+    post: operations['updateAdRunBudget']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/ad-runs/{adRunId}/schedule': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Request a real schedule change at the platform
+     * @description Capability-gated remote schedule mutation (requires capabilities.editSchedule). Freezes a new MediaOrderRevision before attempting the change; if the platform rejects it, that revision never becomes this run's effective one and AdRun.startDate/endDate are left untouched. Resyncs immediately after a successful mutation so effectiveStartDate/ effectiveEndDate reflect the platform's own confirmed schedule. endDate omitted or null means an explicit no-end schedule. 409s if this run has no external identity, the connector can't edit schedule, or the business is currently disconnected — never silently edits only the local value for a run with a real external identity.
+     */
+    post: operations['updateAdRunSchedule']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/ad-runs/{adRunId}/targeting': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Request a real targeting change at the platform
+     * @description Capability-gated remote targeting mutation (requires capabilities.editAudience). Freezes a new MediaOrderRevision before attempting the change; if the platform rejects it (including a location that can't be resolved to a real targetable spot), that revision never becomes this run's effective one and AdRun.country/locationNote/radiusMiles are left untouched. Resyncs immediately after a successful mutation so effectiveCountry/effectiveLocationNote/ effectiveRadiusMiles reflect the platform's own confirmed targeting. Omitting locationNote means country-only targeting. 409s if this run has no external identity, the connector can't edit targeting, or the business is currently disconnected — never silently edits only the local value for a run with a real external identity.
+     */
+    post: operations['updateAdRunTargeting']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/ad-runs/{adRunId}/replace-creative': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Replace this run's creative with a new provider execution
+     * @description A RECREATE mutation, not an in-place edit (capabilities.editModes.creative is RECREATE for every connector today — Meta creatives are immutable at the API). Reuses the Advertisement's current attached assets — the same createAndProvision path a first send uses — to stand up a brand-new provider execution (new campaign/ad-set/ad, a fresh MediaOrderRevision at the next sequence number), then ends this run once the replacement's own send attempt has resolved (successful or not — a failed replacement must not silently strand the business with no visible run at all). The new run's supersedesRunId points back at this one. 400s if the Advertisement's current assets are identical to this run's last revision (nothing to replace).
+     */
+    post: operations['replaceAdRunCreative']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/ad-runs/{adRunId}/replace-destination': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Replace this run's destination with a new provider execution
+     * @description Same RECREATE contract as replace-creative (capabilities.editModes.destination is RECREATE — Meta's click-through URL lives inside the immutable creative, not as an independently editable field), but for the click destination instead of the media. 400s if the new destinationLandingPageId matches this run's last revision (nothing to replace).
+     */
+    post: operations['replaceAdRunDestination']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/platform-capabilities': {
     parameters: {
       query?: never
@@ -1270,6 +1573,23 @@ export interface paths {
     head?: never
     /** Map ad account, Page, and placeholder country */
     patch: operations['updatePlatformConnection']
+    trace?: never
+  }
+  '/platforms/{platform}/disconnect': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Remove stored access to an advertising platform */
+    post: operations['disconnectPlatformConnection']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
     trace?: never
   }
   '/platforms/{platform}/oauth/start': {
@@ -2176,6 +2496,11 @@ export interface components {
       /** @enum {string} */
       role: 'USER' | 'ADMIN' | 'AFFILIATE'
       subscriptionStatus?: string | null
+      /**
+       * Format: date-time
+       * @description Null until the business identity (docs/strategy/03-product-principles.md First-Login step 0) has been saved at least once — the frontend uses this to route a brand-new user to /business/setup before Inbox.
+       */
+      businessIdentityCompletedAt?: string | null
       /** Format: date-time */
       createdAt: string
     }
@@ -2192,6 +2517,30 @@ export interface components {
     }
     AuthResponse: {
       data: components['schemas']['User']
+    }
+    SocialProfileLink: {
+      platform: string
+      url: string
+    }
+    Business: {
+      id: string
+      name: string
+      location?: string | null
+      industry?: string | null
+      targetAudience?: string | null
+      socialProfiles: components['schemas']['SocialProfileLink'][]
+      logoUrl?: string | null
+      /** Format: date-time */
+      identityCompletedAt?: string | null
+    }
+    /** @description Partial update — an omitted field is left unchanged; socialProfiles, if sent, replaces the whole list. */
+    UpdateBusinessInput: {
+      name?: string
+      location?: string | null
+      industry?: string | null
+      targetAudience?: string | null
+      socialProfiles?: components['schemas']['SocialProfileLink'][]
+      logoUrl?: string | null
     }
     Billing: {
       subscriptionStatus: string | null
@@ -2263,7 +2612,7 @@ export interface components {
       /** @default true */
       smsEligible: boolean
     }
-    /** @description One person. CSV headers and JSON keys accept the listed aliases (first_name, email_address, hs_object_id, …). At least one of email, phone, or externalId is required. Name may be omitted when firstName and lastName are present. Unknown columns land in profile. */
+    /** @description One person. CSV headers and JSON keys accept the listed aliases (first_name, email_address, hs_object_id, …). At least one of email, phone, or externalId is required. Name may be omitted when firstName and lastName are present. Unknown columns land in profile — this schema deliberately allows additional properties so that a caller sending a raw, un-normalized row (e.g. a direct CSV-to-JSON dump with vendor-specific columns) doesn't get the whole import request rejected; ImportJobService normalizes and captures them. */
     ImportContactInput: {
       name?: string
       firstName?: string
@@ -2288,6 +2637,8 @@ export interface components {
       profile?: {
         [key: string]: string
       }
+    } & {
+      [key: string]: unknown
     }
     UpdateContactInput: {
       name?: string
@@ -3030,6 +3381,21 @@ export interface components {
       assets?: components['schemas']['Asset'][]
       /** Format: date-time */
       createdAt: string
+      /** Format: date-time */
+      updatedAt: string
+      /**
+       * @description Derived from current AdRuns. DRAFT = none, READY = created but not live, RUNNING = at least one active buy, PAUSED = buys exist but none active, FAILED = a buy failed.
+       * @enum {string}
+       */
+      status?: 'DRAFT' | 'READY' | 'RUNNING' | 'PAUSED' | 'FAILED'
+      spend?: number
+      impressions?: number
+      clicks?: number
+      conversions?: number
+      /** @description Sum of daily budgets on ACTIVE buys. */
+      dailyBudget?: number
+      /** @description Labels for current non-ended buys, e.g. Meta Feed. */
+      destinations?: string[]
     }
     CreateAdvertisementInput: {
       name: string
@@ -3047,12 +3413,74 @@ export interface components {
       platform: 'META' | 'GOOGLE' | 'TIKTOK' | 'LOOPIE'
       placement?: string | null
       /** @enum {string} */
-      status: 'PENDING' | 'ACTIVE' | 'PAUSED' | 'ENDED' | 'VALIDATION_FAILED'
+      status:
+        'PENDING' | 'ACTIVE' | 'PAUSED' | 'ENDED' | 'VALIDATION_FAILED' | 'PROVISIONING_FAILED'
       budget: number | null
       spend: number
       impressions: number
+      /** @description Unique-person reach, provider-reported — distinct from raw impressions. Null until first synced. */
+      reach?: number | null
       clicks: number
       conversions: number
+      /**
+       * @description The platform's own delivery state, normalized — independent of `status` (LOOPIE's order state). Null until first synced.
+       * @enum {string|null}
+       */
+      providerState?:
+        | 'NOT_SENT'
+        | 'DRAFT_SENT'
+        | 'UNDER_REVIEW'
+        | 'ELIGIBLE'
+        | 'LIVE'
+        | 'PAUSED'
+        | 'LIMITED'
+        | 'REJECTED'
+        | 'ENDED'
+        | 'UNKNOWN'
+        | null
+      /** @description The connector's own unmapped status string (e.g. Meta's effective_status), for audit/debugging. */
+      providerStateRaw?: string | null
+      /**
+       * @description CURRENT downgrades to DELAYED at read time once lastSyncedAt exceeds the freshness SLA.
+       * @enum {string}
+       */
+      syncHealth: 'CURRENT' | 'DELAYED' | 'FAILED' | 'DISCONNECTED' | 'NEVER_SYNCED'
+      /** @description The most recent sync failure's message. Cleared on the next successful sync. */
+      syncError?: string | null
+      /** @description Provider-reported daily budget, for comparison against `budget` (LOOPIE's requested value). Null until synced or when the platform doesn't report one. */
+      effectiveBudget?: number | null
+      /**
+       * Format: date-time
+       * @description Provider-reported schedule start, for comparison against `startDate`. Null until synced.
+       */
+      effectiveStartDate?: string | null
+      /**
+       * Format: date-time
+       * @description Provider-reported schedule end, for comparison against `endDate`. Null until synced, or when the platform reports no end date.
+       */
+      effectiveEndDate?: string | null
+      /** @description Requested targeting country. Defaults from the platform connection's own default at send time. */
+      country?: string | null
+      /** @description Requested targeting location (free text), resolved into a real radius-targeted spot by connectors that support it. Null means country-only targeting. */
+      locationNote?: string | null
+      /** @description Requested radius in miles around locationNote. Null when locationNote is null. */
+      radiusMiles?: number | null
+      /** @description Provider-reported targeting country, for comparison against `country`. Null until synced. */
+      effectiveCountry?: string | null
+      /** @description Provider-reported targeting location, best-effort — not guaranteed to echo `locationNote`'s exact text. Null until synced, or when the platform reports country-only targeting. */
+      effectiveLocationNote?: string | null
+      /** @description Provider-reported radius in miles, for comparison against `radiusMiles`. Null until synced, or when the platform reports country-only targeting. */
+      effectiveRadiusMiles?: number | null
+      /** @description Review/rejection reasons from the platform's own last sync (e.g. Meta's issues_info messages). Null until synced, or when the platform reports none. */
+      providerIssues?: string[] | null
+      /** @description The prior AdRun (same Advertisement) this one replaced, when created via relaunch/replace-creative/replace-destination rather than a first send. */
+      supersedesRunId?: string | null
+      /** @description Leads whose sourceAdRunId is this run, live-computed (not denormalized). */
+      leads: number
+      /** @description Active (non-reversed) sales attributed to this run's leads. */
+      sales: number
+      /** @description Sum of active sale amounts attributed to this run's leads. */
+      revenue: number
       /** Format: date-time */
       startDate?: string | null
       /** Format: date-time */
@@ -3065,8 +3493,87 @@ export interface components {
       /** @description Populates only once the external platform object genuinely exists — never speculative. */
       errorMessage?: string | null
       destinationLandingPageId?: string | null
+      /** @description Frozen media-order fields at send time. Superseded by mediaOrderRevision for runs sent after that column existed; kept for older rows and as the existing read path. */
+      orderSnapshot?: {
+        [key: string]: unknown
+      } | null
+      mediaOrderRevisionId?: string | null
+      /** @description The durable, immutable, numbered authorization record this run was actually sent against. Null for rows sent before this existed. */
+      mediaOrderRevision?: components['schemas']['MediaOrderRevision'] | null
       /** @description Redirect URL for this ad run — GET /r/adrun/{adRunId}. */
       trackedUrl: string
+      /**
+       * Format: date-time
+       * @description When this run's data (or its provisioning) was last written from a connector.
+       */
+      lastSyncedAt?: string | null
+      /** Format: date-time */
+      createdAt: string
+    }
+    /** @description A thread's list-view/detail-header shape — same object for both listInboxThreads and getInboxThread. */
+    InboxThreadSummary: {
+      id: string
+      /** @enum {string} */
+      type: 'CONTACT' | 'ADVERTISEMENT' | 'PAGE' | 'INTEGRATION' | 'SYSTEM'
+      subject: string
+      contactId?: string | null
+      advertisementId?: string | null
+      platform?: string | null
+      /** @description Only set when type is PAGE. */
+      landingPageId?: string | null
+      /** @description Only set when type is INTEGRATION. */
+      integrationPlatform?: string | null
+      /**
+       * @description The most recent message's kind, for a list-row preview icon/label.
+       * @enum {string|null}
+       */
+      previewKind?: 'SYSTEM' | 'EMAIL' | 'SMS' | null
+      previewBody?: string | null
+      /** @description True when the thread's most recent message postdates its read watermark. */
+      unread: boolean
+      /** Format: date-time */
+      lastMessageAt: string
+      /** Format: date-time */
+      createdAt: string
+    }
+    /** @description One message in a thread. For an ADVERTISEMENT thread, a real persisted row. For a CONTACT thread, read live from Interaction joined back to Message and given a stable id (the Interaction's own id) — never a second persisted copy of the same content. */
+    InboxMessage: {
+      id: string
+      /** @enum {string} */
+      kind: 'SYSTEM' | 'EMAIL' | 'SMS'
+      /** @enum {string} */
+      direction: 'INBOUND' | 'OUTBOUND' | 'INTERNAL'
+      subject?: string | null
+      body: string
+      /** Format: date-time */
+      createdAt: string
+    }
+    /** @description A durable, immutable, numbered record of exactly what was authorized for one (Advertisement, platform, placement) destination — replaces AdRun.orderSnapshot's loose untyped JSON for runs sent after this existed. Numbered per (advertisementId, platform, placement): a relaunch to the same destination continues that sequence. */
+    MediaOrderRevision: {
+      id: string
+      revision: number
+      goal: string
+      successEvent: string
+      country: string
+      locationNote?: string | null
+      /** @description Radius in miles around locationNote. Null when locationNote is null (country-only targeting). */
+      radiusMiles?: number | null
+      dailyBudgetMinor: number
+      currency: string
+      /** Format: date-time */
+      startAt: string
+      /** Format: date-time */
+      endAt?: string | null
+      destinationLandingPageId?: string | null
+      destinationLandingPageVersionId?: string | null
+      /** @description Frozen from the Advertisement's attached media at the exact moment of this revision. */
+      assetIds: string[]
+      accountName?: string | null
+      accountCurrency?: string | null
+      accountTimezone?: string | null
+      adAccountId?: string | null
+      /** @description Deterministic hash of the authorized fields — lets two revisions be compared for "did anything actually change." */
+      contentHash: string
       /** Format: date-time */
       createdAt: string
     }
@@ -3081,13 +3588,20 @@ export interface components {
       /** Format: date-time */
       endDate?: string
       destinationLandingPageId?: string
+      /** @description Frozen media-order fields at send time. */
+      orderSnapshot?: {
+        [key: string]: unknown
+      }
+      /** @description A prior AdRun on the same Advertisement this new one replaces (a "new version" relaunch, not a first send). That run is marked ENDED once this one is created — never left live alongside it. Omit for a first send to a destination. */
+      supersedesRunId?: string
       /** @description Client-generated once per creation attempt and resent unchanged on any retry — a retried request returns the same AdRun and never triggers a second connector push. */
       idempotencyKey: string
     }
     /** @description Manual metrics/status entry, same "no live platform sync in V1" model as Deployment. Cannot change platform or advertisementId — an AdRun's source identity is immutable once created. */
     UpdateAdRunInput: {
       /** @enum {string} */
-      status?: 'PENDING' | 'ACTIVE' | 'PAUSED' | 'ENDED' | 'VALIDATION_FAILED'
+      status?:
+        'PENDING' | 'ACTIVE' | 'PAUSED' | 'ENDED' | 'VALIDATION_FAILED' | 'PROVISIONING_FAILED'
       spend?: number
       budget?: number
       impressions?: number
@@ -3106,14 +3620,43 @@ export interface components {
       mappingFields: ('adAccount' | 'page' | 'defaultCountry')[]
       pushDraft: boolean
       pullSpend: boolean
+      /** @description Can fetch the pushed object's real delivery state and performance metrics back from the platform. */
+      pullStatus: boolean
+      /** @description Can remotely activate spend — a Resume actually turns delivery on at the platform, not just locally. */
       activate: boolean
+      /** @description Can remotely pause an already-active run. */
+      pause: boolean
+      /** @description Can remotely end (archive) a run — one-way. */
+      end: boolean
+      editBudget?: boolean
+      editSchedule?: boolean
+      editAudience?: boolean
+      /** @description Per-field edit-mode classification (NONE/IN_PLACE/RECREATE — see EditMode's doc comment in apps/server/src/lib/platforms/types.ts). Additive to editBudget/editSchedule above, which stay the load-bearing flags gating whether a live editor actually exists; this is the richer contract the UI reads to explain what changing a field costs the business before they commit to it, including for fields with no editor built yet. */
+      editModes?: {
+        budget?: components['schemas']['EditMode']
+        schedule?: components['schemas']['EditMode']
+        creative?: components['schemas']['EditMode']
+        destination?: components['schemas']['EditMode']
+        targeting?: components['schemas']['EditMode']
+      }
     }
+    /**
+     * @description NONE = can't be changed from LOOPIE yet. IN_PLACE = a PATCH-style request against the existing ad/ad-set/campaign object. RECREATE = requires a new provider execution (the "Create new version" relaunch flow), never an in-place patch of the current run.
+     * @enum {string}
+     */
+    EditMode: 'NONE' | 'IN_PLACE' | 'RECREATE'
     PlatformConnection: {
       /** @enum {string} */
       platform: 'META' | 'GOOGLE' | 'TIKTOK'
       /** @enum {string} */
       status: 'DISCONNECTED' | 'INCOMPLETE' | 'CONNECTED' | 'NEEDS_REAUTH'
       adAccountId?: string | null
+      /** @description The ad account's own display name, fetched from the platform when adAccountId was set. */
+      accountName?: string | null
+      /** @description The ad account's billing currency, as reported by the platform. */
+      currency?: string | null
+      /** @description The ad account's own timezone, as reported by the platform — not a LOOPIE business timezone. */
+      timezone?: string | null
       pageId?: string | null
       defaultCountry?: string
       capabilities: components['schemas']['PlatformCapabilities']
@@ -3127,6 +3670,8 @@ export interface components {
     PlatformAccount: {
       id: string
       name: string
+      currency?: string | null
+      timezone?: string | null
     }
     OAuthStart: {
       url: string
@@ -3207,6 +3752,8 @@ export interface components {
       previewUrl: string
       /** @description Approximate — not deduplicated by session. */
       formStartCount: number
+      /** @description Completed submissions (FormSubmission rows) — the real outcome, distinct from formStartCount which also counts abandoned attempts. */
+      submissionCount: number
       adSlotCount?: number
       slots?: components['schemas']['LandingPageAdSlot'][]
       /** Format: date-time */
@@ -3530,13 +4077,6 @@ export interface components {
       contactId?: string
       leadId?: string
     }
-    HomePrimaryAction: {
-      id: string
-      title: string
-      reason: string
-      actionLabel: string
-      href: string
-    }
     HomeRail: {
       /** Format: date */
       localDate: string
@@ -3588,12 +4128,51 @@ export interface components {
       detail: string
       href: string
     }
+    LivePresenceStat: {
+      value: number
+      label: string
+    }
+    /** @description A real, recently-active object from Pages, Advertising, or Messages, unioned and sorted by recency for the Home/collection "Live presence" grid — see docs/strategy's welcome-section redesign. Every stat is backed by real tracked data (page views, ad impressions, message recipient/lead counts) — no fabricated engagement/open-rate numbers. */
+    LivePresenceItem: {
+      /** @enum {string} */
+      type: 'PAGE' | 'AD' | 'MESSAGE'
+      /** @enum {string|null} */
+      channel?: 'EMAIL' | 'SOCIAL' | null
+      id: string
+      title: string
+      href: string
+      /** Format: date-time */
+      updatedAt: string
+      statusLabel: string
+      thumbnailUrl: string | null
+      stat1: components['schemas']['LivePresenceStat']
+      stat2: components['schemas']['LivePresenceStat']
+    }
+    WeeklyMetric: {
+      value: number
+      /** @description The same measure for the prior week — shown alongside deltaPct so the comparison isn't hidden behind a percentage alone. */
+      previousValue: number
+      /** @description Percent change vs. the prior week. Null when there's no prior-week baseline to compare against (never a fabricated 0%/Infinity). */
+      deltaPct: number | null
+    }
+    WeeklyResults: {
+      leads: components['schemas']['WeeklyMetric']
+      customers: components['schemas']['WeeklyMetric']
+      revenue: components['schemas']['WeeklyMetric']
+      messagesSent: components['schemas']['WeeklyMetric']
+    }
     HomeSummary: {
       businessName: string
       /** Format: date-time */
       generatedAt: string
       brief: string
-      primaryAction?: components['schemas']['HomePrimaryAction']
+      primaryAction?: {
+        id: string
+        title: string
+        reason: string
+        actionLabel: string
+        href: string
+      } | null
       rail: components['schemas']['HomeRail']
       inbox: {
         totalWaiting: number
@@ -3603,6 +4182,8 @@ export interface components {
         items: components['schemas']['HomeActivityItem'][]
       }
       systems: components['schemas']['HomeSystemStatus'][]
+      livePresence: components['schemas']['LivePresenceItem'][]
+      weeklyResults: components['schemas']['WeeklyResults']
       newLeads?: number
       unansweredReplies?: number
       followUpsDue?: number
@@ -3955,6 +4536,92 @@ export interface components {
       idempotencyKey: string
       notes?: string
     }
+    /** @enum {string} */
+    ActivitySource: 'LOOPIE' | 'PLATFORM' | 'WEBSITE' | 'CHANNEL' | 'USER' | 'AUTOMATION'
+    /** @enum {string} */
+    ActivityType:
+      | 'FORM_SUBMISSION'
+      | 'LEAD_CREATED'
+      | 'AD_RUN_FAILED'
+      | 'MESSAGE_REPLY'
+      | 'STATUS_CHANGE'
+      | 'PUBLISH'
+      | 'SALE'
+      | 'PAYMENT'
+      | 'AUTOMATION_EXECUTION'
+      | 'SYNC'
+      | 'IDENTITY_MATCH'
+      | 'BROADCAST'
+    /** @enum {string} */
+    AttentionState: 'NEEDS_ACTION' | 'IN_PROGRESS' | 'SNOOZED' | 'RESOLVED'
+    AttentionItem: {
+      id: string
+      state: components['schemas']['AttentionState']
+      assigneeId?: string | null
+      priority?: string | null
+      /** Format: date-time */
+      dueAt?: string | null
+      /** Format: date-time */
+      snoozedUntil?: string | null
+    }
+    ActivityAction: {
+      id: string
+      label: string
+      href?: string | null
+      command?: string | null
+    }
+    ActivityAggregation: {
+      key: string
+      count: number
+      /** Format: date-time */
+      windowStart: string
+      /** Format: date-time */
+      windowEnd: string
+    }
+    ActivityItem: {
+      id: string
+      businessId: string
+      taxonomyVersion: string
+      /** Format: date-time */
+      occurredAt: string
+      /** Format: date-time */
+      observedAt: string
+      /** Format: date-time */
+      projectedAt: string
+      storyId: string
+      source: {
+        kind: components['schemas']['ActivitySource']
+        id?: string | null
+        label: string
+        accountId?: string | null
+      }
+      type: components['schemas']['ActivityType']
+      actor: {
+        /** @enum {string} */
+        kind: 'CONTACT' | 'USER' | 'SYSTEM' | 'AUTOMATION'
+        id?: string | null
+        label: string
+      }
+      status?: string | null
+      /** @enum {string} */
+      attention: 'INFORMATION' | 'ACTION_REQUIRED' | 'FAILURE'
+      summary: string
+      detail?: string | null
+      references: {
+        personId?: string | null
+        leadId?: string | null
+        adId?: string | null
+        runId?: string | null
+        pageId?: string | null
+        formId?: string | null
+        messageId?: string | null
+        broadcastId?: string | null
+        saleId?: string | null
+      }
+      aggregation?: components['schemas']['ActivityAggregation']
+      attentionItem?: components['schemas']['AttentionItem']
+      actions: components['schemas']['ActivityAction'][]
+    }
   }
   responses: never
   parameters: {
@@ -3975,6 +4642,7 @@ export interface components {
     CampaignId: string
     DeploymentId: string
     AdRunId: string
+    InboxThreadId: string
     AdvertisementId: string
     AdPlatform: 'META' | 'GOOGLE' | 'TIKTOK'
     LeadId: string
@@ -3990,6 +4658,8 @@ export interface components {
     IntegrationId: string
     CrmProviderParam: 'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'SQUARE' | 'PIPEDRIVE'
     ExternalRecordId: string
+    ActivityId: string
+    AttentionId: string
   }
   requestBodies: never
   headers: never
@@ -3997,6 +4667,146 @@ export interface components {
 }
 export type $defs = Record<string, never>
 export interface operations {
+  getActivityStream: {
+    parameters: {
+      query?: {
+        source?: string
+        type?: string
+        personId?: string
+        adId?: string
+        pageId?: string
+        status?: string
+        needsAction?: boolean
+        /** @description Opaque cursor returned by the previous page. */
+        cursor?: components['parameters']['Cursor']
+        limit?: components['parameters']['Limit']
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated Activity items */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['ActivityItem'][]
+            meta: components['schemas']['PaginatedMeta']
+          }
+        }
+      }
+    }
+  }
+  getActivityHealth: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Health status */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            unresolvedFailures: number
+            status: string
+          }
+        }
+      }
+    }
+  }
+  getActivityCheckpoint: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Latest observedAt timestamp */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: {
+              /** Format: date-time */
+              observedAt: string
+            }
+          }
+        }
+      }
+    }
+  }
+  getActivityItem: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        activityId: components['parameters']['ActivityId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Detailed Activity item */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['ActivityItem']
+          }
+        }
+      }
+    }
+  }
+  updateAttentionItem: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        attentionId: components['parameters']['AttentionId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          state?: components['schemas']['AttentionState']
+          assigneeId?: string | null
+          priority?: string | null
+          /** Format: date-time */
+          snoozedUntil?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description Updated AttentionItem */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['AttentionItem']
+          }
+        }
+      }
+    }
+  }
   register: {
     parameters: {
       query?: never
@@ -4089,6 +4899,54 @@ export interface operations {
       }
     }
   }
+  getBusiness: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Business profile */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['Business']
+          }
+        }
+      }
+    }
+  }
+  updateBusiness: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateBusinessInput']
+      }
+    }
+    responses: {
+      /** @description Updated business profile */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['Business']
+          }
+        }
+      }
+    }
+  }
   listContacts: {
     parameters: {
       query?: {
@@ -4098,6 +4956,8 @@ export interface operations {
         q?: components['parameters']['SearchQuery']
         tag?: string
         lifecycleStatus?: 'LEAD' | 'CUSTOMER' | 'PAST_CUSTOMER' | 'NONE'
+        /** @description Return contacts whose first-seen source matches this value. */
+        source?: string
       }
       header?: never
       path?: never
@@ -4287,6 +5147,30 @@ export interface operations {
     }
     responses: {
       /** @description Integration updated */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['Integration']
+          }
+        }
+      }
+    }
+  }
+  disconnectIntegration: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integrationId: components['parameters']['IntegrationId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Integration access removed */
       200: {
         headers: {
           [name: string]: unknown
@@ -5163,6 +6047,81 @@ export interface operations {
         content: {
           'application/json': {
             data?: components['schemas']['Creative']
+          }
+        }
+      }
+    }
+  }
+  listInboxThreads: {
+    parameters: {
+      query?: {
+        filter?: 'all' | 'unread'
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Inbox threads */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['InboxThreadSummary'][]
+          }
+        }
+      }
+    }
+  }
+  getInboxThread: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        threadId: components['parameters']['InboxThreadId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Thread and messages */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: {
+              thread: components['schemas']['InboxThreadSummary']
+              messages: components['schemas']['InboxMessage'][]
+            }
+          }
+        }
+      }
+    }
+  }
+  markInboxThreadRead: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        threadId: components['parameters']['InboxThreadId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Updated thread */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['InboxThreadSummary']
           }
         }
       }
@@ -6766,6 +7725,198 @@ export interface operations {
       }
     }
   }
+  syncAdRun: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        adRunId: components['parameters']['AdRunId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Synced ad run */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['AdRun']
+          }
+        }
+      }
+    }
+  }
+  updateAdRunBudget: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        adRunId: components['parameters']['AdRunId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description The new requested daily budget, in whole currency units. */
+          dailyBudget: number
+        }
+      }
+    }
+    responses: {
+      /** @description Updated ad run */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['AdRun']
+          }
+        }
+      }
+    }
+  }
+  updateAdRunSchedule: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        adRunId: components['parameters']['AdRunId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          /**
+           * Format: date-time
+           * @description The new requested start instant.
+           */
+          startDate: string
+          /**
+           * Format: date-time
+           * @description The new requested end instant, or null/omitted for no end date.
+           */
+          endDate?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description Updated ad run */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['AdRun']
+          }
+        }
+      }
+    }
+  }
+  updateAdRunTargeting: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        adRunId: components['parameters']['AdRunId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description The new requested targeting country. */
+          country: string
+          /** @description A free-text location to resolve into a real radius-targeted spot, or null/omitted for country-only targeting. */
+          locationNote?: string | null
+          /** @description Radius in miles around locationNote. Ignored when locationNote is null/omitted. */
+          radiusMiles?: number | null
+        }
+      }
+    }
+    responses: {
+      /** @description Updated ad run */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['AdRun']
+          }
+        }
+      }
+    }
+  }
+  replaceAdRunCreative: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        adRunId: components['parameters']['AdRunId']
+      }
+      cookie?: never
+    }
+    requestBody?: {
+      content: {
+        'application/json': {
+          /** @description Client-generated once per replacement attempt and resent unchanged on any retry. */
+          idempotencyKey?: string
+        }
+      }
+    }
+    responses: {
+      /** @description The new, replacement ad run */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['AdRun']
+          }
+        }
+      }
+    }
+  }
+  replaceAdRunDestination: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        adRunId: components['parameters']['AdRunId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          destinationLandingPageId: string
+          /** @description Client-generated once per replacement attempt and resent unchanged on any retry. */
+          idempotencyKey?: string
+        }
+      }
+    }
+    responses: {
+      /** @description The new, replacement ad run */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['AdRun']
+          }
+        }
+      }
+    }
+  }
   getPlatformCapabilities: {
     parameters: {
       query?: never
@@ -6828,6 +7979,30 @@ export interface operations {
     }
     responses: {
       /** @description Updated connection */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['PlatformConnection']
+          }
+        }
+      }
+    }
+  }
+  disconnectPlatformConnection: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        platform: components['parameters']['AdPlatform']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Platform access removed */
       200: {
         headers: {
           [name: string]: unknown

@@ -1,5 +1,6 @@
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useMemo, useState } from 'react'
+import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   parseContactImport,
@@ -13,7 +14,6 @@ import {
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Textarea } from '@/components/ui/Textarea'
-import { CrmNav } from '@/pages/crm/CrmNav'
 import { ImportSchemaCard } from './ImportSchemaCard'
 
 export function ImportContactsPage() {
@@ -50,6 +50,12 @@ export function ImportContactsPage() {
 
   return (
     <div className="space-y-4">
+      <Link
+        to="/contacts"
+        className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft size={16} className="mr-1.5" /> Back to Contacts
+      </Link>
       <div>
         <h1 className="text-xl font-semibold">Import people</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -57,7 +63,6 @@ export function ImportContactsPage() {
           identity fields stay put.
         </p>
       </div>
-      <CrmNav />
 
       <div className="flex gap-1">
         {(['csv', 'json'] as const).map((option) => (

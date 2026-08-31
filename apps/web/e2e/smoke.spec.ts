@@ -22,11 +22,13 @@ test.describe('auth flow', () => {
     await page.getByLabel(/password/i).fill(DEMO_PASSWORD)
     await page.getByRole('button', { name: /log in|sign in/i }).click()
 
-    // Should redirect to Home (docs/00-unified-ia-navigation.md — the operational landing screen)
+    // Should redirect to Home (docs/strategy/03-product-principles.md's 2026-08-30 nav revision —
+    // a persistent top nav with Home as the first tab, not a standalone Inbox root)
     await expect(page).not.toHaveURL(/\/login/)
     await expect(page).toHaveURL(/\/home/)
 
-    // Log out (Shell.tsx sidebar button)
+    // Log out (Shell.tsx's persistent header — no sidebar; Log out lives in the account launcher)
+    await page.getByRole('button', { name: 'Menu' }).click()
     await page.getByRole('button', { name: /log out|sign out/i }).click()
     await expect(page).toHaveURL(/\/login/)
   })

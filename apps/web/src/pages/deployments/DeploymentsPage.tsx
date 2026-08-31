@@ -14,7 +14,7 @@ export function DeploymentsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Deployments</h1>
+      <h1 className="text-xl font-semibold">Platform Runs</h1>
       <Card>
         <CardContent className="py-4">
           {/* TODO: replace with real fields */}

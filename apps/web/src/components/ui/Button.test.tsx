@@ -3,6 +3,11 @@ import { describe, it, expect } from 'vitest'
 import { Button } from './Button'
 
 describe('Button', () => {
+  it('does not submit forms unless explicitly requested', () => {
+    render(<Button>Safe action</Button>)
+    expect(screen.getByRole('button', { name: 'Safe action' })).toHaveAttribute('type', 'button')
+  })
+
   it('renders children correctly', () => {
     render(<Button>Click me</Button>)
     expect(screen.getByText('Click me')).toBeInTheDocument()

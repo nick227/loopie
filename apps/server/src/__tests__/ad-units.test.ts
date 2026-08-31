@@ -10,9 +10,10 @@ const createdIds: Record<string, string> = { default: '00000000-0000-0000-0000-0
 describe('ad-units API', () => {
   it('runs CRUD lifecycle', async (ctx) => {
     const errors: Error[] = []
+    // Skipped createAdUnit because payload could not be generated
 
     // listAdUnits
-    
+
     // listAdUnits - auth check
     try {
       if (!'/ad-units'.includes('{') || createdIds['ad-units']) {
@@ -32,7 +33,10 @@ describe('ad-units API', () => {
           // payload: {},
         })
         if (reslistAdUnits.statusCode !== 200) {
-          console.error('listAdUnits failed with ' + reslistAdUnits.statusCode, reslistAdUnits.json().message || reslistAdUnits.json())
+          console.error(
+            'listAdUnits failed with ' + reslistAdUnits.statusCode,
+            reslistAdUnits.json().message || reslistAdUnits.json(),
+          )
         }
         expect(reslistAdUnits.statusCode).toBe(200)
         await validateResponse('listAdUnits', 200, reslistAdUnits.json())
@@ -40,14 +44,16 @@ describe('ad-units API', () => {
     } catch (e: any) {
       errors.push(new Error('listAdUnits failed: ' + e.message))
     }
-    // Skipped createAdUnit because payload could not be generated
 
     // getAdUnit
-    
+
     // getAdUnit - auth check
     try {
       if (!'/ad-units/{adUnitId}'.includes('{') || createdIds['ad-units']) {
-        const resgetAdUnitAuth = await app.inject({ method: 'GET', url: `/ad-units/${createdIds['ad-units'] || '00000000-0000-0000-0000-000000000001'}` })
+        const resgetAdUnitAuth = await app.inject({
+          method: 'GET',
+          url: `/ad-units/${createdIds['ad-units'] || '00000000-0000-0000-0000-000000000001'}`,
+        })
         expect(resgetAdUnitAuth.statusCode).toBe(401)
       }
     } catch (e: any) {
@@ -63,7 +69,10 @@ describe('ad-units API', () => {
           // payload: {},
         })
         if (resgetAdUnit.statusCode !== 200) {
-          console.error('getAdUnit failed with ' + resgetAdUnit.statusCode, resgetAdUnit.json().message || resgetAdUnit.json())
+          console.error(
+            'getAdUnit failed with ' + resgetAdUnit.statusCode,
+            resgetAdUnit.json().message || resgetAdUnit.json(),
+          )
         }
         expect(resgetAdUnit.statusCode).toBe(200)
         await validateResponse('getAdUnit', 200, resgetAdUnit.json())
@@ -73,11 +82,14 @@ describe('ad-units API', () => {
     }
 
     // updateAdUnit
-    
+
     // updateAdUnit - auth check
     try {
       if (!'/ad-units/{adUnitId}'.includes('{') || createdIds['ad-units']) {
-        const resupdateAdUnitAuth = await app.inject({ method: 'PATCH', url: `/ad-units/${createdIds['ad-units'] || '00000000-0000-0000-0000-000000000001'}` })
+        const resupdateAdUnitAuth = await app.inject({
+          method: 'PATCH',
+          url: `/ad-units/${createdIds['ad-units'] || '00000000-0000-0000-0000-000000000001'}`,
+        })
         expect(resupdateAdUnitAuth.statusCode).toBe(401)
       }
     } catch (e: any) {
@@ -93,7 +105,10 @@ describe('ad-units API', () => {
           payload: {},
         })
         if (resupdateAdUnit.statusCode !== 200) {
-          console.error('updateAdUnit failed with ' + resupdateAdUnit.statusCode, resupdateAdUnit.json().message || resupdateAdUnit.json())
+          console.error(
+            'updateAdUnit failed with ' + resupdateAdUnit.statusCode,
+            resupdateAdUnit.json().message || resupdateAdUnit.json(),
+          )
         }
         expect(resupdateAdUnit.statusCode).toBe(200)
         await validateResponse('updateAdUnit', 200, resupdateAdUnit.json())
@@ -102,7 +117,7 @@ describe('ad-units API', () => {
       errors.push(new Error('updateAdUnit failed: ' + e.message))
     }
     if (errors.length > 0) {
-      throw new Error('Lifecycle failed:\n' + errors.map(e => e.message).join('\n'))
+      throw new Error('Lifecycle failed:\n' + errors.map((e) => e.message).join('\n'))
     }
   })
 })

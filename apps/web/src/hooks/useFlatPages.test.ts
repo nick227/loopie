@@ -10,7 +10,7 @@ describe('useFlatPages', () => {
       },
     }
 
-    const { result } = renderHook(() => useFlatPages(mockQueryData as any))
+    const { result } = renderHook(() => useFlatPages<number>(mockQueryData))
 
     expect(result.current).toEqual([1, 2, 3, 4, 5])
   })
@@ -26,7 +26,7 @@ describe('useFlatPages', () => {
         pages: [],
       },
     }
-    const { result } = renderHook(() => useFlatPages(mockQueryData as any))
+    const { result } = renderHook(() => useFlatPages<never>(mockQueryData))
     expect(result.current).toEqual([])
   })
 })

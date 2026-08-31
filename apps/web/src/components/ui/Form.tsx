@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import type { DefaultValues, FieldValues, Path, PathValue } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { ZodType, ZodTypeDef } from 'zod'
 import { Input } from './Input'
@@ -26,6 +27,7 @@ export type FieldConfig = {
     | 'radio'
     | 'checkboxes'
   placeholder?: string
+  description?: string
   voice?: boolean
   required?: boolean
   rows?: number
@@ -35,12 +37,12 @@ export type FieldConfig = {
   optionLabels?: string[]
 }
 
-interface FormProps<T extends Record<string, unknown>> {
+interface FormProps<T extends FieldValues> {
   fields: FieldConfig[]
   // Output must be T; input is left as `any` rather than pinned to T (ZodSchema<T>'s default)
   // because 'tags'/'json' fields use z.preprocess, which — by design — accepts a different
   // (pre-transform) input type than its output.
-  schema: ZodType<T, ZodTypeDef, any>
+  schema: ZodType<T, ZodTypeDef, unknown>
   onSubmit: (data: T) => Promise<void> | void
   submitLabel?: string
   defaultValues?: Partial<T>
@@ -48,7 +50,7 @@ interface FormProps<T extends Record<string, unknown>> {
   className?: string
 }
 
-export function Form<T extends Record<string, unknown>>({
+export function Form<T extends FieldValues>({
   fields,
   schema,
   onSubmit,
@@ -79,7 +81,7 @@ export function Form<T extends Record<string, unknown>>({
     formState: { errors, isSubmitting },
   } = useForm<T>({
     resolver: zodResolver(schema),
-    defaultValues: defaultValues as any,
+    defaultValues: defaultValues as DefaultValues<T>,
   })
 
   return (
@@ -113,19 +115,22 @@ export function Form<T extends Record<string, unknown>>({
 
             {field.type === 'textarea' || field.type === 'json' ? (
               <Textarea
-                {...register(field.name as any)}
+                {...register(field.name as Path<T>)}
                 id={id}
                 placeholder={
                   field.placeholder ?? (field.type === 'json' ? '{ "key": "value" }' : undefined)
                 }
                 rows={field.rows ?? (field.type === 'json' ? 6 : 4)}
                 voice={field.voice}
-                onVoiceResult={(t) => setValue(field.name as any, t as any)}
+                onVoiceResult={(t) => {
+                  const path = field.name as Path<T>
+                  setValue(path, t as PathValue<T, typeof path>)
+                }}
                 className={field.type === 'json' ? 'font-mono text-sm' : ''}
               />
             ) : field.type === 'select' ? (
               <select
-                {...register(field.name as any)}
+                {...register(field.name as Path<T>)}
                 id={id}
                 className="flex h-9 w-full rounded border border-input-border bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 defaultValue=""
@@ -141,7 +146,7 @@ export function Form<T extends Record<string, unknown>>({
               </select>
             ) : field.type === 'checkbox' ? (
               <input
-                {...register(field.name as any)}
+                {...register(field.name as Path<T>)}
                 id={id}
                 type="checkbox"
                 className="h-4 w-4 rounded border-input-border"
@@ -151,7 +156,7 @@ export function Form<T extends Record<string, unknown>>({
                 {field.options?.map((opt, i) => (
                   <label key={opt} className="flex items-center gap-2 text-sm">
                     <input
-                      {...register(field.name as any)}
+                      {...register(field.name as Path<T>)}
                       type="radio"
                       value={opt}
                       className="h-4 w-4 border-input-border"
@@ -165,7 +170,7 @@ export function Form<T extends Record<string, unknown>>({
                 {field.options?.map((opt, i) => (
                   <label key={opt} className="flex items-center gap-2 text-sm">
                     <input
-                      {...register(field.name as any)}
+                      {...register(field.name as Path<T>)}
                       type="checkbox"
                       value={opt}
                       className="h-4 w-4 rounded border-input-border"
@@ -176,7 +181,7 @@ export function Form<T extends Record<string, unknown>>({
               </div>
             ) : (
               <Input
-                {...register(field.name as any)}
+                {...register(field.name as Path<T>)}
                 id={id}
                 type={field.type === 'tags' ? 'text' : field.type}
                 placeholder={
@@ -184,18 +189,44 @@ export function Form<T extends Record<string, unknown>>({
                   (field.type === 'tags' ? 'comma, separated, values' : undefined)
                 }
                 voice={field.voice}
-                onVoiceResult={(t) => setValue(field.name as any, t as any)}
+                onVoiceResult={(t) => {
+                  const path = field.name as Path<T>
+                  setValue(path, t as PathValue<T, typeof path>)
+                }}
               />
             )}
 
             {errors[field.name] && (
               <p className="text-xs text-destructive">{errors[field.name]?.message as string}</p>
             )}
+            {field.description && !errors[field.name] && (
+              <p className="text-xs text-muted-foreground">{field.description}</p>
+            )}
           </div>
         )
       })}
 
-      {submitError && <p className="text-xs text-destructive">{submitError}</p>}
+      {submitError && (
+        <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="lucide lucide-alert-circle"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" x2="12" y1="8" y2="12" />
+            <line x1="12" x2="12.01" y1="16" y2="16" />
+          </svg>
+          <p>{submitError}</p>
+        </div>
+      )}
 
       <Button type="submit" loading={isSubmitting || isLoading} className="w-full">
         {submitLabel}

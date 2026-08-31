@@ -1,4 +1,5 @@
 import { Plus, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import type { AdSlotDraft } from './adSlots'
 import { useAdCatalog } from './useAdCatalog'
 
@@ -28,6 +29,25 @@ export function CanvasAdBand({
           color: 'var(--lp-ink)',
         }}
       >
+        {catalog.loading && indexes.length === 0 ? (
+          <span className="text-xs opacity-70">Loading available Ads…</span>
+        ) : null}
+        {catalog.failed && indexes.length === 0 ? (
+          <span role="alert" className="text-xs opacity-70">
+            Ads could not be loaded.
+          </span>
+        ) : null}
+        {!catalog.loading &&
+        !catalog.failed &&
+        catalog.units.length === 0 &&
+        indexes.length === 0 ? (
+          <span className="text-xs opacity-70">
+            No Page-ready Ads.{' '}
+            <Link to="/campaigns" className="underline underline-offset-2">
+              Create a campaign run
+            </Link>
+          </span>
+        ) : null}
         {indexes.map((index) => {
           const slot = slots[index]!
           return (
@@ -60,7 +80,9 @@ export function CanvasAdBand({
         })}
         <button
           type="button"
-          disabled={slots.length >= 24}
+          disabled={
+            slots.length >= 24 || catalog.loading || catalog.failed || catalog.units.length === 0
+          }
           aria-label="Add ad space"
           onClick={() => onChange([...slots, { placement, adUnitId: null }])}
           className="inline-flex items-center gap-1 text-xs opacity-70 hover:opacity-100"

@@ -3,7 +3,10 @@ import { DashboardService } from '../services/DashboardService'
 const dashboardService = new DashboardService()
 
 export async function getHomeSummary(request: any, reply: any) {
-  const data = await dashboardService.home(request.user.businessId)
+  const data = await dashboardService.home(
+    request.user.businessId,
+    Number(request.query?.utcOffsetMinutes ?? 0),
+  )
   return reply.send({ data })
 }
 

@@ -12,7 +12,14 @@ const importJobs = new ImportJobService()
 export class ContactService {
   async list(
     businessId: string,
-    opts: { cursor?: string; limit?: number; q?: string; tag?: string; lifecycleStatus?: string },
+    opts: {
+      cursor?: string
+      limit?: number
+      q?: string
+      tag?: string
+      source?: string
+      lifecycleStatus?: string
+    },
   ) {
     const limit = normalizeLimit(opts.limit)
     const cursor = decodeCursor(opts.cursor)
@@ -20,6 +27,7 @@ export class ContactService {
     const AND: any[] = []
     if (opts.q) AND.push({ OR: [{ name: { contains: opts.q } }, { email: { contains: opts.q } }] })
     if (opts.tag) AND.push({ tags: { array_contains: opts.tag } })
+    if (opts.source) AND.push({ source: opts.source })
     if (cursor) {
       AND.push({
         OR: [
@@ -44,9 +52,58 @@ export class ContactService {
         ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
         : null
 
+    const ids = items.map((item) => item.id)
+    const [recordRows, revenueRows] = await Promise.all([
+      db.externalContactRecord.findMany({
+        where: { contactId: { in: ids } },
+        select: {
+          id: true,
+          contactId: true,
+          provider: true,
+          externalId: true,
+          matchStatus: true,
+          syncedAt: true,
+        },
+      }),
+      db.sale.groupBy({
+        by: ['contactId'],
+        where: { contactId: { in: ids }, businessId, ...ACTIVE_SALE_WHERE },
+        _sum: { amount: true },
+      }),
+    ])
+    const recordsByContact = new Map<string, typeof recordRows>()
+    for (const row of recordRows) {
+      // contactId is nullable on the model (an unmatched ExternalContactRecord has none — see
+      // ContactMatchService), but the `contactId: { in: ids }` filter above guarantees every row
+      // here has one; this narrows the type rather than asserting past a real possibility.
+      if (!row.contactId) continue
+      const bucket = recordsByContact.get(row.contactId) ?? []
+      bucket.push(row)
+      recordsByContact.set(row.contactId, bucket)
+    }
+    const revenueByContact = new Map(
+      revenueRows
+        .filter((row) => row.contactId)
+        .map((row) => [row.contactId as string, Number(row._sum.amount ?? 0)]),
+    )
+
     // lifecycleStatus is derived, so filtering by it happens after the page is fetched —
     // acceptable at MVP scale; a status-heavy filter would need it pushed into the query.
-    let mapped = items.map(toContactDTO)
+    // records/revenue batched here, not per-row (N+1) — same discipline as LandingPage.
+    // submissionCount's list-page fix (CLAUDE.md). Previously only get() returned these (via
+    // withGraph), so the collection row's synced-source badge and revenue trailing value were
+    // silently always empty/zero — found while wiring the Contacts collection/entity parity pass.
+    let mapped = items.map((item) => ({
+      ...toContactDTO(item),
+      records: (recordsByContact.get(item.id) ?? []).map((row) => ({
+        id: row.id,
+        provider: row.provider,
+        externalId: row.externalId,
+        matchStatus: row.matchStatus,
+        syncedAt: row.syncedAt?.toISOString() ?? null,
+      })),
+      revenue: revenueByContact.get(item.id) ?? 0,
+    }))
     if (opts.lifecycleStatus)
       mapped = mapped.filter((c) => c.lifecycleStatus === opts.lifecycleStatus)
 

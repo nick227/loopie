@@ -132,4 +132,17 @@ export class IntegrationService {
     })
     return toDTO(row)
   }
+
+  async disconnect(businessId: string, integrationId: string) {
+    await this.get(businessId, integrationId)
+    const row = await db.integration.update({
+      where: { id: integrationId },
+      data: {
+        status: 'PAUSED',
+        credentialsEnc: null,
+        externalAccountId: null,
+      },
+    })
+    return toDTO(row)
+  }
 }

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import type { components } from '@project/sdk'
-import { formatBytes, formatDuration, mediaSrc, PLACEMENT_LABEL } from '@/lib/media'
+import { UniversalRow } from '@/components/ui/UniversalRow'
+import { formatBytes, formatDuration, mediaSrc } from '@/lib/media'
 import { cn } from '@/lib/utils'
 
 type Asset = components['schemas']['Asset']
@@ -22,7 +23,7 @@ function Preview({ asset }: { asset: Asset }) {
     return <video src={src} className="h-full w-full object-cover" muted playsInline />
   }
   return (
-    <div className="flex h-full items-center justify-center text-[11px] uppercase tracking-[0.16em] text-zinc-400">
+    <div className="flex h-full items-center justify-center text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
       {asset.type}
     </div>
   )
@@ -42,6 +43,7 @@ export function MediaCard({
   compact?: boolean
 }) {
   const spec = [
+    asset.type,
     asset.widthPx && asset.heightPx ? `${asset.widthPx}×${asset.heightPx}` : null,
     asset.aspectRatio,
     formatDuration(asset.durationMs),
@@ -50,18 +52,13 @@ export function MediaCard({
     .filter(Boolean)
     .join(' · ')
 
-  const inner = (
-    <>
-      <div
-        className="relative bg-zinc-100 dark:bg-zinc-900 overflow-hidden"
-        style={{
-          aspectRatio: compact
-            ? '1 / 1'
-            : asset.widthPx && asset.heightPx
-              ? `${asset.widthPx} / ${asset.heightPx}`
-              : '1 / 1',
-        }}
-      >
+  // The full library page (non-compact) renders through UniversalRow's 'media' density — the
+  // shared tile shape every list in the app converges on. The picker's dense `compact` mode keeps
+  // its own bespoke markup below: a different interaction (press-to-select inside a modal, not a
+  // browsing list) that wasn't part of this convergence.
+  if (!compact) {
+    const leading = (
+      <div className="relative h-full w-full">
         <Preview asset={asset} />
         {asset.aspectRatio ? (
           <span className="absolute top-2 left-2 text-[10px] font-medium tabular-nums tracking-wide bg-zinc-950/80 text-zinc-50 px-1.5 py-0.5">
@@ -69,40 +66,50 @@ export function MediaCard({
           </span>
         ) : null}
       </div>
-      {compact ? (
-        <div className="px-2 py-1.5">
-          <p className="truncate text-xs font-medium">{asset.name}</p>
-        </div>
-      ) : (
-        <div className="p-3 space-y-1.5">
-          <p className="text-sm font-medium truncate">{asset.name}</p>
-          {spec ? <p className="text-[11px] text-zinc-500 tabular-nums truncate">{spec}</p> : null}
-          {asset.placements.length > 0 ? (
-            <div className="flex flex-wrap gap-1">
-              {asset.placements.map((id) => (
-                <span
-                  key={id}
-                  className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
-                >
-                  {PLACEMENT_LABEL[id] ?? id}
-                </span>
-              ))}
-            </div>
-          ) : null}
-          <p className="text-[11px] text-zinc-500">
-            {asset.usedInAds} {asset.usedInAds === 1 ? 'ad' : 'ads'}
-            {asset.usedInTemplates > 0
-              ? ` · ${asset.usedInTemplates} ${asset.usedInTemplates === 1 ? 'template' : 'templates'}`
-              : ''}
-          </p>
-        </div>
-      )}
+    )
+    if (onSelect) {
+      return (
+        <UniversalRow
+          density="media"
+          onClick={onSelect}
+          selected={selected}
+          leading={leading}
+          title={asset.name}
+          subtitle={spec}
+        />
+      )
+    }
+    return (
+      <UniversalRow
+        density="media"
+        href={to}
+        leading={leading}
+        title={asset.name}
+        subtitle={spec}
+      />
+    )
+  }
+
+  // Only ever reached for compact (the picker) now — the full library page returned above.
+  const inner = (
+    <>
+      <div className="relative bg-muted overflow-hidden" style={{ aspectRatio: '1 / 1' }}>
+        <Preview asset={asset} />
+        {asset.aspectRatio ? (
+          <span className="absolute top-2 left-2 text-[10px] font-medium tabular-nums tracking-wide bg-zinc-950/80 text-zinc-50 px-1.5 py-0.5">
+            {asset.aspectRatio}
+          </span>
+        ) : null}
+      </div>
+      <div className="px-2 py-1.5">
+        <p className="truncate text-xs font-medium">{asset.name}</p>
+      </div>
     </>
   )
 
   const frame = cn(
-    'block text-left rounded-lg border overflow-hidden bg-white dark:bg-zinc-950 transition-colors',
-    selected ? 'border-zinc-900 dark:border-zinc-100' : 'border-zinc-200 dark:border-zinc-800',
+    'block text-left rounded-lg border overflow-hidden bg-surface transition-colors',
+    selected ? 'border-foreground' : 'border-border',
   )
 
   if (onSelect) {
@@ -114,7 +121,7 @@ export function MediaCard({
   }
   if (to) {
     return (
-      <Link to={to} className={cn(frame, 'hover:border-zinc-400 dark:hover:border-zinc-600')}>
+      <Link to={to} className={cn(frame, 'hover:border-foreground/30')}>
         {inner}
       </Link>
     )

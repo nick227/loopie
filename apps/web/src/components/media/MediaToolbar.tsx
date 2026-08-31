@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/Input'
 
 export const MEDIA_TYPES = ['IMAGE', 'VIDEO', 'AUDIO', 'TEXT'] as const
@@ -15,31 +16,40 @@ export function MediaToolbar({
   onType: (value: MediaTypeFilter) => void
 }) {
   return (
-    <div className="flex flex-col sm:flex-row gap-3 items-center bg-white dark:bg-zinc-950 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800">
-      <div className="flex-1 w-full">
-        <Input value={q} onChange={(e) => onQ(e.target.value)} placeholder="Search media" />
+    <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4">
+      <div className="relative w-full">
+        <Input value={q} onChange={(e) => onQ(e.target.value)} placeholder="Search media..." />
       </div>
-      <div className="flex gap-1 w-full sm:w-auto">
-        {[
-          { value: '', label: 'All' },
-          ...MEDIA_TYPES.map((value) => ({
-            value,
-            label: value.slice(0, 1) + value.slice(1).toLowerCase(),
-          })),
-        ].map((row) => (
-          <button
-            key={row.value || 'all'}
-            type="button"
-            onClick={() => onType(row.value as MediaTypeFilter)}
-            className={`px-2.5 py-1.5 text-xs rounded-md ${
-              type === row.value
-                ? 'bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-900'
-                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100'
-            }`}
-          >
-            {row.label}
-          </button>
-        ))}
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => onType('')}
+          className={cn(
+            'rounded-full px-3 py-1.5 text-xs font-medium border transition-colors',
+            type === ''
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'bg-transparent text-muted-foreground border-input-border hover:border-border',
+          )}
+        >
+          All types
+        </button>
+        {MEDIA_TYPES.map((value) => {
+          const isSelected = type === value
+          // We don't have items array here to check for empty results, so we don't disable based on empty results
+          return (
+            <button
+              key={value}
+              onClick={() => onType(value)}
+              className={cn(
+                'rounded-full px-3 py-1.5 text-xs font-medium border transition-colors',
+                isSelected
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-transparent text-muted-foreground border-input-border hover:border-border',
+              )}
+            >
+              {value.charAt(0) + value.slice(1).toLowerCase()}
+            </button>
+          )
+        })}
       </div>
     </div>
   )

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAssets, useCreateAsset } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { AddMediaForm } from '@/components/media/AddMediaForm'
@@ -19,18 +20,18 @@ export function MediaPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">Media</h1>
-          <p className="text-sm text-zinc-500 mt-1">Shared library. Use it in ads and messages.</p>
-        </div>
-        <Button onClick={() => setAddingOpen((open) => !open)}>
-          <Plus size={16} className="mr-2" /> Upload
-        </Button>
-      </div>
+      <PageHeader
+        variant="list"
+        title="Media"
+        primaryAction={
+          <Button onClick={() => setAddingOpen((open) => !open)}>
+            <Plus size={16} className="mr-2" /> Upload
+          </Button>
+        }
+      />
 
       {addingOpen ? (
-        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4">
+        <div className="rounded-lg border border-border bg-surface p-4">
           <AddMediaForm
             adding={createAsset.isPending}
             onAdd={async (input) => {

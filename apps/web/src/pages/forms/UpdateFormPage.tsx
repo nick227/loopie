@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { useForm, useUpdateForm } from '@project/sdk'
 import { Form } from '@/components/ui/Form'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
 import type { FieldConfig } from '@/components/ui/Form'
 
@@ -20,7 +21,16 @@ const schema = z.object({
           return v
         }
       },
-      z.array(z.record(z.string(), z.unknown())),
+      z.array(
+        z.object({
+          label: z.string(),
+          fieldKey: z.string(),
+          type: z.enum(['TEXT', 'EMAIL', 'PHONE', 'TEXTAREA', 'SELECT', 'CHECKBOX', 'HIDDEN']),
+          required: z.boolean().optional(),
+          options: z.array(z.string()).optional(),
+          order: z.number().optional(),
+        }),
+      ),
     )
     .optional(),
 })
@@ -50,13 +60,13 @@ export function UpdateFormPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Edit Form</h1>
+      <PageHeader variant="editor" title="Edit Form" />
       <Form<FormData>
         fields={fields}
         schema={schema}
         defaultValues={data?.data as Partial<FormData>}
         onSubmit={async (formData) => {
-          await mutation.mutateAsync({ formId: formId!, ...formData } as any)
+          await mutation.mutateAsync({ formId: formId!, ...formData })
           navigate(-1)
         }}
         isLoading={mutation.isPending}

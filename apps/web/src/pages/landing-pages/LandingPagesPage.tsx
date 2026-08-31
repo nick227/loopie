@@ -1,50 +1,154 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { cn } from '@/lib/utils'
 import { useLandingPages } from '@project/sdk'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { Input } from '@/components/ui/Input'
-import { LayoutTemplate, Plus, Search } from 'lucide-react'
+import { SearchFilterBar } from '@/components/ui/SearchFilterBar'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { Button } from '@/components/ui/Button'
+import { LayoutTemplate, Plus } from 'lucide-react'
 import { useFlatPages } from '@/hooks/useFlatPages'
+import { useQuickCreatePage } from '@/hooks/useQuickCreatePage'
 import { VirtualInfiniteList } from '@/components/ui/VirtualInfiniteList'
 import { PageRow } from './components/PageRow'
+import { UniversalRowList } from '@/components/ui/UniversalRow'
+import { PagesCollectionInsights } from './components/PagesCollectionInsights'
+import {
+  getPagesScrollY,
+  setPagesScrollY,
+  getPagesSearch,
+  setPagesSearch,
+  getPagesStatusFilter,
+  setPagesStatusFilter,
+} from '@/lib/pagesNavState'
+
+// Same best-effort approach as Inbox's useRestoreInboxScroll (InboxSummaryPage.tsx) — content
+// height depends on an async list query, so retry a few times after mount rather than wiring a
+// cross-component "fully loaded" signal for a few hundred milliseconds of async data.
+function useRestorePagesScroll() {
+  useEffect(() => {
+    const target = getPagesScrollY()
+    if (target <= 0) return
+    const timers = [0, 50, 150, 350, 700].map((delay) =>
+      setTimeout(() => window.scrollTo(0, target), delay),
+    )
+    return () => timers.forEach(clearTimeout)
+  }, [])
+
+  useEffect(() => {
+    function handleScroll() {
+      setPagesScrollY(window.scrollY)
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+}
 
 export function LandingPagesPage() {
-  const navigate = useNavigate()
-  const [q, setQ] = useState('')
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useLandingPages()
+  useRestorePagesScroll()
+  const [q, setQState] = useState(getPagesSearch)
+  const [status, setStatusState] = useState(getPagesStatusFilter)
+  const [createError, setCreateError] = useState<string | null>(null)
+  // Persisted through pagesNavState so Back from a Page entity restores search/filter, same
+  // continuity contract as Inbox's own filter (inboxNavState.ts).
+  function setQ(next: string) {
+    setQState(next)
+    setPagesSearch(next)
+  }
+  function setStatus(next: string) {
+    setStatusState(next)
+    setPagesStatusFilter(next)
+  }
+  const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useLandingPages()
+  const quickCreate = useQuickCreatePage()
   const items = useFlatPages({ data })
-  const visible = q
-    ? items.filter((page) => page.name.toLowerCase().includes(q.toLowerCase()))
-    : items
+
+  let visible = items
+  if (q) {
+    visible = visible.filter((page) => page.name.toLowerCase().includes(q.toLowerCase()))
+  }
+  if (status) {
+    visible = visible.filter((page) => page.status === status)
+  }
+
+  const statuses = ['DRAFT', 'PUBLISHED', 'ARCHIVED']
+
+  async function handleCreate() {
+    setCreateError(null)
+    const result = await quickCreate.create()
+    if (!result.ok) setCreateError(result.message)
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">Pages</h1>
-          <p className="text-sm text-zinc-500 mt-1">
-            Hosted destinations. Create a page, then edit it.
-          </p>
-        </div>
-        <Link
-          to="/landing-pages/new"
-          className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          <Plus size={16} /> New page
-        </Link>
-      </div>
+      <PagesCollectionInsights pages={items} />
 
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950 sm:flex-row">
-        <div className="relative w-full flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search pages by name..."
-            className="border-zinc-200 bg-zinc-50 pl-9 dark:border-zinc-800 dark:bg-zinc-900"
-          />
-        </div>
+      <PageHeader
+        variant="list"
+        title="Pages"
+        primaryAction={
+          <Button
+            onClick={handleCreate}
+            loading={quickCreate.isPending}
+            disabled={quickCreate.templatesLoading}
+          >
+            <Plus size={16} /> New page
+          </Button>
+        }
+      />
+
+      {createError && (
+        <p
+          role="alert"
+          className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+        >
+          {createError}
+        </p>
+      )}
+
+      <SearchFilterBar
+        search={{
+          value: q,
+          onChange: setQ,
+          placeholder: 'Search pages by name...',
+        }}
+      />
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setStatus('')}
+          className={cn(
+            'rounded-full px-3 py-1.5 text-xs font-medium border transition-colors',
+            status === ''
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'bg-transparent text-muted-foreground border-input-border hover:border-border',
+          )}
+        >
+          All statuses
+        </button>
+        {statuses.map((value) => {
+          const isSelected = status === value
+          const hasResults = items.some((item) => item.status === value)
+          const isDisabled = !hasResults && !isSelected && status === ''
+
+          return (
+            <button
+              key={value}
+              onClick={() => setStatus(value)}
+              disabled={isDisabled}
+              className={cn(
+                'rounded-full px-3 py-1.5 text-xs font-medium border transition-colors',
+                isSelected
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-transparent text-muted-foreground border-input-border hover:border-border',
+                isDisabled && 'opacity-50 cursor-not-allowed',
+              )}
+            >
+              {value.charAt(0) + value.slice(1).toLowerCase()}
+            </button>
+          )
+        })}
       </div>
 
       {isLoading ? (
@@ -53,6 +157,20 @@ export function LandingPagesPage() {
             <Skeleton key={i} className="h-32 w-full rounded-xl" />
           ))}
         </div>
+      ) : isError ? (
+        <div role="alert" className="rounded-xl border border-destructive/40 bg-destructive/10 p-5">
+          <h2 className="font-semibold">Pages could not be loaded</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Your live and draft Page state is unavailable.
+          </p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="mt-3 text-sm underline underline-offset-4"
+          >
+            Retry
+          </button>
+        </div>
       ) : visible.length === 0 ? (
         <EmptyState
           icon={LayoutTemplate}
@@ -60,25 +178,21 @@ export function LandingPagesPage() {
           description={
             q
               ? 'Try adjusting your search.'
-              : 'Create a page, then edit layout, theme, and the form.'
+              : 'Create a first-party destination, then add real Ads and a reusable form.'
           }
-          action={
-            q ? undefined : { label: 'New page', onClick: () => navigate('/landing-pages/new') }
-          }
+          action={q ? undefined : { label: 'New page', onClick: handleCreate }}
         />
       ) : (
-        <VirtualInfiniteList
-          items={visible}
-          hasNextPage={!q && !!hasNextPage}
-          isFetchingNextPage={isFetchingNextPage}
-          fetchNextPage={fetchNextPage}
-          estimateSize={148}
-          renderItem={(page) => (
-            <div key={page.id} className="pb-3">
-              <PageRow page={page} />
-            </div>
-          )}
-        />
+        <UniversalRowList>
+          <VirtualInfiniteList
+            items={visible}
+            hasNextPage={!q && !!hasNextPage}
+            isFetchingNextPage={isFetchingNextPage}
+            fetchNextPage={fetchNextPage}
+            estimateSize={72}
+            renderItem={(page) => <PageRow page={page} />}
+          />
+        </UniversalRowList>
       )}
     </div>
   )

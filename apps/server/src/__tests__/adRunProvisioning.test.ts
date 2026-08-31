@@ -23,7 +23,7 @@ const META_ENV = {
   SESSION_SECRET: 'test-session-secret-at-least-32-chars',
 }
 
-type GraphCall = { url: string; body: string }
+type GraphCall = { url: string; method: string; body: string }
 
 function json(data: unknown, status = 200) {
   return { ok: status < 400, json: async () => data }
@@ -33,16 +33,34 @@ function mockGraph(opts: { failAdCreate?: boolean } = {}) {
   const calls: GraphCall[] = []
   vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
+    const method = init?.method ?? 'GET'
     const body = typeof init?.body === 'string' ? init.body : ''
-    calls.push({ url, body })
+    calls.push({ url, method, body })
     if (url.includes('/adimages')) return json({ images: { 'pixel.png': { hash: 'imghash' } } })
-    if (url.includes('/campaigns')) return json({ id: 'camp_ext' })
-    if (url.includes('/adsets')) return json({ id: 'set_ext' })
-    if (url.includes('/adcreatives')) return json({ id: 'cr_ext' })
-    if (url.includes('/ads')) {
+    if (url.includes('/act_1/campaigns')) return json({ id: 'camp_ext' })
+    if (url.includes('/act_1/adsets')) return json({ id: 'set_ext' })
+    if (url.includes('/act_1/adcreatives')) return json({ id: 'cr_ext' })
+    if (url.includes('/act_1/ads')) {
       if (opts.failAdCreate) return json({ error: { message: 'ad rejected by policy' } }, 400)
       return json({ id: 'ad_ext' })
     }
+    // Remote status mutations (pause/resume/end) and the resync that follows them — bare object
+    // ids, no /act_1/ prefix. Not this file's own focus (see adRunRemoteOps.test.ts for that),
+    // but the cascade test below now genuinely calls resume, so these need to succeed.
+    if (
+      method === 'POST' &&
+      !url.includes('/insights') &&
+      (url.includes('/camp_ext') || url.includes('/set_ext') || url.includes('/ad_ext'))
+    ) {
+      return json({ success: true })
+    }
+    if (url.includes('/ad_ext/insights')) {
+      return json({
+        data: [{ spend: '0', impressions: '0', reach: '0', clicks: '0', actions: [] }],
+      })
+    }
+    if (url.includes('/set_ext')) return json({ daily_budget: '2500' })
+    if (url.includes('/ad_ext')) return json({ effective_status: 'ACTIVE', issues_info: [] })
     return json({ error: { message: `unmocked ${url}` } }, 500)
   })
   return calls

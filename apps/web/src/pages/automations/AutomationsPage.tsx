@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useAutomations } from '@project/sdk'
 import { Card, CardContent } from '@/components/ui/Card'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { List } from 'lucide-react'
@@ -22,12 +23,15 @@ export function AutomationsPage() {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Automations</h1>
-        <Link to="/automations/new" className="text-sm text-muted-foreground hover:underline">
-          New
-        </Link>
-      </div>
+      <PageHeader
+        variant="list"
+        title="Automations"
+        primaryAction={
+          <Link to="/automations/new" className="text-sm text-muted-foreground hover:underline">
+            New
+          </Link>
+        }
+      />
 
       {items.length === 0 ? (
         <EmptyState

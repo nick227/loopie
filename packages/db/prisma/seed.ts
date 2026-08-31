@@ -3,17 +3,28 @@ import { db } from '../src/client'
 import { SEED_ACCOUNTS, SEED_PASSWORD, seedBusinessesAndUsers } from './seed/accounts'
 import { seedRiversideDemo } from './seed/riverside'
 import { seedAffiliates } from './seed/affiliates'
+import { seedShowcase } from './seed/showcase'
 
 async function main() {
   console.log('Seeding...')
   const passwordHash = await bcrypt.hash(SEED_PASSWORD, 12)
   const { riverside, oak, users } = await seedBusinessesAndUsers(passwordHash)
-  const { landingPage } = await seedRiversideDemo(riverside.id)
+  const { jane, campaign, landingPage, audienceId, imageAssetId } = await seedRiversideDemo(
+    riverside.id,
+  )
   await seedAffiliates({
     riversideId: riverside.id,
     oakId: oak.id,
     landingPageId: landingPage.id,
     users,
+  })
+  await seedShowcase({
+    businessId: riverside.id,
+    campaignId: campaign.id,
+    audienceId,
+    landingPage,
+    jane,
+    imageAssetId,
   })
 
   console.log(

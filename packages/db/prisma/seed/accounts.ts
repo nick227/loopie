@@ -75,15 +75,32 @@ export const SEED_ACCOUNTS: SeedAccount[] = [
 ]
 
 export async function seedBusinessesAndUsers(passwordHash: string) {
+  // Seeded as already-established businesses, not brand-new signups — identityCompletedAt set so
+  // demo logins and the e2e suite land straight on Inbox instead of hitting the First-Login setup
+  // gate (docs/strategy/03-product-principles.md) that a real new account would see once.
   const riverside = await db.business.upsert({
     where: { id: RIVERSIDE_ID },
     update: {},
-    create: { id: RIVERSIDE_ID, name: 'Riverside Auto Detailing' },
+    create: {
+      id: RIVERSIDE_ID,
+      name: 'Riverside Auto Detailing',
+      location: 'Riverside, CA',
+      industry: 'Auto Detailing',
+      targetAudience: 'Car owners in the Riverside area who want a professional, convenient detail',
+      identityCompletedAt: new Date(),
+    },
   })
   const oak = await db.business.upsert({
     where: { id: OAK_ID },
     update: {},
-    create: { id: OAK_ID, name: 'Oak Street Bakery' },
+    create: {
+      id: OAK_ID,
+      name: 'Oak Street Bakery',
+      location: 'Portland, OR',
+      industry: 'Bakery & Cafe',
+      targetAudience: 'Neighborhood regulars and local event/catering customers',
+      identityCompletedAt: new Date(),
+    },
   })
 
   const users: Record<string, User> = {}

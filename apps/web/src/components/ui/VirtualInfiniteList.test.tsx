@@ -1,4 +1,4 @@
-import { render, screen, act } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { VirtualInfiniteList } from './VirtualInfiniteList'
 
@@ -53,7 +53,7 @@ describe('VirtualInfiniteList', () => {
       ],
       getTotalSize: () => 150,
       measureElement: vi.fn(),
-    } as any)
+    } as unknown as ReturnType<typeof reactVirtual.useWindowVirtualizer>)
 
     render(
       <VirtualInfiniteList

@@ -37,7 +37,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <AlertCircle className="h-8 w-8 text-destructive" />
               <h2 className="text-lg font-semibold text-foreground">Something went wrong</h2>
               <p className="text-sm">
-                {this.state.error?.message || 'An unexpected error occurred.'}
+                This screen could not be displayed. Navigate to another page or reload to try again.
               </p>
             </CardContent>
           </Card>

@@ -1,75 +1,622 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useContacts, useResultsSummary } from '@project/sdk'
-import { Card, CardContent } from '@/components/ui/Card'
-import { Skeleton } from '@/components/ui/Skeleton'
+import { toast } from 'sonner'
+import {
+  parseContactImport,
+  toImportPayload,
+  useContacts,
+  useCreateIntegration,
+  useCrmCatalog,
+  useDisconnectIntegration,
+  useImportContacts,
+  useIntegrations,
+  useStartCrmOAuth,
+  useSyncIntegration,
+  useUpdateIntegration,
+  type ContactImportFormat,
+} from '@project/sdk'
+import { ArrowRight, Check, Link2, List, Plus, RefreshCw, UploadCloud } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { Input } from '@/components/ui/Input'
-import { List, Plus, Upload } from 'lucide-react'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { Modal } from '@/components/ui/Modal'
+import { SearchFilterBar } from '@/components/ui/SearchFilterBar'
+import { UniversalRow, UniversalRowList } from '@/components/ui/UniversalRow'
+import { relativeTime } from '@/components/home/homeFormat'
+import { cn } from '@/lib/utils'
 import { useFlatPages } from '@/hooks/useFlatPages'
-import { CrmNav } from '@/pages/crm/CrmNav'
+import {
+  getContactsScrollY,
+  setContactsScrollY,
+  getContactsSearch,
+  setContactsSearch,
+  getContactsSourceFilter,
+  setContactsSourceFilter,
+} from '@/lib/contactsNavState'
+import { ContactsCollectionInsights } from './ContactsCollectionInsights'
+
+// Same best-effort approach as Inbox's/Pages'/Advertising's own scroll restore
+// (InboxSummaryPage.tsx, LandingPagesPage.tsx, AdsPage.tsx) — retry a few times after mount
+// rather than wiring a cross-component "fully loaded" signal for a few hundred milliseconds of
+// async data.
+function useRestoreContactsScroll() {
+  useEffect(() => {
+    const target = getContactsScrollY()
+    if (target <= 0) return
+    const timers = [0, 50, 150, 350, 700].map((delay) =>
+      setTimeout(() => window.scrollTo(0, target), delay),
+    )
+    return () => timers.forEach(clearTimeout)
+  }, [])
+
+  useEffect(() => {
+    function handleScroll() {
+      setContactsScrollY(window.scrollY)
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+}
+
+const SOURCE_STYLES = [
+  'border-sky-500/40 text-sky-700 dark:text-sky-300',
+  'border-violet-500/40 text-violet-700 dark:text-violet-300',
+  'border-emerald-500/40 text-emerald-700 dark:text-emerald-300',
+  'border-amber-500/40 text-amber-700 dark:text-amber-300',
+  'border-rose-500/40 text-rose-700 dark:text-rose-300',
+] as const
+
+const COMMON_SOURCES = [
+  'CSV',
+  'HUBSPOT',
+  'SALESFORCE',
+  'SHOPIFY',
+  'SQUARE',
+  'PIPEDRIVE',
+  'website',
+  'campaign',
+  'landing-page',
+]
+
+// The finest-grained "where's this relationship at" signal available on the Contact list
+// endpoint itself — Lead.stage (New/Qualified/Won/...) isn't joined in here, only this coarser,
+// always-present derived status. Tint-pair pill, same convention as AdRow/PageRow: a customer is
+// a positive/success state, a lead is still in motion (info), past-customer and plain contacts
+// stay neutral.
+const LIFECYCLE_LABEL: Record<string, string> = {
+  LEAD: 'Lead',
+  CUSTOMER: 'Customer',
+  PAST_CUSTOMER: 'Past customer',
+  NONE: 'Contact',
+}
+const LIFECYCLE_STYLE: Record<string, string> = {
+  LEAD: 'bg-info/10 text-info',
+  CUSTOMER: 'bg-success/10 text-success',
+  PAST_CUSTOMER: 'bg-muted text-muted-foreground',
+  NONE: 'bg-muted text-muted-foreground',
+}
+
+function sourceIndex(source?: string | null) {
+  const value = source || 'Direct'
+  return Array.from(value).reduce((sum, char) => sum + char.charCodeAt(0), 0) % SOURCE_STYLES.length
+}
+
+function sourceStyle(source?: string | null) {
+  return SOURCE_STYLES[sourceIndex(source)]
+}
+
+function sourceLabel(source?: string | null) {
+  if (!source) return 'Direct'
+  return source
+    .replace(/[-_]/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+// Quietly distinguishes a contact backed by a linked external CRM record (HubSpot, Shopify, a CSV
+// import, etc.) from one LOOPIE created directly — real `records` data (ContactSourceRecord[]),
+// not a guess from the free-text `source` label above (which mixes acquisition channels like
+// "website"/"campaign" with import provenance like "CSV"/"HUBSPOT" in one loosely-typed field).
+// Same pill family as the lifecycle badge next to it — a second badge, not a different row shape
+// — and renders nothing at all for a native contact, so the common case stays quiet.
+function SyncedBadge({ records }: { records?: { provider: string }[] }) {
+  if (!records || records.length === 0) return null
+  const label =
+    records.length === 1 ? sourceLabel(records[0]!.provider) : `${records.length} linked systems`
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+      <RefreshCw size={10} />
+      {label}
+    </span>
+  )
+}
+
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+}
+
+function formatMoney(value: number) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
+}
+
+// A single action, not a page section — opened in a modal on demand rather than sitting on the
+// page as a permanent, implementation-oriented drag/drop block.
+function ContactImport({ onDone }: { onDone: () => void }) {
+  const mutation = useImportContacts()
+  const [dragging, setDragging] = useState(false)
+
+  async function importFile(file: File) {
+    try {
+      const format: ContactImportFormat = file.name.toLowerCase().endsWith('.json') ? 'json' : 'csv'
+      const parsed = parseContactImport(await file.text(), format)
+      if (!('rows' in parsed) || parsed.rows.length === 0) {
+        throw new Error('No contacts found in this file.')
+      }
+      const result = await mutation.mutateAsync({ contacts: toImportPayload(parsed.rows) })
+      const counts = result.data
+      if (!counts) throw new Error('Import did not return a result.')
+      toast.success(`${counts.created} new contact${counts.created === 1 ? '' : 's'} added`)
+      onDone()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'This file could not be imported.')
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">
+        Add a CSV or JSON file. Existing contacts are linked automatically.
+      </p>
+      <label
+        className={cn(
+          'group flex min-h-20 cursor-pointer items-center justify-center gap-3 rounded-xl border border-dashed px-5 py-4 text-center transition-colors',
+          'focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background',
+          dragging
+            ? 'border-primary ring-1 ring-primary'
+            : 'border-input-border hover:border-foreground/40',
+          mutation.isPending && 'pointer-events-none opacity-60',
+        )}
+        onDragEnter={() => setDragging(true)}
+        onDragLeave={() => setDragging(false)}
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => {
+          event.preventDefault()
+          setDragging(false)
+          const file = event.dataTransfer.files[0]
+          if (file) void importFile(file)
+        }}
+      >
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-primary/40 text-primary transition-transform group-hover:-translate-y-0.5">
+          <UploadCloud size={18} />
+        </span>
+        <span className="text-left">
+          <span className="block text-sm font-medium">Drop a contact file here</span>
+          <span className="block text-xs text-muted-foreground">or click to choose</span>
+        </span>
+        <input
+          type="file"
+          accept=".csv,.json,text/csv,application/json"
+          className="sr-only"
+          disabled={mutation.isPending}
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            if (file) void importFile(file)
+            event.target.value = ''
+          }}
+        />
+      </label>
+      {mutation.isPending ? <p className="text-xs text-muted-foreground">Importing…</p> : null}
+    </div>
+  )
+}
+
+type CrmProvider = { provider: string; label: string; oauth?: boolean; configured?: boolean }
+type IntegrationRow = {
+  id: string
+  provider: string
+  status: 'INCOMPLETE' | 'CONNECTED' | 'NEEDS_REAUTH' | 'PAUSED'
+  lastSyncAt?: string | null
+  lastSyncCreated?: number | null
+  lastSyncLinked?: number | null
+}
+
+const INTEGRATION_STATUS_LABEL: Record<IntegrationRow['status'], string> = {
+  CONNECTED: 'Connected',
+  PAUSED: 'Paused',
+  NEEDS_REAUTH: 'Needs reauthorization',
+  INCOMPLETE: 'Incomplete',
+}
+const INTEGRATION_STATUS_STYLE: Record<IntegrationRow['status'], string> = {
+  CONNECTED: 'bg-success/10 text-success',
+  PAUSED: 'bg-muted text-muted-foreground',
+  NEEDS_REAUTH: 'bg-warning/10 text-warning',
+  INCOMPLETE: 'bg-muted text-muted-foreground',
+}
+
+type ModalView =
+  | { kind: 'list' }
+  | { kind: 'connect'; provider: CrmProvider }
+  | { kind: 'manage'; provider: CrmProvider; row: IntegrationRow }
+  | { kind: 'connected'; provider: CrmProvider; created: number; linked: number }
+
+// A single button, in line with Import/Add contact — not a permanent row of provider chips on
+// the page. Everything (provider list, connect/disconnect, and per-connection settings) lives
+// inside the modal this opens, reached only on demand.
+function ConnectIntegrationsButton() {
+  const [open, setOpen] = useState(false)
+  const [view, setView] = useState<ModalView>({ kind: 'list' })
+  const catalog = useCrmCatalog()
+  const list = useIntegrations()
+  const create = useCreateIntegration()
+  const oauth = useStartCrmOAuth()
+  const update = useUpdateIntegration()
+  const disconnect = useDisconnectIntegration()
+  const sync = useSyncIntegration()
+  const connected = useFlatPages(list)
+
+  const [shop, setShop] = useState('')
+
+  function close() {
+    setOpen(false)
+    setView({ kind: 'list' })
+  }
+
+  async function connect(provider: CrmProvider) {
+    try {
+      const isOauth = provider.oauth && provider.configured
+      if (isOauth) {
+        const started = await oauth.mutateAsync({
+          provider: provider.provider as
+            'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'SQUARE' | 'PIPEDRIVE',
+          shop: provider.provider === 'SHOPIFY' ? shop : undefined,
+        })
+        if (!started.data) throw new Error('Missing connection URL.')
+        window.location.assign(started.data.url)
+        return
+      }
+      const created = await create.mutateAsync({
+        provider: provider.provider as
+          'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'SQUARE' | 'PIPEDRIVE',
+        externalAccountId: provider.provider === 'SHOPIFY' ? shop || undefined : undefined,
+      })
+      const row = created.data as IntegrationRow | undefined
+      if (!row) throw new Error('Connected, but the integration could not be loaded.')
+      // The connection itself isn't the value — what it found is. Sync immediately so the
+      // "connected" state shows real discovered data, not a plumbing confirmation. See
+      // docs/strategy/03-product-principles.md's First-Login Experience.
+      try {
+        const synced = await sync.mutateAsync(row.id)
+        setView({
+          kind: 'connected',
+          provider,
+          created: synced.data?.created ?? 0,
+          linked: synced.data?.linked ?? 0,
+        })
+      } catch {
+        // The connection itself succeeded even if this first sync didn't — still show the
+        // connected state, just without fresh counts.
+        setView({ kind: 'connected', provider, created: 0, linked: 0 })
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not connect.')
+    }
+  }
+
+  async function togglePause(row: IntegrationRow, provider: CrmProvider) {
+    try {
+      await update.mutateAsync({
+        integrationId: row.id,
+        status: row.status === 'PAUSED' ? 'CONNECTED' : 'PAUSED',
+      })
+      toast.success(
+        row.status === 'PAUSED' ? `${provider.label} resumed` : `${provider.label} paused`,
+      )
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not update this connection.')
+    }
+  }
+
+  async function handleDisconnect(row: IntegrationRow, provider: CrmProvider) {
+    if (
+      !window.confirm(
+        `Disconnect ${provider.label}? LOOPIE will stop pulling contacts from it until reconnected.`,
+      )
+    )
+      return
+    try {
+      await disconnect.mutateAsync(row.id)
+      toast.success(`${provider.label} disconnected`)
+      setView({ kind: 'list' })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not disconnect.')
+    }
+  }
+
+  const matchCount = catalog.data?.unresolvedMatchCount ?? 0
+
+  return (
+    <>
+      <Button variant="outline" onClick={() => setOpen(true)}>
+        <Link2 size={15} /> Connect
+      </Button>
+
+      {open ? (
+        <Modal
+          title={
+            view.kind === 'connect'
+              ? `Connect ${view.provider.label}`
+              : view.kind === 'connected'
+                ? `${view.provider.label} is connected`
+                : view.kind === 'manage'
+                  ? view.provider.label
+                  : 'Connect integrations'
+          }
+          onClose={close}
+        >
+          {catalog.isLoading || list.isLoading ? (
+            <Skeleton className="h-32 w-full" />
+          ) : view.kind === 'connect' ? (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Connect {view.provider.label} to see its contacts, conversations, and activity here.
+              </p>
+              {view.provider.provider === 'SHOPIFY' ? (
+                <input
+                  className="flex h-9 w-full rounded-md border border-input-border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  value={shop}
+                  onChange={(event) => setShop(event.target.value)}
+                  placeholder="Store domain (e.g., myshop.myshopify.com)"
+                  autoFocus
+                />
+              ) : null}
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setView({ kind: 'list' })}>
+                  Back
+                </Button>
+                <Button
+                  onClick={() => connect(view.provider)}
+                  disabled={
+                    (view.provider.provider === 'SHOPIFY' && !shop) ||
+                    create.isPending ||
+                    oauth.isPending
+                  }
+                >
+                  {create.isPending || oauth.isPending ? 'Connecting…' : 'Authenticate'}
+                </Button>
+              </div>
+            </div>
+          ) : view.kind === 'connected' ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-success/10 text-success">
+                  <Check size={16} />
+                </span>
+                <p className="text-sm text-foreground">
+                  {view.created + view.linked > 0
+                    ? `${view.created} new, ${view.linked} linked`
+                    : 'Connected — nothing to import yet.'}
+                </p>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setView({ kind: 'list' })}>
+                  Done
+                </Button>
+                <Link
+                  to="/contacts"
+                  onClick={close}
+                  className="inline-flex h-9 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  View activity
+                </Link>
+              </div>
+            </div>
+          ) : view.kind === 'manage' ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider',
+                    INTEGRATION_STATUS_STYLE[view.row.status],
+                  )}
+                >
+                  {INTEGRATION_STATUS_LABEL[view.row.status]}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {view.row.lastSyncAt
+                  ? `Last synced ${relativeTime(view.row.lastSyncAt)} · ${view.row.lastSyncCreated ?? 0} new, ${view.row.lastSyncLinked ?? 0} linked`
+                  : 'Not synced yet.'}
+              </p>
+              {view.row.status === 'NEEDS_REAUTH' ? (
+                <p className="text-sm text-warning">
+                  {view.provider.label} needs to be reauthorized before it can sync again.
+                </p>
+              ) : null}
+              <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={sync.isPending || view.row.status !== 'CONNECTED'}
+                  onClick={async () => {
+                    try {
+                      await sync.mutateAsync(view.row.id)
+                      toast.success(`${view.provider.label} synced`)
+                    } catch (error) {
+                      toast.error(error instanceof Error ? error.message : 'Sync failed.')
+                    }
+                  }}
+                >
+                  Sync now
+                </Button>
+                {view.row.status === 'CONNECTED' || view.row.status === 'PAUSED' ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={update.isPending}
+                    onClick={() => togglePause(view.row, view.provider)}
+                  >
+                    {view.row.status === 'PAUSED' ? 'Resume' : 'Pause'}
+                  </Button>
+                ) : null}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={disconnect.isPending}
+                  className="text-destructive hover:bg-destructive/10"
+                  onClick={() => handleDisconnect(view.row, view.provider)}
+                >
+                  Disconnect
+                </Button>
+              </div>
+              <div className="flex justify-end pt-2">
+                <Button variant="outline" onClick={() => setView({ kind: 'list' })}>
+                  Back
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                {(catalog.data?.data ?? []).map((provider) => {
+                  const row = connected.find((item) => item.provider === provider.provider) as
+                    IntegrationRow | undefined
+                  return (
+                    <div
+                      key={provider.provider}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{provider.label}</span>
+                        {row ? (
+                          <span
+                            className={cn(
+                              'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider',
+                              INTEGRATION_STATUS_STYLE[row.status],
+                            )}
+                          >
+                            {INTEGRATION_STATUS_LABEL[row.status]}
+                          </span>
+                        ) : null}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          row
+                            ? setView({ kind: 'manage', provider, row })
+                            : setView({ kind: 'connect', provider })
+                        }
+                      >
+                        {row ? 'Manage' : 'Connect'}
+                      </Button>
+                    </div>
+                  )
+                })}
+              </div>
+              {matchCount > 0 ? (
+                <Link
+                  to="/contact-matches"
+                  className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Review matches
+                  <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] text-primary">
+                    {matchCount}
+                  </span>
+                </Link>
+              ) : null}
+            </div>
+          )}
+        </Modal>
+      ) : null}
+    </>
+  )
+}
 
 export function ContactsPage() {
-  const [q, setQ] = useState('')
-  const query = useContacts(q ? { q } : undefined)
+  useRestoreContactsScroll()
+  const [q, setQState] = useState(getContactsSearch)
+  const [source, setSourceState] = useState(getContactsSourceFilter)
+  const [importOpen, setImportOpen] = useState(false)
+  // Persisted through contactsNavState so Back from a Contact entity restores search/filter, same
+  // continuity contract as Pages (pagesNavState.ts) and Advertising (adsNavState.ts).
+  function setQ(next: string) {
+    setQState(next)
+    setContactsSearch(next)
+  }
+  function setSource(next: string) {
+    setSourceState(next)
+    setContactsSourceFilter(next)
+  }
+  const query = useContacts({ ...(q ? { q } : {}), ...(source ? { source } : {}) })
   const items = useFlatPages(query)
-  const results = useResultsSummary()
-  const bySource = (results.data?.data?.bySource ?? []).slice(0, 5)
+
+  const sources = useMemo(() => {
+    const available = new Set<string>()
+    items.forEach((contact) => contact.source && available.add(contact.source))
+    COMMON_SOURCES.forEach((value) => available.add(value))
+    return Array.from(available).sort((a, b) => sourceLabel(a).localeCompare(sourceLabel(b)))
+  }, [items])
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">Contacts</h1>
-          <p className="mt-1 text-sm text-muted-foreground">People in your customer graph.</p>
-        </div>
-        <div className="flex gap-2">
-          <Link
-            to="/contacts/import/new"
-            className="inline-flex h-9 items-center gap-2 rounded-lg border border-input-border px-4 text-sm font-medium hover:bg-accent"
-          >
-            <Upload size={15} /> Import
-          </Link>
+      <ContactsCollectionInsights />
+
+      {/* Same shared PageHeader/SearchFilterBar/UniversalRowList structure as Advertising and
+          Pages (docs/strategy/03-product-principles.md's unified navigation grammar) — Connect/
+          Import are real CRM-specific actions, not a reason to diverge from the shared header. */}
+      <PageHeader
+        variant="list"
+        title="Contacts"
+        secondaryActions={
+          <>
+            <ConnectIntegrationsButton />
+            <Button variant="outline" onClick={() => setImportOpen(true)}>
+              Import
+            </Button>
+          </>
+        }
+        primaryAction={
           <Link
             to="/contacts/new"
-            className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Plus size={15} /> Add contact
           </Link>
-        </div>
-      </div>
-      <CrmNav />
+        }
+      />
 
-      {bySource.length > 0 ? (
-        <Card>
-          <CardContent className="space-y-2 py-4">
-            <p className="text-sm font-medium">Attributed revenue</p>
-            {bySource.map((row) => (
-              <p
-                key={`${row.sourceType}-${row.sourceId}`}
-                className="text-sm text-muted-foreground"
-              >
-                {row.label}: ${row.revenue} · {row.sales} sales
-              </p>
-            ))}
-          </CardContent>
-        </Card>
-      ) : null}
-
-      <label className="block max-w-md">
-        <span className="sr-only">Search contacts</span>
-        <Input
-          value={q}
-          onChange={(event) => setQ(event.target.value)}
-          placeholder="Search contacts…"
-          type="search"
-        />
-      </label>
+      <SearchFilterBar
+        search={{ value: q, onChange: setQ, placeholder: 'Search name or email…' }}
+        filters={[
+          {
+            id: 'source',
+            label: 'Source',
+            value: source,
+            options: [
+              { value: '', label: 'All sources' },
+              ...sources.map((value) => ({ value, label: sourceLabel(value) })),
+            ],
+            onChange: setSource,
+          },
+        ]}
+        trailing={
+          <span className="whitespace-nowrap text-xs font-medium text-muted-foreground">
+            {items.length}
+            {query.hasNextPage ? '+' : ''} people
+          </span>
+        }
+      />
 
       {query.isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 w-full" />
+        <div className="space-y-px">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <Skeleton key={index} className="h-16 w-full" />
           ))}
         </div>
       ) : query.isError ? (
@@ -89,41 +636,88 @@ export function ContactsPage() {
       ) : items.length === 0 ? (
         <EmptyState
           icon={List}
-          title={q ? 'No matching contacts' : 'No contacts yet'}
-          description={q ? 'Try a different search.' : 'Add or import a contact to get started.'}
+          title={q || source ? 'No matching contacts' : 'No contacts yet'}
+          description={
+            q || source
+              ? 'Clear a filter or try a different search.'
+              : 'Add a contact or import a file.'
+          }
         />
       ) : (
-        <div className="space-y-3">
-          {items.map((contact) => (
-            <Card key={contact.id}>
-              <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{contact.name}</p>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {contact.email ?? contact.phone ?? 'No contact details'}
-                  </p>
-                </div>
-                <Link
-                  to={`/contacts/${contact.id}`}
-                  className="text-sm underline underline-offset-4"
-                >
-                  View
-                </Link>
-              </CardContent>
-            </Card>
-          ))}
-          {query.hasNextPage && (
-            <button
-              type="button"
-              onClick={() => query.fetchNextPage()}
-              disabled={query.isFetchingNextPage}
-              className="w-full py-3 text-sm text-muted-foreground underline-offset-4 hover:underline disabled:opacity-50"
-            >
-              {query.isFetchingNextPage ? 'Loading…' : 'Load more'}
-            </button>
-          )}
-        </div>
+        <UniversalRowList>
+          {items.map((contact) => {
+            const activity = contact.lastContactedAt
+              ? `Last contact ${relativeTime(contact.lastContactedAt)}`
+              : `Added ${relativeTime(contact.createdAt)}`
+            return (
+              <UniversalRow
+                key={contact.id}
+                density="featured"
+                href={`/contacts/${contact.id}`}
+                state={{ from: 'Contacts', fromTo: '/contacts' }}
+                leadingShape="circle"
+                leading={
+                  <span
+                    className={cn(
+                      'grid h-full w-full place-items-center border text-base',
+                      sourceStyle(contact.source),
+                    )}
+                  >
+                    {initials(contact.name)}
+                  </span>
+                }
+                title={contact.name}
+                subtitle={`${activity} · ${sourceLabel(contact.source)}`}
+                meta={
+                  <>
+                    <span
+                      className={cn(
+                        'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider',
+                        LIFECYCLE_STYLE[contact.lifecycleStatus ?? 'NONE'],
+                      )}
+                    >
+                      {LIFECYCLE_LABEL[contact.lifecycleStatus ?? 'NONE']}
+                    </span>
+                    <SyncedBadge records={contact.records} />
+                    {contact.email ? (
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        {contact.email}
+                      </span>
+                    ) : contact.phone ? (
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        {contact.phone}
+                      </span>
+                    ) : null}
+                  </>
+                }
+                trailing={contact.revenue ? formatMoney(contact.revenue) : undefined}
+              />
+            )
+          })}
+        </UniversalRowList>
       )}
+      {query.hasNextPage ? (
+        <button
+          type="button"
+          onClick={() => query.fetchNextPage()}
+          disabled={query.isFetchingNextPage}
+          className="flex w-full items-center justify-center gap-2 py-3 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+        >
+          {query.isFetchingNextPage ? (
+            'Loading…'
+          ) : (
+            <>
+              Load more <ArrowRight size={14} />
+            </>
+          )}
+        </button>
+      ) : null}
+
+      {importOpen ? (
+        <Modal title="Import contacts" onClose={() => setImportOpen(false)}>
+          <ContactImport onDone={() => setImportOpen(false)} />
+        </Modal>
+      ) : null}
     </div>
   )
 }
