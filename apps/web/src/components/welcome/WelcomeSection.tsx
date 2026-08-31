@@ -54,9 +54,6 @@ export function WelcomeSection() {
       <ResultsPanel weeklyResults={home.weeklyResults} />
 
       <section aria-labelledby="live-presence-title" className="space-y-3">
-        <h2 id="live-presence-title" className="text-sm font-semibold text-foreground">
-          Live presence
-        </h2>
         <LivePresenceGrid items={home.livePresence} />
       </section>
 

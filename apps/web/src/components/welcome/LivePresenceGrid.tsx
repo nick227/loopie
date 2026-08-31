@@ -43,7 +43,7 @@ export function LivePresenceGrid({ items }: { items: LivePresenceItem[] }) {
   return (
     <div className="space-y-3">
       {hasFeatureRow ? (
-        <div className="grid gap-3 sm:grid-cols-4">
+        <div className="w-full">
           {feature ? <LivePresencePageCard item={feature} className="sm:col-span-2" /> : null}
           {stackAds.length ? (
             <div

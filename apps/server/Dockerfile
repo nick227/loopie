@@ -47,6 +47,15 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages/db ./packages/db
 COPY --from=builder /app/packages/api-spec ./packages/api-spec
+# Several services import specific dependency-free subpaths off @project/sdk directly (e.g.
+# AdRunService.ts's validateAdvertisement, ContactService.ts's importContactSchema) rather than
+# the package's root export (which pulls in React/react-query — see packages/sdk/package.json's
+# #exports map). node_modules/@project/sdk is a symlink into packages/sdk, so without this the
+# symlink target is missing at runtime and any such import crashes with MODULE_NOT_FOUND —
+# confirmed live, not by inspection: found via a real Railway healthcheck failure after this
+# Dockerfile had otherwise never copied packages/sdk at all.
+COPY --from=builder /app/packages/sdk/src ./packages/sdk/src
+COPY --from=builder /app/packages/sdk/package.json ./packages/sdk/
 COPY --from=builder /app/apps/server/src ./apps/server/src
 COPY --from=builder /app/apps/server/package.json ./apps/server/
 
