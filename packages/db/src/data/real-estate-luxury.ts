@@ -1,4 +1,4 @@
-import { PageModel } from '../types/content'
+import { PageModel } from '../content'
 
 export const realEstateLuxuryData: PageModel = {
   title: 'Aura Estates - Luxury Real Estate',

@@ -1,4 +1,4 @@
-import { PageModel } from '../types/content'
+import { PageModel } from '../content'
 
 export const ecommerceGradientData: PageModel = {
   title: 'AURA - Spatial Audio Headphones',

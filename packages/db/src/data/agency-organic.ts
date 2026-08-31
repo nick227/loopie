@@ -1,4 +1,4 @@
-import { PageModel } from '../types/content'
+import { PageModel } from '../content'
 
 export const agencyOrganicData: PageModel = {
   title: 'OAK & AURA - Digital Agency',

@@ -1,5 +1,5 @@
 import { Web3Crypto } from '@/components/landing-pages/templates/Web3Crypto'
-import { web3CryptoData } from '@/data/web3-crypto'
+import { web3CryptoData } from '@project/db/src/data/web3-crypto'
 
 export function Web3CryptoPreview() {
   return (

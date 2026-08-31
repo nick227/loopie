@@ -109,7 +109,7 @@ export function MediaCard({
 
   const frame = cn(
     'block text-left rounded-lg border overflow-hidden bg-surface transition-colors',
-    selected ? 'border-foreground' : 'border-border',
+    selected ? 'border-foreground border-gray-300 ring-8 ring-gray-300' : 'border-border',
   )
 
   if (onSelect) {

@@ -1,4 +1,4 @@
-import { PageModel } from '../types/content'
+import { PageModel } from '../content'
 
 export const saasCleanCrispData: PageModel = {
   title: 'AcmeCorp - Clean & Crisp SaaS',

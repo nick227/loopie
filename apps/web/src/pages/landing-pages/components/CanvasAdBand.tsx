@@ -43,8 +43,8 @@ export function CanvasAdBand({
         indexes.length === 0 ? (
           <span className="text-xs opacity-70">
             No Page-ready Ads.{' '}
-            <Link to="/campaigns" className="underline underline-offset-2">
-              Create a campaign run
+            <Link to="/ads" className="underline underline-offset-2">
+              Create an ad
             </Link>
           </span>
         ) : null}

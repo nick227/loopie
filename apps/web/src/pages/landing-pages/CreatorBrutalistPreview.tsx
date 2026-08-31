@@ -1,5 +1,5 @@
 import { CreatorBrutalist } from '@/components/landing-pages/templates/CreatorBrutalist'
-import { creatorBrutalistData } from '@/data/creator-brutalist'
+import { creatorBrutalistData } from '@project/db/src/data/creator-brutalist'
 
 export function CreatorBrutalistPreview() {
   return (

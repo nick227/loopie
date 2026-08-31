@@ -1,5 +1,5 @@
 import { HealthcareTelehealth } from '@/components/landing-pages/templates/HealthcareTelehealth'
-import { healthcareTelehealthData } from '@/data/healthcare-telehealth'
+import { healthcareTelehealthData } from '@project/db/src/data/healthcare-telehealth'
 
 export function HealthcareTelehealthPreview() {
   return (

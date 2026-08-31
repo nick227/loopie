@@ -9,6 +9,7 @@ import { PageCanvas } from './components/PageCanvas'
 import { PageToolbar } from './components/PageToolbar'
 import { TemplateSection } from './components/types'
 import { useLandingPageEditor } from './hooks/useLandingPageEditor'
+import { AdvancedTemplateRenderer } from './components/AdvancedTemplateRenderer'
 
 type Tab = 'editor' | 'activity'
 
@@ -216,27 +217,36 @@ export function LandingPage() {
             }}
           />
 
-          <PageCanvas
-            sections={sections}
-            content={content}
-            theme={theme}
-            slots={slots}
-            hasForm={Boolean(formId)}
-            formFields={fields}
-            onFormFields={(next) => {
-              setFields(next)
-              setDirty(true)
-            }}
-            onSlots={(next) => {
-              setSlots(next)
-              setDirty(true)
-            }}
-            onSection={(key, next) => {
-              setContent((c) => ({ ...c, [key]: next }))
-              setDirty(true)
-            }}
-            submitLabel={submitLabel}
-          />
+          {template?.schema && 'blocks' in template.schema ? (
+            <AdvancedTemplateRenderer
+              templateId={templateId}
+              content={content}
+              setContent={setContent}
+              setDirty={setDirty}
+            />
+          ) : (
+            <PageCanvas
+              sections={sections}
+              content={content}
+              theme={theme}
+              slots={slots}
+              hasForm={Boolean(formId)}
+              formFields={fields}
+              onFormFields={(next) => {
+                setFields(next)
+                setDirty(true)
+              }}
+              onSlots={(next) => {
+                setSlots(next)
+                setDirty(true)
+              }}
+              onSection={(key, next) => {
+                setContent((c) => ({ ...c, [key]: next }))
+                setDirty(true)
+              }}
+              submitLabel={submitLabel}
+            />
+          )}
         </>
       ) : (
         <PageActivity landingPageId={page.id} />

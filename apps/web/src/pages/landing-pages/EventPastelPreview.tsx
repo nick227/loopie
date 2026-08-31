@@ -1,5 +1,5 @@
 import { EventPastel } from '@/components/landing-pages/templates/EventPastel'
-import { eventPastelData } from '@/data/event-pastel'
+import { eventPastelData } from '@project/db/src/data/event-pastel'
 
 export function EventPastelPreview() {
   return (

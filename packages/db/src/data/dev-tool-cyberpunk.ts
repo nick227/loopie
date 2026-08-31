@@ -1,4 +1,4 @@
-import { PageModel } from '../types/content'
+import { PageModel } from '../content'
 
 export const devToolCyberpunkData: PageModel = {
   title: 'NEURAL_CORE - Dev Tool',

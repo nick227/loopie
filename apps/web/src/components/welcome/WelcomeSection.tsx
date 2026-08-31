@@ -1,8 +1,6 @@
 import { useHomeSummary } from '@project/sdk'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { BusinessIdentityHeader } from './BusinessIdentityHeader'
-import { LivePresenceGrid } from './LivePresenceGrid'
-import { MessageSummary } from './MessageSummary'
 import { ResultsPanel } from './ResultsPanel'
 import { AddSomethingRow } from './AddSomethingRow'
 
@@ -52,12 +50,6 @@ export function WelcomeSection() {
       <BusinessIdentityHeader />
 
       <ResultsPanel weeklyResults={home.weeklyResults} />
-
-      <section aria-labelledby="live-presence-title" className="space-y-3">
-        <LivePresenceGrid items={home.livePresence} />
-      </section>
-
-      <MessageSummary />
 
       <AddSomethingRow />
     </div>

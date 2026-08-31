@@ -1,62 +1,14 @@
-import type { Prisma } from '@prisma/client'
-import {
-  SYSTEM_LEAD_GEN_SCHEMA,
-  SYSTEM_LEAD_GEN_TEMPLATE_ID,
-  SYSTEM_MEDIA_LEAD_GEN_SCHEMA,
-  SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID,
-} from '@project/db'
-import { agencyOrganicData } from '@project/db/src/data/agency-organic'
-import { appWaitlistNeonData } from '@project/db/src/data/app-waitlist-neon'
-import { creatorBrutalistData } from '@project/db/src/data/creator-brutalist'
-import { devToolCyberpunkData } from '@project/db/src/data/dev-tool-cyberpunk'
-import { ecommerceGradientData } from '@project/db/src/data/ecommerce-gradient'
-import { eventPastelData } from '@project/db/src/data/event-pastel'
-import { healthcareTelehealthData } from '@project/db/src/data/healthcare-telehealth'
-import { realEstateLuxuryData } from '@project/db/src/data/real-estate-luxury'
-import { saasCleanCrispData } from '@project/db/src/data/saas-clean-crisp'
-import { web3CryptoData } from '@project/db/src/data/web3-crypto'
+import { agencyOrganicData } from '@project/db/src/data/agency-organic';
+import { appWaitlistNeonData } from '@project/db/src/data/app-waitlist-neon';
+import { creatorBrutalistData } from '@project/db/src/data/creator-brutalist';
+import { devToolCyberpunkData } from '@project/db/src/data/dev-tool-cyberpunk';
+import { ecommerceGradientData } from '@project/db/src/data/ecommerce-gradient';
+import { eventPastelData } from '@project/db/src/data/event-pastel';
+import { healthcareTelehealthData } from '@project/db/src/data/healthcare-telehealth';
+import { realEstateLuxuryData } from '@project/db/src/data/real-estate-luxury';
+import { saasCleanCrispData } from '@project/db/src/data/saas-clean-crisp';
+import { web3CryptoData } from '@project/db/src/data/web3-crypto';
 
-type TemplateClient = {
-  landingPageTemplate: {
-    upsert: Prisma.TransactionClient['landingPageTemplate']['upsert']
-  }
-}
-
-export async function ensureSystemTemplates(tx: TemplateClient) {
-  await tx.landingPageTemplate.upsert({
-    where: { id: SYSTEM_LEAD_GEN_TEMPLATE_ID },
-    update: {
-      name: 'Sales page',
-      description: 'Vertical sales landing page: hero, photograph, proof, form, footer.',
-      schema: SYSTEM_LEAD_GEN_SCHEMA,
-    },
-    create: {
-      id: SYSTEM_LEAD_GEN_TEMPLATE_ID,
-      isSystem: true,
-      name: 'Sales page',
-      description: 'Vertical sales landing page: hero, photograph, proof, form, footer.',
-      category: 'lead-gen',
-      formatVersion: '1.0',
-      schema: SYSTEM_LEAD_GEN_SCHEMA,
-    },
-  })
-  await tx.landingPageTemplate.upsert({
-    where: { id: SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID },
-    update: {
-      name: 'Email capture',
-      description: 'Two-column email capture: image on the left, pitch and email on the right.',
-      schema: SYSTEM_MEDIA_LEAD_GEN_SCHEMA,
-    },
-    create: {
-      id: SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID,
-      isSystem: true,
-      name: 'Email capture',
-      description: 'Two-column email capture: image on the left, pitch and email on the right.',
-      category: 'lead-gen',
-      formatVersion: '1.0',
-      schema: SYSTEM_MEDIA_LEAD_GEN_SCHEMA,
-    },
-  })
   await tx.landingPageTemplate.upsert({
     where: { id: 'system-template-agency-organic' },
     update: {
@@ -73,7 +25,7 @@ export async function ensureSystemTemplates(tx: TemplateClient) {
       formatVersion: '2.0',
       schema: { blocks: agencyOrganicData.blocks, theme: agencyOrganicData.theme },
     },
-  })
+  });
   await tx.landingPageTemplate.upsert({
     where: { id: 'system-template-app-waitlist-neon' },
     update: {
@@ -90,7 +42,7 @@ export async function ensureSystemTemplates(tx: TemplateClient) {
       formatVersion: '2.0',
       schema: { blocks: appWaitlistNeonData.blocks, theme: appWaitlistNeonData.theme },
     },
-  })
+  });
   await tx.landingPageTemplate.upsert({
     where: { id: 'system-template-creator-brutalist' },
     update: {
@@ -107,7 +59,7 @@ export async function ensureSystemTemplates(tx: TemplateClient) {
       formatVersion: '2.0',
       schema: { blocks: creatorBrutalistData.blocks, theme: creatorBrutalistData.theme },
     },
-  })
+  });
   await tx.landingPageTemplate.upsert({
     where: { id: 'system-template-dev-tool-cyberpunk' },
     update: {
@@ -124,7 +76,7 @@ export async function ensureSystemTemplates(tx: TemplateClient) {
       formatVersion: '2.0',
       schema: { blocks: devToolCyberpunkData.blocks, theme: devToolCyberpunkData.theme },
     },
-  })
+  });
   await tx.landingPageTemplate.upsert({
     where: { id: 'system-template-ecommerce-gradient' },
     update: {
@@ -141,7 +93,7 @@ export async function ensureSystemTemplates(tx: TemplateClient) {
       formatVersion: '2.0',
       schema: { blocks: ecommerceGradientData.blocks, theme: ecommerceGradientData.theme },
     },
-  })
+  });
   await tx.landingPageTemplate.upsert({
     where: { id: 'system-template-event-pastel' },
     update: {
@@ -158,7 +110,7 @@ export async function ensureSystemTemplates(tx: TemplateClient) {
       formatVersion: '2.0',
       schema: { blocks: eventPastelData.blocks, theme: eventPastelData.theme },
     },
-  })
+  });
   await tx.landingPageTemplate.upsert({
     where: { id: 'system-template-healthcare-telehealth' },
     update: {
@@ -175,7 +127,7 @@ export async function ensureSystemTemplates(tx: TemplateClient) {
       formatVersion: '2.0',
       schema: { blocks: healthcareTelehealthData.blocks, theme: healthcareTelehealthData.theme },
     },
-  })
+  });
   await tx.landingPageTemplate.upsert({
     where: { id: 'system-template-real-estate-luxury' },
     update: {
@@ -192,7 +144,7 @@ export async function ensureSystemTemplates(tx: TemplateClient) {
       formatVersion: '2.0',
       schema: { blocks: realEstateLuxuryData.blocks, theme: realEstateLuxuryData.theme },
     },
-  })
+  });
   await tx.landingPageTemplate.upsert({
     where: { id: 'system-template-saas-clean-crisp' },
     update: {
@@ -209,7 +161,7 @@ export async function ensureSystemTemplates(tx: TemplateClient) {
       formatVersion: '2.0',
       schema: { blocks: saasCleanCrispData.blocks, theme: saasCleanCrispData.theme },
     },
-  })
+  });
   await tx.landingPageTemplate.upsert({
     where: { id: 'system-template-web3-crypto' },
     update: {
@@ -226,5 +178,4 @@ export async function ensureSystemTemplates(tx: TemplateClient) {
       formatVersion: '2.0',
       schema: { blocks: web3CryptoData.blocks, theme: web3CryptoData.theme },
     },
-  })
-}
+  });

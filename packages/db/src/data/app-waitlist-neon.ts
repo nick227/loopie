@@ -1,4 +1,4 @@
-import { PageModel } from '../types/content'
+import { PageModel } from '../content'
 
 export const appWaitlistNeonData: PageModel = {
   title: 'NeonApp - App Waitlist',

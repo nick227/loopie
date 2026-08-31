@@ -1,5 +1,5 @@
 import { RealEstateLuxury } from '@/components/landing-pages/templates/RealEstateLuxury'
-import { realEstateLuxuryData } from '@/data/real-estate-luxury'
+import { realEstateLuxuryData } from '@project/db/src/data/real-estate-luxury'
 
 export function RealEstateLuxuryPreview() {
   return (

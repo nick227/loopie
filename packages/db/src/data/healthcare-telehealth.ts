@@ -1,4 +1,4 @@
-import { PageModel } from '../types/content'
+import { PageModel } from '../content'
 
 export const healthcareTelehealthData: PageModel = {
   title: 'CareSync - Telehealth Platform',

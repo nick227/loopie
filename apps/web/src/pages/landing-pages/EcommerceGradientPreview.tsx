@@ -1,5 +1,5 @@
 import { EcommerceGradient } from '@/components/landing-pages/templates/EcommerceGradient'
-import { ecommerceGradientData } from '@/data/ecommerce-gradient'
+import { ecommerceGradientData } from '@project/db/src/data/ecommerce-gradient'
 
 export function EcommerceGradientPreview() {
   return (

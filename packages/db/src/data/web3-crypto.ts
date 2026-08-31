@@ -1,4 +1,4 @@
-import { PageModel } from '../types/content'
+import { PageModel } from '../content'
 
 export const web3CryptoData: PageModel = {
   title: 'NexusProtocol - Web3',

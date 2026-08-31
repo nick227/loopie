@@ -1,5 +1,5 @@
 import { AppWaitlistNeon } from '@/components/landing-pages/templates/AppWaitlistNeon'
-import { appWaitlistNeonData } from '@/data/app-waitlist-neon'
+import { appWaitlistNeonData } from '@project/db/src/data/app-waitlist-neon'
 
 export function AppWaitlistNeonPreview() {
   return (
