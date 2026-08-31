@@ -1,5 +1,8 @@
 import { db } from '@project/db'
-import { profileFromRaw } from '@project/sdk/src/lib/importContactSchema'
+// Relative path, not the '@project/sdk' package specifier — see AdRunService.ts's identical
+// import for why (found live: MODULE_NOT_FOUND in the Railway runtime image despite the file
+// physically being present, specific to this package's #exports-map package.json).
+import { profileFromRaw } from '../../../../packages/sdk/src/lib/importContactSchema'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { LIFECYCLE_INCLUDE, toContactDTO, withGraph } from '../lib/contactDto'
 import { normalizeEmail, normalizePhone, tombstoneIdentity } from '../lib/identityResolution'

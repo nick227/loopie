@@ -4,8 +4,17 @@
     "lib": ["ES2022"],
     "module": "CommonJS",
     "moduleResolution": "node",
-    "outDir": "dist",
-    "rootDir": "src"
+    "outDir": "dist"
+    // No "rootDir": a few services import specific dependency-free files directly from
+    // packages/sdk by relative path (see ContactService.ts's own comment on why — package
+    // specifier resolution for @project/sdk fails at runtime in the Railway image, found live),
+    // which falls outside "src". Harmless here since production runs via tsx against source
+    // directly, never this config's own (effectively unused) `tsc` build output.
   },
-  "include": ["src"]
+  "include": [
+    "src",
+    "../../packages/sdk/src/lib/capabilities.ts",
+    "../../packages/sdk/src/lib/importContactSchema.ts",
+    "../../packages/sdk/src/lib/importContactFields.ts"
+  ]
 }

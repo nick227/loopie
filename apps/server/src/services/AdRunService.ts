@@ -9,12 +9,15 @@ import { validateAdRunCreateInput } from '../lib/adRunValidation'
 import { tryGetConnector } from '../lib/platforms/registry'
 import { unsealToken } from '../lib/platforms/encrypt'
 import { localPath } from '../lib/mediaStorage/local'
-// Not '@project/sdk' directly — that package's root export pulls in React-Query hooks the
-// server has no business resolving, and its package.json #exports map isn't resolvable under
-// this tsconfig's classic "node" moduleResolution anyway. This subpath (already carved out in
-// packages/sdk/package.json's #exports specifically for non-bundler consumers) is a plain
-// dependency-free validation function, safe to import directly by file path.
-import { validateAdvertisement } from '@project/sdk/src/lib/capabilities'
+// A real relative path, not the '@project/sdk' package specifier — found live: even with
+// packages/sdk physically present in the Railway runtime image (verified in the build logs),
+// tsx's module resolution for a scoped package whose package.json uses an #exports map (rather
+// than a plain "main", like @project/db has) still failed with MODULE_NOT_FOUND in production.
+// Root cause not fully understood (works fine locally, where a real node_modules/@project/sdk
+// symlink exists — that symlink's own directory is never copied into the Docker runtime image,
+// unlike its target), but a plain relative import sidesteps package resolution entirely and is
+// guaranteed to work as long as the file exists on disk, which the Dockerfile now ensures.
+import { validateAdvertisement } from '../../../../packages/sdk/src/lib/capabilities'
 import { leadsSalesRevenueByAdRun, type AdRunPerformance } from '../lib/adRunPerformance'
 import { freezeMediaOrderRevision } from '../lib/mediaOrderRevision'
 import { notifyAdRunEvent, type AdRunInboxEvent } from '../lib/adRunInbox'

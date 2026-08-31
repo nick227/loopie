@@ -1,5 +1,8 @@
 import { db } from '@project/db'
-import { normalizeImportContact } from '@project/sdk/src/lib/importContactSchema'
+// Relative path, not the '@project/sdk' package specifier — see AdRunService.ts's identical
+// import for why (found live: MODULE_NOT_FOUND in the Railway runtime image despite the file
+// physically being present, specific to this package's #exports-map package.json).
+import { normalizeImportContact } from '../../../../packages/sdk/src/lib/importContactSchema'
 import { csvScope } from '../lib/crm/catalog'
 import { normalizeEmail, normalizePhone, resolveContact } from '../lib/identityResolution'
 
