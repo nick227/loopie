@@ -1335,6 +1335,7 @@ model LandingPage {
   formId             String?
   name               String // internal name
   slug               String     @unique // hosted at /p/{slug}; globally unique so custom domains can map 1:1 later
+  slugAutoManaged    Boolean    @default(true) // true = slug still auto-derives from name on every draft save; false once explicitly edited or once first published — see LandingPageService.update/publish
   customDomain       String? // domain-ready: DNS/cert provisioning is out of scope for V1, field exists so the mapping has somewhere to live
   status             PageStatus @default(DRAFT)
   content            Json // current draft working copy, shaped per template.schema

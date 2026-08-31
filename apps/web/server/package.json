@@ -1,0 +1,10 @@
+{
+  "name": "loopie-web-runtime",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "dependencies": {
+    "express": "^4.19.2",
+    "http-proxy-middleware": "^3.0.3"
+  }
+}

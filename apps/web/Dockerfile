@@ -24,22 +24,23 @@ ENV VITE_API_URL=${VITE_API_URL}
 RUN pnpm --filter "./apps/web" typecheck
 RUN pnpm --filter "./apps/web" build
 
-# Runtime stage — a plain static file server for the Vite build output. No Node app server is
-# needed at runtime; this is a pure client-side SPA (react-router in browser/HTML5 mode).
+# Runtime stage — serves the static Vite build (SPA fallback to index.html on unknown paths,
+# same reasoning as the old `serve -s` setup: this app renders 100% of its routes client-side)
+# and proxies a handful of public/tracking paths down to the server service over Railway's
+# private network — see apps/web/server/index.js and apps/server/src/lib/urls.ts's
+# PUBLIC_BASE_URL split for why those specific paths must live on this domain.
 FROM node:20-alpine AS runner
 WORKDIR /app
-RUN npm install -g serve@14
 
+COPY apps/web/server/package.json ./server/package.json
+RUN npm install --prefix ./server --omit=dev
+
+COPY apps/web/server/index.js ./server/index.js
 COPY --from=builder /app/apps/web/dist ./dist
 
 EXPOSE 4173
-# -s enables SPA fallback (unknown paths serve index.html, so react-router's client-side routes
-# work on a hard refresh/direct link) — required, since this app renders 100% of its routes
-# client-side with no server-side route awareness. Binds to $PORT, not a hardcoded port — Railway
-# assigns its own port per service and routes traffic there (confirmed live: it expected 8080,
-# not this file's original hardcoded 4173, which would have made the deploy unreachable even on
-# a successful build). Shell form (not exec-array) so ${PORT} actually expands. -p (plain port
-# number), not -l/--listen — that flag wants a full URI with a scheme (tcp://host:port) and
-# throws "Unknown --listen endpoint scheme (protocol): undefined" on a bare number, confirmed
-# live via a real crashed deploy.
-CMD serve -s dist -p ${PORT:-4173}
+# Reads $PORT itself (process.env.PORT) — Railway assigns its own port per service (confirmed
+# live: it expected 8080, not this file's original hardcoded 4173). Exec form works fine here
+# since there's no shell variable to expand — the old `serve -s dist -p ${PORT:-4173}` needed
+# shell form specifically for that expansion.
+CMD ["node", "server/index.js"]

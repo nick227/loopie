@@ -13,6 +13,7 @@ import {
   PUBLIC_SERVER_URL,
 } from '../lib/urls'
 import { renderLandingPageHtml } from '../lib/renderLandingPage'
+import { nextUniqueLandingPageSlug } from '../lib/landingPageSlug'
 import { snapshotForm } from '../lib/formSnapshot'
 import { ACTIVE_SALE_WHERE } from '../lib/salePredicates'
 import { snapshotSlots, toSlotDTO } from '../lib/adSlots'
@@ -224,7 +225,8 @@ export class LandingPageService {
 
   async update(businessId: string, landingPageId: string, data: any) {
     const current = await this._find(businessId, landingPageId)
-    if (data.slug !== undefined && data.slug !== current.slug) {
+    const explicitSlugChange = data.slug !== undefined && data.slug !== current.slug
+    if (explicitSlugChange) {
       const clash = await db.landingPage.findUnique({ where: { slug: data.slug } })
       if (clash) throw { statusCode: 409, message: 'Slug already in use' }
     }
@@ -242,11 +244,32 @@ export class LandingPageService {
       if (!template) throw { statusCode: 404, message: 'Template not found' }
     }
     if (data.content) assertYoutubeUrlsInContent(data.content)
+
+    // Slug behavior: auto-follows the title on every draft save until either (a) it's
+    // explicitly edited (e.g. via the Page URL settings field), or (b) the page is first
+    // published — whichever comes first — so an already-shared, published URL never silently
+    // moves out from under a later title edit. See CLAUDE.md's landing-page deployment note.
+    let nextSlug: string | undefined
+    let lockSlug = false
+    if (explicitSlugChange) {
+      nextSlug = data.slug
+      lockSlug = true
+    } else if (
+      current.slugAutoManaged &&
+      current.publishedVersionId === null &&
+      data.name !== undefined &&
+      data.name.trim() &&
+      data.name !== current.name
+    ) {
+      nextSlug = await nextUniqueLandingPageSlug(data.name, current.id)
+    }
+
     const page = await db.landingPage.update({
       where: { id: landingPageId },
       data: {
         ...(data.name !== undefined ? { name: data.name } : {}),
-        ...(data.slug !== undefined ? { slug: data.slug } : {}),
+        ...(nextSlug !== undefined ? { slug: nextSlug } : {}),
+        ...(lockSlug ? { slugAutoManaged: false } : {}),
         ...(data.customDomain !== undefined ? { customDomain: data.customDomain } : {}),
         ...(data.formId !== undefined ? { formId: data.formId } : {}),
         ...(data.templateId !== undefined ? { templateId: data.templateId } : {}),
@@ -314,7 +337,9 @@ export class LandingPageService {
 
       const updatedPage = await tx.landingPage.update({
         where: { id: landingPageId },
-        data: { status: 'PUBLISHED', publishedVersionId: version.id },
+        // Locks the slug on first publish, same as an explicit manual edit — see update()'s
+        // auto-derive comment.
+        data: { status: 'PUBLISHED', publishedVersionId: version.id, slugAutoManaged: false },
       })
 
       return { page: updatedPage, version }
