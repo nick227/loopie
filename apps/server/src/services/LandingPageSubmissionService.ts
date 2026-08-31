@@ -176,10 +176,13 @@ export class LandingPageSubmissionService {
     try {
       const { ActivityProjectionService } = await import('./activity/ActivityProjectionService')
       if (result.leadCreated) {
+        // Non-null: leadCreated is only ever true out of the resolveContactAndLead branch below,
+        // which always returns a real contact/lead (never the re-fetch-by-id early-return branch
+        // above, whose Prisma findUnique calls are the only source of the nullable inferred type).
         await ActivityProjectionService.project(
           page.businessId,
           'Lead',
-          result.lead.id,
+          result.lead!.id,
           'projectCreated',
           result.lead,
           result.contact,
@@ -215,8 +218,8 @@ export class LandingPageSubmissionService {
 
     return {
       submissionId: result.submission.id,
-      contactId: result.contact.id,
-      leadId: result.lead.id,
+      contactId: result.contact!.id,
+      leadId: result.lead!.id,
       successMessage: result.successMessage,
     }
   }

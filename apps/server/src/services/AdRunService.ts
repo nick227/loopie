@@ -9,7 +9,12 @@ import { validateAdRunCreateInput } from '../lib/adRunValidation'
 import { tryGetConnector } from '../lib/platforms/registry'
 import { unsealToken } from '../lib/platforms/encrypt'
 import { localPath } from '../lib/mediaStorage/local'
-import { validateAdvertisement } from '@project/sdk'
+// Not '@project/sdk' directly — that package's root export pulls in React-Query hooks the
+// server has no business resolving, and its package.json #exports map isn't resolvable under
+// this tsconfig's classic "node" moduleResolution anyway. This subpath (already carved out in
+// packages/sdk/package.json's #exports specifically for non-bundler consumers) is a plain
+// dependency-free validation function, safe to import directly by file path.
+import { validateAdvertisement } from '@project/sdk/src/lib/capabilities'
 import { leadsSalesRevenueByAdRun, type AdRunPerformance } from '../lib/adRunPerformance'
 import { freezeMediaOrderRevision } from '../lib/mediaOrderRevision'
 import { notifyAdRunEvent, type AdRunInboxEvent } from '../lib/adRunInbox'
@@ -319,7 +324,7 @@ export class AdRunService {
     try {
       const { ActivityProjectionService } = await import('./activity/ActivityProjectionService')
       await ActivityProjectionService.project(
-        withRevision.businessId,
+        withRevision.advertisement.businessId,
         'AdRun',
         withRevision.id,
         'project',

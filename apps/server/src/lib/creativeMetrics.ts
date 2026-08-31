@@ -108,7 +108,13 @@ export async function metricsForCreatives(
   }
   for (const link of links) {
     const entry = byCreative.get(link.creativeId)!
-    const campaign = 'campaign' in link ? link.campaign : { id: link.campaignId, name: '' }
+    // Prisma's inferred element type for `links` collapses to a generic shape here since the
+    // `select` above is chosen by a runtime ternary (opts.campaigns), not two statically distinct
+    // queries — the `in` check still correctly narrows at runtime, just not at the type level.
+    const campaign: CreativeCampaign =
+      'campaign' in link && link.campaign
+        ? (link.campaign as CreativeCampaign)
+        : { id: link.campaignId, name: '' }
     if (!entry.campaigns.some((row) => row.id === campaign.id)) {
       entry.campaigns.push(campaign)
     }

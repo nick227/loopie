@@ -27,8 +27,7 @@ export class LandingPageAdSlotService {
       // Cascade delete on relations handles assignments automatically, but we can be explicit
       await tx.landingPageAdSlot.deleteMany({ where: { landingPageId } })
 
-      for (let sortOrder = 0; sortOrder < slots.length; sortOrder++) {
-        const slot = slots[sortOrder]
+      for (const [sortOrder, slot] of slots.entries()) {
         const createdSlot = await tx.landingPageAdSlot.create({
           data: {
             landingPageId,

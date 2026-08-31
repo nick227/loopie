@@ -103,11 +103,16 @@ describe('media storage', () => {
     send.mockRejectedValue(timeoutErr())
     const business = await db.business.create({ data: { name: 'R2 timeout biz' } })
 
-    const asset = await new AssetService().create(business.id, {
+    // AssetService.create()'s return type is technically `Asset | undefined` (it comes back
+    // through withUsage(...)[0], an array index under noUncheckedIndexedAccess) even though a
+    // single-element input array always yields a defined result — asserted once here rather than
+    // per-property below.
+    const asset = (await new AssetService().create(business.id, {
       type: 'IMAGE',
       name: 'Pixel',
       file: { filename: 'pixel.png', mimeType: 'image/png', data: PNG_1X1 },
-    })
+    }))!
+    expect(asset).toBeDefined()
 
     expect(asset.url).toMatch(/^\/uploads\/[0-9a-f-]{36}\.png$/)
     expect(send.mock.calls[0]?.[1]).toMatchObject({ abortSignal: expect.any(AbortSignal) })

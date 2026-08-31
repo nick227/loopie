@@ -24,7 +24,8 @@ export function verifyOAuthState(state: string | undefined) {
   if (parts.length !== 6) return null
   const [businessId, platform, expRaw, nonce, returnPathB64, digest] = parts
   const exp = Number(expRaw)
-  if (!businessId || !platform || !nonce || !digest || !Number.isFinite(exp)) return null
+  if (!businessId || !platform || !nonce || !digest || !returnPathB64 || !Number.isFinite(exp))
+    return null
   if (exp < Math.floor(Date.now() / 1000)) return null
   const payload = `${businessId}.${platform}.${exp}.${nonce}.${returnPathB64}`
   const expected = createHmac('sha256', secret()).update(payload).digest('hex')
