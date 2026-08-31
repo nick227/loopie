@@ -99,12 +99,14 @@ export class ActivityService {
       attentionItem: item.attentionItem,
     }))
 
-    const nextCursor = hasMore
-      ? encodeActivityCursor({
-          occurredAt: results[results.length - 1].occurredAt.toISOString(),
-          id: results[results.length - 1].id,
-        })
-      : null
+    const lastResult = results[results.length - 1]
+    const nextCursor =
+      hasMore && lastResult
+        ? encodeActivityCursor({
+            occurredAt: lastResult.occurredAt.toISOString(),
+            id: lastResult.id,
+          })
+        : null
 
     return {
       data: mappedResults,
@@ -133,8 +135,12 @@ export class ActivityService {
       select: { observedAt: true },
     })
 
+    // Matches the documented contract (openapi.yaml's getActivityCheckpoint response) — found
+    // live, not by inspection: this was previously returning { latestObservedAt } at the top
+    // level, silently diverging from the spec (and therefore from the generated SDK types),
+    // which meant the frontend's read of it could never actually succeed against a real response.
     return {
-      latestObservedAt: latest?.observedAt || null,
+      data: { observedAt: (latest?.observedAt ?? new Date(0)).toISOString() },
     }
   }
 

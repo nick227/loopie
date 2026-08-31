@@ -55,6 +55,42 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/activity/views': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List this user's saved Activity stream filter presets */
+    get: operations['getActivitySavedViews']
+    put?: never
+    /** Save the current Activity stream filters as a named preset */
+    post: operations['createActivitySavedView']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/activity/views/{viewId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /** Delete a saved Activity stream filter preset */
+    delete: operations['deleteActivitySavedView']
+    options?: never
+    head?: never
+    /** Rename a saved Activity stream filter preset */
+    patch: operations['updateActivitySavedView']
+    trace?: never
+  }
   '/activity/{activityId}': {
     parameters: {
       query?: never
@@ -4622,6 +4658,25 @@ export interface components {
       attentionItem?: components['schemas']['AttentionItem']
       actions: components['schemas']['ActivityAction'][]
     }
+    ActivitySavedView: {
+      id: string
+      name: string
+      /** @description The same query params /activity itself accepts (source, type, needsAction, ...), as a flat string-keyed bag. */
+      filters: {
+        [key: string]: string
+      }
+      /** Format: date-time */
+      createdAt: string
+    }
+    CreateActivitySavedViewInput: {
+      name: string
+      filters: {
+        [key: string]: string
+      }
+    }
+    UpdateActivitySavedViewInput: {
+      name: string
+    }
   }
   responses: never
   parameters: {
@@ -4659,6 +4714,7 @@ export interface components {
     CrmProviderParam: 'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'SQUARE' | 'PIPEDRIVE'
     ExternalRecordId: string
     ActivityId: string
+    ActivityViewId: string
     AttentionId: string
   }
   requestBodies: never
@@ -4744,6 +4800,104 @@ export interface operations {
               /** Format: date-time */
               observedAt: string
             }
+          }
+        }
+      }
+    }
+  }
+  getActivitySavedViews: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Saved views */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['ActivitySavedView'][]
+          }
+        }
+      }
+    }
+  }
+  createActivitySavedView: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateActivitySavedViewInput']
+      }
+    }
+    responses: {
+      /** @description Saved view created */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['ActivitySavedView']
+          }
+        }
+      }
+    }
+  }
+  deleteActivitySavedView: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        viewId: components['parameters']['ActivityViewId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': Record<string, never>
+        }
+      }
+    }
+  }
+  updateActivitySavedView: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        viewId: components['parameters']['ActivityViewId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateActivitySavedViewInput']
+      }
+    }
+    responses: {
+      /** @description Saved view updated */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['ActivitySavedView']
           }
         }
       }

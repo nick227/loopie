@@ -31,9 +31,15 @@ function formatRelativeTime(dateStr: string) {
   return `${Math.floor(diffInSeconds / 86400)}d ago`
 }
 
-const NOISY_TYPES = ['PAGE_VIEWED', 'AD_CLICK', 'SYNC_COMPLETED', 'AUTOMATION_SUCCESS']
+// Repetitive/automated event types worth collapsing into a rollup when several land in the same
+// hour for the same source — the real ActivityType enum (packages/api-spec/openapi.yaml) has no
+// page-view/ad-click feed items (those live in PageView/AttributionEvent, not Activity), so SYNC
+// (repeated CRM/integration syncs) and AUTOMATION_EXECUTION (repeated automation runs) are the
+// two types that actually get noisy in practice.
+const NOISY_TYPES: ActivityType[] = ['SYNC', 'AUTOMATION_EXECUTION']
 
 type ActivityItem = components['schemas']['ActivityItem']
+type ActivityType = ActivityItem['type']
 
 type RollupGroup = {
   isRollup: true
@@ -89,9 +95,11 @@ export function ActivityStream() {
   const queryClient = useQueryClient()
 
   const hasNewUpdates = (() => {
-    if (!checkpoint.data?.latestObservedAt || rawItems.length === 0) return false
-    const latestItemObserved = new Date(rawItems[0].observedAt).getTime()
-    const checkpointTime = new Date(checkpoint.data.latestObservedAt).getTime()
+    const latestObservedAt = checkpoint.data?.data?.observedAt
+    const firstItem = rawItems[0]
+    if (!latestObservedAt || !firstItem) return false
+    const latestItemObserved = new Date(firstItem.observedAt).getTime()
+    const checkpointTime = new Date(latestObservedAt).getTime()
     return checkpointTime > latestItemObserved
   })()
 
@@ -108,14 +116,7 @@ export function ActivityStream() {
         continue
       }
 
-      let objectId = item.source.id
-      if (item.type === 'AD_CLICK' || item.type === 'AD_ATTRIBUTION') {
-        objectId = item.references?.adId || item.source.id
-      } else if (item.type === 'PAGE_VIEWED') {
-        objectId = item.references?.pageId || item.source.id
-      } else if (item.type === 'AUTOMATION_SUCCESS') {
-        objectId = item.references?.runId || item.source.id
-      }
+      const objectId = item.source.id
 
       // We use the hour of occurrence as part of the key
       const hour = new Date(item.occurredAt).toISOString().slice(0, 13) // "2026-08-27T21"

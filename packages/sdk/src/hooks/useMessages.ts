@@ -2,10 +2,13 @@ import { useQuery, useMutation, useInfiniteQuery, useQueryClient } from '@tansta
 import { getApiClient, ApiError } from '../client'
 
 type CreateMessageInput = {
+  channel: 'EMAIL' | 'TEXT' | 'SOCIAL'
   subject?: string
   body: string
-  contactIds?: string[]
-  testEmail?: string
+  audienceId: string
+  templateId?: string
+  automationId?: string
+  scheduledAt?: string
 }
 
 type UpdateMessageInput = {

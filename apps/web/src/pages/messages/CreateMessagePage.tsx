@@ -22,7 +22,6 @@ export function CreateMessagePage() {
       contactIds: [],
       audienceIds: [],
       rawEmails: [],
-      platforms: [],
       testEmail: '',
     },
     mode: 'onChange',

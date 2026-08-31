@@ -67,7 +67,7 @@ describe('ActivityService', () => {
     expect(result.nextCursor).toBeDefined()
 
     // The latest item should be the form submission (11:00 is later than 10:00)
-    expect(result.data[0].type).toBe('FORM_SUBMISSION')
+    expect(result.data[0]!.type).toBe('FORM_SUBMISSION')
 
     // Fetch next page
     const page2 = await service.getActivityStream(businessId, {
@@ -75,15 +75,15 @@ describe('ActivityService', () => {
       cursor: result.nextCursor,
     })
     expect(page2.data.length).toBe(1)
-    expect(page2.data[0].type).toBe('LEAD_CREATED')
+    expect(page2.data[0]!.type).toBe('LEAD_CREATED')
     expect(page2.nextCursor).toBeNull() // No more items
   })
 
   test('getActivityStream filters by needsAction', async () => {
     const result = await service.getActivityStream(businessId, { needsAction: true })
     expect(result.data.length).toBe(1)
-    expect(result.data[0].type).toBe('LEAD_CREATED')
-    expect(result.data[0].attentionItem?.state).toBe('NEEDS_ACTION')
+    expect(result.data[0]!.type).toBe('LEAD_CREATED')
+    expect(result.data[0]!.attentionItem?.state).toBe('NEEDS_ACTION')
   })
 
   test('getActivityStream tenant isolation', async () => {
@@ -93,9 +93,7 @@ describe('ActivityService', () => {
 
   test('getCheckpoint returns latest observedAt', async () => {
     const checkpoint = await service.getCheckpoint(businessId)
-    expect(checkpoint.latestObservedAt?.toISOString()).toBe(
-      new Date('2026-08-01T11:00:00Z').toISOString(),
-    )
+    expect(checkpoint.data.observedAt).toBe(new Date('2026-08-01T11:00:00Z').toISOString())
   })
 
   test('getActivityItem fetches single item', async () => {

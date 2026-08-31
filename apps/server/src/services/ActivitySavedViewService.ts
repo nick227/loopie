@@ -1,8 +1,8 @@
-import { prisma } from '@project/db'
+import { db } from '@project/db'
 
 export class ActivitySavedViewService {
   async getSavedViews(businessId: string, userId: string) {
-    const views = await prisma.activitySavedView.findMany({
+    const views = await db.activitySavedView.findMany({
       where: { businessId, userId },
       orderBy: { createdAt: 'desc' },
     })
@@ -21,7 +21,7 @@ export class ActivitySavedViewService {
     name: string,
     filters: Record<string, any>,
   ) {
-    const view = await prisma.activitySavedView.create({
+    const view = await db.activitySavedView.create({
       data: {
         businessId,
         userId,
@@ -39,7 +39,7 @@ export class ActivitySavedViewService {
   }
 
   async updateSavedView(viewId: string, businessId: string, userId: string, name: string) {
-    const view = await prisma.activitySavedView.update({
+    const view = await db.activitySavedView.update({
       where: { id: viewId, businessId, userId },
       data: { name },
     })
@@ -53,7 +53,7 @@ export class ActivitySavedViewService {
   }
 
   async deleteSavedView(viewId: string, businessId: string, userId: string) {
-    await prisma.activitySavedView.delete({
+    await db.activitySavedView.delete({
       where: { id: viewId, businessId, userId },
     })
   }

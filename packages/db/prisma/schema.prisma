@@ -2323,3 +2323,21 @@ model ActivitySeenState {
 
   @@unique([userId, businessId])
 }
+
+// A named, reusable preset of Activity stream filter query params (source/type/needsAction/...) —
+// see ActivityFilters.tsx's "Save View" action and ActivitySidebar.tsx's list. Filters is a plain
+// string-keyed bag mirroring the same query params /activity itself accepts, not a typed schema
+// of its own, since the stream's own filterable fields are already the source of truth. Scoped to
+// the individual user, not just the business — each user's own saved views, matching
+// ActivitySavedViewService's businessId+userId scoping.
+model ActivitySavedView {
+  id         String   @id @default(cuid())
+  businessId String
+  userId     String
+  name       String
+  filters    Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([businessId, userId])
+}

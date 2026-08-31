@@ -38,7 +38,7 @@ export const messageUpdateSchema = z.object({
   audienceId: z.string().optional(),
 })
 
-export const messageUpdateFields: FieldConfig<z.infer<typeof messageUpdateSchema>>[] = [
+export const messageUpdateFields: FieldConfig[] = [
   { name: 'subject', label: 'Subject', type: 'text' },
   { name: 'body', label: 'Body', type: 'textarea' },
 ]

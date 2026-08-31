@@ -184,6 +184,11 @@ components:
       name: activityId
       required: true
       schema: { type: string }
+    ActivityViewId:
+      in: path
+      name: viewId
+      required: true
+      schema: { type: string }
     AttentionId:
       in: path
       name: attentionId
@@ -3138,6 +3143,32 @@ components:
           type: array
           items: { $ref: '#/components/schemas/ActivityAction' }
 
+    ActivitySavedView:
+      type: object
+      required: [id, name, filters, createdAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        filters:
+          type: object
+          additionalProperties: { type: string }
+          description: The same query params /activity itself accepts (source, type, needsAction, ...), as a flat string-keyed bag.
+        createdAt: { type: string, format: date-time }
+
+    CreateActivitySavedViewInput:
+      type: object
+      required: [name, filters]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        filters:
+          type: object
+          additionalProperties: { type: string }
+
+    UpdateActivitySavedViewInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
 
 paths:
   # ---------- Activity ----------
@@ -3220,6 +3251,78 @@ paths:
                     required: [observedAt]
                     properties:
                       observedAt: { type: string, format: date-time }
+
+  /activity/views:
+    get:
+      operationId: getActivitySavedViews
+      summary: List this user's saved Activity stream filter presets
+      tags: [activity]
+      responses:
+        '200':
+          description: Saved views
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ActivitySavedView' }
+    post:
+      operationId: createActivitySavedView
+      summary: Save the current Activity stream filters as a named preset
+      tags: [activity]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateActivitySavedViewInput' }
+      responses:
+        '201':
+          description: Saved view created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/ActivitySavedView' }
+
+  /activity/views/{viewId}:
+    patch:
+      operationId: updateActivitySavedView
+      summary: Rename a saved Activity stream filter preset
+      tags: [activity]
+      parameters:
+        - $ref: '#/components/parameters/ActivityViewId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateActivitySavedViewInput' }
+      responses:
+        '200':
+          description: Saved view updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/ActivitySavedView' }
+    delete:
+      operationId: deleteActivitySavedView
+      summary: Delete a saved Activity stream filter preset
+      tags: [activity]
+      parameters:
+        - $ref: '#/components/parameters/ActivityViewId'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema: { type: object }
 
   /activity/{activityId}:
     get:
