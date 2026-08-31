@@ -40,13 +40,14 @@ function renderAdSlot(embedUrl: string, sessionToken?: string): string {
 }
 
 function slotsAt(
-  slots: { placement: string; embedUrl: string | null }[],
+  slots: { placement: string; embedUrls: string[] }[],
   placement: string,
   sessionToken?: string,
 ) {
   return slots
-    .filter((slot) => slot.placement === placement && slot.embedUrl)
-    .map((slot) => renderAdSlot(slot.embedUrl!, sessionToken))
+    .filter((slot) => slot.placement === placement)
+    .flatMap((slot) => slot.embedUrls)
+    .map((embedUrl) => renderAdSlot(embedUrl, sessionToken))
     .join('\n')
 }
 
@@ -54,7 +55,7 @@ export function renderBody(
   sections: TemplateSection[],
   content: PageContent,
   formHtml: string,
-  adSlots: { placement: string; embedUrl: string | null }[],
+  adSlots: { placement: string; embedUrls: string[] }[],
   sessionToken?: string,
 ) {
   const chunks: string[] = []

@@ -4,7 +4,6 @@ import {
   Star,
   ArrowRight,
   Play,
-  Check,
   ChevronLeft,
   ChevronRight,
   Camera,
@@ -105,7 +104,7 @@ const HeroSection = ({ block }: { block: HeroBlock }) => {
                     } ${currentSlide === i ? 'ring-4 ring-purple-500/50 ring-offset-2 ring-offset-transparent' : ''}`}
                   />
                   <span className="text-xs font-bold text-slate-700">
-                    {state.label.split(' ')[0]}
+                    {state.label?.split(' ')[0]}
                   </span>
                 </button>
               ))}
@@ -223,7 +222,7 @@ const BeforeAfterSection = ({ block }: { block: BeforeAfterBlock }) => {
   }
 
   const handleMouseMove = (e: React.MouseEvent) => handleMove(e.clientX)
-  const handleTouchMove = (e: React.TouchEvent) => handleMove(e.touches[0].clientX)
+  const handleTouchMove = (e: React.TouchEvent) => e.touches[0] && handleMove(e.touches[0].clientX)
 
   useEffect(() => {
     const handleMouseUp = () => setIsDragging(false)
@@ -257,8 +256,8 @@ const BeforeAfterSection = ({ block }: { block: BeforeAfterBlock }) => {
           {/* Before (Noisy) */}
           <div className="absolute inset-0">
             <img
-              src={block.beforeMedia?.url}
-              alt={block.beforeMedia?.alt}
+              src={block.beforeImage.url}
+              alt={block.beforeImage.alt}
               className="w-full h-full object-cover filter blur-sm sepia-[0.3]"
             />
             <div className="absolute inset-0 bg-red-900/20 mix-blend-multiply" />
@@ -274,8 +273,8 @@ const BeforeAfterSection = ({ block }: { block: BeforeAfterBlock }) => {
           >
             <div className="absolute inset-0 w-[100vw] max-w-[1200px]">
               <img
-                src={block.afterMedia?.url}
-                alt={block.afterMedia?.alt}
+                src={block.afterImage.url}
+                alt={block.afterImage.alt}
                 className="w-full h-full object-cover brightness-110 contrast-110"
               />
               <div className="absolute inset-0 bg-blue-500/10 mix-blend-overlay" />
@@ -371,15 +370,19 @@ const GallerySection = ({ block }: { block: ImageBrowserBlock }) => {
             </button>
 
             <div className="mx-auto w-full max-w-4xl max-h-[80vh] flex flex-col items-center">
-              <img
-                src={block.images[activeImage].url}
-                alt={block.images[activeImage].alt}
-                className="max-w-full max-h-[70vh] object-contain rounded-2xl shadow-2xl shadow-black/50 border border-white/10"
-              />
-              {block.images[activeImage].caption && (
-                <div className="mt-8 text-white font-bold text-2xl text-center">
-                  {block.images[activeImage].caption}
-                </div>
+              {block.images[activeImage] && (
+                <>
+                  <img
+                    src={block.images[activeImage].url}
+                    alt={block.images[activeImage].alt}
+                    className="max-w-full max-h-[70vh] object-contain rounded-2xl shadow-2xl shadow-black/50 border border-white/10"
+                  />
+                  {block.images[activeImage].caption && (
+                    <div className="mt-8 text-white font-bold text-2xl text-center">
+                      {block.images[activeImage].caption}
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -400,6 +403,7 @@ const GallerySection = ({ block }: { block: ImageBrowserBlock }) => {
 const ProductBrowserSection = ({ block }: { block: ProductBrowserBlock }) => {
   const [activeProduct, setActiveProduct] = useState(0)
   const product = block.products[activeProduct]
+  if (!product) return null
 
   return (
     <section className="py-24 relative overflow-hidden">
@@ -488,7 +492,7 @@ const QuoteCalculatorSection = ({ block }: { block: CalculatorBlock }) => {
                       {input.label}
                     </label>
                     <span className="text-2xl font-black text-slate-900">
-                      {values[input.id].toLocaleString()}
+                      {(values[input.id] ?? input.defaultValue).toLocaleString()}
                     </span>
                   </div>
                   <input
@@ -496,7 +500,7 @@ const QuoteCalculatorSection = ({ block }: { block: CalculatorBlock }) => {
                     min={input.min || 0}
                     max={input.max || 100}
                     step={input.step || 1}
-                    value={values[input.id]}
+                    value={values[input.id] ?? input.defaultValue}
                     onChange={(e) => handleSliderChange(input.id, Number(e.target.value))}
                     className="w-full accent-indigo-600 h-2 bg-slate-100 rounded-full appearance-none cursor-pointer"
                   />

@@ -1,6 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useContacts, useAudiences } from '@project/sdk'
+import type { components } from '@project/sdk'
 import { User, Users, X, Mail, Globe } from 'lucide-react'
+
+type Contact = components['schemas']['Contact']
+type Audience = components['schemas']['Audience']
 
 export type Recipient = {
   id: string
@@ -26,19 +30,17 @@ interface RecipientSelectorProps {
   ) => void
 }
 
-export function RecipientSelector({
-  selectedContactIds = [],
-  selectedAudienceIds = [],
-  selectedRawEmails = [],
-  suggestedChips = [],
-  onChange,
-}: RecipientSelectorProps) {
+export function RecipientSelector({ suggestedChips = [], onChange }: RecipientSelectorProps) {
   const [query, setQuery] = useState('')
   const [isOpen, setIsOpen] = useState(false)
   const [selectedRecipients, setSelectedRecipients] = useState<Recipient[]>([])
 
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const onChangeRef = useRef(onChange)
+  useEffect(() => {
+    onChangeRef.current = onChange
+  }, [onChange])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -65,18 +67,18 @@ export function RecipientSelector({
     // We only trigger onChange if it's a structural change, avoid deep equal loops.
     // For simplicity we just use JSON.stringify on the arrays.
     // Note: the prop doesn't have selectedPlatforms yet but we pass it up anyway.
-    onChange(contacts, audiences, rawEmails, platforms)
+    onChangeRef.current(contacts, audiences, rawEmails, platforms)
   }, [selectedRecipients])
 
   // Process options
-  const contactOptions: Recipient[] = (contactsData?.pages?.[0]?.items || []).map((c: any) => ({
+  const contactOptions: Recipient[] = (contactsData?.pages?.[0]?.data || []).map((c: Contact) => ({
     id: c.id,
     type: 'contact',
     name: c.name,
-    detail: c.email || c.phone,
+    detail: c.email || c.phone || undefined,
   }))
 
-  const allAudiences: Recipient[] = (audiencesData?.pages?.[0]?.items || []).map((a: any) => ({
+  const allAudiences: Recipient[] = (audiencesData?.pages?.[0]?.data || []).map((a: Audience) => ({
     id: a.id,
     type: 'audience',
     name: a.name,
@@ -153,7 +155,7 @@ export function RecipientSelector({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace' && query === '' && selectedRecipients.length > 0) {
       const last = selectedRecipients[selectedRecipients.length - 1]
-      handleRemove(last)
+      if (last) handleRemove(last)
     } else if (e.key === 'Enter' || e.key === ',') {
       if (query.trim()) {
         e.preventDefault()

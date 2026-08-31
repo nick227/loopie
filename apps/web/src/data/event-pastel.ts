@@ -103,7 +103,7 @@ export const eventPastelData: PageModel = {
     {
       _type: 'hotspot_viewer',
       title: 'The Venue Map',
-      image: {
+      baseImage: {
         url: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1200&q=80',
         alt: 'Festival Map',
       },
@@ -129,6 +129,7 @@ export const eventPastelData: PageModel = {
       _type: 'booking_picker',
       title: 'Book Your Spot',
       subtitle: 'Select a date and time to attend.',
+      options: [],
     },
     {
       _type: 'form',

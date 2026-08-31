@@ -1,6 +1,5 @@
 import {
   Rocket,
-  FileText,
   Zap,
   Clock,
   Leaf,
@@ -24,7 +23,6 @@ import {
   PageModel,
   HeroBlock,
   FeatureGridBlock,
-  TextMediaBlock,
   FormBlock,
   ServiceSelectorBlock,
   ImageBrowserBlock,
@@ -308,7 +306,7 @@ const FormSection = ({ block }: { block: FormBlock }) => {
     resolver: zodResolver(formSchema),
   })
 
-  const onSubmit = async (formData: FormData) => {
+  const onSubmit = async (_formData: FormData) => {
     await new Promise((resolve) => setTimeout(resolve, 1000))
     setIsSubmitted(true)
   }
@@ -437,7 +435,7 @@ const CalculatorSection = ({ block }: { block: CalculatorBlock }) => {
                       {input.label}
                     </label>
                     <span className="text-xl font-bold text-white">
-                      {values[input.id].toLocaleString()}
+                      {(values[input.id] ?? input.defaultValue).toLocaleString()}
                     </span>
                   </div>
                   <input
@@ -445,7 +443,7 @@ const CalculatorSection = ({ block }: { block: CalculatorBlock }) => {
                     min={input.min || 0}
                     max={input.max || 100000}
                     step={input.step || 1}
-                    value={values[input.id]}
+                    value={values[input.id] ?? input.defaultValue}
                     onChange={(e) => handleSliderChange(input.id, Number(e.target.value))}
                     className="w-full accent-[#47D1FF] h-2 bg-white/10 rounded-full appearance-none cursor-pointer"
                   />

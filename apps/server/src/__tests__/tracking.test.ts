@@ -2,7 +2,7 @@
 // Run `pnpm test:generate` to add stubs for new routes.
 // Both test users are pre-seeded: use testOtherUserId for cross-user permission tests.
 import { describe, it, expect } from 'vitest'
-import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId } from './helpers'
+import { buildTestApp, validateResponse, testBusinessId } from './helpers'
 
 const app = buildTestApp()
 const createdIds: Record<string, string> = { default: '00000000-0000-0000-0000-000000000001' }
@@ -16,10 +16,11 @@ describe('tracking API', () => {
 
     try {
       if (!'/t/session'.includes('{') || createdIds['t-session']) {
+        // getLoopieSession is public (security: []) and requires businessId as a query param —
+        // not something the generator can auto-fill for a GET request, hand-added here.
         const resgetLoopieSession = await app.inject({
           method: 'GET',
-          url: `/t/session`,
-          headers: asAuth(testUserId),
+          url: `/t/session?businessId=${testBusinessId}`,
           // payload: {},
         })
         if (resgetLoopieSession.statusCode !== 200) {

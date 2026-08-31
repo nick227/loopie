@@ -7,7 +7,6 @@ import {
   Pill,
   Lock,
   Phone,
-  User,
   CheckCircle2,
   Loader2,
   ChevronDown,
@@ -22,7 +21,7 @@ import { MobileNav } from '@/components/ui/MobileNav'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import {
   PageModel,
   HeroBlock,
@@ -198,7 +197,7 @@ const VisionSection = ({ block }: { block: TextMediaBlock }) => (
   <section className="py-32 md:py-48 bg-[#F0F7FA]">
     <Container>
       <div
-        className={`flex flex-col lg:flex-row items-center gap-20 lg:gap-32 ${block.alignment === 'right' ? '' : 'lg:flex-row-reverse'}`}
+        className={`flex flex-col lg:flex-row items-center gap-20 lg:gap-32 ${block.layout === 'media-right' ? '' : 'lg:flex-row-reverse'}`}
       >
         <div className="flex-1 space-y-10">
           <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-white border border-[#E1EEF5] text-base font-bold text-[#3498DB] shadow-sm uppercase tracking-widest">
@@ -361,21 +360,22 @@ const FaqSection = ({ block }: { block: FaqBlock }) => {
 }
 
 const TestimonialSection = ({ block }: { block: TestimonialBlock }) => {
-  if (!block.testimonials || block.testimonials.length === 0) return null
+  const testimonial = block.testimonials?.[0]
+  if (!testimonial) return null
 
   return (
     <section className="py-32 md:py-48 bg-[#3498DB] text-white">
       <Container className="max-w-5xl text-center">
         <h2 className="text-4xl md:text-6xl lg:text-7xl font-extrabold leading-[1.1] tracking-tighter mb-20 italic">
-          &ldquo;{block.testimonials[0].quote}&rdquo;
+          &ldquo;{testimonial.quote}&rdquo;
         </h2>
         <div className="flex flex-col items-center">
           <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center mb-6 text-3xl font-extrabold border-2 border-white/40">
-            {block.testimonials[0].author.charAt(0)}
+            {testimonial.author.charAt(0)}
           </div>
-          <div className="font-bold text-2xl mb-2">{block.testimonials[0].author}</div>
+          <div className="font-bold text-2xl mb-2">{testimonial.author}</div>
           <div className="text-white/80 font-bold text-lg uppercase tracking-wider">
-            {block.testimonials[0].role} &bull; {block.testimonials[0].metrics}
+            {testimonial.role} &bull; {testimonial.metrics}
           </div>
         </div>
       </Container>
@@ -399,7 +399,7 @@ const FormSection = ({ block }: { block: FormBlock }) => {
     resolver: zodResolver(formSchema),
   })
 
-  const onSubmit = async (formData: FormData) => {
+  const onSubmit = async (_formData: FormData) => {
     await new Promise((resolve) => setTimeout(resolve, 1000))
     setIsSubmitted(true)
   }
@@ -657,7 +657,7 @@ const BeforeAfterSection = ({ block }: { block: BeforeAfterBlock }) => {
   const handleDrag = (e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
     if (!containerRef.current) return
     const rect = containerRef.current.getBoundingClientRect()
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX
+    const clientX = 'touches' in e ? (e.touches[0]?.clientX ?? 0) : (e as React.MouseEvent).clientX
     const x = Math.max(0, Math.min(clientX - rect.left, rect.width))
     setSliderPosition((x / rect.width) * 100)
   }

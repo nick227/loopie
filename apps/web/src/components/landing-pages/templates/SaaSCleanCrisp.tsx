@@ -3,11 +3,9 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Play,
   Zap,
   Shield,
   BarChart3,
-  Menu,
   X,
   Github,
   Figma,
@@ -60,7 +58,7 @@ const HeroSection = ({ block }: { block: HeroBlock }) => {
     resolver: zodResolver(formSchema),
   })
 
-  const onSubmit = async (formData: FormData) => {
+  const onSubmit = async (_formData: FormData) => {
     await new Promise((resolve) => setTimeout(resolve, 1000))
     setIsSubmitted(true)
   }

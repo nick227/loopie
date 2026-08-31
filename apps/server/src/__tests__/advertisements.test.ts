@@ -2,14 +2,40 @@
 // Run `pnpm test:generate` to add stubs for new routes.
 // Both test users are pre-seeded: use testOtherUserId for cross-user permission tests.
 import { describe, it, expect } from 'vitest'
-import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId } from './helpers'
+import { db } from '@project/db'
+import {
+  buildTestApp,
+  asAuth,
+  validateResponse,
+  testUserId,
+  testBusinessId,
+  testOtherUserId,
+} from './helpers'
+import { saveMediaFile } from '../lib/mediaStorage'
 
 const app = buildTestApp()
 const createdIds: Record<string, string> = { default: '00000000-0000-0000-0000-000000000001' }
 
+// createAdRun (META) rejects an Advertisement with no attached media — seed a real image asset
+// so the generated CRUD lifecycle below reflects an actually-createable AdRun, not a stub 400.
+const PNG_1X1 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+
 describe('advertisements API', () => {
   it('runs CRUD lifecycle', async (ctx) => {
     const errors: Error[] = []
+
+    const saved = await saveMediaFile({ mimeType: 'image/png', data: PNG_1X1 })
+    const asset = await db.asset.create({
+      data: {
+        businessId: testBusinessId,
+        type: 'IMAGE',
+        name: 'Advertisements Lifecycle Pixel',
+        url: saved.url,
+        mimeType: 'image/png',
+      },
+    })
+    const mediaAssetId = asset.id
 
     // createAdvertisement
 
@@ -34,6 +60,7 @@ describe('advertisements API', () => {
           headers: asAuth(testUserId),
           payload: {
             name: 'test_string',
+            assetIds: [mediaAssetId],
           },
         })
         if (rescreateAdvertisement.statusCode === 201 && rescreateAdvertisement.json().data?.id)
@@ -78,7 +105,7 @@ describe('advertisements API', () => {
           },
         })
         if (rescreateAdRun.statusCode === 201 && rescreateAdRun.json().data?.id)
-          createdIds['advertisements'] = rescreateAdRun.json().data.id
+          createdIds['ad-runs'] = rescreateAdRun.json().data.id
         if (rescreateAdRun.statusCode !== 201) {
           console.error(
             'createAdRun failed with ' + rescreateAdRun.statusCode,
@@ -90,6 +117,46 @@ describe('advertisements API', () => {
       }
     } catch (e: any) {
       errors.push(new Error('createAdRun failed: ' + e.message))
+    }
+
+    // resumeAdRun (moved before pauseAdRun — a freshly created AdRun starts PENDING, and only a
+    // resume can activate it; pauseAdRun requires an ACTIVE run, so the spec's declaration order
+    // doesn't match the real lifecycle here)
+
+    // resumeAdRun - auth check
+    try {
+      if (!'/ad-runs/{adRunId}/resume'.includes('{') || createdIds['ad-runs']) {
+        const resresumeAdRunAuth = await app.inject({
+          method: 'POST',
+          url: `/ad-runs/${createdIds['ad-runs'] || '00000000-0000-0000-0000-000000000001'}/resume`,
+        })
+        expect(resresumeAdRunAuth.statusCode).toBe(401)
+      }
+    } catch (e: any) {
+      errors.push(new Error('resumeAdRun auth failed: ' + e.message))
+    }
+
+    try {
+      if (!'/ad-runs/{adRunId}/resume'.includes('{') || createdIds['ad-runs']) {
+        const resresumeAdRun = await app.inject({
+          method: 'POST',
+          url: `/ad-runs/${createdIds['ad-runs'] || '00000000-0000-0000-0000-000000000001'}/resume`,
+          headers: asAuth(testUserId),
+          // payload: {},
+        })
+        if (resresumeAdRun.statusCode === 201 && resresumeAdRun.json().data?.id)
+          createdIds['ad-runs'] = resresumeAdRun.json().data.id
+        if (resresumeAdRun.statusCode !== 200) {
+          console.error(
+            'resumeAdRun failed with ' + resresumeAdRun.statusCode,
+            resresumeAdRun.json().message || resresumeAdRun.json(),
+          )
+        }
+        expect(resresumeAdRun.statusCode).toBe(200)
+        await validateResponse('resumeAdRun', 200, resresumeAdRun.json())
+      }
+    } catch (e: any) {
+      errors.push(new Error('resumeAdRun failed: ' + e.message))
     }
 
     // pauseAdRun
@@ -128,44 +195,6 @@ describe('advertisements API', () => {
       }
     } catch (e: any) {
       errors.push(new Error('pauseAdRun failed: ' + e.message))
-    }
-
-    // resumeAdRun
-
-    // resumeAdRun - auth check
-    try {
-      if (!'/ad-runs/{adRunId}/resume'.includes('{') || createdIds['ad-runs']) {
-        const resresumeAdRunAuth = await app.inject({
-          method: 'POST',
-          url: `/ad-runs/${createdIds['ad-runs'] || '00000000-0000-0000-0000-000000000001'}/resume`,
-        })
-        expect(resresumeAdRunAuth.statusCode).toBe(401)
-      }
-    } catch (e: any) {
-      errors.push(new Error('resumeAdRun auth failed: ' + e.message))
-    }
-
-    try {
-      if (!'/ad-runs/{adRunId}/resume'.includes('{') || createdIds['ad-runs']) {
-        const resresumeAdRun = await app.inject({
-          method: 'POST',
-          url: `/ad-runs/${createdIds['ad-runs'] || '00000000-0000-0000-0000-000000000001'}/resume`,
-          headers: asAuth(testUserId),
-          // payload: {},
-        })
-        if (resresumeAdRun.statusCode === 201 && resresumeAdRun.json().data?.id)
-          createdIds['ad-runs'] = resresumeAdRun.json().data.id
-        if (resresumeAdRun.statusCode !== 200) {
-          console.error(
-            'resumeAdRun failed with ' + resresumeAdRun.statusCode,
-            resresumeAdRun.json().message || resresumeAdRun.json(),
-          )
-        }
-        expect(resresumeAdRun.statusCode).toBe(200)
-        await validateResponse('resumeAdRun', 200, resresumeAdRun.json())
-      }
-    } catch (e: any) {
-      errors.push(new Error('resumeAdRun failed: ' + e.message))
     }
 
     // endAdRun

@@ -30,6 +30,40 @@ async function getSpec() {
 const ajv = new Ajv({ allErrors: true, strict: false })
 addFormats(ajv)
 
+// OpenAPI 3.0's `nullable: true` is not a JSON Schema keyword — plain Ajv silently ignores it
+// (strict: false), so a field declared `{ type: 'string', enum: [...], nullable: true }`, or the
+// `{ type: 'object', allOf: [$ref], nullable: true }` shape (a ref-composed object that may be
+// null), still rejects an actual `null` value at runtime. Recursively rewrite the (already
+// $ref-dereferenced) schema into the JSON Schema Ajv actually understands: replace a `nullable:
+// true` node with `oneOf: [{ type: 'null' }, <the rest of the node>]`, which is correct
+// regardless of whether the node uses `type`/`enum`/`allOf`. Mutates and returns the same tree.
+function applyNullable(schema: any, seen = new Set<any>()): any {
+  if (!schema || typeof schema !== 'object' || seen.has(schema)) return schema
+  seen.add(schema)
+  if (schema.nullable === true) {
+    const rest: any = {}
+    for (const key of Object.keys(schema)) {
+      if (key !== 'nullable') rest[key] = schema[key]
+      delete schema[key]
+    }
+    schema.oneOf = [{ type: 'null' }, rest]
+  }
+  for (const key of ['properties', 'patternProperties'] as const) {
+    if (schema[key]) for (const v of Object.values(schema[key])) applyNullable(v, seen)
+  }
+  if (schema.items) {
+    if (Array.isArray(schema.items)) schema.items.forEach((s: any) => applyNullable(s, seen))
+    else applyNullable(schema.items, seen)
+  }
+  for (const key of ['allOf', 'oneOf', 'anyOf'] as const) {
+    if (Array.isArray(schema[key])) schema[key].forEach((s: any) => applyNullable(s, seen))
+  }
+  if (schema.additionalProperties && typeof schema.additionalProperties === 'object') {
+    applyNullable(schema.additionalProperties, seen)
+  }
+  return schema
+}
+
 // Seeds one Business + User per test user before each test.
 // setup.ts deletes them in afterEach — this re-creates them for the next test.
 async function seedTestUsers() {
@@ -121,7 +155,7 @@ export async function validateResponse(operationId: string, status: number, body
       if (op.operationId !== operationId) continue
       const schema = op.responses?.[status]?.content?.['application/json']?.schema
       if (!schema) return
-      const validate = ajv.compile(schema)
+      const validate = ajv.compile(applyNullable(schema))
       if (!validate(body)) {
         throw new Error(
           `${operationId} ${status} response does not match spec:\n` +

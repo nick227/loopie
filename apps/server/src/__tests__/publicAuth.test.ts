@@ -105,7 +105,11 @@ describe('public capture and auth', () => {
 
   it('does not collect on a soft-deleted form', async () => {
     const template = await db.landingPageTemplate.create({
-      data: { name: 'Gone Form Template', isSystem: true, schema: { sections: [], themeTokens: [] } },
+      data: {
+        name: 'Gone Form Template',
+        isSystem: true,
+        schema: { sections: [], themeTokens: [] },
+      },
     })
     const formRes = await app.inject({
       method: 'POST',
@@ -143,7 +147,10 @@ describe('public capture and auth', () => {
 
     const served = await app.inject({ method: 'GET', url: `/p/${page.slug}` })
     expect(served.statusCode).toBe(200)
-    expect(String(served.body)).not.toContain('lp-form-el')
+    // Checking for the bare class name would false-positive: the page's shared <style> block
+    // always includes the `.lp-split .lp-form-el` selector rule regardless of whether a <form>
+    // actually rendered. The quoted attribute form only appears on a real rendered <form> tag.
+    expect(String(served.body)).not.toContain('class="lp-form-el"')
 
     const submit = await app.inject({
       method: 'POST',

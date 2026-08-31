@@ -1,25 +1,18 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useCreateMessage } from '@project/sdk'
 import { messageBaseSchema, type MessageFormData } from './message-form'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { Button } from '@/components/ui/Button'
-import { PageHeader } from '@/components/ui/PageHeader'
 import { RecipientSelector } from '@/components/ui/RecipientSelector'
 import { Mail, MessageSquare, Globe, Image as ImageIcon } from 'lucide-react'
 
 export function CreateMessagePage() {
-  const navigate = useNavigate()
-  const mutation = useCreateMessage()
-
   const {
     register,
     control,
     setValue,
-    formState: { isValid, errors },
+    formState: { isValid },
   } = useForm<MessageFormData>({
     resolver: zodResolver(messageBaseSchema),
     defaultValues: {
@@ -37,12 +30,9 @@ export function CreateMessagePage() {
 
   const channel = useWatch({ control, name: 'channel' })
   const body = useWatch({ control, name: 'body' })
-  const subject = useWatch({ control, name: 'subject' }) // Only for EMAIL
-  const testEmail = useWatch({ control, name: 'testEmail' }) // Only for EMAIL
   const contactIds = useWatch({ control, name: 'contactIds' })
   const audienceIds = useWatch({ control, name: 'audienceIds' })
   const rawEmails = useWatch({ control, name: 'rawEmails' })
-  const platforms = useWatch({ control, name: 'platforms' })
 
   // Need to force TS to know we are in specific discriminated states for TS-safe reads
   const isEmail = channel === 'EMAIL'

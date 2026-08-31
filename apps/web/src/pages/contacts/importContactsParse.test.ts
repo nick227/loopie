@@ -19,8 +19,8 @@ describe('parseContactImport', () => {
   })
 
   it('parses a JSON array and the sample files', () => {
-    expect(parseContactImport(SAMPLE_JSON, 'json').rows[0].email).toBe('jordan@example.com')
-    expect(parseContactImport(SAMPLE_CSV, 'csv').rows[0].profile?.jobTitle).toBe('Owner')
+    expect(parseContactImport(SAMPLE_JSON, 'json').rows[0]!.email).toBe('jordan@example.com')
+    expect(parseContactImport(SAMPLE_CSV, 'csv').rows[0]!.profile?.jobTitle).toBe('Owner')
     const wrapped = parseContactImport(
       JSON.stringify({
         contacts: [
@@ -29,8 +29,8 @@ describe('parseContactImport', () => {
       }),
       'json',
     )
-    expect(wrapped.rows[0].name).toBe('Bo')
-    expect(wrapped.rows[0].profile).toEqual({ lifecycle_stage: 'customer' })
+    expect(wrapped.rows[0]!.name).toBe('Bo')
+    expect(wrapped.rows[0]!.profile).toEqual({ lifecycle_stage: 'customer' })
     const payload = toImportPayload(wrapped.rows)
     expect(payload[0]).toEqual({
       name: 'Bo',

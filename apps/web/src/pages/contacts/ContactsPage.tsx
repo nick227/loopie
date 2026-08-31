@@ -596,7 +596,7 @@ export function ContactsPage() {
         filters={[
           {
             id: 'source',
-            label: 'Source',
+            label: 'Filter contacts by source',
             value: source,
             options: [
               { value: '', label: 'All sources' },
@@ -667,7 +667,17 @@ export function ContactsPage() {
                   </span>
                 }
                 title={contact.name}
-                subtitle={`${activity} · ${sourceLabel(contact.source)}`}
+                subtitle={
+                  <>
+                    <time
+                      dateTime={contact.lastContactedAt ?? contact.createdAt}
+                      aria-label={activity}
+                    >
+                      {activity}
+                    </time>{' '}
+                    · {sourceLabel(contact.source)}
+                  </>
+                }
                 meta={
                   <>
                     <span

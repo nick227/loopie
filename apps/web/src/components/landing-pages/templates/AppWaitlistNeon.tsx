@@ -33,7 +33,7 @@ const HeroSection = ({ block }: { block: HeroBlock }) => {
     resolver: zodResolver(formSchema),
   })
 
-  const onSubmit = async (formData: FormData) => {
+  const onSubmit = async (_formData: FormData) => {
     await new Promise((resolve) => setTimeout(resolve, 1000))
     setIsSubmitted(true)
   }
@@ -274,7 +274,8 @@ const FeatureGridSection = ({ block }: { block: FeatureGridBlock }) => {
 }
 
 const TestimonialSection = ({ block }: { block: TestimonialBlock }) => {
-  if (!block.testimonials || block.testimonials.length === 0) return null
+  const testimonial = block.testimonials?.[0]
+  if (!testimonial) return null
 
   return (
     <section className="py-40 border-t border-white/5 bg-[#020202] relative overflow-hidden">
@@ -283,19 +284,17 @@ const TestimonialSection = ({ block }: { block: TestimonialBlock }) => {
         <div className="bg-white/5 border border-white/10 rounded-[3rem] p-12 md:p-20 backdrop-blur-2xl shadow-2xl">
           <Sparkles className="w-12 h-12 text-fuchsia-400 mb-12" />
           <p className="text-3xl md:text-4xl text-white/90 leading-tight font-medium mb-16 tracking-tight">
-            &ldquo;{block.testimonials[0].quote}&rdquo;
+            &ldquo;{testimonial.quote}&rdquo;
           </p>
           <div className="flex items-center gap-6">
             <img
-              src={block.testimonials[0].avatarUrl}
-              alt={block.testimonials[0].author}
+              src={testimonial.avatarUrl}
+              alt={testimonial.author}
               className="w-20 h-20 rounded-full border-4 border-fuchsia-500/30"
             />
             <div>
-              <div className="font-bold text-2xl text-white">{block.testimonials[0].author}</div>
-              <div className="text-lg text-fuchsia-400 font-medium">
-                {block.testimonials[0].role}
-              </div>
+              <div className="font-bold text-2xl text-white">{testimonial.author}</div>
+              <div className="text-lg text-fuchsia-400 font-medium">{testimonial.role}</div>
             </div>
           </div>
         </div>
@@ -392,14 +391,14 @@ const CalculatorSection = ({ block }: { block: CalculatorBlock }) => {
                       {input.label}
                     </label>
                     <span className="text-3xl font-bold text-white">
-                      {values[input.id].toLocaleString()}
+                      {(values[input.id] ?? input.defaultValue).toLocaleString()}
                     </span>
                   </div>
                   <div className="relative h-2 bg-white/10 rounded-full">
                     <div
                       className="absolute top-0 left-0 h-full bg-gradient-to-r from-fuchsia-500 to-cyan-500 rounded-full shadow-[0_0_20px_rgba(217,70,239,0.5)]"
                       style={{
-                        width: `${((values[input.id] - (input.min || 0)) / ((input.max || 100) - (input.min || 0))) * 100}%`,
+                        width: `${(((values[input.id] ?? input.defaultValue) - (input.min || 0)) / ((input.max || 100) - (input.min || 0))) * 100}%`,
                       }}
                     />
                     <input
@@ -407,7 +406,7 @@ const CalculatorSection = ({ block }: { block: CalculatorBlock }) => {
                       min={input.min || 0}
                       max={input.max || 100}
                       step={input.step || 1}
-                      value={values[input.id]}
+                      value={values[input.id] ?? input.defaultValue}
                       onChange={(e) => handleSliderChange(input.id, Number(e.target.value))}
                       className="absolute inset-0 w-full opacity-0 cursor-pointer"
                     />

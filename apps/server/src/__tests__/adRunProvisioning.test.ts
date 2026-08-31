@@ -240,7 +240,7 @@ describe('AdRun declarative creation', () => {
     expect(res.json().data.destinationLandingPageId).toBe(page.id)
   })
 
-  it('connector failure leaves the run VALIDATION_FAILED, never looking live, and is retryable with the same key', async () => {
+  it('connector failure leaves the run PROVISIONING_FAILED, never looking live, and is retryable with the same key', async () => {
     enableMeta()
     mockGraph({ failAdCreate: true })
     await connectMeta()
@@ -255,7 +255,7 @@ describe('AdRun declarative creation', () => {
     expect(failed.statusCode).toBe(502)
 
     const row = await db.adRun.findFirstOrThrow({ where: { advertisementId: advertisement.id } })
-    expect(row.status).toBe('VALIDATION_FAILED')
+    expect(row.status).toBe('PROVISIONING_FAILED')
     expect(row.externalAdId).toBeNull()
     expect(row.previewUrl).toBeNull()
 

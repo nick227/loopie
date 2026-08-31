@@ -48,6 +48,46 @@ describe('campaigns API', () => {
       errors.push(new Error('createCampaign failed: ' + e.message))
     }
 
+    // resumeCampaign (moved before pauseCampaign — a freshly created campaign starts DRAFT, and
+    // only resume() accepts DRAFT; pause() requires ACTIVE, so the spec's declaration order
+    // doesn't match the real lifecycle here)
+
+    // resumeCampaign - auth check
+    try {
+      if (!'/campaigns/{campaignId}/resume'.includes('{') || createdIds['campaigns']) {
+        const resresumeCampaignAuth = await app.inject({
+          method: 'POST',
+          url: `/campaigns/${createdIds['campaigns'] || '00000000-0000-0000-0000-000000000001'}/resume`,
+        })
+        expect(resresumeCampaignAuth.statusCode).toBe(401)
+      }
+    } catch (e: any) {
+      errors.push(new Error('resumeCampaign auth failed: ' + e.message))
+    }
+
+    try {
+      if (!'/campaigns/{campaignId}/resume'.includes('{') || createdIds['campaigns']) {
+        const resresumeCampaign = await app.inject({
+          method: 'POST',
+          url: `/campaigns/${createdIds['campaigns'] || '00000000-0000-0000-0000-000000000001'}/resume`,
+          headers: asAuth(testUserId),
+          // payload: {},
+        })
+        if (resresumeCampaign.statusCode === 201 && resresumeCampaign.json().data?.id)
+          createdIds['campaigns'] = resresumeCampaign.json().data.id
+        if (resresumeCampaign.statusCode !== 200) {
+          console.error(
+            'resumeCampaign failed with ' + resresumeCampaign.statusCode,
+            resresumeCampaign.json().message || resresumeCampaign.json(),
+          )
+        }
+        expect(resresumeCampaign.statusCode).toBe(200)
+        await validateResponse('resumeCampaign', 200, resresumeCampaign.json())
+      }
+    } catch (e: any) {
+      errors.push(new Error('resumeCampaign failed: ' + e.message))
+    }
+
     // pauseCampaign
 
     // pauseCampaign - auth check
@@ -84,44 +124,6 @@ describe('campaigns API', () => {
       }
     } catch (e: any) {
       errors.push(new Error('pauseCampaign failed: ' + e.message))
-    }
-
-    // resumeCampaign
-
-    // resumeCampaign - auth check
-    try {
-      if (!'/campaigns/{campaignId}/resume'.includes('{') || createdIds['campaigns']) {
-        const resresumeCampaignAuth = await app.inject({
-          method: 'POST',
-          url: `/campaigns/${createdIds['campaigns'] || '00000000-0000-0000-0000-000000000001'}/resume`,
-        })
-        expect(resresumeCampaignAuth.statusCode).toBe(401)
-      }
-    } catch (e: any) {
-      errors.push(new Error('resumeCampaign auth failed: ' + e.message))
-    }
-
-    try {
-      if (!'/campaigns/{campaignId}/resume'.includes('{') || createdIds['campaigns']) {
-        const resresumeCampaign = await app.inject({
-          method: 'POST',
-          url: `/campaigns/${createdIds['campaigns'] || '00000000-0000-0000-0000-000000000001'}/resume`,
-          headers: asAuth(testUserId),
-          // payload: {},
-        })
-        if (resresumeCampaign.statusCode === 201 && resresumeCampaign.json().data?.id)
-          createdIds['campaigns'] = resresumeCampaign.json().data.id
-        if (resresumeCampaign.statusCode !== 200) {
-          console.error(
-            'resumeCampaign failed with ' + resresumeCampaign.statusCode,
-            resresumeCampaign.json().message || resresumeCampaign.json(),
-          )
-        }
-        expect(resresumeCampaign.statusCode).toBe(200)
-        await validateResponse('resumeCampaign', 200, resresumeCampaign.json())
-      }
-    } catch (e: any) {
-      errors.push(new Error('resumeCampaign failed: ' + e.message))
     }
 
     // endCampaign
@@ -233,11 +235,14 @@ describe('campaigns API', () => {
             idempotencyKey: 'test_string',
           },
         })
+        // Captured under its own key, not 'campaigns' — this creates a BudgetAuthorization, a
+        // different resource than the campaign at createdIds['campaigns'], which every following
+        // step still needs.
         if (
           resauthorizeCampaignBudget.statusCode === 201 &&
           resauthorizeCampaignBudget.json().data?.id
         )
-          createdIds['campaigns'] = resauthorizeCampaignBudget.json().data.id
+          createdIds['budget-authorizations'] = resauthorizeCampaignBudget.json().data.id
         if (resauthorizeCampaignBudget.statusCode !== 201) {
           console.error(
             'authorizeCampaignBudget failed with ' + resauthorizeCampaignBudget.statusCode,

@@ -7,8 +7,12 @@ import { describe, it, expect } from 'vitest'
 import { db } from '@project/db'
 import { buildTestApp, asAuth, testUserId, testBusinessId } from './helpers'
 import { compareSourcePair } from '../lib/shadowComparison'
+import { saveMediaFile } from '../lib/mediaStorage'
 
 const app = buildTestApp()
+
+const PNG_1X1 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
 
 async function createPublishedPage() {
   const template = await db.landingPageTemplate.create({
@@ -94,11 +98,21 @@ async function buildLegacyDeploymentWithConversion(page: { id: string }) {
 }
 
 async function buildAdRunWithConversion(page: { id: string }) {
+  const saved = await saveMediaFile({ mimeType: 'image/png', data: PNG_1X1 })
+  const asset = await db.asset.create({
+    data: {
+      businessId: testBusinessId,
+      type: 'IMAGE',
+      name: 'Shadow AdRun Pixel',
+      url: saved.url,
+      mimeType: 'image/png',
+    },
+  })
   const advertisementRes = await app.inject({
     method: 'POST',
     url: '/advertisements',
     headers: asAuth(testUserId),
-    payload: { name: 'Shadow AdRun Advertisement' },
+    payload: { name: 'Shadow AdRun Advertisement', assetIds: [asset.id] },
   })
   const advertisement = advertisementRes.json().data
   const createRes = await app.inject({

@@ -103,7 +103,7 @@ export function useLandingPageEditor() {
     setSlots(
       (page.slots ?? []).map((slot) => ({
         placement: slot.placement,
-        adUnitId: slot.adUnitId ?? null,
+        adUnitId: slot.assignments?.[0]?.adRunId ?? null,
       })),
     )
   }, [page])

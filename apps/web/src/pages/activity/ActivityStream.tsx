@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useActivityStream, useActivityCheckpoint } from '@project/sdk'
+import type { components } from '@project/sdk'
 import { useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -31,7 +32,31 @@ function formatRelativeTime(dateStr: string) {
 }
 
 const NOISY_TYPES = ['PAGE_VIEWED', 'AD_CLICK', 'SYNC_COMPLETED', 'AUTOMATION_SUCCESS']
-const ONE_HOUR_MS = 60 * 60 * 1000
+
+type ActivityItem = components['schemas']['ActivityItem']
+
+type RollupGroup = {
+  isRollup: true
+  id: string
+  key: string
+  type: string
+  source: ActivityItem['source']
+  windowStart: string
+  windowEnd: string
+  items: ActivityItem[]
+}
+
+type SingleRow = {
+  isRollup: false
+  id: string
+  item: ActivityItem
+  isChild?: boolean
+  isRollupHeader?: false
+}
+
+type RollupHeaderRow = RollupGroup & { isRollupHeader: true }
+
+type FlatRow = SingleRow | RollupHeaderRow
 
 export function ActivityStream() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -51,9 +76,9 @@ export function ActivityStream() {
   }
 
   // Extract filters from URL
-  const params: any = {}
-  if (searchParams.get('source')) params.source = searchParams.get('source')
-  if (searchParams.get('type')) params.type = searchParams.get('type')
+  const params: Parameters<typeof useActivityStream>[0] = {}
+  if (searchParams.get('source')) params.source = searchParams.get('source') ?? undefined
+  if (searchParams.get('type')) params.type = searchParams.get('type') ?? undefined
   if (searchParams.get('needsAction') === 'true') params.needsAction = true
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
@@ -72,8 +97,8 @@ export function ActivityStream() {
 
   // Presentation-only grouping logic
   const items = useMemo(() => {
-    const result: any[] = []
-    let currentGroup: any = null
+    const result: (SingleRow | RollupGroup)[] = []
+    let currentGroup: RollupGroup | null = null
 
     for (const item of rawItems) {
       if (item.attentionItem?.state === 'NEEDS_ACTION' || !NOISY_TYPES.includes(item.type)) {
@@ -116,19 +141,22 @@ export function ActivityStream() {
     }
 
     // Flatten expanded rollups back into the stream for VirtualInfiniteList to render sequentially
-    const flattened: any[] = []
+    const flattened: FlatRow[] = []
     for (const group of result) {
-      if (group.isRollup && group.items.length > 1) {
-        flattened.push({ ...group, isRollupHeader: true })
-        if (expandedRollups.has(group.id)) {
-          // Add children underneath
-          for (const child of group.items) {
-            flattened.push({ isRollup: false, id: child.id, item: child, isChild: true })
+      if (group.isRollup) {
+        if (group.items.length > 1) {
+          flattened.push({ ...group, isRollupHeader: true })
+          if (expandedRollups.has(group.id)) {
+            // Add children underneath
+            for (const child of group.items) {
+              flattened.push({ isRollup: false, id: child.id, item: child, isChild: true })
+            }
           }
+        } else {
+          // Just render as a single item if there's only 1
+          const only = group.items[0]
+          if (only) flattened.push({ isRollup: false, id: only.id, item: only })
         }
-      } else if (group.isRollup && group.items.length === 1) {
-        // Just render as a single item if there's only 1
-        flattened.push({ isRollup: false, id: group.items[0].id, item: group.items[0] })
       } else {
         flattened.push(group)
       }

@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react'
-import { useAsset, useLandingPages, usePlatformConnection } from '@project/sdk'
+import { useState } from 'react'
+import { useAsset, useLandingPages } from '@project/sdk'
 import type { components } from '@project/sdk'
 import { Code2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -22,7 +22,6 @@ import type { AdOrder } from '@/lib/adOrder'
 import { loopieRunState, parseOrderSnapshot } from '@/lib/adOrder'
 import {
   pageIdFromKey,
-  pageKey,
   paidTargetByKey,
   runDestinationKey,
   type PreviewFrameId,
@@ -127,17 +126,6 @@ export function AdEditor({
   const sentPaid = runs.some(
     (run) => run.platform !== 'LOOPIE' && loopieRunState(run) === 'draft_sent',
   )
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault()
-    await onSave()
-  }
-
-  async function sendPages(pageIds: string[]) {
-    const keys = pageIds.map(pageKey)
-    await onSend(selectedPageTargets(keys))
-    setSelected((current) => current.filter((key) => !keys.includes(key)))
-  }
 
   async function toggleDestination(key: string) {
     if (key.startsWith('page:')) {

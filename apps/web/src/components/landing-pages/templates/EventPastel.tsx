@@ -10,7 +10,6 @@ import {
   PageModel,
   HeroBlock,
   FeatureGridBlock,
-  TextMediaBlock,
   FormBlock,
   ServiceSelectorBlock,
   BookingPickerBlock,
@@ -212,7 +211,7 @@ const TicketsSection = ({ block }: { block: ServiceSelectorBlock }) => {
                 <h3
                   className={`text-3xl font-black mb-4 tracking-tight ${activeTicket === ticket.id ? 'text-white' : 'text-slate-900'}`}
                 >
-                  {ticket.name}
+                  {ticket.label}
                 </h3>
                 <div
                   className={`text-6xl font-black ${activeTicket === ticket.id ? 'text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-violet-400' : 'text-slate-900'}`}
@@ -234,7 +233,7 @@ const TicketsSection = ({ block }: { block: ServiceSelectorBlock }) => {
                     : 'bg-slate-100 text-slate-900 hover:bg-slate-200 hover:scale-105'
                 }`}
               >
-                Select {ticket.name}
+                Select {ticket.label}
               </Button>
             </div>
           ))}
@@ -254,7 +253,7 @@ const FormSection = ({ block, title }: { block: FormBlock; title: string }) => {
     resolver: zodResolver(formSchema),
   })
 
-  const onSubmit = async (formData: FormData) => {
+  const onSubmit = async (_formData: FormData) => {
     await new Promise((resolve) => setTimeout(resolve, 1000))
     setIsSubmitted(true)
   }
@@ -312,7 +311,7 @@ const FormSection = ({ block, title }: { block: FormBlock; title: string }) => {
         </div>
 
         <div className="text-slate-400 font-bold text-lg flex flex-col sm:flex-row justify-center items-center gap-8 border-t-2 border-slate-200 pt-12">
-          <div>© 2026 {title.split('-')[0].trim()}. All rights reserved.</div>
+          <div>© 2026 {(title.split('-')[0] || '').trim()}. All rights reserved.</div>
           <div className="flex gap-8">
             <a href="#" className="hover:text-rose-500 transition-colors">
               Twitter
@@ -487,7 +486,7 @@ const HotspotViewerSection = ({ block }: { block: HotspotViewerBlock }) => {
         </div>
 
         <div className="max-w-5xl mx-auto relative rounded-[3rem] overflow-hidden border-[8px] border-white shadow-2xl shadow-rose-100 bg-rose-50">
-          <img src={block.image.url} alt={block.image.alt} className="w-full h-auto" />
+          <img src={block.baseImage.url} alt={block.baseImage.alt} className="w-full h-auto" />
 
           {block.hotspots.map((hotspot) => (
             <div

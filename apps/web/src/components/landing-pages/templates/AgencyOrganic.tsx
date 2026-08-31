@@ -1,7 +1,5 @@
 import {
-  Play,
   ArrowRight,
-  Minus,
   ArrowUpRight,
   Leaf,
   Coffee,
@@ -93,7 +91,7 @@ const BeforeAfterSection = ({ block }: { block: BeforeAfterBlock }) => {
     setSliderPosition(percentage)
   }
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleMouseDown = () => {
     const handleMouseMove = (e: MouseEvent) => handleMove(e.clientX)
     const handleMouseUp = () => {
       window.removeEventListener('mousemove', handleMouseMove)
@@ -110,7 +108,7 @@ const BeforeAfterSection = ({ block }: { block: BeforeAfterBlock }) => {
           ref={sliderRef}
           className="aspect-[21/9] md:aspect-[21/10] bg-[#E8E6E1] rounded-[2rem] overflow-hidden relative group cursor-ew-resize select-none shadow-2xl"
           onMouseDown={handleMouseDown}
-          onTouchMove={(e) => handleMove(e.touches[0].clientX)}
+          onTouchMove={(e) => e.touches[0] && handleMove(e.touches[0].clientX)}
         >
           {/* After Image (Background) */}
           <div className="absolute inset-0">
@@ -253,69 +251,74 @@ const ImageBrowserSection = ({ block }: { block: ImageBrowserBlock }) => {
 
       {/* Lightbox Overlay */}
       <AnimatePresence>
-        {lightboxIndex !== null && (
-          <motion.div
-            className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex items-center justify-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            onClick={() => setLightboxIndex(null)}
-          >
-            <button
-              className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center text-white/50 hover:text-white transition-colors z-50 bg-white/10 rounded-full hover:bg-white/20"
-              onClick={(e) => {
-                e.stopPropagation()
-                setLightboxIndex(null)
-              }}
-            >
-              <X className="w-6 h-6" />
-            </button>
-
-            <button
-              className="absolute left-4 md:left-12 top-1/2 -translate-y-1/2 w-16 h-16 flex items-center justify-center text-white/50 hover:text-white transition-all z-50 bg-white/5 hover:bg-white/10 rounded-full hover:scale-110"
-              onClick={handlePrev}
-            >
-              <ChevronLeft className="w-8 h-8" />
-            </button>
-
-            <button
-              className="absolute right-4 md:right-12 top-1/2 -translate-y-1/2 w-16 h-16 flex items-center justify-center text-white/50 hover:text-white transition-all z-50 bg-white/5 hover:bg-white/10 rounded-full hover:scale-110"
-              onClick={handleNext}
-            >
-              <ChevronRight className="w-8 h-8" />
-            </button>
-
-            <motion.div
-              className="max-w-7xl max-h-[85vh] w-full px-4 md:px-32 flex flex-col items-center justify-center"
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <motion.img
-                key={lightboxIndex}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
+        {lightboxIndex !== null &&
+          block.images[lightboxIndex] &&
+          (() => {
+            const activeImage = block.images[lightboxIndex]!
+            return (
+              <motion.div
+                className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex items-center justify-center"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                src={block.images[lightboxIndex].url}
-                alt={block.images[lightboxIndex].alt}
-                className="max-w-full max-h-[75vh] object-contain rounded-lg shadow-2xl shadow-black/50"
-              />
-              {block.images[lightboxIndex].caption && (
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                  className="mt-8 text-white/70 font-sans text-sm tracking-widest uppercase"
+                onClick={() => setLightboxIndex(null)}
+              >
+                <button
+                  className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center text-white/50 hover:text-white transition-colors z-50 bg-white/10 rounded-full hover:bg-white/20"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setLightboxIndex(null)
+                  }}
                 >
-                  {block.images[lightboxIndex].caption}
-                </motion.p>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
+                  <X className="w-6 h-6" />
+                </button>
+
+                <button
+                  className="absolute left-4 md:left-12 top-1/2 -translate-y-1/2 w-16 h-16 flex items-center justify-center text-white/50 hover:text-white transition-all z-50 bg-white/5 hover:bg-white/10 rounded-full hover:scale-110"
+                  onClick={handlePrev}
+                >
+                  <ChevronLeft className="w-8 h-8" />
+                </button>
+
+                <button
+                  className="absolute right-4 md:right-12 top-1/2 -translate-y-1/2 w-16 h-16 flex items-center justify-center text-white/50 hover:text-white transition-all z-50 bg-white/5 hover:bg-white/10 rounded-full hover:scale-110"
+                  onClick={handleNext}
+                >
+                  <ChevronRight className="w-8 h-8" />
+                </button>
+
+                <motion.div
+                  className="max-w-7xl max-h-[85vh] w-full px-4 md:px-32 flex flex-col items-center justify-center"
+                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <motion.img
+                    key={lightboxIndex}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3 }}
+                    src={activeImage.url}
+                    alt={activeImage.alt}
+                    className="max-w-full max-h-[75vh] object-contain rounded-lg shadow-2xl shadow-black/50"
+                  />
+                  {activeImage.caption && (
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.2 }}
+                      className="mt-8 text-white/70 font-sans text-sm tracking-widest uppercase"
+                    >
+                      {activeImage.caption}
+                    </motion.p>
+                  )}
+                </motion.div>
+              </motion.div>
+            )
+          })()}
       </AnimatePresence>
     </section>
   )
@@ -454,6 +457,7 @@ const ServicesSection = ({ block }: { block: FeatureGridBlock }) => (
 const CaseStudyBrowserSection = ({ block }: { block: CaseStudyBrowserBlock }) => {
   const [activeId, setActiveId] = useState(block.caseStudies[0]?.id)
   const activeStudy = block.caseStudies.find((c) => c.id === activeId) || block.caseStudies[0]
+  if (!activeStudy) return null
 
   return (
     <section className="py-32 bg-[#FDFBF7] text-[#1A1813] border-t border-[#E8E6E1]">

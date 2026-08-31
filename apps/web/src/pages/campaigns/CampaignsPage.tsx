@@ -55,7 +55,7 @@ export function CampaignsPage() {
           hasNextPage={!!hasNextPage}
           isFetchingNextPage={isFetchingNextPage}
           fetchNextPage={fetchNextPage}
-          renderItem={(item: any) => (
+          renderItem={(item) => (
             <Link key={item.id} to={`/campaigns/${item.id}`}>
               <Card className="hover:bg-accent/50 transition-colors">
                 <CardContent className="py-4 flex items-center justify-between gap-3">

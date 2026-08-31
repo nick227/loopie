@@ -42,25 +42,19 @@ async function createPage() {
   return pageRes.json().data
 }
 
-async function createAdUnit(businessId: string, name: string) {
-  const creative = await db.creative.create({ data: { businessId, name } })
-  const campaign = await db.campaign.create({
+// Ad slots assign AdRuns (Media/Advertisement/AdRun migration), not AdUnits — see
+// lib/adSlots.ts's AdSlotInput/AdSlotDTO shapes. Created directly via Prisma, same style the
+// old AdUnit-based helper used, rather than through the declarative create-and-provision API
+// (which requires a connected platform + media) since these tests only need a real AdRun row to
+// assign to a slot.
+async function createAdRun(businessId: string, name: string) {
+  const advertisement = await db.advertisement.create({ data: { businessId, name } })
+  return db.adRun.create({
     data: {
-      businessId,
-      name,
-      budget: 50,
-      startDate: new Date(),
-      destinationUrl: 'https://example.com',
-      platforms: ['LOOPIE'],
-    },
-  })
-  return db.adUnit.create({
-    data: {
-      businessId,
-      campaignId: campaign.id,
-      creativeId: creative.id,
-      format: 'NATIVE',
+      advertisementId: advertisement.id,
+      platform: 'LOOPIE',
       status: 'ACTIVE',
+      idempotencyKey: `${name}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     },
   })
 }
@@ -90,9 +84,9 @@ describe('page ad slots', () => {
     expect(page.name).toBe('Home')
     expect(page.status).toBe('PUBLISHED')
     expect(page.adSlotCount).toBe(2)
-    expect(page.slots.every((slot: { adUnitId: string | null }) => slot.adUnitId === null)).toBe(
-      true,
-    )
+    expect(
+      page.slots.every((slot: { assignments: unknown[] }) => slot.assignments.length === 0),
+    ).toBe(true)
 
     const hosted = await app.inject({ method: 'GET', url: `/p/${page.slug}` })
     expect(hosted.statusCode).toBe(200)
@@ -105,8 +99,8 @@ describe('page ad slots', () => {
 
   it('does not serve assigned ads until publish, then freezes two ads onto the hosted page', async () => {
     const page = await createPage()
-    const unitA = await createAdUnit(testBusinessId, 'Ad A')
-    const unitB = await createAdUnit(testBusinessId, 'Ad B')
+    const runA = await createAdRun(testBusinessId, 'Ad A')
+    const runB = await createAdRun(testBusinessId, 'Ad B')
 
     await app.inject({
       method: 'POST',
@@ -120,8 +114,8 @@ describe('page ad slots', () => {
       headers: asAuth(testUserId),
       payload: {
         slots: [
-          { placement: 'AFTER_HERO', adUnitId: unitA.id },
-          { placement: 'BEFORE_FORM', adUnitId: unitB.id },
+          { placement: 'AFTER_HERO', adRunIds: [runA.id] },
+          { placement: 'BEFORE_FORM', adRunIds: [runB.id] },
         ],
       },
     })
@@ -130,8 +124,8 @@ describe('page ad slots', () => {
 
     const before = await app.inject({ method: 'GET', url: `/p/${page.slug}` })
     expect(before.statusCode).toBe(200)
-    expect(before.body).not.toContain(`/embed/${unitA.id}`)
-    expect(before.body).not.toContain(`/embed/${unitB.id}`)
+    expect(before.body).not.toContain(`/embed/${runA.id}`)
+    expect(before.body).not.toContain(`/embed/${runB.id}`)
 
     const published = await app.inject({
       method: 'POST',
@@ -142,19 +136,19 @@ describe('page ad slots', () => {
 
     const after = await app.inject({ method: 'GET', url: `/p/${page.slug}` })
     expect(after.statusCode).toBe(200)
-    expect(after.body).toContain(`/embed/${unitA.id}`)
-    expect(after.body).toContain(`/embed/${unitB.id}`)
+    expect(after.body).toContain(`/embed/${runA.id}`)
+    expect(after.body).toContain(`/embed/${runB.id}`)
   })
 
-  it('rejects an ad unit from another business', async () => {
+  it('rejects an ad run from another business', async () => {
     const page = await createPage()
-    const foreign = await createAdUnit(testOtherBusinessId, 'Foreign Ad')
+    const foreign = await createAdRun(testOtherBusinessId, 'Foreign Ad')
 
     const res = await app.inject({
       method: 'PUT',
       url: `/landing-pages/${page.id}/ad-slots`,
       headers: asAuth(testUserId),
-      payload: { slots: [{ placement: 'AFTER_HERO', adUnitId: foreign.id }] },
+      payload: { slots: [{ placement: 'AFTER_HERO', adRunIds: [foreign.id] }] },
     })
     expect(res.statusCode).toBe(404)
 
@@ -166,7 +160,9 @@ describe('page ad slots', () => {
     expect(
       current
         .json()
-        .data.slots.every((slot: { adUnitId: string | null }) => slot.adUnitId !== foreign.id),
+        .data.slots.every((slot: { assignments: { adRunId: string }[] }) =>
+          slot.assignments.every((a) => a.adRunId !== foreign.id),
+        ),
     ).toBe(true)
   })
 })

@@ -16,7 +16,7 @@ export function ActivityPage() {
   const queryClient = useQueryClient()
 
   // Polling checkpoint to see if there are new items
-  const { data: checkpoint } = useActivityCheckpoint()
+  useActivityCheckpoint()
 
   // We can peek at the first item in the stream to see if we're out of date
   // A perfect implementation would check if the stream's highest observedAt is older than checkpoint.latestObservedAt

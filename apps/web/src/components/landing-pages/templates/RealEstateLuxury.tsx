@@ -36,6 +36,7 @@ import {
 const HeroSection = ({ block }: { block: HeroBlock }) => {
   const [currentHeroSlide, setCurrentHeroSlide] = useState(0)
   const heroStates = block.interactionType === 'carousel' && block.states ? block.states : null
+  const currentState = heroStates ? (heroStates[currentHeroSlide] ?? heroStates[0]) : null
 
   useEffect(() => {
     if (!heroStates) return
@@ -77,17 +78,17 @@ const HeroSection = ({ block }: { block: HeroBlock }) => {
                 <h1
                   className="text-6xl sm:text-8xl md:text-[9rem] lg:text-[10rem] font-light tracking-tighter leading-[0.85] mb-10"
                   dangerouslySetInnerHTML={{
-                    __html: heroStates[currentHeroSlide].headline.replace('\n', '<br />\n'),
+                    __html: (currentState?.headline || '').replace('\n', '<br />\n'),
                   }}
                 />
                 <p className="text-2xl md:text-4xl text-[#D4AF37] font-light max-w-3xl leading-relaxed">
-                  {heroStates[currentHeroSlide].subheadline}
+                  {currentState?.subheadline}
                 </p>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-6 font-sans">
-                {heroStates[currentHeroSlide].ctas &&
-                  heroStates[currentHeroSlide].ctas.map((cta, i) =>
+                {currentState?.ctas &&
+                  currentState.ctas.map((cta, i) =>
                     cta.variant === 'primary' ? (
                       <button
                         key={i}
@@ -233,7 +234,7 @@ const VisionSection = ({ block }: { block: TextMediaBlock }) => (
   <section className="py-32 md:py-48 bg-[#FDFBF7]">
     <Container>
       <div
-        className={`flex flex-col lg:flex-row items-center gap-16 lg:gap-32 ${block.alignment === 'right' ? '' : 'lg:flex-row-reverse'}`}
+        className={`flex flex-col lg:flex-row items-center gap-16 lg:gap-32 ${block.layout === 'media-right' ? '' : 'lg:flex-row-reverse'}`}
       >
         <div className="flex-1 space-y-10">
           <div className="font-sans text-xs tracking-[0.3em] uppercase text-[#D4AF37] flex items-center gap-4">
@@ -293,7 +294,7 @@ const PropertiesSection = ({ block }: { block: ImageBrowserBlock }) => (
       </div>
 
       {/* Main Featured Image */}
-      {block.images.length > 0 && (
+      {block.images[0] && (
         <div className="mb-8 relative aspect-[21/9] bg-zinc-900 overflow-hidden group cursor-pointer">
           <img
             src={block.images[0].url}
@@ -333,7 +334,8 @@ const PropertiesSection = ({ block }: { block: ImageBrowserBlock }) => (
 )
 
 const TestimonialSection = ({ block }: { block: TestimonialBlock }) => {
-  if (!block.testimonials || block.testimonials.length === 0) return null
+  const testimonial = block.testimonials?.[0]
+  if (!testimonial) return null
   return (
     <section className="py-32 md:py-48 bg-white">
       <Container className="max-w-5xl text-center">
@@ -343,14 +345,14 @@ const TestimonialSection = ({ block }: { block: TestimonialBlock }) => {
           </span>
         </div>
         <h2 className="text-4xl md:text-6xl lg:text-7xl font-light leading-[1.2] tracking-tighter text-[#1C1C1C] mb-20 italic">
-          &ldquo;{block.testimonials[0].quote}&rdquo;
+          &ldquo;{testimonial.quote}&rdquo;
         </h2>
         <div className="font-sans">
           <div className="text-sm font-bold tracking-[0.2em] uppercase text-[#1C1C1C] mb-2">
-            {block.testimonials[0].author}
+            {testimonial.author}
           </div>
           <div className="text-xs tracking-[0.1em] uppercase text-[#1C1C1C]/50">
-            {block.testimonials[0].role} &bull; {block.testimonials[0].metrics}
+            {testimonial.role} &bull; {testimonial.metrics}
           </div>
         </div>
       </Container>
@@ -376,7 +378,7 @@ const ContactSection = ({ block }: { block: FormBlock }) => {
     resolver: zodResolver(formSchema),
   })
 
-  const onSubmit = async (formData: FormData) => {
+  const onSubmit = async (_formData: FormData) => {
     await new Promise((resolve) => setTimeout(resolve, 1000))
     setIsSubmitted(true)
   }

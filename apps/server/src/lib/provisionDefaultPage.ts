@@ -71,8 +71,8 @@ export async function provisionDefaultPage(
       formId: form.id,
       formSnapshot: formSnapshot as unknown as Prisma.InputJsonValue,
       adSlotSnapshot: [
-        { placement: 'AFTER_HERO', sortOrder: 0, adUnitId: null, embedUrl: null },
-        { placement: 'BEFORE_FORM', sortOrder: 1, adUnitId: null, embedUrl: null },
+        { placement: 'AFTER_HERO', sortOrder: 0, adRunIds: [], embedUrls: [] },
+        { placement: 'BEFORE_FORM', sortOrder: 1, adRunIds: [], embedUrls: [] },
       ],
       schemaSnapshot: SYSTEM_LEAD_GEN_SCHEMA as Prisma.InputJsonValue,
     },

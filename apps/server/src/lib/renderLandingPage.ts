@@ -111,7 +111,7 @@ export function renderLandingPageHtml(input: {
   form: RenderForm
   submitActionUrl: string
   sessionToken?: string
-  adSlots?: { placement: string; embedUrl: string | null }[]
+  adSlots?: { placement: string; embedUrls: string[] }[]
   runtimeScriptUrl?: string
   businessId?: string
 }): string {

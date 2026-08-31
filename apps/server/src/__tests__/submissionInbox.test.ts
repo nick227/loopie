@@ -42,7 +42,7 @@ async function publishedPage(name: string, formName: string) {
 }
 
 describe('Inbox: one form submission projects into both the contact and page threads', () => {
-  it('posts "Form submitted" into the contact thread and "New submission" into the page thread', async () => {
+  it('posts "New lead" into the contact thread and "New submission" into the page thread', async () => {
     const page = await publishedPage('Kitchen Remodel', 'Consultation Request')
 
     const submitRes = await app.inject({
@@ -63,9 +63,12 @@ describe('Inbox: one form submission projects into both the contact and page thr
     })
     expect(contactThread).toBeTruthy()
     expect(contactThread!.type).toBe('CONTACT')
-    const contactMsg = contactThread!.messages.find((m) => m.subject === 'Form submitted')
+    // A first-time submission creates a brand new Lead, so the contact-thread projection uses
+    // the "New lead" phrasing (see lib/submissionInbox.ts's leadCreated branch), not "Form
+    // submitted" — that phrasing is reserved for a repeat submission against an already-open Lead.
+    const contactMsg = contactThread!.messages.find((m) => m.subject === 'New lead')
     expect(contactMsg).toBeTruthy()
-    expect(contactMsg!.body).toBe('Submitted Consultation Request.')
+    expect(contactMsg!.body).toBe('New lead from Kitchen Remodel.')
 
     const pageThread = await db.inboxThread.findUnique({
       where: { landingPageId: page.id },

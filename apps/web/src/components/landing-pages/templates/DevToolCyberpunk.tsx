@@ -1,12 +1,11 @@
-import { Terminal, Cpu, Network, Zap, ChevronRight, Copy, Check, Code } from 'lucide-react'
+import { Terminal, Cpu, Network, Zap, ChevronRight, Copy, Check } from 'lucide-react'
 import { Container } from '@/components/layout/Container'
 import { MobileNav } from '@/components/ui/MobileNav'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   PageModel,
   HeroBlock,
   FeatureGridBlock,
-  TextMediaBlock,
   ServiceSelectorBlock,
   StickyMediaBlock,
   ComparisonBlock,
@@ -127,7 +126,7 @@ const ServiceSelectorSection = ({ block }: { block: ServiceSelectorBlock }) => {
                       : 'border-transparent text-white/50 hover:text-[#00FF41] hover:bg-[#00FF41]/10'
                   }`}
                 >
-                  {service.name}
+                  {service.label}
                 </button>
               ))}
             </div>
@@ -314,8 +313,8 @@ const StickyMediaSection = ({ block }: { block: StickyMediaBlock }) => {
   }, [activeIndex])
 
   return (
-    <Container className="py-24" ref={containerRef}>
-      <div className="grid lg:grid-cols-2 gap-16 relative">
+    <Container className="py-24">
+      <div className="grid lg:grid-cols-2 gap-16 relative" ref={containerRef}>
         {/* Left Side: Scrolling Content */}
         <div>
           {block.sections.map((section, idx) => (

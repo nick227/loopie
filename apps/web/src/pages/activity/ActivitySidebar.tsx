@@ -1,16 +1,15 @@
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { useActivitySavedViews, useDeleteActivitySavedView } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { Trash2 } from 'lucide-react'
 
 export function ActivitySidebar() {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const navigate = useNavigate()
+  const [, setSearchParams] = useSearchParams()
 
   const { data: views, isLoading } = useActivitySavedViews()
   const deleteView = useDeleteActivitySavedView()
 
-  const handleSelectView = (filters: Record<string, any>) => {
+  const handleSelectView = (filters: Record<string, unknown>) => {
     const next = new URLSearchParams()
     for (const [k, v] of Object.entries(filters)) {
       if (v) next.set(k, String(v))
@@ -62,7 +61,7 @@ export function ActivitySidebar() {
                 <Button
                   variant="ghost"
                   className="flex-1 justify-start font-normal truncate"
-                  onClick={() => handleSelectView(view.filters as Record<string, any>)}
+                  onClick={() => handleSelectView(view.filters as Record<string, unknown>)}
                   title={view.name}
                 >
                   {view.name}

@@ -86,6 +86,14 @@ describe('ContactsPage', () => {
                 email: 'real@example.com',
                 source: 'HUBSPOT',
                 createdAt: '2026-08-20T12:00:00.000Z',
+                records: [
+                  {
+                    id: 'record-1',
+                    provider: 'HUBSPOT',
+                    externalId: 'hs-1',
+                    matchStatus: 'MATCHED',
+                  },
+                ],
               },
             ],
           },
@@ -106,7 +114,10 @@ describe('ContactsPage', () => {
       screen.getByRole('combobox', { name: 'Filter contacts by source' }),
       'HUBSPOT',
     )
-    expect(useContacts).toHaveBeenLastCalledWith({ source: 'HUBSPOT' })
+    // Not toHaveBeenLastCalledWith: ContactsCollectionInsights (rendered alongside the list) has
+    // its own, later useContacts() call with no args, so the "last call" on this shared mock
+    // belongs to it, not to the filtered list query below it.
+    expect(useContacts).toHaveBeenCalledWith({ source: 'HUBSPOT' })
     expect(screen.queryByText('Alice Smith')).not.toBeInTheDocument()
   })
 })

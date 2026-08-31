@@ -38,7 +38,6 @@ export function PageCanvas({
   const googleFonts =
     theme.googleFonts ?? 'family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600'
   const radius = theme.radius ?? '0.5rem'
-  const spacing = theme.spacing ?? 'normal'
   const hasBottom = slots.some((slot) => slot.placement === 'BOTTOM')
 
   useEffect(() => {
