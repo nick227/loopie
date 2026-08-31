@@ -289,17 +289,8 @@ import { AuthGuard } from '@/lib/AuthGuard'
 import { ActivityPage } from './pages/activity/ActivityPage'
 import { ErrorBoundary } from '@/components/layout/ErrorBoundary'
 import { RequireRole, RequireNonAffiliate, InboxRoute } from '@/lib/RequireRole'
-import { SaaSCleanCrispPreview } from '@/pages/landing-pages/SaaSCleanCrispPreview'
-import { AppWaitlistNeonPreview } from '@/pages/landing-pages/AppWaitlistNeonPreview'
-import { EcommerceGradientPreview } from '@/pages/landing-pages/EcommerceGradientPreview'
-import { AgencyOrganicPreview } from '@/pages/landing-pages/AgencyOrganicPreview'
-import { CreatorBrutalistPreview } from '@/pages/landing-pages/CreatorBrutalistPreview'
-import { EventPastelPreview } from '@/pages/landing-pages/EventPastelPreview'
-import { DevToolCyberpunkPreview } from '@/pages/landing-pages/DevToolCyberpunkPreview'
-import { RealEstateLuxuryPreview } from '@/pages/landing-pages/RealEstateLuxuryPreview'
-import { HealthcareTelehealthPreview } from '@/pages/landing-pages/HealthcareTelehealthPreview'
-import { Web3CryptoPreview } from '@/pages/landing-pages/Web3CryptoPreview'
 import { Shell } from '@/components/layout/Shell'
+
 const PlatformsPage = lazy(() =>
   import('@/pages/platforms/PlatformsPage').then((m) => ({ default: m.PlatformsPage })),
 )
@@ -370,19 +361,6 @@ export function App() {
             {/* Public / auth routes */}
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/preview/saas-clean-crisp" element={<SaaSCleanCrispPreview />} />
-            <Route path="/preview/app-waitlist-neon" element={<AppWaitlistNeonPreview />} />
-            <Route path="/preview/ecommerce-gradient" element={<EcommerceGradientPreview />} />
-            <Route path="/preview/agency-organic" element={<AgencyOrganicPreview />} />
-            <Route path="/preview/creator-brutalist" element={<CreatorBrutalistPreview />} />
-            <Route path="/preview/event-pastel" element={<EventPastelPreview />} />
-            <Route path="/preview/devtool-cyberpunk" element={<DevToolCyberpunkPreview />} />
-            <Route path="/preview/real-estate-luxury" element={<RealEstateLuxuryPreview />} />
-            <Route
-              path="/preview/healthcare-telehealth"
-              element={<HealthcareTelehealthPreview />}
-            />
-            <Route path="/preview/web3-crypto" element={<Web3CryptoPreview />} />
 
             {/* Protected routes */}
             <Route element={<AuthGuard />}>
