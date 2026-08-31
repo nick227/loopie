@@ -23,8 +23,12 @@ async function main() {
   // CORS — must be first so preflight OPTIONS requests are handled before routing
   // credentials: true required for httpOnly cookie auth across origins
   // In production set CORS_ORIGIN to the deployed frontend URL (e.g. https://yourapp.vercel.app)
+  const corsOrigin = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim().replace(/\/$/, ''))
+    : 'http://localhost:5173'
+
   await server.register(cors, {
-    origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+    origin: corsOrigin,
     credentials: true,
   })
 

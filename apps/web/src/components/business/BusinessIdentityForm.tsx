@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus, X } from 'lucide-react'
-import { useUpdateBusiness } from '@project/sdk'
+import { useUpdateBusiness, ApiError } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
@@ -62,8 +62,12 @@ export function BusinessIdentityForm({
         socialProfiles: cleanedProfiles,
       })
       onSaved?.()
-    } catch {
-      setError('Could not save — please try again.')
+    } catch (err) {
+      setError(
+        err instanceof ApiError || err instanceof Error
+          ? err.message
+          : 'Could not save — please try again.',
+      )
     }
   }
 
