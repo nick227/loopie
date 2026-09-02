@@ -46,8 +46,9 @@ export {
   normalizeLegacyPageContent,
   SECTION_TYPE_TO_SLOT_GROUP,
   KNOWN_SLOT_GROUPS,
+  DEFAULT_PAGE_FAVICON_URL,
 } from './content'
-export type { PageContent, LayoutConfig, SlotGroupKey } from './content'
+export type { PageContent, PageBrowserSettings, LayoutConfig, SlotGroupKey } from './content'
 export {
   SYSTEM_CORPORATE_PROFESSIONAL_TEMPLATE_ID,
   corporateProfessionalTitle,
@@ -69,4 +70,18 @@ export {
   studioSchema,
   studioStarterContent,
 } from './data/studio'
+export {
+  SYSTEM_PORTFOLIO_TEMPLATE_ID,
+  portfolioTitle,
+  portfolioDescription,
+  portfolioSchema,
+  portfolioStarterContent,
+} from './data/portfolio'
+export {
+  SYSTEM_STORE_TEMPLATE_ID,
+  storeTitle,
+  storeDescription,
+  storeSchema,
+  storeStarterContent,
+} from './data/store'
 export { SYSTEM_TEMPLATE_STARTER_CONTENT } from './systemTemplates'

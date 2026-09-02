@@ -10,6 +10,10 @@ export type FormFieldDraft = {
   type: 'TEXT' | 'EMAIL' | 'PHONE' | 'TEXTAREA' | 'SELECT' | 'CHECKBOX' | 'HIDDEN'
   required: boolean
   options: string
+  // HIDDEN fields have no human to fill them in — this fixed value is their only value source.
+  // Unused by every other type. See LandingPageService.publish's guard: a required HIDDEN field
+  // with this left blank is rejected at publish time rather than producing an unsubmittable form.
+  defaultValue?: string
 }
 
 const FIELD_TYPES: FormFieldDraft['type'][] = [
@@ -31,7 +35,7 @@ export function toFieldKey(label: string): string {
 }
 
 export function emptyField(): FormFieldDraft {
-  return { label: '', fieldKey: '', type: 'TEXT', required: false, options: '' }
+  return { label: '', fieldKey: '', type: 'TEXT', required: false, options: '', defaultValue: '' }
 }
 
 interface FormFieldsEditorProps {
@@ -181,10 +185,32 @@ export function FormFieldsEditor({ fields, onChange, protectEmail }: FormFieldsE
                   />
                 </div>
               )}
+              {field.type === 'HIDDEN' && (
+                <div className="col-span-2 flex flex-col gap-1">
+                  <label
+                    htmlFor={`form-field-default-${index}`}
+                    className="text-xs text-muted-foreground"
+                  >
+                    Default value
+                  </label>
+                  <Input
+                    id={`form-field-default-${index}`}
+                    value={field.defaultValue ?? ''}
+                    onChange={(e) => update(index, { defaultValue: e.target.value })}
+                    placeholder="A fixed value carried on every submission — no visitor ever sees or fills this in"
+                  />
+                  {field.required && !field.defaultValue?.trim() && (
+                    <p className="text-xs text-destructive">
+                      A required hidden field with no default value can never be submitted — set a
+                      value here or make it optional.
+                    </p>
+                  )}
+                </div>
+              )}
               <label
                 className={cn(
                   'flex items-center gap-2 text-sm',
-                  field.type === 'SELECT' ? 'col-span-2' : '',
+                  field.type === 'SELECT' || field.type === 'HIDDEN' ? 'col-span-2' : '',
                 )}
               >
                 <input

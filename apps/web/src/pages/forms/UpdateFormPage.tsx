@@ -29,6 +29,7 @@ const schema = z.object({
           required: z.boolean().optional(),
           options: z.array(z.string()).optional(),
           order: z.number().optional(),
+          defaultValue: z.string().nullable().optional(),
         }),
       ),
     )

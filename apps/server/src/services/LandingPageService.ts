@@ -6,6 +6,7 @@ import {
   DEFAULT_PAGE_THEME,
   SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID,
   SYSTEM_TEMPLATE_STARTER_CONTENT,
+  DEFAULT_PAGE_FAVICON_URL,
 } from '@project/db'
 import type { Prisma } from '@prisma/client'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
@@ -178,6 +179,18 @@ export class LandingPageService {
     if (data.content) assertYoutubeUrlsInContent(data.content)
 
     const business = await db.business.findUniqueOrThrow({ where: { id: businessId } })
+    const selectedContent = normalizeLegacyPageContent(
+      data.content ??
+        SYSTEM_TEMPLATE_STARTER_CONTENT[data.templateId] ??
+        starterContentForTemplate(template.schema as never, business.name),
+    )
+    const initialContent = {
+      ...selectedContent,
+      browser: {
+        title: selectedContent.browser?.title ?? data.name,
+        faviconUrl: selectedContent.browser?.faviconUrl ?? DEFAULT_PAGE_FAVICON_URL,
+      },
+    }
     const page = await db.$transaction(async (tx) => {
       let formId = data.formId as string | undefined
       if (!formId) {
@@ -200,10 +213,7 @@ export class LandingPageService {
           formId,
           name: data.name,
           slug: data.slug,
-          content:
-            data.content ??
-            ((SYSTEM_TEMPLATE_STARTER_CONTENT[data.templateId] ??
-              starterContentForTemplate(template.schema as never, business.name)) as never),
+          content: initialContent as never,
           theme: data.theme ?? DEFAULT_PAGE_THEME,
           layoutConfig:
             data.layoutConfig ?? (defaultLayoutConfigFromSchema(template.schema as never) as never),
@@ -311,6 +321,24 @@ export class LandingPageService {
       })
       if (!current) throw { statusCode: 404, message: 'Landing page not found' }
 
+      // Freeze the form's fields as they exist right now — this version must keep rendering and
+      // validating against exactly this snapshot even if the live Form is edited afterward.
+      const formSnapshot = await snapshotForm(tx, current.formId)
+
+      // A required HIDDEN field has no human to fill it in — its only value source is
+      // FormField.defaultValue (see formSnapshot.ts). Publishing with one required and unset
+      // would freeze a form no visitor could ever successfully submit, so reject it here rather
+      // than let that surface later as silent, unexplained submission failures.
+      const impossibleHiddenField = formSnapshot?.fields.find(
+        (field) => field.type === 'HIDDEN' && field.required && !field.defaultValue?.trim(),
+      )
+      if (impossibleHiddenField) {
+        throw {
+          statusCode: 400,
+          message: `Hidden field "${impossibleHiddenField.label}" is required but has no default value configured — set a default value or make it optional before publishing.`,
+        }
+      }
+
       if (current.publishedVersionId) {
         await tx.publishedPageVersion.update({
           where: { id: current.publishedVersionId },
@@ -323,9 +351,6 @@ export class LandingPageService {
         orderBy: { version: 'desc' },
       })
 
-      // Freeze the form's fields as they exist right now — this version must keep rendering and
-      // validating against exactly this snapshot even if the live Form is edited afterward.
-      const formSnapshot = await snapshotForm(tx, current.formId)
       const slots = await tx.landingPageAdSlot.findMany({
         where: { landingPageId },
         include: { assignments: true },

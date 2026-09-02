@@ -2,11 +2,15 @@ import { useEffect } from 'react'
 import { CorporateProfessional } from '../../../components/landing-pages/templates/CorporateProfessional'
 import { WebinarSignup } from '../../../components/landing-pages/templates/WebinarSignup'
 import { Studio } from '../../../components/landing-pages/templates/Studio'
+import { Portfolio } from '../../../components/landing-pages/templates/Portfolio'
+import { Store } from '../../../components/landing-pages/templates/Store'
 import type { FormFieldDraft } from '@/components/forms/FormFieldsEditor'
 import {
   CORPORATE_PROFESSIONAL_TEMPLATE_ID,
   WEBINAR_SIGNUP_TEMPLATE_ID,
   STUDIO_TEMPLATE_ID,
+  PORTFOLIO_TEMPLATE_ID,
+  STORE_TEMPLATE_ID,
   type LayoutConfig,
   type PageContent,
 } from './types'
@@ -78,7 +82,29 @@ export function AdvancedTemplateRenderer({
           submitLabel={submitLabel}
         />
       ) : templateId === CORPORATE_PROFESSIONAL_TEMPLATE_ID ? (
-        <CorporateProfessional {...shared} />
+        <CorporateProfessional
+          {...shared}
+          hasForm={hasForm}
+          formFields={formFields}
+          onFormFields={onFormFields}
+          submitLabel={submitLabel}
+        />
+      ) : templateId === PORTFOLIO_TEMPLATE_ID ? (
+        <Portfolio
+          {...shared}
+          hasForm={hasForm}
+          formFields={formFields}
+          onFormFields={onFormFields}
+          submitLabel={submitLabel}
+        />
+      ) : templateId === STORE_TEMPLATE_ID ? (
+        <Store
+          {...shared}
+          hasForm={hasForm}
+          formFields={formFields}
+          onFormFields={onFormFields}
+          submitLabel={submitLabel}
+        />
       ) : null}
     </div>
   )

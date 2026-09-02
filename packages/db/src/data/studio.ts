@@ -1,5 +1,5 @@
 import type { TemplateSchema } from '../leadGenTemplate'
-import type { PageContent } from '../content'
+import { DEFAULT_PAGE_FAVICON_URL, type PageContent } from '../content'
 
 export const SYSTEM_STUDIO_TEMPLATE_ID = 'system-template-studio'
 
@@ -9,6 +9,13 @@ export const SYSTEM_STUDIO_TEMPLATE_ID = 'system-template-studio'
 // grids. Two new section *types*: 'studio-contact' (a plain footer-slot renderer that also
 // carries the real signup form, same pattern as webinar-widget) and 'photo-gallery' (a pure
 // visual image wall, backing the new canonical `gallery` slot group in content.ts).
+//
+// Reordered and extended (see CLAUDE.md's Portfolio/Studio/Store pass): section order now follows
+// Hero -> What we do (services) -> Selected work (gallery, a light-touch proof wall rather than a
+// full case-study treatment) -> How we work (features/process) -> About/Team (new 'team' type) ->
+// Testimonials -> FAQ -> Contact, matching the brief's "explain services clearly, feature selected
+// work as proof without making the whole page a portfolio, and make the team feel human and
+// credible."
 export const studioTitle = 'Studio — Bold, Editorial Portfolio'
 export const studioDescription =
   'An editorial, trust-building landing page for creative and marketing studios — oversized typography, a selected-work grid, and a real project-inquiry form.'
@@ -27,38 +34,45 @@ export const studioSchema: TemplateSchema = {
     { key: 'logos', type: 'logo-cloud', order: 1, hideable: true, editable: ['title', 'items'] },
     { key: 'metrics', type: 'metrics', order: 2, hideable: true, editable: ['items'] },
     {
-      key: 'features',
-      type: 'feature-grid',
-      order: 3,
-      hideable: true,
-      editable: ['headline', 'body', 'items'],
-    },
-    {
       key: 'services',
       type: 'service-selector',
-      order: 4,
+      order: 3,
       hideable: true,
       editable: ['title', 'body', 'items'],
     },
     {
       key: 'gallery',
       type: 'photo-gallery',
-      order: 5,
+      order: 4,
       hideable: true,
       editable: ['title', 'items'],
     },
     {
-      key: 'testimonials',
-      type: 'testimonials',
+      key: 'features',
+      type: 'feature-grid',
+      order: 5,
+      hideable: true,
+      editable: ['headline', 'body', 'items'],
+    },
+    {
+      key: 'team',
+      type: 'team',
       order: 6,
       hideable: true,
       editable: ['headline', 'body', 'items'],
     },
-    { key: 'faq', type: 'faq', order: 7, hideable: true, editable: ['headline', 'body', 'items'] },
+    {
+      key: 'testimonials',
+      type: 'testimonials',
+      order: 7,
+      hideable: true,
+      editable: ['headline', 'body', 'items'],
+    },
+    { key: 'faq', type: 'faq', order: 8, hideable: true, editable: ['headline', 'body', 'items'] },
     {
       key: 'footer',
       type: 'studio-contact',
-      order: 8,
+      order: 9,
       hideable: false,
       editable: ['headline', 'body', 'cta'],
     },
@@ -67,6 +81,10 @@ export const studioSchema: TemplateSchema = {
 }
 
 export const studioStarterContent: PageContent = {
+  browser: {
+    title: studioTitle,
+    faviconUrl: DEFAULT_PAGE_FAVICON_URL,
+  },
   nav: {
     brand: 'Fieldnote',
     links: [{ label: 'Start a project', url: '#contact' }],
@@ -116,54 +134,54 @@ export const studioStarterContent: PageContent = {
     ],
   },
   services: {
-    title: 'Selected work',
-    body: '',
+    title: 'What we do',
+    body: 'Three ways in, depending on how much of the problem is already solved.',
     items: [
       {
-        id: 'northbound',
-        label: 'Northbound',
-        headline: 'A logistics company that finally looks like the future it sells.',
+        id: 'strategy',
+        label: 'Strategy',
+        headline: 'Positioning, before anything gets designed.',
         description:
-          'Full rebrand and digital platform for a 40-year-old freight company entering a new market.',
+          'Who you’re for, what you’re actually selling, and the one thing competitors can’t say. Two weeks, one document, no deck theater.',
         media: {
           url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&q=80&w=1600',
-          alt: 'Northbound brand work',
+          alt: 'Strategy workshop with sticky notes and whiteboards',
         },
-        cta: { label: 'View case study', url: '#' },
+        cta: { label: 'Start with strategy', url: '#contact' },
       },
       {
-        id: 'halcyon',
-        label: 'Halcyon',
-        headline: 'From spreadsheet to seed round.',
+        id: 'identity',
+        label: 'Identity',
+        headline: 'A system, not a logo file.',
         description:
-          'Identity, pitch narrative, and product design for a fintech startup’s first 100 customers.',
+          'Mark, type, color, and voice — built to survive a hundred people using it without you in the room.',
         media: {
           url: 'https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&q=80&w=1600',
-          alt: 'Halcyon brand work',
+          alt: 'Brand identity type and color proofs',
         },
-        cta: { label: 'View case study', url: '#' },
+        cta: { label: 'See identity work', url: '#contact' },
       },
       {
-        id: 'ledger',
-        label: 'Ledger & Co.',
-        headline: 'A century-old firm, told honestly.',
+        id: 'digital',
+        label: 'Digital',
+        headline: 'The site and product, built by the same team.',
         description:
-          'Repositioning and visual identity for a family accounting practice’s next generation.',
+          'No handoff between the brand studio and the build team — one team, so nothing gets lost in translation.',
         media: {
           url: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&q=80&w=1600',
-          alt: 'Ledger & Co. brand work',
+          alt: 'Digital product design on a laptop screen',
         },
-        cta: { label: 'View case study', url: '#' },
+        cta: { label: 'See digital work', url: '#contact' },
       },
     ],
   },
   gallery: {
-    title: 'From the studio floor',
+    title: 'Selected work',
     items: [
       {
-        url: 'https://images.unsplash.com/photo-1600508773680-6b1c3b8a4a1e?auto=format&fit=crop&q=80&w=1200',
-        alt: 'Studio wall of type proofs',
-        caption: 'Type proofs, week one of a rebrand',
+        url: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&q=80&w=1200',
+        alt: 'Studio hallway and workspace',
+        caption: 'The studio, most Mondays',
       },
       {
         url: 'https://images.unsplash.com/photo-1541746972996-4e0b0f43e02a?auto=format&fit=crop&q=80&w=1200',
@@ -189,6 +207,39 @@ export const studioStarterContent: PageContent = {
         url: 'https://images.unsplash.com/photo-1497215842964-222b430dc094?auto=format&fit=crop&q=80&w=1200',
         alt: 'Team working around a table',
         caption: 'Studio, most Tuesdays',
+      },
+    ],
+  },
+  team: {
+    headline: 'Who you’ll actually work with',
+    body: 'A small studio on purpose — the people who pitch it are the people who make it.',
+    items: [
+      {
+        name: 'Jules Okonkwo',
+        role: 'Founder, Creative Director',
+        bio: 'Eleven years leading brand work for founder-led companies, previously at a 40-person agency she left to keep the client list small.',
+        media: {
+          url: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=800',
+          alt: 'Portrait of Jules Okonkwo',
+        },
+      },
+      {
+        name: 'Marcus Lindqvist',
+        role: 'Head of Strategy',
+        bio: 'Asks the harder questions first, so the design phase doesn’t have to answer them for the third time.',
+        media: {
+          url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=800',
+          alt: 'Portrait of Marcus Lindqvist',
+        },
+      },
+      {
+        name: 'Ada Reyes',
+        role: 'Senior Designer',
+        bio: 'Builds the systems that make a brand survivable past launch day — the part most studios skip.',
+        media: {
+          url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=800',
+          alt: 'Portrait of Ada Reyes',
+        },
       },
     ],
   },

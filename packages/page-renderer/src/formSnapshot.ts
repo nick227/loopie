@@ -14,6 +14,7 @@ export type FormSnapshot = {
     required: boolean
     options: unknown
     order: number
+    defaultValue: string | null
   }[]
 }
 
@@ -61,6 +62,7 @@ export async function snapshotForm(
       required: field.required,
       options: field.options,
       order: field.order,
+      defaultValue: field.defaultValue,
     })),
   }
 }

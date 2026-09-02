@@ -124,7 +124,7 @@ export function LandingPage() {
           affordance for this entity. A second one here would be exactly the duplicate chrome the
           Singleton/Collection/Entity grammar (docs/strategy/03-product-principles.md) argues
           against. */}
-      <div className="sticky top-14 z-20 border-y border-border bg-background/95 backdrop-blur-md">
+      <div className="sticky z-20 border-y border-border bg-background/95 backdrop-blur-md">
         <div className="mx-auto flex min-h-12 max-w-[900px] flex-wrap items-center gap-2 px-3 py-2 lg:flex-nowrap lg:px-0">
           <div className="flex min-w-[10rem] flex-1 items-center gap-1.5 lg:max-w-[13rem]">
             <input
@@ -136,7 +136,7 @@ export function LandingPage() {
               onBlur={() => {
                 if (!name.trim()) setName(page.name)
               }}
-              aria-label="Page title"
+              aria-label="Internal page name"
               maxLength={150}
               className="min-w-0 flex-1 truncate rounded-md border border-transparent bg-transparent px-1.5 py-1 text-sm font-semibold text-foreground hover:border-input-border focus:border-input-border focus:outline-none focus:ring-2 focus:ring-ring"
             />
@@ -167,33 +167,16 @@ export function LandingPage() {
             onChange={setTab}
           />
 
-          {tab === 'editor' ? (
-            <PageToolbar
-              templateId={templateId}
-              templateSchema={template?.schema}
-              theme={theme}
-              onTemplate={(id) => {
-                setTemplateId(id)
-                setDirty(true)
-              }}
-              onTheme={(next) => {
-                setTheme(next)
-                setDirty(true)
-              }}
-            />
-          ) : null}
-
           <div className="ml-auto flex shrink-0 items-center gap-1.5">
             <Button
               variant="outline"
-              size="icon"
-              className="h-8 w-8"
+              className="h-8 px-2"
               disabled={dirty}
               onClick={() => window.open(previewHref, '_blank', 'noopener,noreferrer')}
               aria-label="Preview draft"
               title={dirty ? 'Wait for changes to save before previewing' : 'Preview draft'}
             >
-              <Eye size={14} />
+              <Eye size={14} /> Preview
             </Button>
             <LandingPageShareMenu
               hostedUrl={page.hostedUrl ?? ''}
@@ -230,57 +213,83 @@ export function LandingPage() {
       )}
 
       {tab === 'editor' ? (
-        <>
-          {RICH_TEMPLATE_IDS.includes(templateId) ? (
-            <AdvancedTemplateRenderer
+        <div>
+          <div
+            role="toolbar"
+            aria-label="Page appearance"
+            className="flex min-h-10 items-center justify-center rounded-t-xl border border-b-0 border-input-border bg-muted/45 px-2 py-1"
+          >
+            <PageToolbar
               templateId={templateId}
-              content={content}
+              templateSchema={template?.schema}
               theme={theme}
-              layoutConfig={layoutConfig}
-              hasForm={Boolean(formId)}
-              formFields={fields}
-              submitLabel={submitLabel}
-              submissionCount={page.submissionCount}
-              onSlot={(slotGroup, next) => {
-                setContent((c) => ({ ...c, [slotGroup]: next }))
+              onTemplate={(id) => {
+                setTemplateId(id)
                 setDirty(true)
               }}
-              onFormFields={(next) => {
-                setFields(next)
+              onTheme={(next) => {
+                setTheme(next)
                 setDirty(true)
               }}
             />
-          ) : (
-            <PageCanvas
-              sections={sections}
-              content={content}
-              layoutConfig={layoutConfig}
-              theme={theme}
-              slots={slots}
-              hasForm={Boolean(formId)}
-              formFields={fields}
-              onFormFields={(next) => {
-                setFields(next)
-                setDirty(true)
-              }}
-              onSlots={(next) => {
-                setSlots(next)
-                setDirty(true)
-              }}
-              onSlot={(slotGroup, next) => {
-                setContent((c) => ({ ...c, [slotGroup]: next }))
-                setDirty(true)
-              }}
-              submitLabel={submitLabel}
-            />
-          )}
-        </>
+          </div>
+
+          <div className="[&>div]:rounded-t-none">
+            {RICH_TEMPLATE_IDS.includes(templateId) ? (
+              <AdvancedTemplateRenderer
+                templateId={templateId}
+                content={content}
+                theme={theme}
+                layoutConfig={layoutConfig}
+                hasForm={Boolean(formId)}
+                formFields={fields}
+                submitLabel={submitLabel}
+                submissionCount={page.submissionCount}
+                onSlot={(slotGroup, next) => {
+                  setContent((c) => ({ ...c, [slotGroup]: next }))
+                  setDirty(true)
+                }}
+                onFormFields={(next) => {
+                  setFields(next)
+                  setDirty(true)
+                }}
+              />
+            ) : (
+              <PageCanvas
+                sections={sections}
+                content={content}
+                layoutConfig={layoutConfig}
+                theme={theme}
+                slots={slots}
+                hasForm={Boolean(formId)}
+                formFields={fields}
+                onFormFields={(next) => {
+                  setFields(next)
+                  setDirty(true)
+                }}
+                onSlots={(next) => {
+                  setSlots(next)
+                  setDirty(true)
+                }}
+                onSlot={(slotGroup, next) => {
+                  setContent((c) => ({ ...c, [slotGroup]: next }))
+                  setDirty(true)
+                }}
+                submitLabel={submitLabel}
+              />
+            )}
+          </div>
+        </div>
       ) : tab === 'content' ? (
         <div className="mx-auto w-full max-w-[900px]">
           <ContentView
             content={content}
             sections={sections}
             layoutConfig={layoutConfig}
+            onBrowserSettings={(next) => {
+              setContent((c) => ({ ...c, browser: next }))
+              setDirty(true)
+            }}
             onSlot={(slotGroup, next) => {
               setContent((c) => ({ ...c, [slotGroup]: next }))
               setDirty(true)

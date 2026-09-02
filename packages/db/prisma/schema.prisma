@@ -146,6 +146,10 @@ model Business {
   riverFollowers         RiverFollow[]           @relation("RiverFollowFollowed")
   pinnedRiverPost        RiverPost?              @relation("BusinessPinnedRiverPost", fields: [pinnedRiverPostId], references: [id])
   riverComments          RiverComment[]          @relation("RiverCommentActor")
+
+  goalIdeaTemplates GoalIdeaTemplate[]
+  goalIdeaStates    GoalIdeaState[]
+  scheduledGoals    ScheduledGoal[]
 }
 
 enum UserRole {
@@ -1707,6 +1711,11 @@ model FormField {
   type      FormFieldType
   required  Boolean       @default(false)
   options   Json? // string[] of choices, used when type = SELECT
+  // The value source for type = HIDDEN — a fixed, business-configured value baked into the
+  // rendered <input type="hidden">. Hidden fields have no human to fill them in, so this is their
+  // only value contract; a required HIDDEN field with no defaultValue is rejected at publish time
+  // (see LandingPageService.publish) rather than silently producing a form no one can submit.
+  defaultValue String?
   order     Int           @default(0)
   createdAt DateTime      @default(now())
 
@@ -2874,4 +2883,198 @@ model EmbedProjectionOutbox {
   formSubmission FormSubmission? @relation(fields: [formSubmissionId], references: [id])
 
   @@index([businessId, status, nextAttemptAt])
+}
+
+// ---------- Calendar (goal-driven scheduling) ----------
+//
+// Product spirit: goal-driven business coaching, not project management. The lifecycle is
+// Idea -> Schedule -> Today/This Week -> Done. Two models carry that: GoalIdeaTemplate is
+// reusable suggestion *content* (system-authored, a future business-type pack, or a business's
+// own quickly-typed idea) — never hard-coded in the frontend, same "content model, not UI"
+// discipline as LandingPageTemplate. ScheduledGoal is the one concrete unit of work Calendar
+// owns once an idea is scheduled (or created directly, e.g. from a CRM "next action"). Calendar
+// owns intention/scheduling/estimated-effort/completion only — subjectType/subjectId is an
+// optional loose pointer at the object another feature already owns (Lead, LandingPage,
+// Advertisement, RiverPost); Calendar never copies that feature's own data in.
+enum GoalSubjectType {
+  GENERAL
+  CRM
+  ADVERTISEMENT
+  PAGE
+  RIVER
+  BUSINESS
+}
+
+// The classification from the product spec (action/outcome/maintenance/...) — deliberately
+// invisible in the initial UI, kept only so future surfacing (grouping, tone, iconography) has
+// something to key off without another migration.
+enum GoalIdeaType {
+  ACTION
+  OUTCOME
+  MAINTENANCE
+  CREATION
+  RELATIONSHIP
+  EXPERIMENT
+  REVIEW
+}
+
+// MANUAL: the user marks it done themselves (the POC default for almost everything). ENTITY_STATE
+// and COUNT are the architecture for automatic completion/progress — a real event elsewhere in
+// the product (a page publish, a logged CRM interaction) can close or advance the goal. Wired for
+// a first real vertical slice each (see CalendarService's completeByMetric); everything else stays
+// MANUAL until a given metric is worth automating.
+enum GoalTrackingType {
+  MANUAL
+  ENTITY_STATE
+  COUNT
+}
+
+enum ScheduledGoalStatus {
+  SCHEDULED
+  DONE
+  DISMISSED
+}
+
+// How this ScheduledGoal came to exist — analytics/debugging only, no branching logic reads it
+// beyond CRM_NEXT_ACTION (whose rows are identified by externalKey, not this field). WORKFLOW is
+// reserved for the not-yet-built sales-workflow engine described in the product spec, so a future
+// workflow step creating Calendar work is additive, not a schema change.
+enum ScheduledGoalSource {
+  IDEA_TEMPLATE
+  USER_CREATED
+  CRM_NEXT_ACTION
+  WORKFLOW
+}
+
+enum GoalEventType {
+  CREATED
+  SCHEDULED
+  RESCHEDULED
+  COMPLETED
+  DISMISSED
+  REMINDER_SENT
+  PROGRESS_UPDATED
+}
+
+model GoalIdeaTemplate {
+  id         String  @id @default(cuid())
+  // Null = system-authored, offered to every business (subject to businessTypes targeting below).
+  // Set = a business's own quickly-typed idea ("+ Add idea") — same model, same idea-pool/
+  // schedule/dismiss plumbing, just not reusable across tenants. Mirrors
+  // LandingPageTemplate.businessId's nullable-means-system convention.
+  businessId String?
+  isSystem   Boolean @default(true)
+  title      String
+  ideaType   GoalIdeaType    @default(ACTION)
+  subjectType GoalSubjectType @default(GENERAL)
+  // Freeform string[] of industry keywords (e.g. ["auto", "detailing"]), loosely matched
+  // case-insensitively against Business.industry — that field is itself freeform (see its own
+  // schema comment), so a controlled vocabulary here would be enforcing a taxonomy that doesn't
+  // exist yet. Null/empty = universal, offered to every business regardless of industry.
+  businessTypes Json?
+  defaultHorizon         String? // "TODAY" | "THIS_WEEK" | "NEXT_WEEK" — only ever prefills the schedule popover, never persisted as-is on the resulting ScheduledGoal (see that model's own comment on why horizon isn't stored)
+  defaultEstimateMinutes Int?
+  trackingType GoalTrackingType @default(MANUAL)
+  // Interpreted by CalendarService's fixed switch (e.g. "PAGE_PUBLISHED", "QUALIFIED_LEAD_FOLLOWUPS")
+  // — a plain string catalog key, not a formula language, matching this schema's existing
+  // discipline of small interpreted-string fields (Interaction.metadata, AutomationLog outcome).
+  metricKey      String?
+  targetValue    Int?
+  priorityWeight Int     @default(0)
+  // Freeform, e.g. "Q4", "SPRING" — advisory only; nothing enforces or filters on it yet, kept so
+  // a future seasonal-campaign publishing pass can populate it without a migration.
+  seasonality    String?
+  // Bumped when a system template's copy/behavior changes materially, so ensureSystemGoalIdeaTemplates
+  // can tell "content updated" apart from "business edited their own idea" — mirrors
+  // LandingPageTemplate.formatVersion's role.
+  contentVersion Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  business  Business?                @relation(fields: [businessId], references: [id])
+  states    GoalIdeaState[]
+  goals     ScheduledGoal[]
+
+  @@index([businessId])
+}
+
+// Per-business memory of a template's disposition — kept separate from the ScheduledGoal a user
+// eventually creates from it (per the product spec: "keep template identity separate from the
+// user's resulting scheduled task"), so re-dismissing after completing a recurring idea again
+// ("Ask 3 customers for reviews") is a fresh decision, not blocked by history.
+model GoalIdeaState {
+  id          String    @id @default(cuid())
+  businessId  String
+  templateId  String
+  dismissedAt DateTime?
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  business Business         @relation(fields: [businessId], references: [id])
+  template GoalIdeaTemplate @relation(fields: [templateId], references: [id])
+
+  @@unique([businessId, templateId])
+}
+
+model ScheduledGoal {
+  id               String              @id @default(cuid())
+  businessId       String
+  title            String
+  source           ScheduledGoalSource
+  sourceTemplateId String?
+  // Idempotency key for system-mirrored goals only, e.g. "crm-next-action:<leadId>" — lets
+  // LeadService upsert the Calendar-visible mirror of Lead.nextActionAt without a lookup race, the
+  // same nullable-unique-with-MySQL-null-distinctness trick already used on Sale.idempotencyKey
+  // and InboxThread's compound uniques. Rows created any other way leave this null.
+  externalKey   String?
+  subjectType   GoalSubjectType  @default(GENERAL)
+  subjectId     String?
+  trackingType  GoalTrackingType @default(MANUAL)
+  metricKey     String?
+  targetValue   Int?
+  // Only meaningful (and hand-updated) for trackingType=MANUAL; ENTITY_STATE/COUNT progress is
+  // always computed live from real data at read time (see CalendarService), never trusted from a
+  // stored column that could drift.
+  currentValue    Int?
+  estimateMinutes Int?
+  // Deliberately no stored `horizon` enum: "Today"/"This week"/"Next week" are resolved to a
+  // concrete scheduledFor at schedule time and re-bucketed against `now` on every read, so an item
+  // scheduled for "next week" correctly slides into "this week" as the calendar actually turns
+  // over — a static label would need its own rollover job to do the same thing correctly.
+  scheduledFor DateTime?
+  // Optional "HH:mm" local time-of-day, kept separate from the date above — most quick-scheduled
+  // ideas have no specific time and should never render one; a CRM callback or a "Pick date" entry
+  // that does give a time renders it and is the only thing the reminder poller fires a
+  // time-precise notification for.
+  scheduledTime  String?
+  completedAt    DateTime?
+  dismissedAt    DateTime?
+  status         ScheduledGoalStatus @default(SCHEDULED)
+  // Set once the due-time reminder has fired so the poller never sends it twice.
+  reminderSentAt DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  business Business          @relation(fields: [businessId], references: [id])
+  template GoalIdeaTemplate? @relation(fields: [sourceTemplateId], references: [id])
+  events   GoalEvent[]
+
+  @@unique([businessId, externalKey])
+  @@index([businessId, status, scheduledFor])
+  @@index([subjectType, subjectId])
+  @@index([sourceTemplateId])
+}
+
+// Append-only audit trail for a ScheduledGoal — mirrors AutomationLog's role for Automation.
+model GoalEvent {
+  id         String        @id @default(cuid())
+  goalId     String
+  type       GoalEventType
+  occurredAt DateTime      @default(now())
+  metadata   Json?
+
+  goal ScheduledGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId, occurredAt])
 }

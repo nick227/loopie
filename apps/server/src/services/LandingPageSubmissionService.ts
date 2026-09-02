@@ -12,6 +12,10 @@ export class LandingPageSubmissionService {
       sessionId?: string
       idempotencyKey: string
       embedInstanceId?: string
+      // The PublishedPageVersion the visitor's page was actually rendered from (sent by the
+      // hosted page's own submit script — see renderFormHtml). Optional for back-compat with
+      // exported/downloaded HTML and any direct API caller that predates this field.
+      publishedVersionId?: string
       data: Record<string, unknown>
       utmSource?: string
       utmMedium?: string
@@ -27,36 +31,13 @@ export class LandingPageSubmissionService {
       where: { id: landingPageId },
       include: { publishedVersion: true },
     })
-    if (!page || page.deletedAt || page.status !== 'PUBLISHED' || !page.publishedVersion) {
+    if (!page || page.deletedAt) {
       throw { statusCode: 404, message: 'Landing page not found' }
     }
 
-    if (!(await isFormLive(db, page.publishedVersion.formId))) {
-      throw { statusCode: 409, message: 'This landing page has no form configured' }
-    }
-    const form: FormSnapshot | null =
-      (page.publishedVersion.formSnapshot as unknown as FormSnapshot | null) ??
-      (await snapshotForm(db, page.publishedVersion.formId))
-    if (!form) {
-      throw { statusCode: 409, message: 'This landing page has no form configured' }
-    }
-
-    const validatedData: Record<string, unknown> = {}
-    for (const field of form.fields) {
-      const value = input.data[field.fieldKey]
-      if (
-        field.required &&
-        (value === undefined || value === null || String(value).trim() === '')
-      ) {
-        throw { statusCode: 400, message: `Missing required field: ${field.fieldKey}` }
-      }
-      if (value !== undefined) {
-        validatedData[field.fieldKey] = value
-      }
-    }
-
+    let instance: { id: string; embedDeploymentId: string; versionId: string } | null = null
     if (input.embedInstanceId) {
-      const instance = await db.embedInstance.findUnique({ where: { id: input.embedInstanceId } })
+      instance = await db.embedInstance.findUnique({ where: { id: input.embedInstanceId } })
       if (!instance) throw { statusCode: 400, message: 'Invalid embed instance' }
 
       const deployment = await db.embedDeployment.findUnique({
@@ -64,6 +45,51 @@ export class LandingPageSubmissionService {
       })
       if (!deployment || deployment.landingPageId !== page.id) {
         throw { statusCode: 400, message: 'Instance does not belong to this page deployment' }
+      }
+    }
+
+    // Pin validation/rendering to the exact version the visitor actually has loaded — the embed
+    // instance's own versionId takes precedence (it's the authoritative record of what was
+    // rendered into that embed), then the hosted page's self-reported publishedVersionId, and
+    // only falling back to "whatever's live right now" for callers that predate this field. This
+    // is what makes the frozen-formSnapshot immutability model (see formSnapshot.ts) hold even
+    // when a republish happens while the visitor is still mid-form: their submission is judged
+    // against what they saw, not against a version they never rendered.
+    const pinnedVersionId = instance?.versionId ?? input.publishedVersionId
+    const version = pinnedVersionId
+      ? await db.publishedPageVersion.findFirst({
+          where: { id: pinnedVersionId, landingPageId: page.id },
+        })
+      : page.status === 'PUBLISHED'
+        ? page.publishedVersion
+        : null
+    if (!version) {
+      throw { statusCode: 404, message: 'Landing page not found' }
+    }
+
+    if (!(await isFormLive(db, version.formId))) {
+      throw { statusCode: 409, message: 'This landing page has no form configured' }
+    }
+    const form: FormSnapshot | null =
+      (version.formSnapshot as unknown as FormSnapshot | null) ??
+      (await snapshotForm(db, version.formId))
+    if (!form) {
+      throw { statusCode: 409, message: 'This landing page has no form configured' }
+    }
+
+    const validatedData: Record<string, unknown> = {}
+    for (const field of form.fields) {
+      const value = input.data[field.fieldKey]
+      // value === false covers an explicitly-unchecked CHECKBOX field — the client now sends a
+      // real boolean for these (see renderFormHtml) rather than omitting the key.
+      if (
+        field.required &&
+        (value === undefined || value === null || value === false || String(value).trim() === '')
+      ) {
+        throw { statusCode: 400, message: `Missing required field: ${field.fieldKey}` }
+      }
+      if (value !== undefined) {
+        validatedData[field.fieldKey] = value
       }
     }
 
@@ -117,7 +143,7 @@ export class LandingPageSubmissionService {
           businessId: page.businessId,
           formId: form.id,
           landingPageId: page.id,
-          publishedPageVersionId: page.publishedVersionId,
+          publishedPageVersionId: version.id,
           data: validatedData as Prisma.InputJsonValue,
           sessionId,
           idempotencyKey: input.idempotencyKey,

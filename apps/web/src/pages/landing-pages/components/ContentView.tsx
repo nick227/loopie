@@ -10,6 +10,7 @@ import {
   SECTION_TYPE_TO_SLOT_GROUP,
   type GalleryItem,
   type LayoutConfig,
+  type PageBrowserSettings,
   type PageContent,
   type SlotGroupKey,
   type TemplateSection,
@@ -32,6 +33,9 @@ const SLOT_GROUP_LABELS: Record<SlotGroupKey, string> = {
   features: 'Features',
   services: 'Services',
   gallery: 'Gallery',
+  team: 'Team',
+  products: 'Products',
+  categories: 'Categories',
   testimonials: 'Testimonials',
   faq: 'FAQ',
   logos: 'Logos',
@@ -63,6 +67,7 @@ const SLOT_GROUP_FIELDS: Record<SlotGroupKey, FieldSpec[]> = {
   intro: [
     { key: 'headline', label: 'Headline', kind: 'text' },
     { key: 'body', label: 'Body', kind: 'richtext' },
+    { key: 'media', label: 'Media', kind: 'media' },
   ],
   media: [{ key: 'url', label: 'Media URL', kind: 'text' }],
   webinar: [
@@ -104,6 +109,46 @@ const SLOT_GROUP_FIELDS: Record<SlotGroupKey, FieldSpec[]> = {
   gallery: [
     { key: 'title', label: 'Title', kind: 'text' },
     { key: 'items', label: 'Photos', kind: 'gallery' },
+  ],
+  team: [
+    { key: 'headline', label: 'Headline', kind: 'text' },
+    { key: 'body', label: 'Body', kind: 'richtext' },
+    {
+      key: 'items',
+      label: 'People',
+      kind: 'list',
+      itemFields: [
+        { key: 'name', label: 'Name', kind: 'text' },
+        { key: 'role', label: 'Role', kind: 'text' },
+        { key: 'bio', label: 'Bio', kind: 'text' },
+      ],
+    },
+  ],
+  products: [
+    { key: 'headline', label: 'Headline', kind: 'text' },
+    { key: 'body', label: 'Body', kind: 'richtext' },
+    {
+      key: 'items',
+      label: 'Products',
+      kind: 'list',
+      itemFields: [
+        { key: 'name', label: 'Name', kind: 'text' },
+        { key: 'price', label: 'Price', kind: 'text' },
+        { key: 'badge', label: 'Badge', kind: 'text' },
+      ],
+    },
+  ],
+  categories: [
+    { key: 'headline', label: 'Headline', kind: 'text' },
+    {
+      key: 'items',
+      label: 'Categories',
+      kind: 'list',
+      itemFields: [
+        { key: 'label', label: 'Label', kind: 'text' },
+        { key: 'url', label: 'URL', kind: 'text' },
+      ],
+    },
   ],
   testimonials: [
     { key: 'headline', label: 'Headline', kind: 'text' },
@@ -402,12 +447,14 @@ export function ContentView({
   content,
   sections,
   layoutConfig,
+  onBrowserSettings,
   onSlot,
   onLayoutConfig,
 }: {
   content: PageContent
   sections: TemplateSection[]
   layoutConfig: LayoutConfig
+  onBrowserSettings: (next: PageBrowserSettings) => void
   onSlot: (slotGroup: SlotGroupKey, next: unknown) => void
   onLayoutConfig: (next: LayoutConfig) => void
 }) {
@@ -423,10 +470,6 @@ export function ContentView({
     return enabledGroups.has(group) || hasData
   })
 
-  if (visibleGroups.length === 0) {
-    return <p className="text-sm text-muted-foreground">This page has no content yet.</p>
-  }
-
   function toggleVisibility(sectionKey: string) {
     const current = layoutConfig.sections?.[sectionKey] ?? {}
     onLayoutConfig({
@@ -437,6 +480,31 @@ export function ContentView({
 
   return (
     <div className="grid grid-cols-1 gap-3">
+      <div className="self-start rounded-xl border border-input-border bg-card p-3.5">
+        <div className="mb-2.5">
+          <p className="text-sm font-semibold text-foreground">Browser</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            Used in the browser tab and bookmarks for every layout.
+          </p>
+        </div>
+        <div className="space-y-2.5">
+          <TextField
+            label="Page title"
+            value={content.browser?.title ?? ''}
+            disabled={false}
+            onChange={(title) => onBrowserSettings({ ...content.browser, title })}
+          />
+          <TextField
+            label="Favicon URL"
+            value={content.browser?.faviconUrl ?? ''}
+            disabled={false}
+            onChange={(faviconUrl) => onBrowserSettings({ ...content.browser, faviconUrl })}
+          />
+        </div>
+      </div>
+      {visibleGroups.length === 0 ? (
+        <p className="text-sm text-muted-foreground">This page has no section content yet.</p>
+      ) : null}
       {visibleGroups.map((group) => {
         const enabled = enabledGroups.has(group)
         const section = sectionByGroup.get(group)

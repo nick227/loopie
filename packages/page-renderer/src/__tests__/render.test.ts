@@ -62,4 +62,40 @@ describe('renderLandingPageHtml', () => {
     expect(html).toContain('https://example.com/hero.jpg')
     expect(html).toContain('The advantage')
   })
+
+  it('renders layout-independent page title and favicon settings', () => {
+    const html = renderLandingPageHtml({
+      pageName: 'Internal campaign name',
+      templateSchema: { sections: [] },
+      content: {
+        browser: {
+          title: 'Customer-facing title & offer',
+          faviconUrl: 'https://cdn.example.com/icon.png?size=32&theme=dark',
+        },
+      },
+      theme: {},
+      form: null,
+      submitActionUrl: '/submit',
+    })
+
+    expect(html).toContain('<title>Customer-facing title &amp; offer</title>')
+    expect(html).toContain(
+      '<link rel="icon" href="https://cdn.example.com/icon.png?size=32&amp;theme=dark" />',
+    )
+    expect(html).not.toContain('<title>Internal campaign name</title>')
+  })
+
+  it('uses browser metadata defaults for existing pages', () => {
+    const html = renderLandingPageHtml({
+      pageName: 'Existing page',
+      templateSchema: { sections: [] },
+      content: {},
+      theme: {},
+      form: null,
+      submitActionUrl: '/submit',
+    })
+
+    expect(html).toContain('<title>Existing page</title>')
+    expect(html).toContain('<link rel="icon" href="/favicon.png" />')
+  })
 })

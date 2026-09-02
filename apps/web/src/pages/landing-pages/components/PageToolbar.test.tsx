@@ -6,7 +6,7 @@ import { PageToolbar } from './PageToolbar'
 vi.mock('@project/sdk', () => ({ useLandingPageTemplates: vi.fn() }))
 
 describe('PageToolbar', () => {
-  it('keeps layout and theme controls inside the Appearance disclosure', () => {
+  it('keeps layout and theme visible as separate compact controls', () => {
     vi.mocked(useLandingPageTemplates).mockReturnValue({
       data: {
         pages: [
@@ -32,34 +32,15 @@ describe('PageToolbar', () => {
       />,
     )
 
-    expect(screen.queryByRole('dialog', { name: 'Page appearance' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Appearance/ }))
-    expect(screen.getByRole('dialog', { name: 'Page appearance' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Layout')).toHaveValue('studio')
+    expect(screen.getByLabelText('Theme')).toHaveValue('carbon')
+    expect(screen.getByText('Layout')).toBeInTheDocument()
+    expect(screen.getByText('Theme')).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('Layout'), { target: { value: 'webinar' } })
     expect(onTemplate).toHaveBeenCalledWith('webinar')
 
     fireEvent.change(screen.getByLabelText('Theme'), { target: { value: 'shopfront' } })
     expect(onTheme).toHaveBeenCalledWith(expect.objectContaining({ presetId: 'shopfront' }))
-  })
-
-  it('closes the disclosure with Escape', () => {
-    vi.mocked(useLandingPageTemplates).mockReturnValue({
-      data: { pages: [{ data: [{ id: 'studio', name: 'Studio' }] }] },
-    } as unknown as ReturnType<typeof useLandingPageTemplates>)
-
-    render(
-      <PageToolbar
-        templateId="studio"
-        templateSchema={undefined}
-        theme={{}}
-        onTemplate={vi.fn()}
-        onTheme={vi.fn()}
-      />,
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: /Appearance/ }))
-    fireEvent.keyDown(window, { key: 'Escape' })
-    expect(screen.queryByRole('dialog', { name: 'Page appearance' })).not.toBeInTheDocument()
   })
 })

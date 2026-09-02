@@ -81,6 +81,7 @@ export class LandingPageRenderService {
         form,
         submitActionUrl: landingPageSubmitUrl(page.id),
         sessionToken: visitor.token,
+        publishedVersionId: page.publishedVersion.id,
         adSlots,
         runtimeScriptUrl: `${PUBLIC_SERVER_URL}/loopie.js`,
         businessId: page.businessId,

@@ -1,5 +1,5 @@
 import type { TemplateSchema } from '../leadGenTemplate'
-import type { PageContent } from '../content'
+import { DEFAULT_PAGE_FAVICON_URL, type PageContent } from '../content'
 
 export const SYSTEM_CORPORATE_PROFESSIONAL_TEMPLATE_ID = 'system-template-corporate-professional'
 
@@ -54,11 +54,15 @@ export const corporateProfessionalSchema: TemplateSchema = {
       editable: ['headline', 'body', 'items'],
     },
     { key: 'faq', type: 'faq', order: 7, hideable: true, editable: ['headline', 'body', 'items'] },
+    // Real lead capture, not a dead cta-band link — mirrors studio.ts's own 'footer' section.
+    // Every nav/hero/footer CTA in this template's starter content already points at #contact
+    // (studio-contact is the one section type that renders that id and the attached Form), so no
+    // starter-content href changes were needed alongside this section-type swap.
     {
       key: 'footer',
-      type: 'cta-band',
+      type: 'studio-contact',
       order: 8,
-      hideable: true,
+      hideable: false,
       editable: ['headline', 'body', 'cta'],
     },
   ],
@@ -66,6 +70,10 @@ export const corporateProfessionalSchema: TemplateSchema = {
 }
 
 export const corporateProfessionalStarterContent: PageContent = {
+  browser: {
+    title: corporateProfessionalTitle,
+    faviconUrl: DEFAULT_PAGE_FAVICON_URL,
+  },
   nav: {
     brand: 'Nexus',
     links: [

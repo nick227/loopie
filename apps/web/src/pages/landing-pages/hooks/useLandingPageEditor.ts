@@ -11,6 +11,7 @@ import {
 } from '@project/sdk'
 import {
   normalizeLegacyPageContent,
+  DEFAULT_PAGE_FAVICON_URL,
   type PageContent,
   type LayoutConfig,
   type TemplateSection,
@@ -25,6 +26,7 @@ function toDrafts(
     type: string
     required: boolean
     options?: unknown
+    defaultValue?: string | null
   }[],
 ): FormFieldDraft[] {
   return fields.map((field) => ({
@@ -33,6 +35,7 @@ function toDrafts(
     type: field.type as FormFieldDraft['type'],
     required: field.required,
     options: Array.isArray(field.options) ? field.options.map(String).join(', ') : '',
+    defaultValue: field.defaultValue ?? '',
   }))
 }
 
@@ -50,6 +53,7 @@ function toApiFields(fields: FormFieldDraft[]) {
             .map((s) => s.trim())
             .filter(Boolean)
         : undefined,
+    defaultValue: field.type === 'HIDDEN' ? (field.defaultValue ?? '') : undefined,
   }))
 }
 
@@ -103,7 +107,14 @@ export function useLandingPageEditor() {
     hydratedPageId.current = page.id
     setName(page.name)
     setPublishPending(page.status !== 'PUBLISHED')
-    setContent(normalizeLegacyPageContent(page.content))
+    const normalizedContent = normalizeLegacyPageContent(page.content)
+    setContent({
+      ...normalizedContent,
+      browser: {
+        title: normalizedContent.browser?.title ?? page.name,
+        faviconUrl: normalizedContent.browser?.faviconUrl ?? DEFAULT_PAGE_FAVICON_URL,
+      },
+    })
     setLayoutConfig((page.layoutConfig as LayoutConfig | null) ?? {})
     setTheme((page.theme as Record<string, string> | null) ?? {})
     setFormId(page.formId ?? '')

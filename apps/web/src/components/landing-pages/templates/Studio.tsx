@@ -16,6 +16,7 @@ import type {
   MetricItem,
   FeatureItem,
   GalleryItem,
+  TeamMemberItem,
   NavLink,
 } from '../../../pages/landing-pages/components/types'
 
@@ -854,6 +855,141 @@ function GallerySection({ content, editable, onChange }: SectionProps<'gallery'>
   )
 }
 
+// --- About/Team — plain portrait grid, left-aligned captions, no card chrome -------------------
+
+function TeamSection({ content, editable, onChange }: SectionProps<'team'>) {
+  const items = content?.items ?? []
+  function updateItem(i: number, patch: Partial<TeamMemberItem>) {
+    onChange({ items: items.map((row, idx) => (idx === i ? { ...row, ...patch } : row)) })
+  }
+
+  if (!items.length && !editable) return null
+
+  return (
+    <section className="border-t py-24" style={{ borderColor: ink(12) }}>
+      <div className="mx-auto max-w-6xl px-6 lg:px-8">
+        <div className="mb-14 max-w-xl">
+          {editable ? (
+            <>
+              <CanvasText
+                as="h2"
+                ariaLabel="Team headline"
+                value={content?.headline ?? ''}
+                onChange={(headline) => onChange({ headline })}
+                style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
+                className="text-4xl font-bold tracking-tight sm:text-5xl mb-3"
+              />
+              <CanvasText
+                ariaLabel="Team body"
+                value={content?.body ?? ''}
+                onChange={(body) => onChange({ body })}
+                multiline
+                style={{ color: ink(65) }}
+                className="text-lg"
+              />
+            </>
+          ) : (
+            <>
+              <h2
+                className="text-4xl font-bold tracking-tight sm:text-5xl mb-3"
+                style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
+              >
+                {content?.headline}
+              </h2>
+              <p className="text-lg" style={{ color: ink(65) }}>
+                {content?.body}
+              </p>
+            </>
+          )}
+        </div>
+        <div className="grid gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
+          {items.map((member, i) => (
+            <div key={i} className="group relative">
+              {editable ? (
+                <MediaSlotField
+                  kind="IMAGE"
+                  urlMode
+                  fallbackUrl={member.media?.url}
+                  onUrlChange={(url) => updateItem(i, { media: { ...member.media, url } })}
+                />
+              ) : member.media?.url ? (
+                <img
+                  src={member.media.url}
+                  alt={member.media.alt ?? member.name}
+                  className="mb-4 aspect-[3/4] w-full object-cover"
+                />
+              ) : (
+                <div className="mb-4 aspect-[3/4] w-full" style={{ backgroundColor: ink(6) }} />
+              )}
+              {editable ? (
+                <CanvasText
+                  as="h3"
+                  ariaLabel={`Team member ${i + 1} name`}
+                  value={member.name}
+                  onChange={(name) => updateItem(i, { name })}
+                  style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
+                  className="text-lg font-semibold"
+                />
+              ) : (
+                <h3
+                  className="text-lg font-semibold"
+                  style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
+                >
+                  {member.name}
+                </h3>
+              )}
+              {editable ? (
+                <CanvasText
+                  ariaLabel={`Team member ${i + 1} role`}
+                  value={member.role ?? ''}
+                  onChange={(role) => updateItem(i, { role })}
+                  className="mt-0.5 text-sm"
+                  style={{ color: ink(60) }}
+                />
+              ) : member.role ? (
+                <p className="mt-0.5 text-sm" style={{ color: ink(60) }}>
+                  {member.role}
+                </p>
+              ) : null}
+              {editable ? (
+                <CanvasText
+                  ariaLabel={`Team member ${i + 1} bio`}
+                  value={member.bio ?? ''}
+                  onChange={(bio) => updateItem(i, { bio })}
+                  multiline
+                  className="mt-2 text-sm leading-relaxed"
+                  style={{ color: ink(65) }}
+                />
+              ) : member.bio ? (
+                <p className="mt-2 text-sm leading-relaxed" style={{ color: ink(65) }}>
+                  {member.bio}
+                </p>
+              ) : null}
+              {editable ? (
+                <button
+                  type="button"
+                  onClick={() => onChange({ items: items.filter((_, idx) => idx !== i) })}
+                  aria-label="Remove"
+                  className="absolute right-0 top-0 text-xs opacity-0 group-hover:opacity-100"
+                  style={{ color: ink(45) }}
+                >
+                  ×
+                </button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+        {editable ? (
+          <AddRow
+            label="Add person"
+            onClick={() => onChange({ items: [...items, { name: 'New team member' }] })}
+          />
+        ) : null}
+      </div>
+    </section>
+  )
+}
+
 // --- Testimonials — one huge pull-quote at a time, paged, not another divided list --------------
 
 function TestimonialsSection({ content, editable, onChange }: SectionProps<'testimonials'>) {
@@ -1250,13 +1386,6 @@ export function Studio({
           onChange={(patch) => slotChange('metrics', patch)}
         />
       )}
-      {!isHidden('features') && (
-        <FeatureListSection
-          content={c.features}
-          editable={editable}
-          onChange={(patch) => slotChange('features', patch)}
-        />
-      )}
       {!isHidden('services') && (
         <ServiceSelectorSection
           content={c.services}
@@ -1269,6 +1398,20 @@ export function Studio({
           content={c.gallery}
           editable={editable}
           onChange={(patch) => slotChange('gallery', patch)}
+        />
+      )}
+      {!isHidden('features') && (
+        <FeatureListSection
+          content={c.features}
+          editable={editable}
+          onChange={(patch) => slotChange('features', patch)}
+        />
+      )}
+      {!isHidden('team') && (
+        <TeamSection
+          content={c.team}
+          editable={editable}
+          onChange={(patch) => slotChange('team', patch)}
         />
       )}
       {!isHidden('testimonials') && (

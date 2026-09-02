@@ -6,7 +6,12 @@ export {
 } from './pageThemes'
 export type { PageThemePreset } from './pageThemes'
 import { PAGE_THEME_PRESETS } from './pageThemes'
-import { SECTION_TYPE_TO_SLOT_GROUP, type LayoutConfig, type PageContent } from './content'
+import {
+  DEFAULT_PAGE_FAVICON_URL,
+  SECTION_TYPE_TO_SLOT_GROUP,
+  type LayoutConfig,
+  type PageContent,
+} from './content'
 
 export const SYSTEM_LEAD_GEN_TEMPLATE_ID = 'system-template-lead-gen'
 export const SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID = 'system-template-lead-gen-media'
@@ -82,7 +87,8 @@ export type TemplateSectionDef = {
 
 export type TemplateSchema = {
   /** Stable visual renderer identity, frozen into PublishedPageVersion.schemaSnapshot. */
-  renderer?: 'standard' | 'corporate-professional' | 'webinar-signup' | 'studio'
+  renderer?:
+    'standard' | 'corporate-professional' | 'webinar-signup' | 'studio' | 'portfolio' | 'store'
   sections?: TemplateSectionDef[]
   themeTokens?: string[]
   themePresets?: typeof PAGE_THEME_PRESETS
@@ -105,7 +111,9 @@ export function starterContentForTemplate(
       .map((section) => SECTION_TYPE_TO_SLOT_GROUP[section.type])
       .filter((slot): slot is NonNullable<typeof slot> => !!slot),
   )
-  const content: PageContent = {}
+  const content: PageContent = {
+    browser: { title: businessName, faviconUrl: DEFAULT_PAGE_FAVICON_URL },
+  }
   if (slotGroups.has('hero')) {
     const isSplit = (schema.sections ?? []).some((s) => s.type === 'split-capture')
     content.hero = isSplit

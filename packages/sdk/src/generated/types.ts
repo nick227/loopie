@@ -4895,8 +4895,18 @@ export interface components {
       utmMedium?: string
       utmCampaign?: string
       utmContent?: string
+      utmTerm?: string
       idempotencyKey: string
       embedInstanceId?: string
+      /**
+       * @description The PublishedPageVersion id the visitor's page was actually rendered from (embedded by
+       *     the hosted page's own submit script). When present, submission is validated against
+       *     this exact frozen version rather than whichever version is currently live, so a
+       *     republish that happens while the visitor is mid-form doesn't invalidate or
+       *     misvalidate their in-flight submission. Omitted by legacy/exported HTML and falls back
+       *     to the page's current published version.
+       */
+      publishedVersionId?: string
     }
     SubmitLandingPageFormResult: {
       submissionId: string
@@ -4915,6 +4925,12 @@ export interface components {
       options?: string[] | null
       /** @default 0 */
       order: number
+      /**
+       * @description Fixed value baked into the rendered form for type = HIDDEN — hidden fields have no
+       *     human to fill them in, so this is their only value source. A required HIDDEN field
+       *     published with no defaultValue is rejected at publish time.
+       */
+      defaultValue?: string | null
     }
     Form: {
       id: string

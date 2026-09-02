@@ -19,6 +19,7 @@ type RenderFormField = {
   type: string
   required: boolean
   options: unknown
+  defaultValue?: string | null
 }
 
 export type RenderForm = {
@@ -323,6 +324,94 @@ export function renderSection(
         })
         .join('')
       return `<section class="lp-section lp-gallery">${title}<div class="lp-gallery-grid">${tiles}</div></section>`
+    }
+    case 'team': {
+      const items = Array.isArray(c.items)
+        ? (c.items as {
+            name: string
+            role?: string
+            bio?: string
+            media?: { url?: string; src?: string; alt?: string }
+          }[])
+        : []
+      if (!items.length) return ''
+      const headline = c.headline ? `<h2>${escapeHtml(c.headline)}</h2>` : ''
+      const body = c.body ? `<p class="lp-section-intro">${escapeHtml(c.body)}</p>` : ''
+      const rows = items
+        .map((item) => {
+          const src = safeHttpUrl(item.media?.src) || safeHttpUrl(item.media?.url)
+          const photo = src
+            ? `<img src="${escapeHtml(src)}" alt="${escapeHtml(item.media?.alt ?? item.name)}" />`
+            : `<div class="lp-team-photo-empty"></div>`
+          return `<div class="lp-team-member">${photo}<h3>${escapeHtml(item.name)}</h3>${item.role ? `<p class="lp-team-role">${escapeHtml(item.role)}</p>` : ''}${item.bio ? `<p class="lp-team-bio">${escapeHtml(item.bio)}</p>` : ''}</div>`
+        })
+        .join('')
+      return `<section class="lp-section lp-team"><div class="lp-section-heading">${headline}${body}</div><div class="lp-team-grid">${rows}</div></section>`
+    }
+    case 'product-grid': {
+      const items = Array.isArray(c.items)
+        ? (c.items as {
+            name: string
+            price?: string
+            badge?: string
+            media?: { url?: string; src?: string; alt?: string }
+            cta?: unknown
+          }[])
+        : []
+      if (!items.length) return ''
+      const headline = c.headline ? `<h2>${escapeHtml(c.headline)}</h2>` : ''
+      const body = c.body ? `<p class="lp-section-intro">${escapeHtml(c.body)}</p>` : ''
+      const cards = items
+        .map((item) => {
+          const src = safeHttpUrl(item.media?.src) || safeHttpUrl(item.media?.url)
+          const media = src
+            ? `<img src="${escapeHtml(src)}" alt="${escapeHtml(item.media?.alt ?? item.name)}" />`
+            : `<div class="lp-product-media-empty"></div>`
+          const badge = item.badge
+            ? `<span class="lp-product-badge">${escapeHtml(item.badge)}</span>`
+            : ''
+          const price = item.price
+            ? `<p class="lp-product-price">${escapeHtml(item.price)}</p>`
+            : ''
+          return `<article class="lp-product">${badge}<div class="lp-product-media">${media}</div><h3>${escapeHtml(item.name)}</h3>${price}${renderCta(item.cta)}</article>`
+        })
+        .join('')
+      return `<section class="lp-section lp-products"><div class="lp-section-heading">${headline}${body}</div><div class="lp-product-grid">${cards}</div></section>`
+    }
+    case 'category-grid': {
+      const items = Array.isArray(c.items)
+        ? (c.items as {
+            label: string
+            url?: string
+            media?: { url?: string; src?: string; alt?: string }
+          }[])
+        : []
+      if (!items.length) return ''
+      const headline = c.headline ? `<h2>${escapeHtml(c.headline)}</h2>` : ''
+      const tiles = items
+        .map((item) => {
+          const src = safeHttpUrl(item.media?.src) || safeHttpUrl(item.media?.url)
+          const media = src
+            ? `<img src="${escapeHtml(src)}" alt="${escapeHtml(item.media?.alt ?? item.label)}" />`
+            : `<div class="lp-category-media-empty"></div>`
+          const href = typeof item.url === 'string' && item.url ? item.url : '#'
+          return `<a class="lp-category-tile" href="${escapeHtml(href)}">${media}<span class="lp-category-label">${escapeHtml(item.label)}</span></a>`
+        })
+        .join('')
+      return `<section class="lp-section lp-categories">${headline ? `<div class="lp-section-heading">${headline}</div>` : ''}<div class="lp-category-grid">${tiles}</div></section>`
+    }
+    case 'story': {
+      const headline = c.headline ? `<h2>${escapeHtml(c.headline)}</h2>` : ''
+      const body = c.body ? `<p>${escapeHtml(c.body)}</p>` : ''
+      const media = (c.media && typeof c.media === 'object' ? c.media : {}) as Record<
+        string,
+        unknown
+      >
+      const src = safeHttpUrl(media.src) || safeHttpUrl(media.url)
+      const mediaHtml = src
+        ? `<div class="lp-story-media"><img src="${escapeHtml(src)}" alt="${escapeHtml((media.alt as string) ?? '')}" /></div>`
+        : ''
+      return `<section class="lp-section lp-story">${mediaHtml}<div class="lp-story-copy">${headline}${body}</div></section>`
     }
     case 'faq': {
       const items = Array.isArray(c.items)

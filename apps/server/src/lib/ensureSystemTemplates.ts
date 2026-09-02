@@ -16,6 +16,14 @@ import {
   studioTitle,
   studioDescription,
   studioSchema,
+  SYSTEM_PORTFOLIO_TEMPLATE_ID,
+  portfolioTitle,
+  portfolioDescription,
+  portfolioSchema,
+  SYSTEM_STORE_TEMPLATE_ID,
+  storeTitle,
+  storeDescription,
+  storeSchema,
 } from '@project/db'
 
 type TemplateClient = {
@@ -112,6 +120,42 @@ export async function ensureSystemTemplates(tx: TemplateClient) {
       category: 'advanced',
       formatVersion: '2.0',
       schema: studioSchema as any,
+    },
+  })
+
+  await tx.landingPageTemplate.upsert({
+    where: { id: SYSTEM_PORTFOLIO_TEMPLATE_ID },
+    update: {
+      name: portfolioTitle,
+      description: portfolioDescription,
+      schema: portfolioSchema as any,
+    },
+    create: {
+      id: SYSTEM_PORTFOLIO_TEMPLATE_ID,
+      isSystem: true,
+      name: portfolioTitle,
+      description: portfolioDescription,
+      category: 'advanced',
+      formatVersion: '2.0',
+      schema: portfolioSchema as any,
+    },
+  })
+
+  await tx.landingPageTemplate.upsert({
+    where: { id: SYSTEM_STORE_TEMPLATE_ID },
+    update: {
+      name: storeTitle,
+      description: storeDescription,
+      schema: storeSchema as any,
+    },
+    create: {
+      id: SYSTEM_STORE_TEMPLATE_ID,
+      isSystem: true,
+      name: storeTitle,
+      description: storeDescription,
+      category: 'advanced',
+      formatVersion: '2.0',
+      schema: storeSchema as any,
     },
   })
 }

@@ -49,6 +49,7 @@ export function CreateFormPage() {
                 .map((o) => o.trim())
                 .filter(Boolean)
             : undefined,
+        defaultValue: f.type === 'HIDDEN' ? (f.defaultValue ?? '') : undefined,
       })),
     })
 

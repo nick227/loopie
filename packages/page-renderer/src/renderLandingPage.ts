@@ -5,7 +5,12 @@
 // (a fixed vocabulary of section "type"s) and fills them from LandingPage.content, rather than
 // interpreting arbitrary markup. That's the deliberate constraint: no freeform builder in V1.
 
-import { normalizeLegacyPageContent, type PageContent, type LayoutConfig } from '@project/db'
+import {
+  DEFAULT_PAGE_FAVICON_URL,
+  normalizeLegacyPageContent,
+  type PageContent,
+  type LayoutConfig,
+} from '@project/db'
 import { escapeHtml, renderBody, type RenderForm } from './renderLandingPageSections'
 
 type TemplateSection = {
@@ -24,8 +29,17 @@ type TemplateSchema = {
 
 type PageTheme = Record<string, string> | null | undefined
 
-function renderFormHtml(form: RenderForm, submitActionUrl: string, sessionToken?: string): string {
+function renderFormHtml(
+  form: RenderForm,
+  submitActionUrl: string,
+  sessionToken?: string,
+  publishedVersionId?: string,
+): string {
   if (!form) return ''
+
+  // Which field keys are CHECKBOX type — read by the submit script so it can serialize those as
+  // real booleans instead of relying on FormData's browser-default "on"/absent string semantics.
+  const checkboxKeys = form.fields.filter((f) => f.type === 'CHECKBOX').map((f) => f.fieldKey)
 
   const fieldsHtml = form.fields
     .map((field) => {
@@ -47,7 +61,7 @@ function renderFormHtml(form: RenderForm, submitActionUrl: string, sessionToken?
         return `<div class="lp-field lp-field-checkbox"><input type="checkbox" id="${fieldId}" name="${escapeHtml(field.fieldKey)}" ${requiredAttr} />${label}</div>`
       }
       if (field.type === 'HIDDEN') {
-        return `<input type="hidden" name="${escapeHtml(field.fieldKey)}" />`
+        return `<input type="hidden" name="${escapeHtml(field.fieldKey)}" value="${escapeHtml(field.defaultValue ?? '')}" />`
       }
       const inputType = field.type === 'EMAIL' ? 'email' : field.type === 'PHONE' ? 'tel' : 'text'
       return `<div class="lp-field">${label}<input type="${inputType}" id="${fieldId}" name="${escapeHtml(field.fieldKey)}" ${requiredAttr} /></div>`
@@ -58,6 +72,8 @@ function renderFormHtml(form: RenderForm, submitActionUrl: string, sessionToken?
     `<p class="lp-success">${escapeHtml(form.successMessage || "Thanks — we'll be in touch.")}</p>`,
   )
   const issuedSid = sessionToken ? JSON.stringify(sessionToken) : 'null'
+  const pvid = publishedVersionId ? JSON.stringify(publishedVersionId) : 'null'
+  const checkboxKeysJson = JSON.stringify(checkboxKeys)
 
   return `<form class="lp-form-el" data-submit-url="${escapeHtml(submitActionUrl)}">
 <p class="lp-error" hidden></p>
@@ -68,17 +84,40 @@ ${fieldsHtml}
 (function () {
   var formEl = document.currentScript.previousElementSibling;
   var errorEl = formEl.querySelector('.lp-error');
+  var checkboxKeys = ${checkboxKeysJson};
+  // Generated once per page load (not per submit attempt) so a retry after a transient failure
+  // reuses the same key and dedupes server-side instead of creating a second submission — see
+  // SubmitLandingPageFormInput's required idempotencyKey.
+  function uuidFallback() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = (Math.random() * 16) | 0;
+      var v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+  var idempotencyKey =
+    window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : uuidFallback();
   formEl.addEventListener('submit', function (event) {
     event.preventDefault();
     errorEl.hidden = true;
     var data = {};
-    new FormData(formEl).forEach(function (value, key) { data[key] = value; });
+    new FormData(formEl).forEach(function (value, key) {
+      if (checkboxKeys.indexOf(key) === -1) data[key] = value;
+    });
+    // Checkboxes: read .checked directly rather than FormData's "on"/absent string convention, so
+    // the server always receives a real boolean for these fields (present or not, checked or not).
+    checkboxKeys.forEach(function (key) {
+      var input = formEl.querySelector('[name="' + key + '"]');
+      data[key] = !!(input && input.checked);
+    });
     var params = new URLSearchParams(window.location.search);
     fetch(formEl.getAttribute('data-submit-url'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sessionId: (window.Loopie && window.Loopie.session && window.Loopie.session.token) || params.get('sid') || ${issuedSid},
+        idempotencyKey: idempotencyKey,
+        publishedVersionId: ${pvid},
         data: data,
         utmSource: params.get('utm_source') || undefined,
         utmMedium: params.get('utm_medium') || undefined,
@@ -111,6 +150,11 @@ export function renderLandingPageHtml(input: {
   form: RenderForm
   submitActionUrl: string
   sessionToken?: string
+  // The PublishedPageVersion this HTML is actually being rendered from, when known — embedded
+  // into the submit script so a later republish can't invalidate (or misvalidate) a submission
+  // that's still in flight against this exact render. Omitted for draft preview/export, which has
+  // no PublishedPageVersion; the submit endpoint falls back to the page's current version then.
+  publishedVersionId?: string
   adSlots?: { placement: string; embedUrls: string[] }[]
   runtimeScriptUrl?: string
   businessId?: string
@@ -121,8 +165,16 @@ export function renderLandingPageHtml(input: {
   injectedHeadScripts?: string
 }): string {
   const sections = [...(input.templateSchema.sections ?? [])].sort((a, b) => a.order - b.order)
-  const formHtml = renderFormHtml(input.form, input.submitActionUrl, input.sessionToken)
+  const formHtml = renderFormHtml(
+    input.form,
+    input.submitActionUrl,
+    input.sessionToken,
+    input.publishedVersionId,
+  )
   const content = normalizeLegacyPageContent(input.content)
+  const pageTitle = content.browser?.title?.trim() || input.pageName
+  const faviconUrl = content.browser?.faviconUrl?.trim() ?? DEFAULT_PAGE_FAVICON_URL
+  const faviconHtml = faviconUrl ? `<link rel="icon" href="${escapeHtml(faviconUrl)}" />\n` : ''
   const bodyHtml = renderBody(
     sections,
     content,
@@ -224,8 +276,8 @@ export function renderLandingPageHtml(input: {
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>${escapeHtml(input.pageName)}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
+<title>${escapeHtml(pageTitle)}</title>
+${faviconHtml}<link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?${escapeHtml(googleFonts)}&display=swap" rel="stylesheet" />
 <style>
@@ -319,6 +371,28 @@ button[type="submit"] { padding: 0.8rem 1.4rem; background: var(--lp-primary); c
 .lp-lightbox img { max-height: 80vh; max-width: 92vw; object-fit: contain; }
 .lp-lightbox figcaption { color: rgba(255,255,255,0.7); font-size: 0.875rem; max-width: 32rem; text-align: center; }
 .lp-lightbox-close { position: absolute; top: 1.25rem; right: 1.25rem; color: rgba(255,255,255,0.7); background: none; border: none; font-size: 1.5rem; cursor: pointer; }
+.lp-team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.75rem; }
+.lp-team-member { text-align: center; }
+.lp-team-member img, .lp-team-photo-empty { width: 128px; height: 128px; object-fit: cover; border-radius: 999px; display: block; margin: 0 auto 1rem; background: color-mix(in srgb, var(--lp-ink) 8%, var(--lp-bg)); }
+.lp-team-member h3 { margin: 0 0 0.2rem; font-size: 1.05rem; }
+.lp-team-role { margin: 0 0 0.5rem; font-size: 0.825rem; color: color-mix(in srgb, var(--lp-ink) 60%, var(--lp-bg)); }
+.lp-team-bio { margin: 0; font-size: 0.875rem; line-height: 1.5; color: color-mix(in srgb, var(--lp-ink) 70%, var(--lp-bg)); }
+.lp-product-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; }
+.lp-product { position: relative; }
+.lp-product-media, .lp-product-media-empty { aspect-ratio: 4 / 5; border-radius: var(--lp-radius); overflow: hidden; background: color-mix(in srgb, var(--lp-ink) 6%, var(--lp-bg)); margin-bottom: 0.9rem; }
+.lp-product-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lp-product-badge { position: absolute; top: 0.75rem; left: 0.75rem; z-index: 1; padding: 0.3rem 0.65rem; border-radius: 999px; background: var(--lp-primary); color: var(--lp-on-primary); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.lp-product h3 { margin: 0 0 0.25rem; font-size: 1rem; }
+.lp-product-price { margin: 0 0 0.6rem; font-weight: 700; }
+.lp-product .lp-cta { margin-top: 0; padding: 0.5rem 1rem; font-size: 0.825rem; }
+.lp-category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
+.lp-category-tile { position: relative; display: block; aspect-ratio: 1 / 1; border-radius: var(--lp-radius); overflow: hidden; text-decoration: none; background: color-mix(in srgb, var(--lp-ink) 6%, var(--lp-bg)); }
+.lp-category-tile img, .lp-category-media-empty { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lp-category-label { position: absolute; inset: auto 0 0 0; padding: 1rem; background: linear-gradient(to top, rgba(0,0,0,.55), transparent); color: #fff; font-weight: 700; font-size: 0.95rem; }
+.lp-story { display: grid; gap: 2.5rem; grid-template-columns: 1fr 1fr; align-items: center; }
+.lp-story-media img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: calc(var(--lp-radius) * 2); display: block; }
+.lp-story-copy h2 { font-family: var(--lp-heading); font-size: clamp(1.9rem, 4vw, 2.75rem); margin: 0 0 0.9rem; }
+.lp-story-copy p { color: color-mix(in srgb, var(--lp-ink) 72%, var(--lp-bg)); line-height: 1.65; margin: 0; }
 
 /* Rich-template parity. The editor and published document share the renderer identity stored in
    the template schema; these rules mirror the layout vocabulary of the editable React canvases. */
@@ -375,12 +449,87 @@ button[type="submit"] { padding: 0.8rem 1.4rem; background: var(--lp-primary); c
 .lp-template-studio .lp-gallery-grid { columns: 3; }
 .lp-template-studio .lp-testimonial { padding: 0; background: transparent; border-radius: 0; font-family: var(--lp-heading); font-size: 1.4rem; }
 .lp-template-studio .lp-studio-contact { max-width: none; padding: 112px max(28px, calc((100vw - 1152px) / 2)); }
+.lp-template-studio .lp-team { max-width: 1152px; padding-block: 96px; border-top: 1px solid color-mix(in srgb, var(--lp-ink) 12%, var(--lp-bg)); }
+.lp-template-studio .lp-section-heading + .lp-team-grid { margin-top: 0; }
+.lp-template-studio .lp-team-grid { grid-template-columns: repeat(4, 1fr); gap: 2.5rem 1.5rem; }
+.lp-template-studio .lp-team-member { text-align: left; }
+.lp-template-studio .lp-team-member img, .lp-template-studio .lp-team-photo-empty { width: 100%; height: auto; aspect-ratio: 3 / 4; border-radius: 0; margin: 0 0 1rem; }
+.lp-template-studio .lp-team-member h3 { font-family: var(--lp-heading); font-size: 1.15rem; }
+
+/* Portfolio — visual-first, editorial, generous whitespace, restrained copy. Distinct from Studio:
+   no oversized display type or hard color blocks; the image carries the page. */
+.lp-template-portfolio .lp-nav { max-width: 1280px; min-height: 92px; }
+.lp-template-portfolio .lp-hero { max-width: none; padding: 0; display: flex; flex-direction: column; }
+.lp-template-portfolio .lp-hero-copy { order: 2; max-width: 640px; margin: 0 auto; padding: 56px 28px 96px; text-align: center; }
+.lp-template-portfolio .lp-hero-eyebrow, .lp-template-portfolio .lp-kicker, .lp-template-portfolio .lp-hero-badge { letter-spacing: 0.32em; background: none; padding: 0; }
+.lp-template-portfolio .lp-hero h1 { font-family: var(--lp-heading); font-weight: 500; font-size: clamp(2.1rem, 4vw, 3.25rem); letter-spacing: -0.01em; }
+.lp-template-portfolio .lp-subheadline { margin: 0 auto; }
+.lp-template-portfolio .lp-hero-media { order: 1; margin: 0; }
+.lp-template-portfolio .lp-hero-media img { width: 100%; height: 86vh; max-height: 900px; object-fit: cover; border-radius: 0; box-shadow: none; }
+.lp-template-portfolio .lp-services { max-width: 1240px; padding-block: 40px 40px; }
+.lp-template-portfolio .lp-service-grid { display: block; }
+.lp-template-portfolio .lp-service { grid-template-columns: 1fr; border: 0; background: transparent; border-radius: 0; margin-bottom: 112px; }
+.lp-template-portfolio .lp-service:last-child { margin-bottom: 0; }
+.lp-template-portfolio .lp-service img { aspect-ratio: 16 / 10; }
+.lp-template-portfolio .lp-service-copy { max-width: 640px; margin: 2rem auto 0; text-align: center; padding: 0; }
+.lp-template-portfolio .lp-service-copy h3, .lp-template-portfolio .lp-service-copy h4 { font-family: var(--lp-heading); }
+.lp-template-portfolio .lp-features { max-width: 900px; padding-block: 100px; text-align: center; }
+.lp-template-portfolio .lp-section-heading { text-align: center; }
+.lp-template-portfolio .lp-feature-grid { background: transparent; border: 0; gap: 2.5rem; }
+.lp-template-portfolio .lp-feature { background: transparent; padding: 0; text-align: center; }
+.lp-template-portfolio .lp-team { max-width: 420px; text-align: center; padding-block: 96px; }
+.lp-template-portfolio .lp-team-grid { grid-template-columns: 1fr; }
+.lp-template-portfolio .lp-team-member img, .lp-template-portfolio .lp-team-photo-empty { width: 160px; height: 160px; }
+.lp-template-portfolio .lp-logos { max-width: none; border-block: 1px solid color-mix(in srgb, var(--lp-ink) 10%, var(--lp-bg)); text-align: center; }
+.lp-template-portfolio .lp-testimonials { max-width: 720px; padding-block: 100px; }
+.lp-template-portfolio .lp-testimonial-grid { grid-template-columns: 1fr; }
+.lp-template-portfolio .lp-testimonial { background: transparent; padding: 0; text-align: center; font-family: var(--lp-heading); font-size: 1.35rem; font-style: italic; }
+.lp-template-portfolio .lp-studio-contact { max-width: 720px; grid-template-columns: 1fr; text-align: center; padding-block: 100px; background: transparent; color: var(--lp-ink); }
+.lp-template-portfolio .lp-studio-contact h2 { font-family: var(--lp-heading); font-weight: 500; }
+.lp-template-portfolio .lp-studio-contact p { color: color-mix(in srgb, var(--lp-ink) 70%, var(--lp-bg)); }
+.lp-template-portfolio .lp-studio-contact .lp-form-card { max-width: 420px; margin: 2rem auto 0; text-align: left; }
+.lp-template-portfolio .lp-studio-contact input, .lp-template-portfolio .lp-studio-contact select { border-bottom-color: color-mix(in srgb, var(--lp-ink) 25%, var(--lp-bg)); color: var(--lp-ink); }
+.lp-template-portfolio .lp-studio-contact button[type="submit"] { color: var(--lp-ink); border-color: color-mix(in srgb, var(--lp-ink) 35%, var(--lp-bg)); }
+
+/* Store — product-first, retail energy: rounder chrome, bolder CTAs, price-forward cards. */
+.lp-template-store .lp-hero { max-width: 1280px; padding-block: 64px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 56px; }
+.lp-template-store .lp-hero-badge { background: var(--lp-primary); color: var(--lp-on-primary); }
+.lp-template-store .lp-hero-media { margin: 0; }
+.lp-template-store .lp-hero-media img { aspect-ratio: 4 / 5; border-radius: calc(var(--lp-radius) * 3); }
+.lp-template-store .lp-cta { border-radius: 999px; padding: 1rem 2.1rem; font-weight: 700; }
+.lp-template-store .lp-products { max-width: 1240px; padding-block: 72px; }
+.lp-template-store .lp-product-grid { grid-template-columns: repeat(4, 1fr); }
+.lp-template-store .lp-product-media, .lp-template-store .lp-product-media-empty { border-radius: calc(var(--lp-radius) * 2); }
+.lp-template-store .lp-product .lp-cta { border-radius: 999px; }
+.lp-template-store .lp-categories { max-width: 1240px; padding-block: 56px; }
+.lp-template-store .lp-categories .lp-section-heading { text-align: left; margin: 0 0 1.75rem; }
+.lp-template-store .lp-category-grid { grid-template-columns: repeat(4, 1fr); }
+.lp-template-store .lp-category-tile { border-radius: calc(var(--lp-radius) * 2); }
+.lp-template-store .lp-story { max-width: none; padding: 88px max(28px, calc((100vw - 1240px) / 2)); background: color-mix(in srgb, var(--lp-ink) 5%, var(--lp-bg)); }
+.lp-template-store .lp-story-media img { border-radius: calc(var(--lp-radius) * 3); }
+.lp-template-store .lp-logos { max-width: 1240px; border-block: 0; padding-block: 56px; }
+.lp-template-store .lp-testimonials { max-width: 1240px; padding-block: 24px 72px; }
+.lp-template-store .lp-testimonial-grid { grid-template-columns: repeat(3, 1fr); }
+.lp-template-store .lp-testimonial { border-radius: calc(var(--lp-radius) * 2); }
+.lp-template-store .lp-studio-contact { max-width: none; grid-template-columns: minmax(0, 1fr) minmax(0, 22rem); align-items: center; gap: 2.5rem; padding: 64px max(28px, calc((100vw - 1240px) / 2)); background: var(--lp-primary); color: var(--lp-on-primary); }
+.lp-template-store .lp-studio-contact h2 { font-family: var(--lp-heading); font-size: clamp(1.6rem, 3vw, 2.2rem); }
+.lp-template-store .lp-studio-contact .lp-form-card { background: color-mix(in srgb, var(--lp-on-primary) 12%, var(--lp-primary)); border: 0; }
+.lp-template-store .lp-studio-contact input, .lp-template-store .lp-studio-contact select { border-bottom-color: color-mix(in srgb, var(--lp-on-primary) 30%, var(--lp-primary)); color: var(--lp-on-primary); }
+.lp-template-store .lp-studio-contact button[type="submit"] { background: var(--lp-on-primary); color: var(--lp-primary); border-radius: 999px; }
+
 @media (min-width: 640px) { .lp-gallery-grid { columns: 3; } }
+@media (max-width: 900px) {
+  .lp-template-store .lp-product-grid, .lp-template-store .lp-category-grid { grid-template-columns: repeat(2, 1fr); }
+  .lp-template-store .lp-testimonial-grid { grid-template-columns: 1fr; }
+}
 @media (max-width: 800px) {
   .lp-nav-links { display: none; }
-  .lp-split, .lp-webinar, .lp-studio-contact, .lp-template-corporate-professional .lp-hero, .lp-template-studio .lp-hero { grid-template-columns: 1fr; min-height: auto; }
+  .lp-split, .lp-webinar, .lp-studio-contact, .lp-story, .lp-template-corporate-professional .lp-hero, .lp-template-studio .lp-hero, .lp-template-store .lp-hero, .lp-template-store .lp-studio-contact { grid-template-columns: 1fr; min-height: auto; }
   .lp-template-corporate-professional .lp-service-grid, .lp-template-studio .lp-service-grid { grid-template-columns: 1fr; }
   .lp-template-studio .lp-hero h1 { font-size: clamp(3rem, 15vw, 5rem); }
+  .lp-template-studio .lp-team-grid { grid-template-columns: repeat(2, 1fr); }
+  .lp-template-portfolio .lp-hero-media img { height: 62vh; }
+  .lp-template-store .lp-studio-contact { padding-block: 48px; }
 }
 </style>
 ${input.injectedHeadScripts ?? ''}

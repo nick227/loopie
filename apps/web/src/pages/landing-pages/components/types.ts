@@ -8,10 +8,14 @@
 export const CORPORATE_PROFESSIONAL_TEMPLATE_ID = 'system-template-corporate-professional'
 export const WEBINAR_SIGNUP_TEMPLATE_ID = 'system-template-webinar-signup'
 export const STUDIO_TEMPLATE_ID = 'system-template-studio'
+export const PORTFOLIO_TEMPLATE_ID = 'system-template-portfolio'
+export const STORE_TEMPLATE_ID = 'system-template-store'
 export const RICH_TEMPLATE_IDS = [
   CORPORATE_PROFESSIONAL_TEMPLATE_ID,
   WEBINAR_SIGNUP_TEMPLATE_ID,
   STUDIO_TEMPLATE_ID,
+  PORTFOLIO_TEMPLATE_ID,
+  STORE_TEMPLATE_ID,
 ]
 
 export type MediaRef = { assetId?: string; url?: string; alt?: string; src?: string }
@@ -39,10 +43,24 @@ export type GalleryItem = {
   caption?: string
   src?: string
 }
+export type TeamMemberItem = { name: string; role?: string; bio?: string; media?: MediaRef }
+export type ProductItem = {
+  id?: string
+  name: string
+  price?: string
+  badge?: string
+  media?: MediaRef
+  cta?: CtaRef
+}
+export type CategoryItem = { label: string; url?: string; media?: MediaRef }
 
 export type NavLink = { label: string; url: string }
 
+export const DEFAULT_PAGE_FAVICON_URL = '/favicon.png'
+export type PageBrowserSettings = { title?: string; faviconUrl?: string }
+
 export type PageContent = {
+  browser?: PageBrowserSettings
   nav?: { brand?: string; links?: NavLink[] }
   hero?: {
     eyebrow?: string
@@ -52,7 +70,7 @@ export type PageContent = {
     primaryCta?: CtaRef
     badges?: string[]
   }
-  intro?: { headline?: string; body?: string }
+  intro?: { headline?: string; body?: string; media?: MediaRef }
   media?: {
     kind?: 'image' | 'audio' | 'youtube'
     assetId?: string
@@ -70,6 +88,9 @@ export type PageContent = {
   comparison?: { title?: string; items: ComparisonItem[] }
   footer?: { headline?: string; body?: string; cta?: CtaRef }
   gallery?: { title?: string; items: GalleryItem[] }
+  team?: { headline?: string; body?: string; items: TeamMemberItem[] }
+  products?: { headline?: string; body?: string; items: ProductItem[] }
+  categories?: { headline?: string; items: CategoryItem[] }
   // Event-specific settings for webinar/event-signup templates — the live "seats filled" number
   // itself is NOT stored here, it's a real count of this page's own FormSubmission rows computed
   // at render time, never authored/edited content.
@@ -84,7 +105,7 @@ export type PageContent = {
   }
 }
 
-export type SlotGroupKey = keyof PageContent
+export type SlotGroupKey = Exclude<keyof PageContent, 'browser'>
 
 export const KNOWN_SLOT_GROUPS: SlotGroupKey[] = [
   'nav',
@@ -95,6 +116,9 @@ export const KNOWN_SLOT_GROUPS: SlotGroupKey[] = [
   'features',
   'services',
   'gallery',
+  'team',
+  'products',
+  'categories',
   'testimonials',
   'faq',
   'logos',
@@ -122,6 +146,10 @@ export const SECTION_TYPE_TO_SLOT_GROUP: Record<string, SlotGroupKey | undefined
   'webinar-widget': 'webinar',
   'studio-contact': 'footer',
   'photo-gallery': 'gallery',
+  team: 'team',
+  'product-grid': 'products',
+  'category-grid': 'categories',
+  story: 'intro',
   'form-embed': undefined,
 }
 
@@ -292,5 +320,9 @@ export function normalizeLegacyPageContent(raw: unknown): PageContent {
     ? legacySectionsToCanonical(raw.sections as Record<string, LegacySectionContent>)
     : {}
   const fromBlocks = hasLegacyBlocks ? legacyBlocksToCanonical(raw.blocks as unknown[]) : {}
-  return { ...fromBlocks, ...fromSections }
+  return {
+    ...fromBlocks,
+    ...fromSections,
+    ...(isRecord(raw.browser) ? { browser: raw.browser as PageBrowserSettings } : {}),
+  }
 }

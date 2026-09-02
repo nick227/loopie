@@ -70,8 +70,8 @@ test.describe('Pages — Singleton/Collection/Entity reference implementation', 
     await expect(page.getByRole('button', { name: 'Embed' })).toBeDisabled()
 
     // --- Edit ---
-    await expect(page.getByLabel('Page title')).toBeVisible()
-    await page.getByLabel('Page title').fill(marker)
+    await expect(page.getByLabel('Internal page name')).toBeVisible()
+    await page.getByLabel('Internal page name').fill(marker)
     await expect(page.getByText('Saving')).toBeVisible()
     await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 10_000 })
 
@@ -87,7 +87,7 @@ test.describe('Pages — Singleton/Collection/Entity reference implementation', 
     await page.getByRole('tab', { name: 'Activity' }).click()
     await expect(page.getByText('Views', { exact: true })).toBeVisible()
     await page.getByRole('tab', { name: 'Editor' }).click()
-    await expect(page.getByLabel('Page title')).toBeVisible()
+    await expect(page.getByLabel('Internal page name')).toBeVisible()
 
     // --- Back -> the Pages collection restores its exact state ---
     await page.getByRole('button', { name: 'Pages' }).click()

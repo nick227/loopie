@@ -24,6 +24,7 @@ import {
 import { CanvasText } from '../../../pages/landing-pages/components/CanvasText'
 import { EditableLinkTrigger } from '../../../pages/landing-pages/components/editable/EditableLinkTrigger'
 import { MediaSlotField } from '../../../pages/landing-pages/components/MediaSlotField'
+import { FormFieldsEditor, type FormFieldDraft } from '@/components/forms/FormFieldsEditor'
 import type {
   PageContent,
   ServiceItem,
@@ -993,67 +994,107 @@ function FAQSection({ content, editable, onChange }: SectionProps<'faq'>) {
   )
 }
 
-function CTASection({ content, editable, onChange }: SectionProps<'footer'>) {
+// Real lead capture, not a dead link — this is the section the nav/hero/footer CTAs all point at
+// (#contact). See CorporateProfessional's schema (packages/db/src/data/corporate-professional.ts):
+// 'footer' is now a 'studio-contact' section, the same pattern Studio.tsx's own ContactSection
+// uses, so the attached Form is actually rendered here instead of never appearing anywhere.
+function ContactSection({
+  content,
+  editable,
+  onChange,
+  hasForm,
+  formFields,
+  onFormFields,
+  submitLabel,
+}: SectionProps<'footer'> & {
+  hasForm: boolean
+  formFields: FormFieldDraft[]
+  onFormFields: (fields: FormFieldDraft[]) => void
+  submitLabel: string
+}) {
   const cta = content?.cta ?? {}
   return (
     <section
+      id="contact"
       className="py-24 border-t relative overflow-hidden"
-      style={{ backgroundColor: ink(4), borderColor: ink(12) }}
+      style={{ backgroundColor: 'var(--lp-ink)', color: 'var(--lp-bg)', borderColor: inv(15) }}
     >
-      <div className="relative z-10 max-w-4xl mx-auto px-6 lg:px-8 text-center">
-        {editable ? (
-          <CanvasText
-            as="h2"
-            ariaLabel="Closing headline"
-            value={content?.headline ?? ''}
-            onChange={(headline) => onChange({ headline })}
-            style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-            className="text-4xl md:text-5xl font-extrabold mb-6 tracking-tight"
-          />
-        ) : (
-          <h2
-            className="text-4xl md:text-5xl font-extrabold mb-6 tracking-tight"
-            style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-          >
-            {content?.headline}
-          </h2>
-        )}
-        {editable ? (
-          <CanvasText
-            ariaLabel="Closing body"
-            value={content?.body ?? ''}
-            onChange={(body) => onChange({ body })}
-            multiline
-            style={{ color: ink(72) }}
-            className="text-xl mb-10 leading-relaxed"
-          />
-        ) : (
-          <p className="text-xl mb-10 leading-relaxed" style={{ color: ink(72) }}>
-            {content?.body}
-          </p>
-        )}
-        {editable ? (
-          <EditableLinkTrigger
-            label={cta.label ?? ''}
-            url={cta.url ?? '#contact'}
-            onChange={(next) => onChange({ cta: next })}
-          >
-            <span
-              className="inline-flex justify-center items-center px-10 py-5 text-lg font-bold rounded-xl"
-              style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+      <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 grid gap-16 lg:grid-cols-2 lg:items-center">
+        <div className="text-center lg:text-left">
+          {editable ? (
+            <CanvasText
+              as="h2"
+              ariaLabel="Closing headline"
+              value={content?.headline ?? ''}
+              onChange={(headline) => onChange({ headline })}
+              style={{ fontFamily: 'var(--lp-heading)' }}
+              className="text-4xl md:text-5xl font-extrabold mb-6 tracking-tight"
+            />
+          ) : (
+            <h2
+              className="text-4xl md:text-5xl font-extrabold mb-6 tracking-tight"
+              style={{ fontFamily: 'var(--lp-heading)' }}
             >
-              {cta.label || 'Add a call to action'}
-            </span>
-          </EditableLinkTrigger>
-        ) : cta.label ? (
-          <a
-            href={cta.url}
-            className="inline-flex justify-center items-center px-10 py-5 text-lg font-bold rounded-xl transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
-            style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
-          >
-            {cta.label}
-          </a>
-        ) : null}
+              {content?.headline}
+            </h2>
+          )}
+          {editable ? (
+            <CanvasText
+              ariaLabel="Closing body"
+              value={content?.body ?? ''}
+              onChange={(body) => onChange({ body })}
+              multiline
+              style={{ color: inv(70) }}
+              className="text-xl mb-6 leading-relaxed"
+            />
+          ) : (
+            <p className="text-xl mb-6 leading-relaxed" style={{ color: inv(70) }}>
+              {content?.body}
+            </p>
+          )}
+          {editable ? (
+            <EditableLinkTrigger
+              label={cta.label ?? ''}
+              url={cta.url ?? '#contact'}
+              onChange={(next) => onChange({ cta: next })}
+            >
+              <span className="text-sm font-semibold underline underline-offset-4">
+                {cta.label || 'Add a call to action'}
+              </span>
+            </EditableLinkTrigger>
+          ) : cta.label ? (
+            <a href={cta.url} className="text-sm font-semibold underline underline-offset-4">
+              {cta.label}
+            </a>
+          ) : null}
+        </div>
+        <div
+          className="rounded-3xl p-8"
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--lp-bg) 6%, var(--lp-ink))',
+            border: `1px solid ${inv(15)}`,
+          }}
+        >
+          {!hasForm ? (
+            <p className="text-sm" style={{ color: inv(60) }}>
+              No reusable form attached. Choose a form above to embed real fields here.
+            </p>
+          ) : (
+            <>
+              <div className="[&_label]:!text-[color:color-mix(in_srgb,var(--lp-bg)_70%,var(--lp-ink))] [&_input]:!rounded-lg [&_input]:!border [&_input]:!border-[color:color-mix(in_srgb,var(--lp-bg)_20%,var(--lp-ink))] [&_input]:!bg-transparent [&_input]:!text-[color:var(--lp-bg)] [&_select]:!rounded-lg [&_select]:!border [&_select]:!border-[color:color-mix(in_srgb,var(--lp-bg)_20%,var(--lp-ink))] [&_select]:!bg-transparent [&_select]:!text-[color:var(--lp-bg)] [&_.text-muted-foreground]:!text-[color:color-mix(in_srgb,var(--lp-bg)_60%,var(--lp-ink))] [&_button]:!text-[color:var(--lp-bg)] [&_button]:!border-[color:color-mix(in_srgb,var(--lp-bg)_25%,var(--lp-ink))]">
+                <FormFieldsEditor fields={formFields} onChange={onFormFields} protectEmail />
+              </div>
+              <button
+                type="button"
+                disabled
+                className="mt-6 inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-semibold rounded-lg"
+                style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+              >
+                {submitLabel} <ArrowRight className="h-4 w-4" />
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </section>
   )
@@ -1210,12 +1251,20 @@ export function CorporateProfessional({
   layoutConfig,
   editable = false,
   onSlotChange,
+  hasForm,
+  formFields,
+  onFormFields,
+  submitLabel,
 }: {
   content?: PageContent
   theme?: Record<string, string>
   layoutConfig?: { sections?: Record<string, { hidden?: boolean }> }
   editable?: boolean
   onSlotChange?: (slotGroup: keyof PageContent, patch: unknown) => void
+  hasForm: boolean
+  formFields: FormFieldDraft[]
+  onFormFields: (fields: FormFieldDraft[]) => void
+  submitLabel: string
 }) {
   const c = content ?? {}
   const t = theme ?? {}
@@ -1304,10 +1353,14 @@ export function CorporateProfessional({
           />
         )}
         {!isHidden('footer') && (
-          <CTASection
+          <ContactSection
             content={c.footer}
             editable={editable}
             onChange={(patch) => slotChange('footer', patch)}
+            hasForm={hasForm}
+            formFields={formFields}
+            onFormFields={onFormFields}
+            submitLabel={submitLabel}
           />
         )}
       </main>

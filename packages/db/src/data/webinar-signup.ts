@@ -1,5 +1,5 @@
 import type { TemplateSchema } from '../leadGenTemplate'
-import type { PageContent } from '../content'
+import { DEFAULT_PAGE_FAVICON_URL, type PageContent } from '../content'
 
 export const SYSTEM_WEBINAR_SIGNUP_TEMPLATE_ID = 'system-template-webinar-signup'
 
@@ -64,6 +64,10 @@ export const webinarSignupSchema: TemplateSchema = {
 }
 
 export const webinarSignupStarterContent: PageContent = {
+  browser: {
+    title: webinarSignupTitle,
+    faviconUrl: DEFAULT_PAGE_FAVICON_URL,
+  },
   hero: {
     eyebrow: 'Free Live Masterclass',
     headline: 'Scale Your Growth Engine Without Scaling Headcount',

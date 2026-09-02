@@ -20,6 +20,7 @@ function toFormDTO(form: any) {
         required: f.required,
         options: f.options,
         order: f.order,
+        defaultValue: f.defaultValue,
       })),
     createdAt: form.createdAt.toISOString(),
   }
@@ -71,6 +72,7 @@ export class FormService {
             required: f.required ?? false,
             options: f.options,
             order: f.order ?? index,
+            defaultValue: f.defaultValue,
           })),
         },
       },
@@ -108,6 +110,7 @@ export class FormService {
                 required?: boolean
                 options?: Prisma.InputJsonValue
                 order?: number
+                defaultValue?: string | null
               },
               index: number,
             ) => ({
@@ -118,6 +121,7 @@ export class FormService {
               required: f.required ?? false,
               options: f.options,
               order: f.order ?? index,
+              defaultValue: f.defaultValue,
             }),
           ),
         })

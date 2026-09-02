@@ -41,10 +41,32 @@ export type ComparisonItem = { feature: string; us: string | boolean; them: stri
 // Asset rows have no caption/alt field of their own (see packages/db/prisma/schema.prisma) — same
 // reasoning as every other per-use media reference in this file, the caption lives on the item.
 export type GalleryItem = { assetId?: string; url?: string; alt?: string; caption?: string }
+export type TeamMemberItem = { name: string; role?: string; bio?: string; media?: MediaRef }
+export type ProductItem = {
+  id?: string
+  name: string
+  price?: string
+  badge?: string
+  media?: MediaRef
+  cta?: CtaRef
+}
+export type CategoryItem = { label: string; url?: string; media?: MediaRef }
 
 export type NavLink = { label: string; url: string }
 
+export const DEFAULT_PAGE_FAVICON_URL = '/favicon.png'
+
+export type PageBrowserSettings = {
+  /** Visitor-facing browser-tab title. Independent from LandingPage.name, which is internal. */
+  title?: string
+  /** Absolute or root-relative URL used by the rendered page's <link rel="icon"> tag. */
+  faviconUrl?: string
+}
+
 export type PageContent = {
+  // Layout-independent browser metadata. It lives in content so publish snapshots freeze it with
+  // the rest of the page and draft preview/export use the exact same values as the hosted page.
+  browser?: PageBrowserSettings
   // Page chrome (brand name, nav links) — a content hole like any other, not template-baked
   // static text. Sales/Email don't render a nav bar at all, so this is Corporate-Professional-
   // only today, same "only one current consumer" treatment as logos/services/etc.
@@ -57,7 +79,9 @@ export type PageContent = {
     primaryCta?: CtaRef
     badges?: string[]
   }
-  intro?: { headline?: string; body?: string }
+  // `media` is optional here — most consumers (a plain two-column intro) leave it unset; Store's
+  // 'story' section type is the one consumer that pairs it with an image.
+  intro?: { headline?: string; body?: string; media?: MediaRef }
   // A standalone media section (Sales page's "image" section, or a media-audio/media-youtube
   // section) — distinct from hero.media, which is the hero's own inline image.
   media?: {
@@ -78,6 +102,18 @@ export type PageContent = {
   // A pure-visual image wall (studio/behind-the-scenes photos, work samples with no case-study
   // copy) — distinct from `services`, which pairs each item with a headline/description/link.
   gallery?: { title?: string; items: GalleryItem[] }
+  // People, not case studies — Studio's "About/Team" and Portfolio's "About" (a single-item team
+  // for a solo practitioner). Distinct from `testimonials` (quotes from clients, not the business's
+  // own people) and from `services` (what's offered, not who does it).
+  team?: { headline?: string; body?: string; items: TeamMemberItem[] }
+  // Store's product listing — distinct slot from `services`/`features` because price/badge/buy-CTA
+  // is genuinely different content shape, and because Store's Featured Products and Categories
+  // sections must not collide on one shared slot (see SECTION_TYPE_TO_SLOT_GROUP's doc comment).
+  products?: { headline?: string; body?: string; items: ProductItem[] }
+  // Store's category tiles (image + label, no price) — kept separate from `products` for the same
+  // no-slot-collision reason above; a page can carry both a Featured Products grid and a Categories
+  // grid at once.
+  categories?: { headline?: string; items: CategoryItem[] }
   // Event-specific config for webinar/event-signup templates — not editorial copy so much as a
   // few settings, but it fits the same canonical-slot-group model as everything else. The
   // "seats filled" figure itself is deliberately NOT stored here — it's a live, real count of
@@ -97,13 +133,22 @@ export type LayoutConfig = {
   sections?: Record<string, { hidden?: boolean; order?: number }>
 }
 
-export type SlotGroupKey = keyof PageContent
+export type SlotGroupKey = Exclude<keyof PageContent, 'browser'>
 
 // A section's `type` (in a TemplateSection[] schema) declares which canonical slot group it
 // renders. Several section types can share one slot group (e.g. both "hero" and Email's
 // "split-capture" render `content.hero`) — the slot group is the content identity, the type is
 // just which visual component renders it. `form-embed` intentionally maps to nothing: form
 // content is a separate Form entity, not page content.
+//
+// The inverse must never happen: a single template's schema must never declare two sections whose
+// *types* map to the same slot group (renderBody/ContentView key content purely by slot group, not
+// by section key, so a second section of an already-used type would silently read/write the first
+// section's content instead of getting its own). This is why, e.g., Store's Featured Products and
+// Categories sections are two distinct types ('product-grid' -> products, 'category-grid' ->
+// categories) even though they render visually similar item grids — and why a template wanting two
+// differently-purposed "grid of things with a headline" sections must mint a new type/slot pair
+// per purpose rather than reusing one type twice.
 export const SECTION_TYPE_TO_SLOT_GROUP: Record<string, SlotGroupKey | undefined> = {
   hero: 'hero',
   'split-capture': 'hero',
@@ -123,6 +168,10 @@ export const SECTION_TYPE_TO_SLOT_GROUP: Record<string, SlotGroupKey | undefined
   'webinar-widget': 'webinar',
   'studio-contact': 'footer',
   'photo-gallery': 'gallery',
+  team: 'team',
+  'product-grid': 'products',
+  'category-grid': 'categories',
+  story: 'intro',
   'form-embed': undefined,
 }
 
@@ -135,6 +184,9 @@ export const KNOWN_SLOT_GROUPS: SlotGroupKey[] = [
   'features',
   'services',
   'gallery',
+  'team',
+  'products',
+  'categories',
   'testimonials',
   'faq',
   'logos',
@@ -307,5 +359,9 @@ export function normalizeLegacyPageContent(raw: unknown): PageContent {
   // deterministic; in practice a given legacy row only ever had one of the two shapes, so this
   // is really just `{...fromBlocks, ...fromSections}` with each side only contributing the keys
   // it actually produced.
-  return { ...fromBlocks, ...fromSections }
+  return {
+    ...fromBlocks,
+    ...fromSections,
+    ...(isRecord(raw.browser) ? { browser: raw.browser as PageBrowserSettings } : {}),
+  }
 }
