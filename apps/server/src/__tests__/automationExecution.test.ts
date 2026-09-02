@@ -5,6 +5,7 @@
 // minimal recipe for triggering a real Contact + Lead, then calls runDueAutomations() directly
 // (bypassing the real setInterval) to make execution deterministic in tests.
 import { describe, it, expect } from 'vitest'
+import { randomUUID } from 'crypto'
 import { buildTestApp, asAuth, testUserId, testBusinessId } from './helpers'
 import { db, issueSid } from '@project/db'
 import { runDueAutomations } from '../services/AutomationExecutorService'
@@ -55,7 +56,7 @@ async function submitLead(email: string): Promise<{ contactId: string; leadId: s
   const submitRes = await app.inject({
     method: 'POST',
     url: `/landing-pages/${page.id}/submissions`,
-    payload: { sessionId: issueSid().token, data: { email } },
+    payload: { sessionId: issueSid().token, idempotencyKey: randomUUID(), data: { email } },
   })
   expect(submitRes.statusCode).toBe(201)
   const result = submitRes.json().data

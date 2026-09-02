@@ -7,6 +7,13 @@ export type ExternalRef = {
   scopeKey: string
   integrationId?: string | null
   importJobId?: string | null
+  externalUpdatedAt?: string | null
+  sourceSnapshot?: {
+    name?: string | null
+    email?: string | null
+    phone?: string | null
+    company?: string | null
+  }
   raw?: unknown
 }
 
@@ -30,8 +37,10 @@ export async function upsertExternalRecord(
     matchStatus: input.matchStatus,
     candidateContactIds: (input.candidateContactIds ?? undefined) as
       Prisma.InputJsonValue | undefined,
+    externalUpdatedAt: input.externalUpdatedAt ? new Date(input.externalUpdatedAt) : null,
     syncedAt: new Date(),
     raw: (input.raw ?? undefined) as Prisma.InputJsonValue | undefined,
+    sourceSnapshot: (input.sourceSnapshot ?? undefined) as Prisma.InputJsonValue | undefined,
   }
   return tx.externalContactRecord.upsert({
     where: { scopeKey_externalId: { scopeKey: input.scopeKey, externalId: input.externalId } },
@@ -40,9 +49,11 @@ export async function upsertExternalRecord(
       contactId: data.contactId,
       matchStatus: data.matchStatus,
       candidateContactIds: data.candidateContactIds,
+      externalUpdatedAt: data.externalUpdatedAt,
       syncedAt: data.syncedAt,
       importJobId: data.importJobId,
       raw: data.raw,
+      sourceSnapshot: data.sourceSnapshot,
     },
   })
 }

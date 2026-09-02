@@ -3,6 +3,7 @@
 // live Form afterward cannot change what an already-published page renders or validates
 // submissions against.
 import { describe, it, expect } from 'vitest'
+import { randomUUID } from 'crypto'
 import { buildTestApp, asAuth, testUserId, testBusinessId } from './helpers'
 import { db, issueSid } from '@project/db'
 
@@ -94,6 +95,7 @@ describe('landing-page capture immutability', () => {
       url: `/landing-pages/${page.id}/submissions`,
       payload: {
         sessionId: issueSid().token,
+        idempotencyKey: randomUUID(),
         data: { name: 'Jane Doe', email: 'jane@example.com' },
       },
     })
@@ -110,7 +112,11 @@ describe('landing-page capture immutability', () => {
     const badSubmit = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: issueSid().token, data: { name: 'No Email Guy' } },
+      payload: {
+        sessionId: issueSid().token,
+        idempotencyKey: randomUUID(),
+        data: { name: 'No Email Guy' },
+      },
     })
     expect(badSubmit.statusCode).toBe(400)
     expect(badSubmit.json().error).toContain('email')
@@ -182,7 +188,11 @@ describe('landing-page capture immutability', () => {
     const submitRes = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: issueSid().token, data: { email: 'legacy@example.com' } },
+      payload: {
+        sessionId: issueSid().token,
+        idempotencyKey: randomUUID(),
+        data: { email: 'legacy@example.com' },
+      },
     })
     expect(submitRes.statusCode).toBe(201)
   })

@@ -1,361 +1,311 @@
 /**
- * Base Types (Atoms)
+ * Canonical landing-page content model.
+ *
+ * Every LandingPageTemplate — regardless of how richly it renders — reads and writes the same
+ * `PageContent` shape, keyed by semantic slot group (`hero`, `features`, `footer`, ...), not a
+ * per-template content shape. A template's schema (see leadGenTemplate.ts's `TemplateSection[]`)
+ * declares which slot groups it renders and in what order/visibility; it does not own a private
+ * content shape. This is what lets a page's content survive switching templates: a slot group a
+ * template doesn't use is simply not rendered by it, never deleted.
+ *
+ * Visibility/order (`hidden`, `order`) is presentation, not content — it lives in a separate
+ * `LayoutConfig`, not here.
  */
 
-export interface ImageProps {
-  url: string
-  alt: string
-  width?: number
-  height?: number
-  caption?: string
+export type MediaRef = {
+  assetId?: string
+  url?: string
+  alt?: string
 }
 
-export interface ButtonProps {
+export type CtaRef = {
+  label?: string
+  url?: string
+}
+
+export type FeatureItem = { title: string; body: string; icon?: string }
+export type ServiceItem = {
+  id?: string
   label: string
-  url: string
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost'
-  icon?: string // e.g., 'ArrowRight', 'Play'
+  headline?: string
+  description?: string
+  media?: MediaRef
+  cta?: CtaRef
+  icon?: string
 }
+export type TestimonialItem = { quote: string; author: string; role?: string; avatarUrl?: string }
+export type FaqItem = { question: string; answer: string }
+export type LogoItem = { name: string; icon?: string; imageUrl?: string }
+export type MetricItem = { value: string; label: string; description?: string }
+export type ComparisonItem = { feature: string; us: string | boolean; them: string | boolean }
+// Asset rows have no caption/alt field of their own (see packages/db/prisma/schema.prisma) — same
+// reasoning as every other per-use media reference in this file, the caption lives on the item.
+export type GalleryItem = { assetId?: string; url?: string; alt?: string; caption?: string }
 
-export interface LinkProps {
-  label: string
-  url: string
-}
+export type NavLink = { label: string; url: string }
 
-export interface SeoProps {
-  title: string
-  description: string
-  ogImage?: ImageProps
-}
-
-export interface ThemeConfig {
-  primaryColor?: string
-  fontFamily?: 'sans' | 'serif' | 'mono'
-  mode?: 'light' | 'dark' | 'system'
-}
-
-/**
- * Block Types
- */
-
-export interface HeroBlock {
-  _type: 'hero'
-  headline: string
-  subheadline: string
-  ctas?: ButtonProps[]
-  media?: ImageProps // Hero image
-  badges?: string[] // e.g., "Invite-only Beta"
-
-  // NEW: Support for Hero interaction patterns
-  interactionType?:
-    'static' | 'carousel' | 'service-selector' | 'before-after' | 'video-chapters' | 'inline-form'
-
-  // NEW: Support for multi-state heroes (e.g., carousel or tabs)
-  states?: {
-    label?: string // For tabs/selectors
-    headline: string
-    subheadline?: string
-    media: ImageProps
-    ctas?: ButtonProps[]
-  }[]
-
-  // NEW: Proof strip built into the hero
-  proof?: {
-    rating?: number
-    text: string
-    images?: string[] // Client avatars/logos
+export type PageContent = {
+  // Page chrome (brand name, nav links) — a content hole like any other, not template-baked
+  // static text. Sales/Email don't render a nav bar at all, so this is Corporate-Professional-
+  // only today, same "only one current consumer" treatment as logos/services/etc.
+  nav?: { brand?: string; links?: NavLink[] }
+  hero?: {
+    eyebrow?: string
+    headline?: string
+    body?: string
+    media?: MediaRef
+    primaryCta?: CtaRef
+    badges?: string[]
   }
-
-  variant?: 'split' | 'centered' | 'background-image'
+  intro?: { headline?: string; body?: string }
+  // A standalone media section (Sales page's "image" section, or a media-audio/media-youtube
+  // section) — distinct from hero.media, which is the hero's own inline image.
+  media?: {
+    kind?: 'image' | 'audio' | 'youtube'
+    assetId?: string
+    url?: string
+    youtubeUrl?: string
+    alt?: string
+  }
+  features?: { headline?: string; body?: string; items: FeatureItem[] }
+  services?: { title?: string; body?: string; items: ServiceItem[] }
+  testimonials?: { headline?: string; body?: string; items: TestimonialItem[] }
+  faq?: { headline?: string; body?: string; items: FaqItem[] }
+  logos?: { title?: string; items: LogoItem[] }
+  metrics?: { items: MetricItem[] }
+  comparison?: { title?: string; items: ComparisonItem[] }
+  footer?: { headline?: string; body?: string; cta?: CtaRef }
+  // A pure-visual image wall (studio/behind-the-scenes photos, work samples with no case-study
+  // copy) — distinct from `services`, which pairs each item with a headline/description/link.
+  gallery?: { title?: string; items: GalleryItem[] }
+  // Event-specific config for webinar/event-signup templates — not editorial copy so much as a
+  // few settings, but it fits the same canonical-slot-group model as everything else. The
+  // "seats filled" figure itself is deliberately NOT stored here — it's a live, real count of
+  // this page's own FormSubmission rows, computed at render time, never authored/edited content.
+  webinar?: {
+    eventDate?: string
+    durationMinutes?: number
+    seatsTotal?: number
+    hostName?: string
+    hostTitle?: string
+    hostAvatarUrl?: string
+    hostBio?: string
+  }
 }
 
-export interface FeatureGridBlock {
-  _type: 'feature_grid'
-  title?: string
-  subtitle?: string
-  features: {
-    title: string
-    description: string
-    icon?: string
-  }[]
-  columns?: 2 | 3 | 4
+export type LayoutConfig = {
+  sections?: Record<string, { hidden?: boolean; order?: number }>
 }
 
-export interface TextMediaBlock {
-  _type: 'text_media'
-  headline: string
-  body: string
-  media: ImageProps
-  ctas?: ButtonProps[]
-  layout: 'media-left' | 'media-right'
+export type SlotGroupKey = keyof PageContent
+
+// A section's `type` (in a TemplateSection[] schema) declares which canonical slot group it
+// renders. Several section types can share one slot group (e.g. both "hero" and Email's
+// "split-capture" render `content.hero`) — the slot group is the content identity, the type is
+// just which visual component renders it. `form-embed` intentionally maps to nothing: form
+// content is a separate Form entity, not page content.
+export const SECTION_TYPE_TO_SLOT_GROUP: Record<string, SlotGroupKey | undefined> = {
+  hero: 'hero',
+  'split-capture': 'hero',
+  'media-image': 'media',
+  'media-audio': 'media',
+  'media-youtube': 'media',
+  'feature-grid': 'features',
+  'logo-cloud': 'logos',
+  'service-selector': 'services',
+  metrics: 'metrics',
+  comparison: 'comparison',
+  testimonials: 'testimonials',
+  faq: 'faq',
+  footer: 'footer',
+  'cta-band': 'footer',
+  nav: 'nav',
+  'webinar-widget': 'webinar',
+  'studio-contact': 'footer',
+  'photo-gallery': 'gallery',
+  'form-embed': undefined,
 }
 
-export interface LogoCloudBlock {
-  _type: 'logo_cloud'
-  title?: string
-  logos: {
-    name: string
-    icon?: string
-    imageUrl?: string
-  }[]
+export const KNOWN_SLOT_GROUPS: SlotGroupKey[] = [
+  'nav',
+  'hero',
+  'intro',
+  'media',
+  'webinar',
+  'features',
+  'services',
+  'gallery',
+  'testimonials',
+  'faq',
+  'logos',
+  'metrics',
+  'comparison',
+  'footer',
+]
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-export interface MetricsBlock {
-  _type: 'metrics'
-  metrics: {
-    value: string
-    label: string
-    description?: string
-  }[]
+function legacySectionsToCanonical(sections: Record<string, unknown>): PageContent {
+  const out: PageContent = {}
+  for (const [key, raw] of Object.entries(sections)) {
+    if (!isRecord(raw)) continue
+    switch (key) {
+      case 'hero':
+        out.hero = {
+          ...out.hero,
+          headline: typeof raw.headline === 'string' ? raw.headline : out.hero?.headline,
+          body: typeof raw.subheadline === 'string' ? raw.subheadline : out.hero?.body,
+          primaryCta:
+            typeof raw.ctaLabel === 'string' || typeof raw.ctaLink === 'string'
+              ? {
+                  label: raw.ctaLabel as string | undefined,
+                  url: raw.ctaLink as string | undefined,
+                }
+              : out.hero?.primaryCta,
+        }
+        break
+      case 'split':
+        out.hero = {
+          ...out.hero,
+          headline: typeof raw.headline === 'string' ? raw.headline : out.hero?.headline,
+          media: {
+            assetId: typeof raw.assetId === 'string' ? raw.assetId : undefined,
+            url: typeof raw.imageUrl === 'string' ? raw.imageUrl : undefined,
+          },
+        }
+        break
+      case 'image':
+        out.media = {
+          kind: 'image',
+          assetId: typeof raw.assetId === 'string' ? raw.assetId : undefined,
+          url: typeof raw.imageUrl === 'string' ? raw.imageUrl : undefined,
+        }
+        break
+      case 'features':
+        if (Array.isArray(raw.items)) out.features = { items: raw.items as FeatureItem[] }
+        break
+      case 'footer':
+        out.footer = {
+          ...out.footer,
+          body: typeof raw.text === 'string' ? raw.text : out.footer?.body,
+        }
+        break
+      default:
+        // form-embed and unknown legacy section keys carry no canonical content.
+        break
+    }
+  }
+  return out
 }
 
-export interface TestimonialBlock {
-  _type: 'testimonials'
-  title?: string
-  layout?: 'grid' | 'slider' | 'marquee'
-  testimonials: {
-    quote: string
-    author: string
-    role?: string
-    avatarUrl?: string
-    metrics?: string // e.g., "$10k/mo"
-  }[]
+function legacyBlocksToCanonical(blocks: unknown[]): PageContent {
+  const out: PageContent = {}
+  for (const raw of blocks) {
+    if (!isRecord(raw)) continue
+    const type = raw._type
+    switch (type) {
+      case 'hero': {
+        const ctas = Array.isArray(raw.ctas) ? (raw.ctas as Record<string, unknown>[]) : []
+        const media = isRecord(raw.media) ? raw.media : undefined
+        out.hero = {
+          headline: typeof raw.headline === 'string' ? raw.headline : undefined,
+          body: typeof raw.subheadline === 'string' ? raw.subheadline : undefined,
+          media: media
+            ? {
+                url: typeof media.url === 'string' ? media.url : undefined,
+                alt: typeof media.alt === 'string' ? media.alt : undefined,
+              }
+            : undefined,
+          primaryCta: ctas[0]
+            ? { label: ctas[0].label as string | undefined, url: ctas[0].url as string | undefined }
+            : undefined,
+          badges: Array.isArray(raw.badges) ? (raw.badges as string[]) : undefined,
+        }
+        break
+      }
+      case 'logo_cloud':
+        out.logos = {
+          title: typeof raw.title === 'string' ? raw.title : undefined,
+          items: Array.isArray(raw.logos) ? (raw.logos as LogoItem[]) : [],
+        }
+        break
+      case 'service_selector':
+        out.services = { items: Array.isArray(raw.services) ? (raw.services as ServiceItem[]) : [] }
+        break
+      case 'metrics':
+        out.metrics = { items: Array.isArray(raw.metrics) ? (raw.metrics as MetricItem[]) : [] }
+        break
+      case 'feature_grid':
+        out.features = {
+          items: Array.isArray(raw.features)
+            ? (raw.features as Record<string, unknown>[]).map((f) => ({
+                title: String(f.title ?? ''),
+                body: String(f.description ?? ''),
+                icon: typeof f.icon === 'string' ? f.icon : undefined,
+              }))
+            : [],
+        }
+        break
+      case 'comparison':
+        out.comparison = {
+          title: typeof raw.title === 'string' ? raw.title : undefined,
+          items: Array.isArray(raw.items) ? (raw.items as ComparisonItem[]) : [],
+        }
+        break
+      case 'testimonials':
+        out.testimonials = {
+          items: Array.isArray(raw.testimonials) ? (raw.testimonials as TestimonialItem[]) : [],
+        }
+        break
+      case 'faq':
+        out.faq = {
+          items: Array.isArray(raw.questions)
+            ? (raw.questions as Record<string, unknown>[]).map((q) => ({
+                question: String(q.question ?? ''),
+                answer: String(q.answer ?? ''),
+              }))
+            : [],
+        }
+        break
+      case 'cta':
+        out.footer = {
+          headline: typeof raw.headline === 'string' ? raw.headline : undefined,
+          body: typeof raw.subheadline === 'string' ? raw.subheadline : undefined,
+          cta: isRecord(raw.cta)
+            ? { label: raw.cta.label as string | undefined, url: raw.cta.url as string | undefined }
+            : undefined,
+        }
+        break
+      default:
+        // Dead/unused block types (pricing, timeline, ...) have no real renderer — no canonical mapping.
+        break
+    }
+  }
+  return out
 }
-
-export interface FaqBlock {
-  _type: 'faq'
-  title?: string
-  layout?: 'accordion' | 'grid'
-  questions: {
-    question: string
-    answer: string
-  }[]
-}
-
-export interface FormBlock {
-  _type: 'form'
-  title: string
-  subtitle?: string
-  formType: 'waitlist' | 'contact' | 'registration' | 'newsletter'
-  layout?: 'inline' | 'card' | 'split'
-  buttonLabel: string
-  successMessage?: string
-}
-
-export interface ImageBrowserBlock {
-  _type: 'image_browser'
-  title?: string
-  subtitle?: string
-  layout: 'carousel' | 'masonry' | 'thumbnail-rail' | 'cinematic'
-  images: {
-    url: string
-    alt: string
-    caption?: string
-  }[]
-}
-
-export interface BeforeAfterBlock {
-  _type: 'before_after'
-  title?: string
-  subtitle?: string
-  beforeImage: ImageProps
-  afterImage: ImageProps
-  beforeLabel?: string
-  afterLabel?: string
-}
-
-export interface ServiceSelectorBlock {
-  _type: 'service_selector'
-  title?: string
-  subtitle?: string
-  services: {
-    id: string
-    label: string
-    headline: string
-    description: string
-    price?: string
-    icon?: string
-    media?: ImageProps
-    cta?: ButtonProps
-  }[]
-}
-export interface PricingBlock {
-  _type: 'pricing'
-  title?: string
-  subtitle?: string
-  billingToggle?: { monthly: string; yearly: string; discount?: string }
-  plans: {
-    id: string
-    name: string
-    description: string
-    price: { monthly: string; yearly?: string }
-    features: string[]
-    isPopular?: boolean
-    cta: ButtonProps
-  }[]
-}
-
-export interface TimelineBlock {
-  _type: 'timeline'
-  title?: string
-  subtitle?: string
-  steps: {
-    title: string
-    description: string
-    date?: string
-    status?: 'completed' | 'current' | 'upcoming'
-  }[]
-}
-
-export interface StickyMediaBlock {
-  _type: 'sticky_media'
-  sections: {
-    id: string
-    headline: string
-    body: string
-    media: ImageProps
-  }[]
-}
-
-export interface ProductBrowserBlock {
-  _type: 'product_browser'
-  title?: string
-  products: {
-    id: string
-    name: string
-    description: string
-    price?: string
-    media: ImageProps
-    cta?: ButtonProps
-  }[]
-}
-
-export interface HotspotViewerBlock {
-  _type: 'hotspot_viewer'
-  title?: string
-  subtitle?: string
-  baseImage: ImageProps
-  hotspots: {
-    id: string
-    x: number
-    y: number
-    label: string
-    description: string
-  }[]
-}
-
-export interface VideoChapterBlock {
-  _type: 'video_chapter'
-  title?: string
-  videoUrl: string
-  chapters: {
-    title: string
-    timestamp: string
-  }[]
-}
-
-export interface MarqueeBlock {
-  _type: 'marquee'
-  direction?: 'left' | 'right'
-  speed?: 'slow' | 'normal' | 'fast'
-  items: {
-    text?: string
-    logo?: ImageProps
-  }[]
-}
-
-export interface ComparisonBlock {
-  _type: 'comparison'
-  title?: string
-  items: {
-    feature: string
-    us: string | boolean
-    them: string | boolean
-  }[]
-}
-
-export interface BookingPickerBlock {
-  _type: 'booking_picker'
-  title?: string
-  subtitle?: string
-  options: {
-    label: string
-    value: string
-  }[]
-}
-
-export interface CaseStudyBrowserBlock {
-  _type: 'case_study_browser'
-  title?: string
-  caseStudies: {
-    id: string
-    client: string
-    logo?: ImageProps
-    headline: string
-    results: { label: string; value: string }[]
-    media: ImageProps
-  }[]
-}
-
-export interface FloatingDockBlock {
-  _type: 'floating_dock'
-  items: {
-    label: string
-    icon: string
-    url: string
-  }[]
-}
-
-export interface CalculatorBlock {
-  _type: 'calculator'
-  title?: string
-  subtitle?: string
-  inputs: {
-    id: string
-    label: string
-    type: 'slider' | 'number'
-    min?: number
-    max?: number
-    step?: number
-    defaultValue: number
-  }[]
-}
-
-// Union of all possible block types
-export type PageBlock =
-  | HeroBlock
-  | FeatureGridBlock
-  | TextMediaBlock
-  | LogoCloudBlock
-  | MetricsBlock
-  | TestimonialBlock
-  | FaqBlock
-  | FormBlock
-  | ImageBrowserBlock
-  | BeforeAfterBlock
-  | ServiceSelectorBlock
-  | PricingBlock
-  | TimelineBlock
-  | StickyMediaBlock
-  | ProductBrowserBlock
-  | HotspotViewerBlock
-  | VideoChapterBlock
-  | MarqueeBlock
-  | ComparisonBlock
-  | BookingPickerBlock
-  | CaseStudyBrowserBlock
-  | FloatingDockBlock
-  | CalculatorBlock
 
 /**
- * Page Schema Model
+ * Reads content in whatever shape it was persisted in (already-canonical, or one of the two
+ * pre-migration shapes — `{sections: {...}}` or `{blocks: [...]}` ) and always returns the
+ * canonical `PageContent` shape. Applied transparently on every read (client hydrate, server
+ * render) — there is no migration script and no dual-write; the next save always persists
+ * canonical shape, so this only ever matters for rows that predate this model.
  */
+export function normalizeLegacyPageContent(raw: unknown): PageContent {
+  if (!isRecord(raw)) return {}
+  const hasLegacySections = isRecord(raw.sections)
+  const hasLegacyBlocks = Array.isArray(raw.blocks)
+  if (!hasLegacySections && !hasLegacyBlocks) return raw as PageContent
 
-export interface PageModel {
-  title: string
-  slug: string
-  seo: SeoProps
-  theme?: ThemeConfig
-  navLinks: LinkProps[]
-  blocks: PageBlock[]
+  const fromSections = hasLegacySections
+    ? legacySectionsToCanonical(raw.sections as Record<string, unknown>)
+    : {}
+  const fromBlocks = hasLegacyBlocks ? legacyBlocksToCanonical(raw.blocks as unknown[]) : {}
+  // Sections-derived values win on overlap (e.g. both declare `hero`) — arbitrary but
+  // deterministic; in practice a given legacy row only ever had one of the two shapes, so this
+  // is really just `{...fromBlocks, ...fromSections}` with each side only contributing the keys
+  // it actually produced.
+  return { ...fromBlocks, ...fromSections }
 }

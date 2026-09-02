@@ -9,10 +9,14 @@ import {
   useForm,
   useUpdateForm,
 } from '@project/sdk'
-import { SectionContent } from '../components/types'
+import {
+  normalizeLegacyPageContent,
+  type PageContent,
+  type LayoutConfig,
+  type TemplateSection,
+} from '../components/types'
 import type { AdSlotDraft } from '../components/adSlots'
 import type { FormFieldDraft } from '@/components/forms/FormFieldsEditor'
-import { hydratePageSections } from './hydratePageSections'
 
 function toDrafts(
   fields: {
@@ -71,7 +75,12 @@ export function useLandingPageEditor() {
   const saveSlots = replaceSlots.mutateAsync
   const saveForm = updateForm.mutateAsync
 
-  const [content, setContent] = useState<Record<string, SectionContent>>({})
+  // Canonical content — shared across every template, keyed by semantic slot group (hero,
+  // features, footer, ...), never a per-template shape. See apps/web/.../components/types.ts and
+  // packages/db/src/content.ts. layoutConfig is presentation only (section visibility/order),
+  // kept entirely separate from content values.
+  const [content, setContent] = useState<PageContent>({})
+  const [layoutConfig, setLayoutConfig] = useState<LayoutConfig>({})
   const [name, setName] = useState('')
   const [theme, setTheme] = useState<Record<string, string>>({})
   const [formId, setFormId] = useState('')
@@ -94,9 +103,8 @@ export function useLandingPageEditor() {
     hydratedPageId.current = page.id
     setName(page.name)
     setPublishPending(page.status !== 'PUBLISHED')
-    setContent(
-      (page.content as { sections?: Record<string, SectionContent> } | null)?.sections ?? {},
-    )
+    setContent(normalizeLegacyPageContent(page.content))
+    setLayoutConfig((page.layoutConfig as LayoutConfig | null) ?? {})
     setTheme((page.theme as Record<string, string> | null) ?? {})
     setFormId(page.formId ?? '')
     setTemplateId(page.templateId)
@@ -116,12 +124,31 @@ export function useLandingPageEditor() {
     setSubmitLabel(form.submitLabel)
   }, [formQuery.data?.data])
 
-  useEffect(() => {
-    const sections = (template?.schema as { sections?: { key: string }[] } | undefined)?.sections
-    if (!sections) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setContent((current) => hydratePageSections(current, sections))
-  }, [template?.id, template?.schema])
+  // A template switch never touches content — content is canonical and shared across every
+  // template, so a slot group the newly-selected template doesn't render simply isn't shown,
+  // never deleted. This only seeds layoutConfig defaults (visible) for sections this page has
+  // never had a layoutConfig entry for. React's "adjust state while rendering" pattern (plain
+  // useState comparisons, not an effect — see react-hooks/set-state-in-effect) — reads
+  // `layoutConfig` directly rather than through a functional updater since render already has the
+  // latest value.
+  const [prevTemplateId, setPrevTemplateId] = useState(template?.id)
+  const [prevTemplateSchema, setPrevTemplateSchema] = useState(template?.schema)
+  if (template?.id !== prevTemplateId || template?.schema !== prevTemplateSchema) {
+    setPrevTemplateId(template?.id)
+    setPrevTemplateSchema(template?.schema)
+    const sections = (template?.schema as { sections?: TemplateSection[] } | undefined)?.sections
+    if (sections) {
+      const existing = layoutConfig.sections ?? {}
+      let changed = false
+      const next = { ...existing }
+      for (const section of sections) {
+        if (next[section.key]) continue
+        next[section.key] = { hidden: false, order: section.order }
+        changed = true
+      }
+      if (changed) setLayoutConfig({ ...layoutConfig, sections: next })
+    }
+  }
 
   const persist = useCallback(async () => {
     if (!landingPageId || !name.trim()) return
@@ -131,8 +158,9 @@ export function useLandingPageEditor() {
       await updatePage({
         landingPageId,
         name: name.trim(),
-        content: { sections: content },
+        content: content as Record<string, unknown>,
         theme,
+        layoutConfig: layoutConfig as Record<string, unknown>,
         templateId: templateId || undefined,
         formId: formId || null,
       })
@@ -165,6 +193,7 @@ export function useLandingPageEditor() {
     name,
     content,
     theme,
+    layoutConfig,
     templateId,
     formId,
     slots,
@@ -219,6 +248,8 @@ export function useLandingPageEditor() {
     setContent,
     theme,
     setTheme,
+    layoutConfig,
+    setLayoutConfig,
     fields,
     setFields,
     submitLabel,

@@ -41,6 +41,10 @@ export interface PageHeaderProps {
    * not just a redundant label. */
   title?: string
   editableTitle?: PageHeaderEditableTitle
+  /** Optional visual anchor rendered before the title/description block (e.g. an entity's own
+   * avatar/logo). Generic on purpose — not named after any one domain — so any detail page can
+   * use it, not just Contacts. */
+  leading?: ReactNode
   description?: ReactNode
   breadcrumb?: PageHeaderBreadcrumb
   meta?: ReactNode
@@ -60,6 +64,7 @@ export function PageHeader({
   variant,
   title,
   editableTitle,
+  leading,
   description,
   breadcrumb,
   meta,
@@ -83,23 +88,26 @@ export function PageHeader({
       ) : null}
 
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 space-y-1">
-          {editableTitle ? (
-            <input
-              aria-label={editableTitle.ariaLabel ?? title}
-              defaultValue={editableTitle.value}
-              placeholder={editableTitle.placeholder}
-              onBlur={(event) => {
-                const next = event.target.value.trim()
-                if (next && next !== editableTitle.value) editableTitle.onCommit(next)
-              }}
-              className={cn(GHOST_INPUT, titleClass)}
-            />
-          ) : title ? (
-            <h1 className={titleClass}>{title}</h1>
-          ) : null}
-          {meta}
-          {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+        <div className="flex min-w-0 items-start gap-3">
+          {leading}
+          <div className="min-w-0 space-y-1">
+            {editableTitle ? (
+              <input
+                aria-label={editableTitle.ariaLabel ?? title}
+                defaultValue={editableTitle.value}
+                placeholder={editableTitle.placeholder}
+                onBlur={(event) => {
+                  const next = event.target.value.trim()
+                  if (next && next !== editableTitle.value) editableTitle.onCommit(next)
+                }}
+                className={cn(GHOST_INPUT, titleClass)}
+              />
+            ) : title ? (
+              <h1 className={titleClass}>{title}</h1>
+            ) : null}
+            {meta}
+            {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+          </div>
         </div>
 
         {primaryAction || secondaryActions ? (

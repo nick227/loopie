@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { getApiClient, ApiError } from '../client'
+import type { components } from '../generated/types'
 
 export function useCrmCatalog() {
   return useQuery({
@@ -36,11 +37,7 @@ export function useIntegrations() {
 export function useCreateIntegration() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (body: {
-      provider: 'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'SQUARE' | 'PIPEDRIVE'
-      label?: string
-      externalAccountId?: string
-    }) => {
+    mutationFn: async (body: components['schemas']['CreateIntegrationInput']) => {
       const client = getApiClient()
       const result = await client.POST('/integrations', { body })
       const err = result.error
@@ -75,7 +72,7 @@ export function useContactMatches(status?: 'UNMATCHED' | 'AMBIGUOUS') {
 export function useStartCrmOAuth() {
   return useMutation({
     mutationFn: async (input: {
-      provider: 'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'SQUARE' | 'PIPEDRIVE'
+      provider: 'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'WOOCOMMERCE' | 'SQUARE' | 'PIPEDRIVE'
       shop?: string
     }) => {
       const client = getApiClient()
@@ -84,6 +81,22 @@ export function useStartCrmOAuth() {
           path: { provider: input.provider },
           query: { shop: input.shop, returnPath: '/integrations' },
         },
+      })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
+      return data!
+    },
+  })
+}
+
+export function usePreviewIntegration() {
+  return useMutation({
+    mutationFn: async (integrationId: string) => {
+      const client = getApiClient()
+      const result = await client.POST('/integrations/{integrationId}/preview', {
+        params: { path: { integrationId } },
       })
       const err = result.error
       const status = result.response.status

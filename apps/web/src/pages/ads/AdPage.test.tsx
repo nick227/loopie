@@ -15,6 +15,23 @@ import { MemoryRouter } from 'react-router-dom'
 import * as sdk from '@project/sdk'
 import { AdPage } from './AdPage'
 
+// EmbedModal (rendered unconditionally, reserved-but-disabled, inside AdEditor's header actions)
+// calls @tanstack/react-query's useMutation directly rather than through a mockable @project/sdk
+// hook — see Shell.test.tsx's note that this codebase deliberately has no global
+// QueryClientProvider test wrapper, so any real query/mutation hook needs its own mock here.
+vi.mock('@tanstack/react-query', async () => {
+  const actual = await vi.importActual('@tanstack/react-query')
+  return {
+    ...(actual as object),
+    useMutation: vi.fn(() => ({
+      mutate: vi.fn(),
+      isPending: false,
+      data: undefined,
+      error: null,
+    })),
+  }
+})
+
 vi.mock('@project/sdk', async () => {
   const actual = await vi.importActual('@project/sdk')
   return {
@@ -77,6 +94,17 @@ vi.mock('@project/sdk', async () => {
       mutateAsync: vi.fn(),
       isPending: false,
       variables: undefined,
+    })),
+    usePublishAdvertisement: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
+    useDeleteAdvertisement: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
+    useRiverPosts: vi.fn(() => ({ data: { data: [] }, isLoading: false })),
+    useCreateRiverPost: vi.fn(() => ({
+      mutate: vi.fn(),
+      mutateAsync: vi.fn(),
+      isPending: false,
+      data: undefined,
+      error: null,
+      reset: vi.fn(),
     })),
   }
 })
@@ -849,5 +877,63 @@ describe('AdPage', () => {
     // Visible without opening Manage isn't the contract here — the stale banner lives inside
     // Manage (see AdDestinationRow.tsx) since it's a consequence tied to the relaunch action.
     expect(screen.getByRole('button', { name: 'Manage' })).toBeTruthy()
+  })
+
+  it('posts to River directly from its destination row and records prior publish times', async () => {
+    const user = userEvent.setup()
+    const publish = vi.fn().mockResolvedValue({ data: { id: 'version_2' } })
+    const post = vi.fn().mockResolvedValue({ data: { id: 'river_2' } })
+    vi.mocked(sdk.usePublishAdvertisement).mockReturnValue(
+      stub<ReturnType<typeof sdk.usePublishAdvertisement>>({
+        mutateAsync: publish,
+        isPending: false,
+      }),
+    )
+    vi.mocked(sdk.useCreateRiverPost).mockReturnValue(
+      stub<ReturnType<typeof sdk.useCreateRiverPost>>({ mutateAsync: post, isPending: false }),
+    )
+    vi.mocked(sdk.useRiverPosts).mockReturnValue(
+      stub<ReturnType<typeof sdk.useRiverPosts>>({
+        data: {
+          data: [
+            {
+              id: 'river_1',
+              advertisementId: 'ad_123',
+              createdAt: '2026-08-20T12:00:00.000Z',
+              permalinkUrl: 'https://example.test/river/posts/river_1',
+            },
+          ],
+        },
+      }),
+    )
+    mockAd([])
+    renderAdPage()
+
+    const riverCheckbox = screen.getByRole('checkbox', { name: 'River' })
+    expect(riverCheckbox).toBeChecked()
+    const riverRow = riverCheckbox.parentElement!
+    expect(within(riverRow).getByText(/Published 1 time/)).toBeTruthy()
+    await user.click(within(riverRow).getByRole('button', { name: 'Publish again' }))
+
+    expect(publish).toHaveBeenCalledWith({ id: 'ad_123' })
+    expect(post).toHaveBeenCalledWith({ type: 'AD', advertisementId: 'ad_123' })
+    expect(screen.queryByRole('heading', { name: 'Post to River' })).toBeNull()
+  })
+
+  it('deletes the ad from the danger action after confirmation', async () => {
+    const user = userEvent.setup()
+    const remove = vi.fn().mockResolvedValue({ data: null })
+    vi.mocked(sdk.useDeleteAdvertisement).mockReturnValue(
+      stub<ReturnType<typeof sdk.useDeleteAdvertisement>>({
+        mutateAsync: remove,
+        isPending: false,
+      }),
+    )
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    mockAd([])
+    renderAdPage()
+
+    await user.click(screen.getByRole('button', { name: 'Delete ad' }))
+    expect(remove).toHaveBeenCalledWith('ad_123')
   })
 })

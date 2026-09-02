@@ -6,6 +6,7 @@
 // requiring a second, separate view; (3) an AdRun can be funded and spent against without ever
 // touching a Campaign, per the user's explicit finance policy decision.
 import { describe, it, expect } from 'vitest'
+import { randomUUID } from 'crypto'
 import { db } from '@project/db'
 import { buildTestApp, asAuth, testUserId, testBusinessId } from './helpers'
 import { FinanceService } from '../services/FinanceService'
@@ -84,7 +85,11 @@ describe('AdRun click -> lead -> sale attribution', () => {
     const submitRes = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: sid, data: { email: 'adrun-migration@example.com' } },
+      payload: {
+        sessionId: sid,
+        idempotencyKey: randomUUID(),
+        data: { email: 'adrun-migration@example.com' },
+      },
     })
     expect(submitRes.statusCode).toBe(201)
     const { contactId, leadId } = submitRes.json().data
@@ -165,7 +170,11 @@ describe('Reporting unions AdRun into existing Campaign/Dashboard rollups', () =
     const submitD = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: sidD, data: { email: 'union-deployment@example.com' } },
+      payload: {
+        sessionId: sidD,
+        idempotencyKey: randomUUID(),
+        data: { email: 'union-deployment@example.com' },
+      },
     })
     const saleD = await app.inject({
       method: 'POST',
@@ -187,7 +196,11 @@ describe('Reporting unions AdRun into existing Campaign/Dashboard rollups', () =
     const submitLinked = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: sidLinked, data: { email: 'union-linked@example.com' } },
+      payload: {
+        sessionId: sidLinked,
+        idempotencyKey: randomUUID(),
+        data: { email: 'union-linked@example.com' },
+      },
     })
     const saleLinked = await app.inject({
       method: 'POST',
@@ -209,7 +222,11 @@ describe('Reporting unions AdRun into existing Campaign/Dashboard rollups', () =
     const submitUnlinked = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: sidUnlinked, data: { email: 'union-unlinked@example.com' } },
+      payload: {
+        sessionId: sidUnlinked,
+        idempotencyKey: randomUUID(),
+        data: { email: 'union-unlinked@example.com' },
+      },
     })
     const saleUnlinked = await app.inject({
       method: 'POST',
@@ -254,7 +271,11 @@ describe('Reporting unions AdRun into existing Campaign/Dashboard rollups', () =
     await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: sid, data: { email: 'dashboard-adrun@example.com' } },
+      payload: {
+        sessionId: sid,
+        idempotencyKey: randomUUID(),
+        data: { email: 'dashboard-adrun@example.com' },
+      },
     })
 
     const results = (

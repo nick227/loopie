@@ -96,6 +96,8 @@ function sourceLabel(sourceType: SourceType, sourceAdRun?: { platform: string } 
     AD_UNIT: 'LOOPIE',
     MANUAL: 'Manual',
     IMPORT: 'Import',
+    EMBED_PAGE: 'Landing Page',
+    EMBED_AD: 'Advertisement',
   }
   return labels[sourceType]
 }

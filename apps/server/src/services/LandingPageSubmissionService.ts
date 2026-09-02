@@ -1,7 +1,7 @@
 import { db, verifySid } from '@project/db'
 import type { Prisma, SourceType } from '@prisma/client'
 import { resolveContactAndLead } from '../lib/identityResolution'
-import { snapshotForm, isFormLive, type FormSnapshot } from '../lib/formSnapshot'
+import { snapshotForm, isFormLive, type FormSnapshot } from '@project/page-renderer'
 import { resolveAttributionSource, sourceTypeForKind } from '../lib/attributionSource'
 import { notifyFormSubmission } from '../lib/submissionInbox'
 
@@ -10,6 +10,8 @@ export class LandingPageSubmissionService {
     landingPageId: string,
     input: {
       sessionId?: string
+      idempotencyKey: string
+      embedInstanceId?: string
       data: Record<string, unknown>
       utmSource?: string
       utmMedium?: string
@@ -39,17 +41,35 @@ export class LandingPageSubmissionService {
       throw { statusCode: 409, message: 'This landing page has no form configured' }
     }
 
+    const validatedData: Record<string, unknown> = {}
     for (const field of form.fields) {
-      if (!field.required) continue
       const value = input.data[field.fieldKey]
-      if (value === undefined || value === null || String(value).trim() === '') {
+      if (
+        field.required &&
+        (value === undefined || value === null || String(value).trim() === '')
+      ) {
         throw { statusCode: 400, message: `Missing required field: ${field.fieldKey}` }
+      }
+      if (value !== undefined) {
+        validatedData[field.fieldKey] = value
+      }
+    }
+
+    if (input.embedInstanceId) {
+      const instance = await db.embedInstance.findUnique({ where: { id: input.embedInstanceId } })
+      if (!instance) throw { statusCode: 400, message: 'Invalid embed instance' }
+
+      const deployment = await db.embedDeployment.findUnique({
+        where: { id: instance.embedDeploymentId },
+      })
+      if (!deployment || deployment.landingPageId !== page.id) {
+        throw { statusCode: 400, message: 'Instance does not belong to this page deployment' }
       }
     }
 
     const result = await db.$transaction(async (tx) => {
       const existing = await tx.formSubmission.findFirst({
-        where: { landingPageId: page.id, sessionId },
+        where: { landingPageId: page.id, idempotencyKey: input.idempotencyKey },
       })
       if (existing?.contactId && existing.leadId) {
         const contact = await tx.contact.findUnique({ where: { id: existing.contactId } })
@@ -98,8 +118,10 @@ export class LandingPageSubmissionService {
           formId: form.id,
           landingPageId: page.id,
           publishedPageVersionId: page.publishedVersionId,
-          data: input.data as Prisma.InputJsonValue,
+          data: validatedData as Prisma.InputJsonValue,
           sessionId,
+          idempotencyKey: input.idempotencyKey,
+          embedInstanceId: input.embedInstanceId,
           clickId: attributed?.clickId,
           utmSource: input.utmSource ?? attributed?.utmSource,
           utmMedium: input.utmMedium ?? attributed?.utmMedium,
@@ -109,6 +131,15 @@ export class LandingPageSubmissionService {
           sourceDeploymentId: attributed?.deploymentId,
           sourceAdRunId: attributed?.adRunId,
           sourceAdUnitId: attributed?.adUnitId,
+        },
+      })
+
+      // Queue for worker processing instead of doing it inline
+      await tx.embedProjectionOutbox.create({
+        data: {
+          businessId: page.businessId,
+          formSubmissionId: submission.id,
+          idempotencyKey: input.idempotencyKey,
         },
       })
 

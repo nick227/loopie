@@ -3,16 +3,29 @@ import type { CrmProvider, IntegrationStatus } from '@prisma/client'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { catalogEntry } from '../lib/crm/catalog'
 import { getCrmConnector, listCrmConnectors } from '../lib/crm/registry'
+import { normalizeWooStoreUrl } from '../lib/crm/woocommerce'
+import { writeCreds } from './CrmOAuthService'
+import { randomBytes } from 'node:crypto'
+
+function inboundWebhookUrl(integrationId: string) {
+  const base = (process.env.TRACKING_BASE_URL ?? 'http://localhost:3001').replace(/\/$/, '')
+  return `${base}/webhooks/inbound/${integrationId}`
+}
 
 async function lastJob(integrationId: string) {
-  const record = await db.externalContactRecord.findFirst({
-    where: { integrationId, importJobId: { not: null } },
-    orderBy: { syncedAt: 'desc' },
+  return db.importJob.findFirst({
+    where: { integrationId },
+    orderBy: { createdAt: 'desc' },
     select: {
-      importJob: { select: { created: true, linked: true, ambiguous: true, skipped: true } },
+      status: true,
+      created: true,
+      linked: true,
+      ambiguous: true,
+      skipped: true,
+      error: true,
+      updatedAt: true,
     },
   })
-  return record?.importJob ?? null
 }
 
 async function toDTO(row: {
@@ -24,6 +37,9 @@ async function toDTO(row: {
   status: IntegrationStatus
   syncDirection: string
   lastSyncAt: Date | null
+  lastSyncAttemptAt: Date | null
+  lastSyncError: string | null
+  syncHasMore: boolean
   capabilities: unknown
   createdAt: Date
   credentialsEnc: string | null
@@ -40,6 +56,12 @@ async function toDTO(row: {
     status: row.status,
     syncDirection: row.syncDirection,
     lastSyncAt: row.lastSyncAt?.toISOString() ?? null,
+    lastSuccessfulSyncAt: row.lastSyncAt?.toISOString() ?? null,
+    lastSyncAttemptAt: row.lastSyncAttemptAt?.toISOString() ?? null,
+    lastSyncError: row.lastSyncError,
+    syncHasMore: row.syncHasMore,
+    lastSyncStatus: job?.status ?? null,
+    lastSyncJobAt: job?.updatedAt.toISOString() ?? null,
     lastSyncCreated: job?.created ?? null,
     lastSyncLinked: job?.linked ?? null,
     lastSyncAmbiguous: job?.ambiguous ?? null,
@@ -47,6 +69,7 @@ async function toDTO(row: {
     capabilities: row.capabilities,
     oauth: connector.oauth,
     configured: connector.configured(),
+    webhookUrl: row.provider === 'WEBHOOK' ? inboundWebhookUrl(row.id) : null,
     createdAt: row.createdAt.toISOString(),
   }
 }
@@ -94,27 +117,87 @@ export class IntegrationService {
 
   async create(
     businessId: string,
-    data: { provider: string; label?: string; externalAccountId?: string },
+    data: {
+      provider: string
+      label?: string
+      externalAccountId?: string
+      storeUrl?: string
+      consumerKey?: string
+      consumerSecret?: string
+    },
   ) {
     if (data.provider === 'CSV')
       throw { statusCode: 400, message: 'CSV is an import, not an Integration' }
     const entry = catalogEntry(data.provider)
     if (!entry) throw { statusCode: 400, message: 'Unknown CRM provider' }
     const connector = getCrmConnector(entry.provider)
+    if (connector.availability !== 'LIVE' || (!connector.live && entry.provider !== 'WEBHOOK')) {
+      throw { statusCode: 501, message: `${entry.label} is coming soon` }
+    }
     if (connector.oauth && connector.configured()) {
       throw { statusCode: 400, message: 'Connect this provider with OAuth' }
     }
-    const row = await db.integration.create({
-      data: {
+    if (connector.oauth && !connector.configured()) {
+      throw { statusCode: 503, message: `${entry.label} is not configured` }
+    }
+
+    let externalAccountId = data.externalAccountId ?? null
+    let credentialsEnc: string | null = null
+    let webhookSecret: string | null = null
+    if (entry.provider === 'WOOCOMMERCE') {
+      const storeUrl = normalizeWooStoreUrl(data.storeUrl ?? '')
+      const consumerKey = data.consumerKey?.trim() ?? ''
+      const consumerSecret = data.consumerSecret?.trim() ?? ''
+      if (!consumerKey.startsWith('ck_') || !consumerSecret.startsWith('cs_')) {
+        throw { statusCode: 400, message: 'Enter a valid WooCommerce consumer key and secret' }
+      }
+      // Verify read access before presenting the integration as connected.
+      await connector.live!.listContacts(consumerKey, null, {
+        shop: storeUrl,
+        secret: consumerSecret,
+      })
+      externalAccountId = storeUrl
+      credentialsEnc = writeCreds({
+        accessToken: consumerKey,
+        consumerSecret,
+        shop: storeUrl,
+      })
+    }
+    if (entry.provider === 'WEBHOOK') {
+      webhookSecret = `whsec_${randomBytes(24).toString('base64url')}`
+      externalAccountId = `inbound_${randomBytes(12).toString('hex')}`
+      credentialsEnc = writeCreds({ accessToken: webhookSecret })
+    }
+    if (!externalAccountId) {
+      throw { statusCode: 400, message: `${entry.label} account identifier is required` }
+    }
+
+    const row = await db.integration.upsert({
+      where: {
+        businessId_provider_externalAccountId: {
+          businessId,
+          provider: entry.provider,
+          externalAccountId,
+        },
+      },
+      create: {
         businessId,
         provider: entry.provider,
         label: data.label ?? entry.label,
-        externalAccountId: data.externalAccountId ?? null,
+        externalAccountId,
         status: 'CONNECTED',
         capabilities: entry.capabilities as object,
+        credentialsEnc,
+      },
+      update: {
+        label: data.label ?? entry.label,
+        status: 'CONNECTED',
+        capabilities: entry.capabilities as object,
+        credentialsEnc,
       },
     })
-    return toDTO(row)
+    const dto = await toDTO(row)
+    return webhookSecret ? { ...dto, webhookSecret } : dto
   }
 
   async update(

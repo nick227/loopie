@@ -9,6 +9,11 @@ import { normalizeEmail, normalizePhone, tombstoneIdentity } from '../lib/identi
 import { syncPrimaryIdentifiers, tombstoneIdentifiers } from '../lib/contactIdentifiers'
 import { ImportJobService } from './ImportJobService'
 import { ACTIVE_SALE_WHERE } from '../lib/salePredicates'
+import { syncContactTags } from '../lib/contactTags'
+import { currentLeadCard, LOGGABLE_ACTIVITY_TYPES } from '../lib/leadCard'
+import { channelForInteractionType, findOrCreateProvider } from '../lib/channelProviders'
+import { toInteractionDTO } from '../lib/interactionDto'
+import type { Channel } from '@prisma/client'
 
 const importJobs = new ImportJobService()
 
@@ -19,7 +24,8 @@ export class ContactService {
       cursor?: string
       limit?: number
       q?: string
-      tag?: string
+      tagIds?: string[]
+      tagMode?: 'AND' | 'OR'
       source?: string
       lifecycleStatus?: string
     },
@@ -29,7 +35,15 @@ export class ContactService {
 
     const AND: any[] = []
     if (opts.q) AND.push({ OR: [{ name: { contains: opts.q } }, { email: { contains: opts.q } }] })
-    if (opts.tag) AND.push({ tags: { array_contains: opts.tag } })
+    if (opts.tagIds && opts.tagIds.length > 0) {
+      // Default AND ("has all selected tags") — the more useful default for segmentation, per
+      // explicit product decision; an "Any" toggle (tagMode: 'OR') is available, not hidden.
+      if (opts.tagMode === 'OR') {
+        AND.push({ tagAssignments: { some: { tagId: { in: opts.tagIds } } } })
+      } else {
+        AND.push(...opts.tagIds.map((tagId) => ({ tagAssignments: { some: { tagId } } })))
+      }
+    }
     if (opts.source) AND.push({ source: opts.source })
     if (cursor) {
       AND.push({
@@ -123,12 +137,13 @@ export class ContactService {
           phone: normalizePhone(data.phone),
           company: data.company,
           source: data.source,
-          tags: data.tags ?? [],
+          avatarAssetId: data.avatarAssetId,
           emailEligible: data.emailEligible ?? true,
           smsEligible: data.smsEligible ?? true,
         },
       })
       await syncPrimaryIdentifiers(tx, created, data.source ?? 'LOOPIE')
+      if (data.tags !== undefined) await syncContactTags(tx, businessId, created.id, data.tags)
       return tx.contact.findFirstOrThrow({ where: { id: created.id }, include: LIFECYCLE_INCLUDE })
     })
     return toContactDTO(contact)
@@ -144,13 +159,14 @@ export class ContactService {
       include: LIFECYCLE_INCLUDE,
     })
     if (!contact) throw { statusCode: 404, message: 'Contact not found' }
-    const [identifiers, records, revenueAgg] = await Promise.all([
+    const [identifiers, records, revenueAgg, currentLead] = await Promise.all([
       db.contactIdentifier.findMany({ where: { contactId } }),
       db.externalContactRecord.findMany({ where: { contactId }, orderBy: { syncedAt: 'desc' } }),
       db.sale.aggregate({
         where: { contactId, businessId, ...ACTIVE_SALE_WHERE },
         _sum: { amount: true },
       }),
+      currentLeadCard(businessId, contactId),
     ])
     const profiles: Record<string, Record<string, string>> = {}
     for (const row of records) {
@@ -162,7 +178,55 @@ export class ContactService {
       records,
       revenue: Number(revenueAgg._sum.amount ?? 0),
       profiles,
+      currentLead,
     })
+  }
+
+  // Manually logging real-world effort (a call, a meeting, a webinar/event, a follow-up, or a
+  // plain note) — the one write path that puts a row into Interaction without going through a
+  // system-of-record code path (MessageService.send, form submission, sale creation, ...).
+  async logActivity(
+    businessId: string,
+    contactId: string,
+    data: {
+      type: string
+      channel?: Channel
+      providerId?: string
+      providerName?: string
+      note?: string
+      occurredAt?: string
+    },
+  ) {
+    await this.get(businessId, contactId) // 404 + tenant guard
+    if (!(LOGGABLE_ACTIVITY_TYPES as readonly string[]).includes(data.type)) {
+      throw { statusCode: 400, message: `Cannot manually log activity type "${data.type}"` }
+    }
+    // Auto-derived when the caller doesn't specify one — matches the same InteractionType ->
+    // Channel mapping used for the backfill and for system-generated interactions.
+    const channel = data.channel ?? channelForInteractionType(data.type as any)
+
+    let providerId = data.providerId
+    if (!providerId && data.providerName && channel) {
+      const provider = await findOrCreateProvider(db, businessId, channel, data.providerName)
+      providerId = provider.id
+    } else if (providerId) {
+      const owned = await db.channelProvider.findFirst({ where: { id: providerId, businessId } })
+      if (!owned) throw { statusCode: 404, message: 'Provider not found' }
+    }
+
+    const interaction = await db.interaction.create({
+      data: {
+        businessId,
+        contactId,
+        type: data.type as (typeof LOGGABLE_ACTIVITY_TYPES)[number],
+        channel: channel ?? undefined,
+        providerId,
+        metadata: data.note ? { note: data.note } : undefined,
+        occurredAt: data.occurredAt ? new Date(data.occurredAt) : new Date(),
+      },
+      include: { provider: true },
+    })
+    return toInteractionDTO(interaction)
   }
 
   async update(businessId: string, contactId: string, data: any) {
@@ -174,7 +238,7 @@ export class ContactService {
         ...(data.email !== undefined ? { email: normalizeEmail(data.email) } : {}),
         ...(data.phone !== undefined ? { phone: normalizePhone(data.phone) } : {}),
         ...(data.company !== undefined ? { company: data.company } : {}),
-        ...(data.tags !== undefined ? { tags: data.tags } : {}),
+        ...(data.avatarAssetId !== undefined ? { avatarAssetId: data.avatarAssetId } : {}),
         ...(data.emailEligible !== undefined
           ? {
               emailEligible: data.emailEligible,
@@ -186,7 +250,10 @@ export class ContactService {
           : {}),
       },
     })
-    await db.$transaction((tx) => syncPrimaryIdentifiers(tx, contact, 'LOOPIE'))
+    await db.$transaction(async (tx) => {
+      await syncPrimaryIdentifiers(tx, contact, 'LOOPIE')
+      if (data.tags !== undefined) await syncContactTags(tx, businessId, contactId, data.tags)
+    })
     const withLifecycle = await db.contact.findFirstOrThrow({
       where: { id: contactId },
       include: LIFECYCLE_INCLUDE,
@@ -232,6 +299,7 @@ export class ContactService {
       where: { contactId, businessId, ...(AND.length ? { AND } : {}) },
       orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
+      include: { provider: true },
     })
 
     const hasMore = interactions.length > limit
@@ -243,17 +311,7 @@ export class ContactService {
         : null
 
     return {
-      data: items.map((i) => ({
-        id: i.id,
-        contactId: i.contactId,
-        type: i.type,
-        sourceType: i.sourceType,
-        sourceMessageId: i.sourceMessageId,
-        sourceDeploymentId: i.sourceDeploymentId,
-        sourceAdUnitId: i.sourceAdUnitId,
-        metadata: i.metadata,
-        occurredAt: i.occurredAt.toISOString(),
-      })),
+      data: items.map(toInteractionDTO),
       meta: { hasMore, nextCursor },
     }
   }

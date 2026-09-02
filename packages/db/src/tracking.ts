@@ -42,6 +42,9 @@ export async function trackBaseClick({
   adRunId,
   adUnitId,
   landingPageId,
+  sourceEmbedDeploymentId,
+  sourceEmbedVersionId,
+  sourceEmbedInstanceId,
   platform,
   sessionId,
   clickId,
@@ -53,6 +56,9 @@ export async function trackBaseClick({
   adRunId?: string | null
   adUnitId?: string | null
   landingPageId?: string | null
+  sourceEmbedDeploymentId?: string | null
+  sourceEmbedVersionId?: string | null
+  sourceEmbedInstanceId?: string | null
   platform?: any
   sessionId?: string
   clickId?: string | null
@@ -67,6 +73,9 @@ export async function trackBaseClick({
       adRunId,
       adUnitId,
       landingPageId,
+      embedDeploymentId: sourceEmbedDeploymentId,
+      embedVersionId: sourceEmbedVersionId,
+      embedInstanceId: sourceEmbedInstanceId,
       platform,
       sessionId: visitor.sessionId,
       clickId: clickId || null,

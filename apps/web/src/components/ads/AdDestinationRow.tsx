@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { RefreshCw } from 'lucide-react'
+import { ExternalLink, RefreshCw, Send } from 'lucide-react'
 import { usePlatformConnection } from '@project/sdk'
 import type { components } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
@@ -39,35 +39,99 @@ export function DestinationIntentRow({
   id,
   label,
   format,
-  selected,
-  onToggle,
+  publishedAt = [],
+  publicationRecords,
+  pending,
+  disabled,
+  onPublish,
 }: {
   id: string
   label: string
   format?: string
-  selected: boolean
-  onToggle: () => void
+  publishedAt?: string[]
+  publicationRecords?: PublicationRecord[]
+  pending?: boolean
+  disabled?: boolean
+  onPublish: () => void
 }) {
+  const published = (publicationRecords?.length ?? publishedAt.length) > 0
   return (
     <div
       className={cn(
-        'flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors',
-        selected ? 'border-border bg-accent' : 'border-border bg-transparent',
+        'flex items-start gap-3 rounded-lg border px-3 py-3 transition-colors',
+        published ? 'border-border bg-accent' : 'border-border bg-transparent',
+        disabled ? 'opacity-50' : undefined,
       )}
     >
       <input
         id={id}
         type="checkbox"
-        checked={selected}
-        onChange={onToggle}
+        checked={published}
+        onChange={onPublish}
+        disabled={disabled || pending}
         aria-label={label}
         className="h-4 w-4 shrink-0 accent-primary"
       />
-      <label htmlFor={id} className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium">{label}</span>
         {format ? <span className="block text-xs text-muted-foreground">{format}</span> : null}
-      </label>
+        <PublicationHistory timestamps={publishedAt} records={publicationRecords} />
+      </div>
+      <Button
+        type="button"
+        size="sm"
+        variant={published ? 'outline' : 'default'}
+        onClick={onPublish}
+        loading={pending}
+        disabled={disabled}
+      >
+        {!pending ? <Send size={13} /> : null}
+        {published ? 'Publish again' : 'Publish'}
+      </Button>
     </div>
+  )
+}
+
+export type PublicationRecord = { createdAt: string; href?: string }
+
+export function PublicationHistory({
+  timestamps,
+  records,
+}: {
+  timestamps?: string[]
+  records?: PublicationRecord[]
+}) {
+  const items: PublicationRecord[] =
+    records ?? (timestamps ?? []).map((createdAt) => ({ createdAt }))
+  if (items.length === 0) {
+    return <p className="mt-1 text-xs text-muted-foreground">Never published</p>
+  }
+
+  return (
+    <details className="mt-1 text-xs text-muted-foreground">
+      <summary className="w-fit cursor-pointer select-none hover:text-foreground">
+        Published {items.length} {items.length === 1 ? 'time' : 'times'} · latest{' '}
+        {timeAgo(items[0]?.createdAt) ?? 'just now'}
+      </summary>
+      <ol className="mt-2 space-y-1 border-l border-border pl-3">
+        {items.map((item, index) => (
+          <li key={`${item.createdAt}-${index}`} className="tabular-nums">
+            {item.href ? (
+              <a
+                href={item.href}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 hover:text-foreground hover:underline"
+              >
+                {new Date(item.createdAt).toLocaleString()} <ExternalLink size={11} />
+              </a>
+            ) : (
+              new Date(item.createdAt).toLocaleString()
+            )}
+          </li>
+        ))}
+      </ol>
+    </details>
   )
 }
 
@@ -579,6 +643,7 @@ export function PaidRunRow({
   onReplaceDestination,
   replaceDestinationPending,
   replaceDestinationError,
+  publicationHistory = [],
 }: {
   brand: string
   run: AdRun
@@ -610,6 +675,7 @@ export function PaidRunRow({
   onReplaceDestination?: (pageId: string) => Promise<void>
   replaceDestinationPending?: boolean
   replaceDestinationError?: string | null
+  publicationHistory?: string[]
 }) {
   const [manageOpen, setManageOpen] = useState(false)
   const [showBudgetEditor, setShowBudgetEditor] = useState(false)
@@ -715,8 +781,14 @@ export function PaidRunRow({
               {syncLine(run, brand)}
             </p>
           ) : null}
+          <PublicationHistory timestamps={publicationHistory} />
         </div>
         <div className="flex shrink-0 items-start gap-2">
+          {onRelaunch ? (
+            <Button type="button" size="sm" variant="outline" onClick={onRelaunch}>
+              <Send size={13} /> Publish again
+            </Button>
+          ) : null}
           {run.externalAdId && onSync ? (
             <Button
               type="button"
@@ -1132,14 +1204,30 @@ export function PaidRunRow({
   )
 }
 
-export function PageRunRow({ label, onPause }: { label: string; onPause?: () => void }) {
+export function PageRunRow({
+  label,
+  onPause,
+  onPublish,
+  publicationHistory = [],
+}: {
+  label: string
+  onPause?: () => void
+  onPublish?: () => void
+  publicationHistory?: string[]
+}) {
   return (
     <div className="flex items-center gap-3 rounded-lg border border-border bg-accent px-3 py-2.5">
       <input type="checkbox" checked disabled className="h-4 w-4 shrink-0 accent-primary" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{label}</p>
         <p className="text-xs text-muted-foreground">On this page</p>
+        <PublicationHistory timestamps={publicationHistory} />
       </div>
+      {onPublish ? (
+        <Button type="button" size="sm" variant="outline" onClick={onPublish}>
+          <Send size={13} /> Publish again
+        </Button>
+      ) : null}
       {onPause ? (
         <Button type="button" size="sm" variant="outline" onClick={onPause}>
           Pause

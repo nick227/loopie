@@ -31,6 +31,21 @@ export async function updateAdvertisement(request: any, reply: any) {
   return reply.send({ data: advertisement })
 }
 
+export async function deleteAdvertisement(request: any, reply: any) {
+  await advertisements.delete(request.user.businessId, request.params.advertisementId)
+  return reply.send({ data: null })
+}
+
+export async function publishAdvertisement(request: any, reply: any) {
+  const version = await advertisements.publish(
+    request.user.businessId,
+    request.params.advertisementId,
+    request.body,
+    request.user.id,
+  )
+  return reply.send({ data: version })
+}
+
 export async function listAdRuns(request: any, reply: any) {
   const data = await adRuns.list(
     request.user.businessId,

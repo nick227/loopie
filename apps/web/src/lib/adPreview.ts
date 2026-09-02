@@ -1,15 +1,3 @@
-export type PreviewFrameId = 'desktop' | 'mobile'
-
-export type PreviewFrame = {
-  id: PreviewFrameId
-  label: string
-}
-
-export const PREVIEW_FRAMES: PreviewFrame[] = [
-  { id: 'desktop', label: 'Desktop' },
-  { id: 'mobile', label: 'Mobile' },
-]
-
 export type PaidTarget = {
   key: 'META_FEED' | 'GOOGLE_DISPLAY' | 'GOOGLE_YOUTUBE'
   platform: 'META' | 'GOOGLE'

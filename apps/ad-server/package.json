@@ -13,6 +13,7 @@
     "@fastify/cors": "^9.0.0",
     "@prisma/client": "^5.0.0",
     "@project/db": "workspace:*",
+    "@project/page-renderer": "workspace:*",
     "fastify": "^4.0.0"
   },
   "devDependencies": {

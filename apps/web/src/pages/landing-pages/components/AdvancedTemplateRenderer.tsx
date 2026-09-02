@@ -1,125 +1,85 @@
-import { AppWaitlistNeon } from '@/components/landing-pages/templates/AppWaitlistNeon'
-import { AgencyOrganic } from '@/components/landing-pages/templates/AgencyOrganic'
-import { CreatorBrutalist } from '@/components/landing-pages/templates/CreatorBrutalist'
-import { DevToolCyberpunk } from '@/components/landing-pages/templates/DevToolCyberpunk'
-import { EcommerceGradient } from '@/components/landing-pages/templates/EcommerceGradient'
-import { EventPastel } from '@/components/landing-pages/templates/EventPastel'
-import { HealthcareTelehealth } from '@/components/landing-pages/templates/HealthcareTelehealth'
-import { RealEstateLuxury } from '@/components/landing-pages/templates/RealEstateLuxury'
-import { SaaSCleanCrisp } from '@/components/landing-pages/templates/SaaSCleanCrisp'
-import { Web3Crypto } from '@/components/landing-pages/templates/Web3Crypto'
-import { PageModel } from '@project/db/src/content'
-import { useState } from 'react'
-import { Button } from '@/components/ui/Button'
+import { useEffect } from 'react'
+import { CorporateProfessional } from '../../../components/landing-pages/templates/CorporateProfessional'
+import { WebinarSignup } from '../../../components/landing-pages/templates/WebinarSignup'
+import { Studio } from '../../../components/landing-pages/templates/Studio'
+import type { FormFieldDraft } from '@/components/forms/FormFieldsEditor'
+import {
+  CORPORATE_PROFESSIONAL_TEMPLATE_ID,
+  WEBINAR_SIGNUP_TEMPLATE_ID,
+  STUDIO_TEMPLATE_ID,
+  type LayoutConfig,
+  type PageContent,
+} from './types'
 
-function DefaultPreview() {
-  return <div>Preview not available</div>
-}
-
+// Dispatches to whichever "rich" template's own visual component renders a given templateId —
+// each one editable in place, no sidebar. All read/write the same canonical PageContent; only
+// the visual component differs from PageCanvas's plainer section-registry rendering.
 export function AdvancedTemplateRenderer({
   templateId,
   content,
-  setContent,
-  setDirty,
+  theme,
+  layoutConfig,
+  hasForm,
+  formFields,
+  submitLabel,
+  submissionCount,
+  onSlot,
+  onFormFields,
 }: {
   templateId: string
-  content: unknown
-  setContent: (c: unknown) => void
-  setDirty: (d: boolean) => void
+  content: PageContent
+  theme: Record<string, string>
+  layoutConfig: LayoutConfig
+  hasForm: boolean
+  formFields: FormFieldDraft[]
+  submitLabel: string
+  submissionCount?: number
+  onSlot: (slotGroup: keyof PageContent, next: unknown) => void
+  onFormFields: (fields: FormFieldDraft[]) => void
 }) {
-  const [jsonMode, setJsonMode] = useState(false)
-  const [jsonError, setJsonError] = useState<string | null>(null)
+  // Rich canvases used to skip the font loader that PageCanvas uses. That made the editor fall
+  // back to a local/system face while the self-contained published HTML loaded Google Fonts.
+  const googleFonts =
+    theme.googleFonts ?? 'family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600'
+  useEffect(() => {
+    if (!googleFonts) return
+    const url = `https://fonts.googleapis.com/css2?${googleFonts}&display=swap`
+    if (document.querySelector(`link[href="${url}"]`)) return
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = url
+    document.head.appendChild(link)
+  }, [googleFonts])
 
-  const handleJsonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    try {
-      const parsed = JSON.parse(e.target.value) as unknown
-      setContent(parsed)
-      setJsonError(null)
-      setDirty(true)
-    } catch (err: unknown) {
-      setJsonError(err instanceof Error ? err.message : 'Invalid JSON')
-    }
+  const shared = {
+    content,
+    theme,
+    layoutConfig,
+    editable: true as const,
+    onSlotChange: onSlot,
   }
-
-  let Preview: React.ComponentType<{ data?: PageModel }> = DefaultPreview
-  switch (templateId) {
-    case 'system-template-app-waitlist-neon':
-      Preview = AppWaitlistNeon
-      break
-    case 'system-template-agency-organic':
-      Preview = AgencyOrganic
-      break
-    case 'system-template-creator-brutalist':
-      Preview = CreatorBrutalist
-      break
-    case 'system-template-dev-tool-cyberpunk':
-      Preview = DevToolCyberpunk
-      break
-    case 'system-template-ecommerce-gradient':
-      Preview = EcommerceGradient
-      break
-    case 'system-template-event-pastel':
-      Preview = EventPastel
-      break
-    case 'system-template-healthcare-telehealth':
-      Preview = HealthcareTelehealth
-      break
-    case 'system-template-real-estate-luxury':
-      Preview = RealEstateLuxury
-      break
-    case 'system-template-saas-clean-crisp':
-      Preview = SaaSCleanCrisp
-      break
-    case 'system-template-web3-crypto':
-      Preview = Web3Crypto
-      break
-    default:
-      Preview = DefaultPreview
-  }
-
-  // Ensure content matches the PageModel shape roughly
-  const data =
-    typeof content === 'object' &&
-    content !== null &&
-    'blocks' in content &&
-    (content as { blocks: unknown }).blocks
-      ? content
-      : {
-          blocks: [],
-          navLinks: [],
-          title: '',
-          seo: { title: '', description: '' },
-          theme: {},
-        }
-
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          This is an advanced layout. Edit data in JSON mode to customize it.
-        </p>
-        <Button variant="outline" size="sm" onClick={() => setJsonMode(!jsonMode)}>
-          {jsonMode ? 'Show Preview' : 'Edit JSON Data'}
-        </Button>
-      </div>
-
-      {jsonMode ? (
-        <div className="space-y-2">
-          <textarea
-            className="w-full h-96 p-4 font-mono text-sm bg-muted rounded-xl border border-input-border"
-            defaultValue={JSON.stringify(content, null, 2)}
-            onChange={handleJsonChange}
-          />
-          {jsonError && <p className="text-red-500 text-sm">{jsonError}</p>}
-        </div>
-      ) : (
-        <div className="border border-input-border rounded-xl overflow-hidden bg-background pointer-events-none relative shadow-sm">
-          {/* We scale the preview down slightly so it fits in the editor */}
-          <div className="origin-top-left scale-90 w-[111%]">
-            <Preview data={data as PageModel} />
-          </div>
-        </div>
-      )}
+    <div className="overflow-hidden rounded-xl border border-input-border shadow-sm">
+      {templateId === WEBINAR_SIGNUP_TEMPLATE_ID ? (
+        <WebinarSignup
+          {...shared}
+          hasForm={hasForm}
+          formFields={formFields}
+          onFormFields={onFormFields}
+          submitLabel={submitLabel}
+          seatsFilled={submissionCount ?? 0}
+        />
+      ) : templateId === STUDIO_TEMPLATE_ID ? (
+        <Studio
+          {...shared}
+          hasForm={hasForm}
+          formFields={formFields}
+          onFormFields={onFormFields}
+          submitLabel={submitLabel}
+        />
+      ) : templateId === CORPORATE_PROFESSIONAL_TEMPLATE_ID ? (
+        <CorporateProfessional {...shared} />
+      ) : null}
     </div>
   )
 }

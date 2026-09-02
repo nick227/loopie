@@ -3,6 +3,7 @@ import {
   useCreateIntegration,
   useCrmCatalog,
   useIntegrations,
+  usePreviewIntegration,
   useStartCrmOAuth,
   useSyncIntegration,
 } from '@project/sdk'
@@ -20,26 +21,53 @@ export function IntegrationsPage() {
   const create = useCreateIntegration()
   const oauth = useStartCrmOAuth()
   const sync = useSyncIntegration()
+  const preview = usePreviewIntegration()
   const connected = useFlatPages(list)
   const [shop, setShop] = useState('')
+  const [wooStoreUrl, setWooStoreUrl] = useState('')
+  const [wooConsumerKey, setWooConsumerKey] = useState('')
+  const [wooConsumerSecret, setWooConsumerSecret] = useState('')
+  const [previewIntegrationId, setPreviewIntegrationId] = useState<string | null>(null)
+  const [webhookCredentials, setWebhookCredentials] = useState<{
+    url: string
+    secret: string
+  } | null>(null)
 
   async function connect(
-    provider: 'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'SQUARE' | 'PIPEDRIVE',
+    provider:
+      'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'WOOCOMMERCE' | 'WEBHOOK' | 'SQUARE' | 'PIPEDRIVE',
     oauthEnabled?: boolean,
   ) {
     if (oauthEnabled) {
       const started = await oauth.mutateAsync({
-        provider,
+        provider: provider as Exclude<typeof provider, 'WEBHOOK'>,
         shop: provider === 'SHOPIFY' ? shop : undefined,
       })
       if (!started.data) throw new Error('Missing OAuth URL')
       window.location.assign(started.data.url)
       return
     }
-    await create.mutateAsync({
-      provider,
-      externalAccountId: provider === 'SHOPIFY' ? shop || undefined : undefined,
+    if (provider === 'WEBHOOK') {
+      const created = await create.mutateAsync({ provider: 'WEBHOOK' })
+      if (created.data?.webhookUrl && created.data.webhookSecret) {
+        setWebhookCredentials({
+          url: created.data.webhookUrl,
+          secret: created.data.webhookSecret,
+        })
+      }
+      return
+    }
+    if (provider !== 'WOOCOMMERCE') throw new Error('This integration is not available yet')
+    const created = await create.mutateAsync({
+      provider: 'WOOCOMMERCE',
+      storeUrl: wooStoreUrl,
+      consumerKey: wooConsumerKey,
+      consumerSecret: wooConsumerSecret,
     })
+    if (provider === 'WOOCOMMERCE' && created.data) {
+      setPreviewIntegrationId(created.data.id)
+      await preview.mutateAsync(created.data.id)
+    }
   }
 
   return (
@@ -55,7 +83,10 @@ export function IntegrationsPage() {
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {(catalog.data?.data ?? []).map((provider) => {
-            const row = connected.find((c) => c.provider === provider.provider)
+            const row =
+              provider.availability === 'LIVE'
+                ? connected.find((c) => c.provider === provider.provider)
+                : undefined
             return (
               <Card key={provider.provider}>
                 <CardHeader>
@@ -76,6 +107,18 @@ export function IntegrationsPage() {
                         : ''}
                     </p>
                   ) : null}
+                  {row?.lastSyncError ? (
+                    <p className="text-destructive">Last sync failed: {row.lastSyncError}</p>
+                  ) : null}
+                  {provider.provider === 'WEBHOOK' && row?.webhookUrl ? (
+                    <p className="break-all text-xs text-muted-foreground">{row.webhookUrl}</p>
+                  ) : null}
+                  {provider.provider === 'WEBHOOK' && webhookCredentials ? (
+                    <div className="space-y-1 rounded-lg border border-warning/40 p-3 text-xs">
+                      <p>Copy this secret now; it will not be shown again.</p>
+                      <p className="break-all font-mono">{webhookCredentials.secret}</p>
+                    </div>
+                  ) : null}
                   {provider.provider === 'SHOPIFY' && !row ? (
                     <Input
                       value={shop}
@@ -84,15 +127,77 @@ export function IntegrationsPage() {
                       aria-label="Shopify shop domain"
                     />
                   ) : null}
-                  {row?.status === 'CONNECTED' ? (
+                  {provider.provider === 'WOOCOMMERCE' && !row ? (
+                    <div className="space-y-2">
+                      <Input
+                        value={wooStoreUrl}
+                        onChange={(event) => setWooStoreUrl(event.target.value)}
+                        placeholder="https://yourstore.com"
+                        aria-label="WooCommerce store URL"
+                      />
+                      <Input
+                        value={wooConsumerKey}
+                        onChange={(event) => setWooConsumerKey(event.target.value)}
+                        placeholder="Read-only consumer key (ck_…)"
+                        aria-label="WooCommerce consumer key"
+                      />
+                      <Input
+                        type="password"
+                        value={wooConsumerSecret}
+                        onChange={(event) => setWooConsumerSecret(event.target.value)}
+                        placeholder="Consumer secret (cs_…)"
+                        aria-label="WooCommerce consumer secret"
+                      />
+                    </div>
+                  ) : null}
+                  {provider.provider === 'WOOCOMMERCE' &&
+                  preview.data?.data &&
+                  previewIntegrationId ? (
+                    <div className="space-y-2 rounded-lg border border-border p-3 text-sm">
+                      <p>
+                        {preview.data.data.newContacts} new · {preview.data.data.matchedContacts}{' '}
+                        matched · {preview.data.data.duplicates} duplicates
+                      </p>
+                      <p>
+                        {preview.data.data.orders} orders · ${preview.data.data.revenue.toFixed(2)}{' '}
+                        revenue
+                      </p>
+                      {preview.data.data.truncated ? (
+                        <p className="text-warning">
+                          Preview capped at the first batch. Import it now, then use Continue sync
+                          until the store is current.
+                        </p>
+                      ) : null}
+                      <Button
+                        type="button"
+                        disabled={sync.isPending}
+                        onClick={() => sync.mutate(previewIntegrationId)}
+                      >
+                        {sync.isPending
+                          ? 'Importing…'
+                          : preview.data.data.truncated
+                            ? 'Import first batch'
+                            : 'Import contacts and orders'}
+                      </Button>
+                    </div>
+                  ) : null}
+                  {row?.status === 'CONNECTED' && provider.provider !== 'WEBHOOK' ? (
                     <Button
                       type="button"
                       disabled={sync.isPending}
                       onClick={() => sync.mutate(row.id)}
                     >
-                      Sync now
+                      {row.syncHasMore ? 'Continue sync' : 'Sync now'}
                     </Button>
-                  ) : row ? null : (
+                  ) : row ? null : provider.availability !== 'LIVE' ? (
+                    <Button type="button" disabled>
+                      Coming soon
+                    </Button>
+                  ) : provider.oauth && !provider.configured ? (
+                    <Button type="button" disabled>
+                      Unavailable
+                    </Button>
+                  ) : (
                     <Button
                       type="button"
                       disabled={
@@ -100,7 +205,9 @@ export function IntegrationsPage() {
                         oauth.isPending ||
                         (provider.provider === 'SHOPIFY' &&
                           Boolean(provider.oauth && provider.configured) &&
-                          !shop)
+                          !shop) ||
+                        (provider.provider === 'WOOCOMMERCE' &&
+                          (!wooStoreUrl || !wooConsumerKey || !wooConsumerSecret))
                       }
                       onClick={() =>
                         connect(provider.provider, provider.oauth && provider.configured)

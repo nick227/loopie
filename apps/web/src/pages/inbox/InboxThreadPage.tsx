@@ -1,11 +1,20 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useInboxThread, useMarkInboxThreadRead } from '@project/sdk'
+import { useInboxThread, useMarkInboxThreadRead, useReplyToInboxThread } from '@project/sdk'
+import { MessageCircle, Send } from 'lucide-react'
+import { toast } from 'sonner'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { Button } from '@/components/ui/Button'
+import { Textarea } from '@/components/ui/Textarea'
 import { cn } from '@/lib/utils'
 
-const KIND_LABEL: Record<string, string> = { EMAIL: 'Email', SMS: 'Text', SYSTEM: 'System' }
+const KIND_LABEL: Record<string, string> = {
+  EMAIL: 'Email',
+  SMS: 'Text',
+  SITE: 'Loopie',
+  SYSTEM: 'System',
+}
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleString('en-US', {
@@ -101,9 +110,13 @@ function TimelineEntry({
 }
 
 export function InboxThreadPage() {
+  const [replying, setReplying] = useState(false)
+  const [replyBody, setReplyBody] = useState('')
+  const replyRef = useRef<HTMLTextAreaElement>(null)
   const { threadId } = useParams<{ threadId: string }>()
   const query = useInboxThread(threadId ?? '')
   const markRead = useMarkInboxThreadRead()
+  const reply = useReplyToInboxThread()
   const thread = query.data?.data?.thread
   const messages = query.data?.data?.messages ?? []
 
@@ -126,7 +139,26 @@ export function InboxThreadPage() {
             ? { to: '/platforms', label: 'Manage integrations' }
             : null
 
-  const isConversation = thread.type === 'CONTACT'
+  const isConversation = thread.type === 'CONTACT' || thread.type === 'BUSINESS'
+
+  async function sendReply(event: React.FormEvent) {
+    event.preventDefault()
+    const body = replyBody.trim()
+    if (!body || !threadId) return
+    try {
+      await reply.mutateAsync({ threadId, body })
+      setReplyBody('')
+      setReplying(false)
+      toast.success('Reply sent')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Reply could not be sent')
+    }
+  }
+
+  function openReply() {
+    setReplying(true)
+    window.setTimeout(() => replyRef.current?.focus(), 0)
+  }
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-5">
@@ -183,6 +215,47 @@ export function InboxThreadPage() {
           ))}
         </div>
       )}
+
+      {thread.canReply ? (
+        replying ? (
+          <form onSubmit={sendReply} className="rounded-xl border border-border bg-surface/20 p-4">
+            <label htmlFor="site-reply" className="mb-2 block text-sm font-medium">
+              Reply to {thread.subject}
+            </label>
+            <Textarea
+              id="site-reply"
+              ref={replyRef}
+              value={replyBody}
+              onChange={(event) => setReplyBody(event.target.value)}
+              placeholder="Write a reply…"
+              maxLength={4000}
+              disabled={reply.isPending}
+              className="min-h-28"
+            />
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <span className="text-[11px] tabular-nums text-muted-foreground">
+                {replyBody.length}/4000
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => setReplying(false)}
+                  disabled={reply.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" loading={reply.isPending} disabled={!replyBody.trim()}>
+                  <Send size={14} /> Reply
+                </Button>
+              </div>
+            </div>
+          </form>
+        ) : (
+          <Button onClick={openReply} className="w-full sm:w-auto">
+            <MessageCircle size={15} /> Reply
+          </Button>
+        )
+      ) : null}
     </div>
   )
 }

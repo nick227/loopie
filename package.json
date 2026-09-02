@@ -15,7 +15,7 @@
     "docs:generate": "tsx scripts/generate-docs.ts",
     "pages:generate": "tsx scripts/generate-pages.ts",
     "db:push": "pnpm --filter @project/db db:push",
-    "db:seed": "pnpm --filter @project/db db:seed",
+    "db:seed": "pnpm --filter @project/db db:seed && pnpm --filter server run seed:activity-backfill",
     "db:studio": "pnpm --filter @project/db db:studio",
     "prepare": "husky"
   },

@@ -27,10 +27,7 @@ export function BusinessSetupPage() {
             <span className="text-2xl font-semibold tracking-tight">Loopie</span>
           </div>
           <div>
-            <h1 className="text-xl font-medium text-foreground">Tell us about your business</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              This powers your Pages, Ads, and messages — you can always change it later.
-            </p>
+            <h1 className="text-xl font-medium text-foreground">let&rsquo;s get to know you</h1>
           </div>
         </div>
         <Card>
@@ -43,6 +40,11 @@ export function BusinessSetupPage() {
                 targetAudience: data?.targetAudience ?? null,
                 socialProfiles: data?.socialProfiles ?? [],
                 logoUrl: data?.logoUrl ?? null,
+                description: data?.description ?? null,
+                phone: data?.phone ?? null,
+                email: data?.email ?? null,
+                hours: data?.hours ?? null,
+                galleryImageUrls: data?.galleryImageUrls ?? [],
               }}
               submitLabel="Continue to Inbox"
               onSaved={() => navigate('/home', { replace: true })}

@@ -4,17 +4,19 @@ import {
   SYSTEM_LEAD_GEN_TEMPLATE_ID,
   SYSTEM_MEDIA_LEAD_GEN_SCHEMA,
   SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID,
+  SYSTEM_CORPORATE_PROFESSIONAL_TEMPLATE_ID,
+  corporateProfessionalTitle,
+  corporateProfessionalDescription,
+  corporateProfessionalSchema,
+  SYSTEM_WEBINAR_SIGNUP_TEMPLATE_ID,
+  webinarSignupTitle,
+  webinarSignupDescription,
+  webinarSignupSchema,
+  SYSTEM_STUDIO_TEMPLATE_ID,
+  studioTitle,
+  studioDescription,
+  studioSchema,
 } from '@project/db'
-import { agencyOrganicData } from '@project/db/src/data/agency-organic'
-import { appWaitlistNeonData } from '@project/db/src/data/app-waitlist-neon'
-import { creatorBrutalistData } from '@project/db/src/data/creator-brutalist'
-import { devToolCyberpunkData } from '@project/db/src/data/dev-tool-cyberpunk'
-import { ecommerceGradientData } from '@project/db/src/data/ecommerce-gradient'
-import { eventPastelData } from '@project/db/src/data/event-pastel'
-import { healthcareTelehealthData } from '@project/db/src/data/healthcare-telehealth'
-import { realEstateLuxuryData } from '@project/db/src/data/real-estate-luxury'
-import { saasCleanCrispData } from '@project/db/src/data/saas-clean-crisp'
-import { web3CryptoData } from '@project/db/src/data/web3-crypto'
 
 type TemplateClient = {
   landingPageTemplate: {
@@ -40,6 +42,7 @@ export async function ensureSystemTemplates(tx: TemplateClient) {
       schema: SYSTEM_LEAD_GEN_SCHEMA,
     },
   })
+
   await tx.landingPageTemplate.upsert({
     where: { id: SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID },
     update: {
@@ -57,174 +60,58 @@ export async function ensureSystemTemplates(tx: TemplateClient) {
       schema: SYSTEM_MEDIA_LEAD_GEN_SCHEMA,
     },
   })
+
   await tx.landingPageTemplate.upsert({
-    where: { id: 'system-template-agency-organic' },
+    where: { id: SYSTEM_CORPORATE_PROFESSIONAL_TEMPLATE_ID },
     update: {
-      name: agencyOrganicData.title,
-      description: agencyOrganicData.seo.description,
-      schema: { blocks: agencyOrganicData.blocks, theme: agencyOrganicData.theme },
+      name: corporateProfessionalTitle,
+      description: corporateProfessionalDescription,
+      schema: corporateProfessionalSchema as any,
     },
     create: {
-      id: 'system-template-agency-organic',
+      id: SYSTEM_CORPORATE_PROFESSIONAL_TEMPLATE_ID,
       isSystem: true,
-      name: agencyOrganicData.title,
-      description: agencyOrganicData.seo.description,
+      name: corporateProfessionalTitle,
+      description: corporateProfessionalDescription,
       category: 'advanced',
       formatVersion: '2.0',
-      schema: { blocks: agencyOrganicData.blocks, theme: agencyOrganicData.theme },
+      schema: corporateProfessionalSchema as any,
     },
   })
+
   await tx.landingPageTemplate.upsert({
-    where: { id: 'system-template-app-waitlist-neon' },
+    where: { id: SYSTEM_WEBINAR_SIGNUP_TEMPLATE_ID },
     update: {
-      name: appWaitlistNeonData.title,
-      description: appWaitlistNeonData.seo.description,
-      schema: { blocks: appWaitlistNeonData.blocks, theme: appWaitlistNeonData.theme },
+      name: webinarSignupTitle,
+      description: webinarSignupDescription,
+      schema: webinarSignupSchema as any,
     },
     create: {
-      id: 'system-template-app-waitlist-neon',
+      id: SYSTEM_WEBINAR_SIGNUP_TEMPLATE_ID,
       isSystem: true,
-      name: appWaitlistNeonData.title,
-      description: appWaitlistNeonData.seo.description,
+      name: webinarSignupTitle,
+      description: webinarSignupDescription,
       category: 'advanced',
       formatVersion: '2.0',
-      schema: { blocks: appWaitlistNeonData.blocks, theme: appWaitlistNeonData.theme },
+      schema: webinarSignupSchema as any,
     },
   })
+
   await tx.landingPageTemplate.upsert({
-    where: { id: 'system-template-creator-brutalist' },
+    where: { id: SYSTEM_STUDIO_TEMPLATE_ID },
     update: {
-      name: creatorBrutalistData.title,
-      description: creatorBrutalistData.seo.description,
-      schema: { blocks: creatorBrutalistData.blocks, theme: creatorBrutalistData.theme },
+      name: studioTitle,
+      description: studioDescription,
+      schema: studioSchema as any,
     },
     create: {
-      id: 'system-template-creator-brutalist',
+      id: SYSTEM_STUDIO_TEMPLATE_ID,
       isSystem: true,
-      name: creatorBrutalistData.title,
-      description: creatorBrutalistData.seo.description,
+      name: studioTitle,
+      description: studioDescription,
       category: 'advanced',
       formatVersion: '2.0',
-      schema: { blocks: creatorBrutalistData.blocks, theme: creatorBrutalistData.theme },
-    },
-  })
-  await tx.landingPageTemplate.upsert({
-    where: { id: 'system-template-dev-tool-cyberpunk' },
-    update: {
-      name: devToolCyberpunkData.title,
-      description: devToolCyberpunkData.seo.description,
-      schema: { blocks: devToolCyberpunkData.blocks, theme: devToolCyberpunkData.theme },
-    },
-    create: {
-      id: 'system-template-dev-tool-cyberpunk',
-      isSystem: true,
-      name: devToolCyberpunkData.title,
-      description: devToolCyberpunkData.seo.description,
-      category: 'advanced',
-      formatVersion: '2.0',
-      schema: { blocks: devToolCyberpunkData.blocks, theme: devToolCyberpunkData.theme },
-    },
-  })
-  await tx.landingPageTemplate.upsert({
-    where: { id: 'system-template-ecommerce-gradient' },
-    update: {
-      name: ecommerceGradientData.title,
-      description: ecommerceGradientData.seo.description,
-      schema: { blocks: ecommerceGradientData.blocks, theme: ecommerceGradientData.theme },
-    },
-    create: {
-      id: 'system-template-ecommerce-gradient',
-      isSystem: true,
-      name: ecommerceGradientData.title,
-      description: ecommerceGradientData.seo.description,
-      category: 'advanced',
-      formatVersion: '2.0',
-      schema: { blocks: ecommerceGradientData.blocks, theme: ecommerceGradientData.theme },
-    },
-  })
-  await tx.landingPageTemplate.upsert({
-    where: { id: 'system-template-event-pastel' },
-    update: {
-      name: eventPastelData.title,
-      description: eventPastelData.seo.description,
-      schema: { blocks: eventPastelData.blocks, theme: eventPastelData.theme },
-    },
-    create: {
-      id: 'system-template-event-pastel',
-      isSystem: true,
-      name: eventPastelData.title,
-      description: eventPastelData.seo.description,
-      category: 'advanced',
-      formatVersion: '2.0',
-      schema: { blocks: eventPastelData.blocks, theme: eventPastelData.theme },
-    },
-  })
-  await tx.landingPageTemplate.upsert({
-    where: { id: 'system-template-healthcare-telehealth' },
-    update: {
-      name: healthcareTelehealthData.title,
-      description: healthcareTelehealthData.seo.description,
-      schema: { blocks: healthcareTelehealthData.blocks, theme: healthcareTelehealthData.theme },
-    },
-    create: {
-      id: 'system-template-healthcare-telehealth',
-      isSystem: true,
-      name: healthcareTelehealthData.title,
-      description: healthcareTelehealthData.seo.description,
-      category: 'advanced',
-      formatVersion: '2.0',
-      schema: { blocks: healthcareTelehealthData.blocks, theme: healthcareTelehealthData.theme },
-    },
-  })
-  await tx.landingPageTemplate.upsert({
-    where: { id: 'system-template-real-estate-luxury' },
-    update: {
-      name: realEstateLuxuryData.title,
-      description: realEstateLuxuryData.seo.description,
-      schema: { blocks: realEstateLuxuryData.blocks, theme: realEstateLuxuryData.theme },
-    },
-    create: {
-      id: 'system-template-real-estate-luxury',
-      isSystem: true,
-      name: realEstateLuxuryData.title,
-      description: realEstateLuxuryData.seo.description,
-      category: 'advanced',
-      formatVersion: '2.0',
-      schema: { blocks: realEstateLuxuryData.blocks, theme: realEstateLuxuryData.theme },
-    },
-  })
-  await tx.landingPageTemplate.upsert({
-    where: { id: 'system-template-saas-clean-crisp' },
-    update: {
-      name: saasCleanCrispData.title,
-      description: saasCleanCrispData.seo.description,
-      schema: { blocks: saasCleanCrispData.blocks, theme: saasCleanCrispData.theme },
-    },
-    create: {
-      id: 'system-template-saas-clean-crisp',
-      isSystem: true,
-      name: saasCleanCrispData.title,
-      description: saasCleanCrispData.seo.description,
-      category: 'advanced',
-      formatVersion: '2.0',
-      schema: { blocks: saasCleanCrispData.blocks, theme: saasCleanCrispData.theme },
-    },
-  })
-  await tx.landingPageTemplate.upsert({
-    where: { id: 'system-template-web3-crypto' },
-    update: {
-      name: web3CryptoData.title,
-      description: web3CryptoData.seo.description,
-      schema: { blocks: web3CryptoData.blocks, theme: web3CryptoData.theme },
-    },
-    create: {
-      id: 'system-template-web3-crypto',
-      isSystem: true,
-      name: web3CryptoData.title,
-      description: web3CryptoData.seo.description,
-      category: 'advanced',
-      formatVersion: '2.0',
-      schema: { blocks: web3CryptoData.blocks, theme: web3CryptoData.theme },
+      schema: studioSchema as any,
     },
   })
 }

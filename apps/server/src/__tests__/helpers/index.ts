@@ -109,6 +109,17 @@ export function buildTestApp() {
     await app.register(cookie, {
       secret: process.env.COOKIE_SECRET ?? 'test-cookie-secret-at-least-32-characters',
     })
+    // Mirrors index.ts's real registration exactly — a real browser's <form method="post"> (the
+    // River/profile action buttons) always sends this content-type, and Fastify 415s it with no
+    // parser registered. See index.ts's comment for the full story (found live via a real-browser
+    // check, slice 4).
+    app.addContentTypeParser(
+      'application/x-www-form-urlencoded',
+      { parseAs: 'string' },
+      (_request, _body, done) => {
+        done(null, {})
+      },
+    )
     app.setErrorHandler((error, request, reply) => {
       console.error('FASTIFY ERROR:', error)
       return mapErrorToReply(error, reply, request.log)

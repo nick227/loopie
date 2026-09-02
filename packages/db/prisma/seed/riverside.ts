@@ -18,7 +18,6 @@ export async function seedRiversideDemo(businessId: string) {
       email: 'jane@example.com',
       phone: '512-555-0192',
       source: 'website',
-      tags: ['past-customer'],
     },
   })
 

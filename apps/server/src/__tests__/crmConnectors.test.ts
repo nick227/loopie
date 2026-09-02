@@ -42,6 +42,197 @@ describe('CRM field authority', () => {
 })
 
 describe('HubSpot and Shopify connectors', () => {
+  it('WooCommerce previews and imports registered plus guest customers and their orders', async () => {
+    enableCrm()
+    let syncVersion = 1
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      expect(init?.headers).toMatchObject({
+        Authorization: expect.stringMatching(/^Basic /),
+      })
+      if (url.includes('/customers')) {
+        return json([
+          {
+            id: 51,
+            first_name: syncVersion === 1 ? 'Regina' : 'Reggie',
+            last_name: 'Customer',
+            email: 'registered.woo@example.com',
+            date_modified_gmt: `2026-08-0${syncVersion}T12:00:00Z`,
+            billing: {
+              phone: '555-0101',
+              company: syncVersion === 1 ? 'Woo Co' : 'Remote Co',
+            },
+          },
+        ])
+      }
+      if (url.includes('/orders')) {
+        return json([
+          {
+            id: 701,
+            customer_id: 51,
+            status: 'completed',
+            total: syncVersion === 1 ? '25.00' : '30.00',
+            date_modified_gmt: `2026-08-0${syncVersion}T13:00:00Z`,
+            date_paid_gmt: '2026-08-01T12:00:00Z',
+            billing: {
+              first_name: 'Regina',
+              last_name: 'Customer',
+              email: 'registered.woo@example.com',
+            },
+            line_items: [{ name: 'T-shirt' }],
+          },
+          {
+            id: 702,
+            customer_id: 0,
+            status: 'processing',
+            total: '40.50',
+            date_modified_gmt: `2026-08-0${syncVersion}T14:00:00Z`,
+            date_created_gmt: '2026-08-02T12:00:00Z',
+            billing: {
+              first_name: 'Gus',
+              last_name: 'Guest',
+              email: 'guest.woo@example.com',
+              phone: '555-0102',
+            },
+            line_items: [{ name: 'Mug' }],
+          },
+        ])
+      }
+      return json({ error: url }, 500)
+    })
+
+    const connected = await app.inject({
+      method: 'POST',
+      url: '/integrations',
+      headers: asAuth(testUserId),
+      payload: {
+        provider: 'WOOCOMMERCE',
+        storeUrl: 'https://example.com/shop',
+        consumerKey: 'ck_readonly',
+        consumerSecret: 'cs_secret',
+      },
+    })
+    expect(connected.statusCode).toBe(201)
+    const integrationId = connected.json().data.id
+
+    const preview = await app.inject({
+      method: 'POST',
+      url: `/integrations/${integrationId}/preview`,
+      headers: asAuth(testUserId),
+    })
+    expect(preview.statusCode).toBe(200)
+    expect(preview.json().data).toMatchObject({
+      newContacts: 2,
+      matchedContacts: 0,
+      duplicates: 1,
+      orders: 2,
+      revenue: 65.5,
+      truncated: false,
+    })
+
+    const synced = await app.inject({
+      method: 'POST',
+      url: `/integrations/${integrationId}/sync`,
+      headers: asAuth(testUserId),
+    })
+    expect(synced.statusCode).toBe(200)
+    expect(synced.json().data).toMatchObject({ created: 2, orders: 2 })
+    expect(
+      await db.contact.count({
+        where: {
+          businessId: testBusinessId,
+          email: { in: ['registered.woo@example.com', 'guest.woo@example.com'] },
+        },
+      }),
+    ).toBe(2)
+    const revenue = await db.sale.aggregate({
+      where: { businessId: testBusinessId, idempotencyKey: { startsWith: 'WOOCOMMERCE:' } },
+      _sum: { amount: true },
+    })
+    expect(Number(revenue._sum.amount)).toBe(65.5)
+
+    const registered = await db.contact.findFirstOrThrow({
+      where: { businessId: testBusinessId, email: 'registered.woo@example.com' },
+    })
+    await db.contact.update({ where: { id: registered.id }, data: { company: 'Local Co' } })
+    syncVersion = 2
+    const resynced = await app.inject({
+      method: 'POST',
+      url: `/integrations/${integrationId}/sync`,
+      headers: asAuth(testUserId),
+    })
+    expect(resynced.statusCode).toBe(200)
+    expect(resynced.json().data).toMatchObject({ created: 0, orders: 2, hasMore: false })
+    expect(await db.contact.count({ where: { businessId: testBusinessId } })).toBe(2)
+    expect(await db.sale.count({ where: { businessId: testBusinessId } })).toBe(2)
+    const updated = await db.contact.findUniqueOrThrow({ where: { id: registered.id } })
+    expect(updated.name).toBe('Reggie Customer')
+    expect(updated.company).toBe('Local Co')
+    const updatedRevenue = await db.sale.aggregate({
+      where: { businessId: testBusinessId },
+      _sum: { amount: true },
+    })
+    expect(Number(updatedRevenue._sum.amount)).toBe(70.5)
+  })
+
+  it('creates an authenticated replay-safe inbound webhook for contact and order ingestion', async () => {
+    enableCrm()
+    const created = await app.inject({
+      method: 'POST',
+      url: '/integrations',
+      headers: asAuth(testUserId),
+      payload: { provider: 'WEBHOOK', label: 'WordPress forms' },
+    })
+    expect(created.statusCode).toBe(201)
+    const integration = created.json().data
+    expect(integration.webhookUrl).toContain(`/webhooks/inbound/${integration.id}`)
+    expect(integration.webhookSecret).toMatch(/^whsec_/)
+
+    const payload = {
+      eventId: 'wp-order-1001',
+      type: 'ORDER_CREATED',
+      occurredAt: '2026-08-20T12:00:00Z',
+      amount: 19.95,
+      productOrService: 'Workshop',
+      contact: {
+        externalId: 'wp-user-12',
+        name: 'Web Hook',
+        email: 'webhook@example.com',
+      },
+    }
+    const denied = await app.inject({
+      method: 'POST',
+      url: `/webhooks/inbound/${integration.id}`,
+      headers: { authorization: 'Bearer wrong' },
+      payload,
+    })
+    expect(denied.statusCode).toBe(401)
+
+    for (let delivery = 0; delivery < 2; delivery++) {
+      const accepted = await app.inject({
+        method: 'POST',
+        url: `/webhooks/inbound/${integration.id}`,
+        headers: { authorization: `Bearer ${integration.webhookSecret}` },
+        payload,
+      })
+      expect(accepted.statusCode).toBe(202)
+    }
+    expect(
+      await db.contact.count({
+        where: { businessId: testBusinessId, email: 'webhook@example.com' },
+      }),
+    ).toBe(1)
+    expect(await db.sale.count({ where: { businessId: testBusinessId } })).toBe(1)
+    expect(await db.externalEvent.count({ where: { integrationId: integration.id } })).toBe(1)
+
+    const listed = await app.inject({
+      method: 'GET',
+      url: '/integrations',
+      headers: asAuth(testUserId),
+    })
+    expect(listed.json().data[0].webhookSecret).toBeUndefined()
+  })
+
   it('HubSpot OAuth callback stores a sealed token and sync pulls contacts then a won deal', async () => {
     enableCrm()
     vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
@@ -272,6 +463,10 @@ describe('HubSpot and Shopify connectors', () => {
     // a retry can resume rather than re-pulling contacts from page 0.
     const refreshed = await db.integration.findUniqueOrThrow({ where: { id: row.id } })
     expect(refreshed.syncCursor).toBeTruthy()
+    expect(refreshed.lastSyncAttemptAt).toBeTruthy()
+    expect(refreshed.lastSyncAt).toBeNull()
+    expect(refreshed.lastSyncError).toContain('orders')
+    expect(refreshed.syncHasMore).toBe(true)
     expect(JSON.parse(refreshed.syncCursor!)).toHaveProperty('contacts')
   })
 

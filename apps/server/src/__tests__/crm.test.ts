@@ -1,7 +1,7 @@
 // Generated from openapi.yaml — fill in seeds and assertions.
 // Run `pnpm test:generate` to add stubs for new routes.
 // Both test users are pre-seeded: use testOtherUserId for cross-user permission tests.
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId } from './helpers'
 
 const app = buildTestApp()
@@ -10,6 +10,7 @@ const createdIds: Record<string, string> = { default: '00000000-0000-0000-0000-0
 describe('crm API', () => {
   it('runs CRUD lifecycle', async (ctx) => {
     const errors: Error[] = []
+    vi.stubGlobal('fetch', async () => ({ ok: true, status: 200, json: async () => [] }))
 
     // createIntegration
 
@@ -30,7 +31,10 @@ describe('crm API', () => {
           url: `/integrations`,
           headers: asAuth(testUserId),
           payload: {
-            provider: 'HUBSPOT',
+            provider: 'WOOCOMMERCE',
+            storeUrl: 'https://example.com/shop',
+            consumerKey: 'ck_test',
+            consumerSecret: 'cs_test',
           },
         })
         if (rescreateIntegration.statusCode === 201 && rescreateIntegration.json().data?.id)

@@ -8,6 +8,7 @@ import {
   resolveDealPolicy,
 } from '../lib/affiliateRates'
 import { requireIdempotencyKey } from '../lib/finance/money'
+import { ACTIVE_SALE_WHERE } from '../lib/salePredicates'
 import { FinanceService } from './FinanceService'
 
 const financeService = new FinanceService()
@@ -61,6 +62,83 @@ export class SaleService {
         ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
         : null
     return { data: items.map(toSaleDTO), meta: { hasMore, nextCursor } }
+  }
+
+  // "Where did this contact's revenue come from" — the full sale history for one contact, plus a
+  // summary that deliberately uses the exact same ACTIVE_SALE_WHERE predicate Contact.revenue
+  // itself is computed from (ContactService.get/list), so the two numbers always reconcile. A
+  // reversed sale still appears in `data` (its own reversedAt makes that visible) but is excluded
+  // from the summary, matching how revenue already treats it — never silently hidden, never
+  // double-counted.
+  async listForContact(
+    businessId: string,
+    contactId: string,
+    opts: { cursor?: string; limit?: number },
+  ) {
+    const contact = await db.contact.findFirst({
+      where: { id: contactId, businessId, deletedAt: null },
+      select: { id: true },
+    })
+    if (!contact) throw { statusCode: 404, message: 'Contact not found' }
+
+    const limit = normalizeLimit(opts.limit)
+    const cursor = decodeCursor(opts.cursor)
+    const AND: any[] = []
+    if (cursor) {
+      // Cursor stores `sale.date` (the real transaction date, this history's chronological
+      // key) in the shared `createdAt` cursor field — same reuse ContactService.listInteractions
+      // already does for `occurredAt`, rather than adding a second cursor payload shape.
+      AND.push({
+        OR: [
+          { date: { lt: new Date(cursor.createdAt) } },
+          { date: new Date(cursor.createdAt), id: { lt: cursor.id } },
+        ],
+      })
+    }
+
+    const [sales, summaryAgg] = await Promise.all([
+      db.sale.findMany({
+        where: { contactId, businessId, ...(AND.length ? { AND } : {}) },
+        orderBy: [{ date: 'desc' }, { id: 'desc' }],
+        take: limit + 1,
+      }),
+      db.sale.aggregate({
+        where: { contactId, businessId, ...ACTIVE_SALE_WHERE },
+        _sum: { amount: true },
+        _count: { _all: true },
+        _max: { date: true },
+      }),
+    ])
+
+    const hasMore = sales.length > limit
+    const items = hasMore ? sales.slice(0, limit) : sales
+    const last = items[items.length - 1]
+    const nextCursor =
+      hasMore && last ? encodeCursor({ createdAt: last.date.toISOString(), id: last.id }) : null
+
+    const leadIds = [
+      ...new Set(items.map((sale) => sale.leadId).filter((id): id is string => !!id)),
+    ]
+    const leads = leadIds.length
+      ? await db.lead.findMany({
+          where: { id: { in: leadIds }, businessId },
+          select: { id: true, stage: true },
+        })
+      : []
+    const leadById = new Map(leads.map((lead) => [lead.id, lead]))
+
+    return {
+      data: items.map((sale) => ({
+        ...toSaleDTO(sale),
+        lead: sale.leadId ? (leadById.get(sale.leadId) ?? null) : null,
+      })),
+      summary: {
+        totalRevenue: Number(summaryAgg._sum.amount ?? 0),
+        saleCount: summaryAgg._count._all,
+        lastSaleDate: summaryAgg._max.date?.toISOString() ?? null,
+      },
+      meta: { hasMore, nextCursor },
+    }
   }
 
   // Contact lifecycle becomes CUSTOMER (derived, not stored) and the linked Lead moves to WON —

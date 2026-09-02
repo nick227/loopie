@@ -70,7 +70,15 @@ describe('portable LOOPIE runtime', () => {
     })
     expect(res.statusCode).toBe(200)
     const providers = res.json().data.map((r: { provider: string }) => r.provider)
-    expect(providers).toEqual(['HUBSPOT', 'SALESFORCE', 'SHOPIFY', 'SQUARE', 'PIPEDRIVE'])
+    expect(providers).toEqual([
+      'HUBSPOT',
+      'SALESFORCE',
+      'SHOPIFY',
+      'WOOCOMMERCE',
+      'WEBHOOK',
+      'SQUARE',
+      'PIPEDRIVE',
+    ])
     const shopify = res.json().data.find((r: { provider: string }) => r.provider === 'SHOPIFY')
     expect(shopify.capabilities.orders).toBe(true)
     expect(shopify.capabilities.deals).toBe(false)

@@ -84,6 +84,7 @@ export async function seedBusinessesAndUsers(passwordHash: string) {
     create: {
       id: RIVERSIDE_ID,
       name: 'Riverside Auto Detailing',
+      slug: 'riverside-auto-detailing',
       location: 'Riverside, CA',
       industry: 'Auto Detailing',
       targetAudience: 'Car owners in the Riverside area who want a professional, convenient detail',
@@ -96,6 +97,7 @@ export async function seedBusinessesAndUsers(passwordHash: string) {
     create: {
       id: OAK_ID,
       name: 'Oak Street Bakery',
+      slug: 'oak-street-bakery',
       location: 'Portland, OR',
       industry: 'Bakery & Cafe',
       targetAudience: 'Neighborhood regulars and local event/catering customers',

@@ -8,6 +8,9 @@ export interface VirtualInfiniteListProps<T> {
   fetchNextPage: () => void
   renderItem: (item: T, index: number) => React.ReactNode
   estimateSize?: number
+  /** Vertical space between rows, in px. Default 12 (unchanged for every existing caller); River
+   * opts into a more generous gap — see the dated "River design critique" note. */
+  gap?: number
 }
 
 export function VirtualInfiniteList<T>({
@@ -17,6 +20,7 @@ export function VirtualInfiniteList<T>({
   fetchNextPage,
   renderItem,
   estimateSize = 100,
+  gap = 12,
 }: VirtualInfiniteListProps<T>) {
   const listRef = useRef<HTMLDivElement>(null)
   const [scrollMargin, setScrollMargin] = useState(0)
@@ -73,7 +77,7 @@ export function VirtualInfiniteList<T>({
               left: 0,
               width: '100%',
               transform: `translateY(${virtualItem.start - scrollMargin}px)`,
-              paddingBottom: '12px', // gap equivalent
+              paddingBottom: `${gap}px`,
             }}
           >
             {isLoaderRow || !item ? (

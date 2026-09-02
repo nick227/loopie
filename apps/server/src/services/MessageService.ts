@@ -193,6 +193,11 @@ export class MessageService {
             businessId,
             contactId: r.id,
             type: interactionType,
+            // MessageChannel's values (EMAIL/TEXT/SOCIAL) are a direct match for Channel's —
+            // see CLAUDE.md's channel-taxonomy slice. providerId stays unset here: Message has
+            // no provider field yet (which ESP/tool actually composed/sent it), a deliberate
+            // scope boundary for this pass, not an oversight.
+            channel: message.channel,
             sourceType: 'MESSAGE' as const,
             sourceMessageId: message.id,
           })),

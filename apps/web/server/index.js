@@ -23,7 +23,21 @@ const SERVER_TARGET = process.env.INTERNAL_SERVER_URL
 
 const app = express()
 
-const PROXIED_PATTERNS = [/^\/p\//, /^\/r\//, /^\/landing-pages\/[^/]+\/(submissions|form-start)$/]
+const PROXIED_PATTERNS = [
+  /^\/p\//,
+  /^\/r\//,
+  /^\/landing-pages\/[^/]+\/(submissions|form-start)$/,
+  // River's tracked permalink/click/visit-profile routes only — same reasoning as /p/ above (the
+  // public product domain, not apps/server's own separate Railway domain). /river/posts (no
+  // trailing id) is the authenticated JSON list/create API and deliberately NOT matched here —
+  // the SPA calls it via the SDK's own configured API base, same as every other authenticated
+  // operation. The bare /^\/river$/ feed root used to be listed here too, back when it was
+  // apps/server's own hand-rolled HTML page — now that it's a real SPA route (see the "Move
+  // River into the main Loopie app shell" plan doc), proxying it here would shadow the SPA's own
+  // React Router route and silently serve the old page instead. /b/{slug} (business profiles)
+  // was never added to this list for the same reason and must stay that way.
+  /^\/river\/posts\/[^/]+(\/(click|visit-profile))?$/,
+]
 
 if (SERVER_TARGET) {
   // Mounted with no path prefix (app.use(middleware), not app.use('/p', middleware)) so Express

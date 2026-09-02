@@ -30,13 +30,14 @@ function rowSubtitle(page: LandingPage): string {
 }
 
 export function thumbUrl(content: LandingPage['content']): string | null {
-  const sections = content.sections
-  if (!sections || typeof sections !== 'object' || Array.isArray(sections)) return null
-  for (const key of ['image', 'split'] as const) {
-    const section = (sections as Record<string, unknown>)[key]
-    if (!section || typeof section !== 'object') continue
-    const imageUrl = (section as { imageUrl?: unknown }).imageUrl
-    if (typeof imageUrl === 'string' && imageUrl) return imageUrl
+  if (!content || typeof content !== 'object') return null
+  const c = content as Record<string, unknown>
+  for (const group of ['hero', 'media'] as const) {
+    const slot = c[group]
+    if (!slot || typeof slot !== 'object') continue
+    const media = (slot as { media?: { url?: unknown }; url?: unknown }).media ?? slot
+    const url = (media as { url?: unknown }).url
+    if (typeof url === 'string' && url) return url
   }
   return null
 }

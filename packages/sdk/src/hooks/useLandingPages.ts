@@ -8,6 +8,7 @@ type CreateLandingPageInput = {
   formId?: string
   content?: Record<string, unknown>
   theme?: Record<string, unknown>
+  layoutConfig?: Record<string, unknown>
 }
 
 type UpdateLandingPageInput = {
@@ -19,6 +20,7 @@ type UpdateLandingPageInput = {
   templateId?: string
   content?: Record<string, unknown>
   theme?: Record<string, unknown> | null
+  layoutConfig?: Record<string, unknown> | null
 }
 
 export function useLandingPageTemplates(params?: { limit?: number }) {

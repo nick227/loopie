@@ -1,31 +1,53 @@
 import { db, absoluteMediaUrl } from '@project/db'
 import { PUBLIC_SERVER_URL } from './urls'
 
-type SectionContent = Record<string, unknown> & { assetId?: unknown; src?: string }
-type PageContent = { sections?: Record<string, SectionContent> }
+// Content is canonical (packages/db/src/content.ts) but a media reference can live at any depth
+// — content.hero.media.assetId, content.services.items[3].media.assetId, etc. — so this walks the
+// whole tree for any node carrying an `assetId`, rather than hardcoding known paths.
+function collectAssetIds(node: unknown, ids: Set<string>) {
+  if (Array.isArray(node)) {
+    for (const item of node) collectAssetIds(item, ids)
+    return
+  }
+  if (node && typeof node === 'object') {
+    const obj = node as Record<string, unknown>
+    if (typeof obj.assetId === 'string') ids.add(obj.assetId)
+    for (const value of Object.values(obj)) collectAssetIds(value, ids)
+  }
+}
 
-export async function withResolvedMedia(
-  businessId: string,
-  content: PageContent,
-): Promise<PageContent> {
-  const sections = content.sections ?? {}
-  const ids = Object.values(sections)
-    .map((section) => (typeof section.assetId === 'string' ? section.assetId : null))
-    .filter((id): id is string => !!id)
-  if (ids.length === 0) return content
+function resolveAssetIds<T>(node: T, srcById: Map<string, string>): T {
+  if (Array.isArray(node)) {
+    return node.map((item) => resolveAssetIds(item, srcById)) as unknown as T
+  }
+  if (node && typeof node === 'object') {
+    const obj = node as Record<string, unknown>
+    const next: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(obj)) {
+      next[key] = resolveAssetIds(value, srcById)
+    }
+    if (typeof obj.assetId === 'string') {
+      const src = srcById.get(obj.assetId)
+      if (src) next.src = src
+    }
+    return next as T
+  }
+  return node
+}
+
+export async function withResolvedMedia<T>(businessId: string, content: T): Promise<T> {
+  const ids = new Set<string>()
+  collectAssetIds(content, ids)
+  if (ids.size === 0) return content
 
   const assets = await db.asset.findMany({
-    where: { id: { in: ids }, businessId, deletedAt: null },
+    where: { id: { in: [...ids] }, businessId, deletedAt: null },
     select: { id: true, url: true },
   })
   const srcById = new Map(
-    assets.map((asset) => [asset.id, absoluteMediaUrl(asset.url, PUBLIC_SERVER_URL)]),
+    assets
+      .map((asset) => [asset.id, absoluteMediaUrl(asset.url, PUBLIC_SERVER_URL)] as const)
+      .filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
   )
-
-  const next: Record<string, SectionContent> = {}
-  for (const [key, section] of Object.entries(sections)) {
-    const src = typeof section.assetId === 'string' ? (srcById.get(section.assetId) ?? null) : null
-    next[key] = src ? { ...section, src } : section
-  }
-  return { sections: next }
+  return resolveAssetIds(content, srcById)
 }

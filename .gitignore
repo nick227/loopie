@@ -3,6 +3,7 @@ dist/
 build/
 coverage/
 .vite/
+private/
 playwright-report/
 test-results/
 *.log

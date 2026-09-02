@@ -7,8 +7,9 @@ type CampaignLead = components['schemas']['CampaignLead']
 const STAGE_LABEL: Record<CampaignLead['stage'], string> = {
   NEW: 'New',
   CONTACTED: 'Contacted',
+  ENGAGED: 'Engaged',
   QUALIFIED: 'Qualified',
-  QUOTED: 'Quoted',
+  PROPOSAL: 'Proposal',
   WON: 'Won',
   LOST: 'Lost',
 }

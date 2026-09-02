@@ -51,11 +51,14 @@ test.describe('landing page vertical slice', () => {
     await expect(page.getByLabel('Layout')).toBeVisible({ timeout: 15000 })
     await expect(page.getByLabel('Headline', { exact: true })).toBeVisible()
 
+    // CanvasText is double-click-to-activate: idle state is plain text, not a fillable input.
+    await page.getByLabel('Headline', { exact: true }).dblclick()
     await page.getByLabel('Headline', { exact: true }).fill('E2E Verified Headline')
+    await page.keyboard.press('Enter')
     await expect(page.getByRole('button', { name: /save draft/i })).toHaveCount(0)
     await expect(page.getByText(/Saving/)).toBeVisible()
     await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 10000 })
-    await expect(page.getByLabel('Headline', { exact: true })).toHaveValue('E2E Verified Headline')
+    await expect(page.getByLabel('Headline', { exact: true })).toHaveText('E2E Verified Headline')
 
     await expect(page.getByLabel('Theme')).toBeVisible()
     await expect(page.getByLabel('Accent')).toHaveCount(0)

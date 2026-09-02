@@ -39,6 +39,21 @@ components:
       name: contactId
       required: true
       schema: { type: string }
+    ContactNoteId:
+      in: path
+      name: noteId
+      required: true
+      schema: { type: string }
+    ContactTagId:
+      in: path
+      name: tagId
+      required: true
+      schema: { type: string }
+    ChannelProviderId:
+      in: path
+      name: providerId
+      required: true
+      schema: { type: string }
     AudienceId:
       in: path
       name: audienceId
@@ -109,6 +124,21 @@ components:
       name: advertisementId
       required: true
       schema: { type: string }
+    RiverPostId:
+      in: path
+      name: riverPostId
+      required: true
+      schema: { type: string }
+    RiverFollowedBusinessId:
+      in: path
+      name: businessId
+      required: true
+      schema: { type: string }
+    ReturnTo:
+      in: query
+      name: returnTo
+      schema: { type: string }
+      description: Where to redirect after the action — a River feed/permalink URL. Falls back to the acted-on post/business's own River URL if omitted.
     AdPlatform:
       in: path
       name: platform
@@ -173,7 +203,7 @@ components:
       in: path
       name: provider
       required: true
-      schema: { type: string, enum: [HUBSPOT, SALESFORCE, SHOPIFY, SQUARE, PIPEDRIVE] }
+      schema: { type: string, enum: [HUBSPOT, SALESFORCE, SHOPIFY, WOOCOMMERCE, SQUARE, PIPEDRIVE] }
     ExternalRecordId:
       in: path
       name: recordId
@@ -195,8 +225,19 @@ components:
       required: true
       schema: { type: string }
 
-
   schemas:
+    EmbedDeployment:
+      type: object
+      required: [id, publicId, objectType, status, domainPolicy]
+      properties:
+        id: { type: string }
+        publicId: { type: string }
+        objectType: { type: string, enum: [PAGE, ADVERTISEMENT] }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+        domainPolicy: { type: string, enum: [ANY, ALLOWLIST] }
+        allowedOrigins:
+          type: array
+          items: { type: string }
     PaginatedMeta:
       type: object
       required: [hasMore, nextCursor]
@@ -272,7 +313,37 @@ components:
           type: array
           items: { $ref: '#/components/schemas/SocialProfileLink' }
         logoUrl: { type: string, nullable: true }
+        description:
+          {
+            type: string,
+            nullable: true,
+            description: '"What we do" — the profile About section, distinct from targetAudience ("who we serve").',
+          }
+        phone: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        hours:
+          {
+            type: string,
+            nullable: true,
+            description: 'Freeform — no structured open/close schedule concept exists yet.',
+          }
+        galleryImageUrls:
+          type: array
+          items: { type: string }
+          description: 'Ordered, already-resolved image URLs for the profile Gallery section — not asset ids (mirrors logoUrl).'
         identityCompletedAt: { type: string, format: date-time, nullable: true }
+        slug:
+          {
+            type: string,
+            nullable: true,
+            description: 'Public profile handle — GET /b/{slug}. Null only for a pre-2026-09-01 row not yet backfilled; not user-editable.',
+          }
+        publicProfileUrl:
+          {
+            type: string,
+            nullable: true,
+            description: 'Full public URL of GET /b/{slug}. Null iff slug is null.',
+          }
 
     UpdateBusinessInput:
       type: object
@@ -286,6 +357,13 @@ components:
           type: array
           items: { $ref: '#/components/schemas/SocialProfileLink' }
         logoUrl: { type: string, maxLength: 2000, nullable: true }
+        description: { type: string, maxLength: 2000, nullable: true }
+        phone: { type: string, maxLength: 40, nullable: true }
+        email: { type: string, maxLength: 200, nullable: true }
+        hours: { type: string, maxLength: 300, nullable: true }
+        galleryImageUrls:
+          type: array
+          items: { type: string, maxLength: 2000 }
 
     Billing:
       type: object
@@ -333,6 +411,17 @@ components:
         tags:
           type: array
           items: { type: string }
+          description: >
+            Legacy shape — tag names only, catalog-backed under the hood. Kept for the plain
+            comma-separated tags field on Create/UpdateContactInput. See tagRefs for the real
+            catalog reference (id + color) the tag picker and filtering use.
+        tagRefs:
+          type: array
+          items: { $ref: '#/components/schemas/ContactTagRef' }
+        avatarAssetId: { type: string, nullable: true }
+        # Resolved server-side from avatarAssetId (batched, same discipline as records/revenue
+        # below) so list rows never need a per-contact Asset fetch.
+        avatarUrl: { type: string, nullable: true }
         emailEligible: { type: boolean }
         smsEligible: { type: boolean }
         lastContactedAt: { type: string, format: date-time, nullable: true }
@@ -346,6 +435,72 @@ components:
         records:
           type: array
           items: { $ref: '#/components/schemas/ContactSourceRecord' }
+        currentLead:
+          allOf: [{ $ref: '#/components/schemas/ContactCurrentLead' }]
+          nullable: true
+          description: >
+            The contact's open lead, or their most recently closed one if none is open — the "lead
+            card" data. Only populated on GET /contacts/{contactId} (detail); never on the
+            collection list, same discipline as ContactSale's own dedicated endpoint rather than
+            expanding the list response.
+
+    ContactCurrentLead:
+      type: object
+      required: [id, stage, sourceType, openedAt, closedAt, contacted, lastTouchAt, activityCounts]
+      properties:
+        id: { type: string }
+        stage: { type: string, enum: [NEW, CONTACTED, ENGAGED, QUALIFIED, PROPOSAL, WON, LOST] }
+        sourceType: { type: string, enum: [MESSAGE, DEPLOYMENT, AD_RUN, AD_UNIT, MANUAL, IMPORT] }
+        openedAt: { type: string, format: date-time }
+        closedAt: { type: string, format: date-time, nullable: true }
+        nextActionNote: { type: string, nullable: true }
+        nextActionAt: { type: string, format: date-time, nullable: true }
+        contacted:
+          type: boolean
+          description: Whether any outbound activity (email/text/call/meeting/webinar/event/
+            follow-up) has happened since this lead opened.
+        lastTouchAt: { type: string, format: date-time, nullable: true }
+        activityCounts: { $ref: '#/components/schemas/ContactActivityCounts' }
+
+    ContactActivityCounts:
+      type: object
+      required: [email, text, call, meeting, webinarEvent]
+      description: >
+        Effort invested on this lead, counted from Interaction rows occurring within its open
+        window (openedAt through closedAt, or now if still open) — Interaction has no leadId, so a
+        time-window scope is the pragmatic proxy rather than a new FK. See CLAUDE.md's CRM
+        pipeline/activity slice.
+      properties:
+        email: { type: integer }
+        text: { type: integer }
+        call: { type: integer }
+        meeting: { type: integer }
+        webinarEvent: { type: integer, description: WEBINAR + EVENT combined. }
+
+    LogContactActivityInput:
+      type: object
+      required: [type]
+      description: >
+        Manually logged effort — the salesperson recording real-world activity (a call, a meeting,
+        a webinar/event, a follow-up, or a plain note) the app has no automatic way to observe.
+        Deliberately cannot log the system-of-record types (EMAIL_SENT, SALE_RECORDED, etc.) —
+        those are written only by the code paths that actually performed them.
+      properties:
+        type: { type: string, enum: [CALL_LOGGED, MEETING, WEBINAR, EVENT, FOLLOW_UP, NOTE] }
+        channel:
+          allOf: [{ $ref: '#/components/schemas/Channel' }]
+          description: Auto-derived from `type` when omitted (CALL_LOGGED->CALL, MEETING->MEETING,
+            etc.) — set explicitly only to override.
+        providerId:
+          type: string
+          description: An existing catalog provider. Use providerName instead to find-or-create by
+            name in one step; at most one of the two should be sent.
+        providerName: { type: string, maxLength: 100 }
+        note: { type: string, maxLength: 2000 }
+        occurredAt:
+          type: string
+          format: date-time
+          description: Defaults to now — set this when logging something that already happened.
 
     FieldProvenance:
       type: object
@@ -354,7 +509,10 @@ components:
         field: { type: string, enum: [name, email, phone, company] }
         value: { type: string }
         source:
-          { type: string, enum: [LOOPIE, HUBSPOT, SALESFORCE, PIPEDRIVE, SHOPIFY, SQUARE, CSV] }
+          {
+            type: string,
+            enum: [LOOPIE, HUBSPOT, SALESFORCE, PIPEDRIVE, SHOPIFY, WOOCOMMERCE, SQUARE, CSV],
+          }
 
     ContactSourceRecord:
       type: object
@@ -370,6 +528,118 @@ components:
           additionalProperties: { type: string }
           description: Extra CRM fields from this source (job title, address, notes, unknown columns)
 
+    ContactNote:
+      type: object
+      required: [id, contactId, authorUserId, body, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        contactId: { type: string }
+        authorUserId: { type: string }
+        body: { type: string }
+        pinnedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CreateContactNoteInput:
+      type: object
+      required: [body]
+      properties:
+        body: { type: string, minLength: 1, maxLength: 5000 }
+
+    UpdateContactNoteInput:
+      type: object
+      properties:
+        body: { type: string, minLength: 1, maxLength: 5000 }
+        pinned: { type: boolean }
+
+    ContactSale:
+      allOf:
+        - $ref: '#/components/schemas/Sale'
+        - type: object
+          properties:
+            lead:
+              type: object
+              nullable: true
+              description:
+                Minimal preview of the linked Lead/opportunity, resolved server-side so the
+                page doesn't need a second fetch per row.
+              required: [id, stage]
+              properties:
+                id: { type: string }
+                stage:
+                  { type: string, enum: [NEW, CONTACTED, ENGAGED, QUALIFIED, PROPOSAL, WON, LOST] }
+
+    ContactSalesSummary:
+      type: object
+      required: [totalRevenue, saleCount, lastSaleDate]
+      properties:
+        totalRevenue:
+          type: number
+          description: Sum of non-reversed sales — identical semantics to Contact.revenue.
+        saleCount:
+          type: integer
+          description: Count of non-reversed sales. A reversed sale still appears in `data` (with
+            reversedAt set) but is excluded from this count and from totalRevenue, matching how
+            Contact.revenue already treats reversed sales.
+        lastSaleDate:
+          type: string
+          format: date-time
+          nullable: true
+
+    ContactTagColor:
+      type: string
+      enum: [sky, violet, emerald, amber, rose, cyan, pink, slate]
+
+    ContactTag:
+      type: object
+      required: [id, businessId, name, color, createdAt]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        name: { type: string }
+        color: { $ref: '#/components/schemas/ContactTagColor' }
+        createdAt: { type: string, format: date-time }
+        usageCount:
+          type: integer
+          description: Number of contacts currently wearing this tag. Only present on the catalog
+            list endpoint.
+
+    ContactTagRef:
+      type: object
+      required: [id, name, color]
+      description: Compact catalog reference embedded on a Contact — everything a tag chip needs
+        to render without a second fetch.
+      properties:
+        id: { type: string }
+        name: { type: string }
+        color: { $ref: '#/components/schemas/ContactTagColor' }
+
+    CreateContactTagInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        color: { $ref: '#/components/schemas/ContactTagColor' }
+
+    UpdateContactTagInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        color: { $ref: '#/components/schemas/ContactTagColor' }
+
+    AssignContactTagInput:
+      type: object
+      description: >
+        Exactly one of tagId or name is required (validated app-side, same "exactly one of two"
+        convention as AttributionEvent.deploymentId/adUnitId elsewhere in this contract). tagId
+        assigns an existing catalog tag (404 if it doesn't belong to this business); name
+        finds-or-creates the tag by name — the "create new tag inline" path — using color only if
+        a new tag is actually created.
+      properties:
+        tagId: { type: string }
+        name: { type: string, minLength: 1, maxLength: 100 }
+        color: { $ref: '#/components/schemas/ContactTagColor' }
+
     CreateContactInput:
       type: object
       required: [name]
@@ -382,6 +652,7 @@ components:
         tags:
           type: array
           items: { type: string }
+        avatarAssetId: { type: string, description: An Asset already uploaded via POST /assets. }
         emailEligible: { type: boolean, default: true }
         smsEligible: { type: boolean, default: true }
 
@@ -434,6 +705,7 @@ components:
         tags:
           type: array
           items: { type: string }
+        avatarAssetId: { type: string, nullable: true, description: Set null to remove the avatar. }
         emailEligible: { type: boolean }
         smsEligible: { type: boolean }
 
@@ -469,13 +741,18 @@ components:
 
     CrmCatalogEntry:
       type: object
-      required: [provider, label, capabilities]
+      required: [provider, label, capabilities, oauth, configured, availability]
       properties:
-        provider: { type: string, enum: [HUBSPOT, SALESFORCE, SHOPIFY, SQUARE, PIPEDRIVE] }
+        provider:
+          {
+            type: string,
+            enum: [HUBSPOT, SALESFORCE, SHOPIFY, WOOCOMMERCE, WEBHOOK, SQUARE, PIPEDRIVE],
+          }
         label: { type: string }
         capabilities: { $ref: '#/components/schemas/CrmCapabilities' }
         oauth: { type: boolean }
         configured: { type: boolean }
+        availability: { type: string, enum: [LIVE, COMING_SOON] }
 
     Integration:
       type: object
@@ -483,12 +760,23 @@ components:
       properties:
         id: { type: string }
         businessId: { type: string }
-        provider: { type: string, enum: [HUBSPOT, SALESFORCE, SHOPIFY, SQUARE, PIPEDRIVE] }
+        provider:
+          {
+            type: string,
+            enum: [HUBSPOT, SALESFORCE, SHOPIFY, WOOCOMMERCE, WEBHOOK, SQUARE, PIPEDRIVE],
+          }
         label: { type: string, nullable: true }
         externalAccountId: { type: string, nullable: true }
         status: { type: string, enum: [INCOMPLETE, CONNECTED, NEEDS_REAUTH, PAUSED] }
         syncDirection: { type: string, enum: [INBOUND] }
         lastSyncAt: { type: string, format: date-time, nullable: true }
+        lastSuccessfulSyncAt: { type: string, format: date-time, nullable: true }
+        lastSyncAttemptAt: { type: string, format: date-time, nullable: true }
+        lastSyncError: { type: string, nullable: true }
+        syncHasMore: { type: boolean }
+        lastSyncStatus:
+          { type: string, enum: [PENDING, RUNNING, COMPLETED, FAILED], nullable: true }
+        lastSyncJobAt: { type: string, format: date-time, nullable: true }
         lastSyncCreated: { type: integer, nullable: true }
         lastSyncLinked: { type: integer, nullable: true }
         lastSyncAmbiguous: { type: integer, nullable: true }
@@ -496,26 +784,68 @@ components:
         capabilities: { $ref: '#/components/schemas/CrmCapabilities' }
         oauth: { type: boolean }
         configured: { type: boolean }
+        webhookUrl: { type: string, format: uri, nullable: true }
+        webhookSecret:
+          { type: string, nullable: true, description: Returned only when a webhook is created. }
         createdAt: { type: string, format: date-time }
 
     SyncIntegrationResult:
       type: object
-      required: [created, linked, ambiguous, skipped, orders]
+      required: [created, linked, ambiguous, skipped, orders, hasMore]
       properties:
         created: { type: integer }
         linked: { type: integer }
         ambiguous: { type: integer }
         skipped: { type: integer }
         orders: { type: integer }
+        hasMore: { type: boolean }
         lastSyncAt: { type: string, format: date-time }
+
+    IntegrationPreview:
+      type: object
+      required: [newContacts, matchedContacts, duplicates, orders, revenue, truncated]
+      properties:
+        newContacts: { type: integer }
+        matchedContacts: { type: integer }
+        duplicates: { type: integer }
+        orders: { type: integer }
+        revenue: { type: number }
+        truncated: { type: boolean }
 
     CreateIntegrationInput:
       type: object
       required: [provider]
       properties:
-        provider: { type: string, enum: [HUBSPOT, SALESFORCE, SHOPIFY, SQUARE, PIPEDRIVE] }
+        provider: { type: string, enum: [WOOCOMMERCE, WEBHOOK] }
         label: { type: string }
         externalAccountId: { type: string }
+        storeUrl: { type: string, format: uri }
+        consumerKey: { type: string }
+        consumerSecret: { type: string }
+
+    InboundWebhookInput:
+      type: object
+      required: [eventId, contact]
+      properties:
+        eventId: { type: string, minLength: 1, maxLength: 191 }
+        type:
+          type: string
+          enum: [CONTACT_CREATED, CONTACT_UPDATED, ORDER_CREATED, PAYMENT_COMPLETED]
+          default: CONTACT_UPDATED
+        occurredAt: { type: string, format: date-time }
+        amount: { type: number }
+        productOrService: { type: string }
+        contact:
+          type: object
+          properties:
+            externalId: { type: string }
+            name: { type: string }
+            email: { type: string, format: email }
+            phone: { type: string }
+            company: { type: string }
+        payload:
+          type: object
+          additionalProperties: true
 
     UpdateIntegrationInput:
       type: object
@@ -1425,6 +1755,18 @@ components:
         id: { type: string }
         businessId: { type: string }
         name: { type: string }
+        primaryText:
+          type: string
+          nullable: true
+          description: The Feed post's body copy — shown above the media in the Feed preview and checked against each placement's text-length capability.
+        ctaLabel:
+          type: string
+          nullable: true
+          description: Call-to-action button label (e.g. "Learn More", "Book Now") shown on the Feed preview's CTA row.
+        destinationUrl:
+          type: string
+          nullable: true
+          description: Where the CTA/click leads. Also the default destinationUrl a publish call uses when none is explicitly passed.
         assetIds:
           type: array
           items: { type: string }
@@ -1434,6 +1776,7 @@ components:
             $ref: '#/components/schemas/Asset'
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+        lastPublishedAt: { type: string, format: date-time, nullable: true }
         status:
           type: string
           enum: [DRAFT, READY, RUNNING, PAUSED, FAILED]
@@ -1458,6 +1801,9 @@ components:
       required: [name]
       properties:
         name: { type: string, minLength: 1 }
+        primaryText: { type: string }
+        ctaLabel: { type: string }
+        destinationUrl: { type: string }
         assetIds:
           type: array
           items: { type: string }
@@ -1466,10 +1812,204 @@ components:
       type: object
       properties:
         name: { type: string, minLength: 1 }
+        primaryText: { type: string, nullable: true }
+        ctaLabel: { type: string, nullable: true }
+        destinationUrl: { type: string, nullable: true }
         assetIds:
           type: array
           items: { type: string }
           description: Wholesale replace, same convention as Campaign.creativeIds — omit to leave media unchanged.
+
+    RiverPost:
+      type: object
+      required: [id, businessId, type, body, createdAt, permalinkUrl]
+      description: >
+        A native River post — the literal single-provider content entity (see the River proposal
+        pack in apps/web/public/river-b2b-social-proposal). Immutable once created: type=AD/PAGE
+        posts pin the Advertisement/LandingPage's published version at creation time and never
+        follow a later republish. Slice 6 adds native composer richness (imageAssetIds/
+        videoAssetId — TEXT-only — plus linkUrl/CTA, available on any type).
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        type: { type: string, enum: [TEXT, AD, PAGE] }
+        body: { type: string }
+        advertisementId: { type: string, nullable: true }
+        publishedAdvertisementVersionId: { type: string, nullable: true }
+        landingPageId: { type: string, nullable: true }
+        publishedPageVersionId: { type: string, nullable: true }
+        imageAssetIds:
+          type: array
+          items: { type: string }
+          description: TEXT-only — a share's visual comes from the shared object instead.
+        videoAssetId: { type: string, nullable: true }
+        linkUrl: { type: string, nullable: true }
+        linkPreviewTitle: { type: string, nullable: true }
+        linkPreviewDescription: { type: string, nullable: true }
+        linkPreviewImageUrl: { type: string, nullable: true }
+        ctaLabel: { type: string, nullable: true }
+        ctaUrl: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        deletedAt: { type: string, format: date-time, nullable: true }
+        permalinkUrl: { type: string, description: 'Full public URL of GET /river/posts/{id}.' }
+        reactionCount: { type: integer }
+
+    CreateRiverPostInput:
+      type: object
+      required: [type]
+      description: >
+        body is optional for AD/PAGE (a caption on top of the shared object) but a TEXT post needs
+        at least one of body/imageAssetIds/videoAssetId/linkUrl — see RiverPostService#create.
+      properties:
+        type: { type: string, enum: [TEXT, AD, PAGE] }
+        body: { type: string }
+        advertisementId:
+          type: string
+          description: Required when type=AD; must be omitted otherwise.
+        landingPageId:
+          type: string
+          description: Required when type=PAGE (must be PUBLISHED and owned by the caller); must be omitted otherwise.
+        imageAssetIds:
+          type: array
+          items: { type: string }
+          description: type=TEXT only.
+        videoAssetId:
+          type: string
+          description: type=TEXT only.
+        linkUrl:
+          {
+            type: string,
+            description: 'Any type. Triggers a server-side preview fetch, frozen at creation.',
+          }
+        ctaLabel: { type: string, description: Must be set together with ctaUrl. }
+        ctaUrl: { type: string, description: Must be set together with ctaLabel. }
+
+    RiverFeedItem:
+      type: object
+      required: [id, type, business, publishedAt, metrics]
+      description: >
+        The one canonical shape every River feed item renders through — see the River feed v2
+        and slice-6 plan docs. SPONSORED is a presentation-time label from deterministic feed
+        assembly, never a stored RiverPost.type value.
+      properties:
+        id: { type: string }
+        type: { type: string, enum: [TEXT, AD, PAGE, SPONSORED] }
+        business:
+          type: object
+          required: [id, name, slug]
+          properties:
+            id: { type: string }
+            name: { type: string }
+            slug: { type: string, nullable: true }
+            logoUrl: { type: string, nullable: true }
+        publishedAt: { type: string, format: date-time }
+        headline:
+          {
+            type: string,
+            description: 'Not populated by any current source — reserved for system-generated activity types.',
+          }
+        body: { type: string }
+        media:
+          type: array
+          description: 'A native TEXT post can have both — a VIDEO entry (at most one) listed first, followed by 1+ IMAGE entries for the gallery. An AD post has at most one IMAGE entry (its creative).'
+          items:
+            type: object
+            required: [type, url]
+            properties:
+              type: { type: string, enum: [IMAGE, VIDEO] }
+              url: { type: string }
+        linkPreview:
+          type: object
+          required: [url]
+          properties:
+            url: { type: string }
+            title: { type: string, nullable: true }
+            description: { type: string, nullable: true }
+            imageUrl: { type: string, nullable: true }
+        cta:
+          type: object
+          required: [label, url]
+          properties:
+            label: { type: string }
+            url: { type: string }
+        clickUrl:
+          type: string
+          description: The one tracked click-through, whatever it resolves to server-side (cta > AD destination > shared PAGE's hosted url > linkUrl).
+        pageInfo:
+          type: object
+          required: [name, slug]
+          properties:
+            name: { type: string }
+            slug: { type: string }
+        metrics:
+          type: object
+          required: [reactions, comments]
+          properties:
+            reactions: { type: integer }
+            comments:
+              {
+                type: integer,
+                description: 'Top-level comments only — see GET /river/posts/{riverPostId}/comments.',
+              }
+        viewer:
+          type: object
+          description: Omitted entirely for an anonymous request — see lib/riverViewer.ts.
+          properties:
+            reacted: { type: boolean }
+            following: { type: boolean }
+
+    RiverFeedResponse:
+      type: object
+      required: [items, nextCursor, generatedAt]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/RiverFeedItem' }
+        nextCursor: { type: string, nullable: true }
+        generatedAt: { type: string, format: date-time }
+
+    # A reply carries no `replies` field of its own — the schema itself enforces the one-level
+    # nesting limit (see the "River comments" plan doc), not just RiverCommentService#create's
+    # app-level check.
+    RiverCommentReply:
+      type: object
+      required: [id, riverPostId, business, body, parentCommentId, createdAt]
+      properties:
+        id: { type: string }
+        riverPostId: { type: string }
+        business:
+          type: object
+          required: [id, name, slug]
+          properties:
+            id: { type: string }
+            name: { type: string }
+            slug: { type: string, nullable: true }
+            logoUrl: { type: string, nullable: true }
+        body: { type: string }
+        parentCommentId: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    RiverComment:
+      type: object
+      required: [id, riverPostId, business, body, parentCommentId, createdAt, replies]
+      properties:
+        id: { type: string }
+        riverPostId: { type: string }
+        business:
+          type: object
+          required: [id, name, slug]
+          properties:
+            id: { type: string }
+            name: { type: string }
+            slug: { type: string, nullable: true }
+            logoUrl: { type: string, nullable: true }
+        body: { type: string }
+        parentCommentId:
+          { type: string, nullable: true, description: Always null for a top-level comment. }
+        createdAt: { type: string, format: date-time }
+        replies:
+          type: array
+          items: { $ref: '#/components/schemas/RiverCommentReply' }
 
     AdRun:
       type: object
@@ -1496,7 +2036,11 @@ components:
         advertisementId: { type: string }
         platform: { type: string, enum: [META, GOOGLE, TIKTOK, LOOPIE] }
         placement: { type: string, nullable: true }
-        status: { type: string, enum: [PENDING, ACTIVE, PAUSED, ENDED, VALIDATION_FAILED, PROVISIONING_FAILED] }
+        status:
+          {
+            type: string,
+            enum: [PENDING, ACTIVE, PAUSED, ENDED, VALIDATION_FAILED, PROVISIONING_FAILED],
+          }
         budget: { type: number, nullable: true }
         spend: { type: number }
         impressions: { type: integer }
@@ -1509,7 +2053,19 @@ components:
         providerState:
           type: string
           nullable: true
-          enum: [NOT_SENT, DRAFT_SENT, UNDER_REVIEW, ELIGIBLE, LIVE, PAUSED, LIMITED, REJECTED, ENDED, UNKNOWN]
+          enum:
+            [
+              NOT_SENT,
+              DRAFT_SENT,
+              UNDER_REVIEW,
+              ELIGIBLE,
+              LIVE,
+              PAUSED,
+              LIMITED,
+              REJECTED,
+              ENDED,
+              UNKNOWN,
+            ]
           description: The platform's own delivery state, normalized — independent of `status` (LOOPIE's order state). Null until first synced.
         providerStateRaw:
           type: string
@@ -1619,19 +2175,31 @@ components:
     InboxThreadSummary:
       type: object
       description: A thread's list-view/detail-header shape — same object for both listInboxThreads and getInboxThread.
-      required: [id, type, subject, unread, lastMessageAt, createdAt]
+      required: [id, type, subject, canReply, unread, lastMessageAt, createdAt]
       properties:
         id: { type: string }
-        type: { type: string, enum: [CONTACT, ADVERTISEMENT, PAGE, INTEGRATION, SYSTEM] }
+        type: { type: string, enum: [CONTACT, ADVERTISEMENT, PAGE, INTEGRATION, BUSINESS, SYSTEM] }
         subject: { type: string }
         contactId: { type: string, nullable: true }
         advertisementId: { type: string, nullable: true }
         platform: { type: string, nullable: true }
         landingPageId: { type: string, nullable: true, description: Only set when type is PAGE. }
-        integrationPlatform: { type: string, nullable: true, description: Only set when type is INTEGRATION. }
+        integrationPlatform:
+          { type: string, nullable: true, description: Only set when type is INTEGRATION. }
+        peerBusinessId:
+          {
+            type: string,
+            nullable: true,
+            description: The other participant when type is BUSINESS; null for one-way guest messages.,
+          }
+        canReply:
+          {
+            type: boolean,
+            description: True only for authenticated business-to-business site conversations.,
+          }
         previewKind:
           type: string
-          enum: [SYSTEM, EMAIL, SMS]
+          enum: [SYSTEM, EMAIL, SMS, SITE]
           nullable: true
           description: The most recent message's kind, for a list-row preview icon/label.
         previewBody: { type: string, nullable: true }
@@ -1650,7 +2218,7 @@ components:
       required: [id, kind, direction, body, createdAt]
       properties:
         id: { type: string }
-        kind: { type: string, enum: [SYSTEM, EMAIL, SMS] }
+        kind: { type: string, enum: [SYSTEM, EMAIL, SMS, SITE] }
         direction: { type: string, enum: [INBOUND, OUTBOUND, INTERNAL] }
         subject: { type: string, nullable: true }
         body: { type: string }
@@ -1746,7 +2314,11 @@ components:
       description: Manual metrics/status entry, same "no live platform sync in V1" model as Deployment. Cannot change platform or advertisementId — an AdRun's source identity is immutable once created.
       type: object
       properties:
-        status: { type: string, enum: [PENDING, ACTIVE, PAUSED, ENDED, VALIDATION_FAILED, PROVISIONING_FAILED] }
+        status:
+          {
+            type: string,
+            enum: [PENDING, ACTIVE, PAUSED, ENDED, VALIDATION_FAILED, PROVISIONING_FAILED],
+          }
         spend: { type: number, minimum: 0 }
         budget: { type: number, minimum: 0 }
         impressions: { type: integer, minimum: 0 }
@@ -1968,6 +2540,11 @@ components:
           additionalProperties: true
           description: Draft working copy, shaped per the template's schema.
         theme: { type: object, nullable: true, additionalProperties: true }
+        layoutConfig:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: Presentation only — section visibility/order per slot group. Never content values.
         publishedVersionId: { type: string, nullable: true }
         hostedUrl:
           {
@@ -2042,6 +2619,7 @@ components:
         formId: { type: string }
         content: { type: object, additionalProperties: true }
         theme: { type: object, additionalProperties: true }
+        layoutConfig: { type: object, additionalProperties: true }
 
     UpdateLandingPageInput:
       type: object
@@ -2053,6 +2631,7 @@ components:
         templateId: { type: string }
         content: { type: object, additionalProperties: true }
         theme: { type: object, nullable: true, additionalProperties: true }
+        layoutConfig: { type: object, nullable: true, additionalProperties: true }
 
     PublishedPageVersion:
       type: object
@@ -2063,6 +2642,7 @@ components:
         version: { type: integer }
         content: { type: object, additionalProperties: true }
         theme: { type: object, nullable: true, additionalProperties: true }
+        layoutConfig: { type: object, nullable: true, additionalProperties: true }
         formId: { type: string, nullable: true }
         formSnapshot:
           type: object
@@ -2106,7 +2686,7 @@ components:
 
     SubmitLandingPageFormInput:
       type: object
-      required: [data, sessionId]
+      required: [data, sessionId, idempotencyKey]
       properties:
         sessionId:
           type: string
@@ -2119,7 +2699,8 @@ components:
         utmMedium: { type: string }
         utmCampaign: { type: string }
         utmContent: { type: string }
-        utmTerm: { type: string }
+        idempotencyKey: { type: string }
+        embedInstanceId: { type: string }
 
     SubmitLandingPageFormResult:
       type: object
@@ -2253,6 +2834,108 @@ components:
         servingConfig: { type: object, additionalProperties: true }
 
     # ---------- Lead / Sale / Interaction ----------
+    LeadInsights:
+      type: object
+      required:
+        [
+          totalLeads,
+          timeToFirstContact,
+          contactedWithin,
+          avgTouchesBeforeEngaged,
+          avgTouchesBeforeWon,
+          channelMix,
+          overdueFollowUpRate,
+          stageConversion,
+        ]
+      description: >
+        Management-facing analytics, computed all-time from Lead's own fields and the existing
+        Interaction timeline — no new state machine, no stage-history table. See
+        lib/leadInsights.ts for exactly how each number is derived, including the deliberate
+        simplifications (LOST leads excluded from stageConversion beyond NEW; contactedWithin only
+        judges leads old enough to have had the full window).
+      properties:
+        totalLeads: { type: integer }
+        timeToFirstContact:
+          type: object
+          required: [averageHours, medianHours, sampleSize]
+          properties:
+            averageHours: { type: number, nullable: true }
+            medianHours: { type: number, nullable: true }
+            sampleSize:
+              type: integer
+              description: Leads that have actually been contacted — the population the average/
+                median are computed over.
+        contactedWithin:
+          type: object
+          required: [within1hPct, within24hPct]
+          properties:
+            within1hPct: { type: number }
+            within24hPct: { type: number }
+        avgTouchesBeforeEngaged: { type: number, nullable: true }
+        avgTouchesBeforeWon: { type: number, nullable: true }
+        channelMix:
+          type: array
+          items:
+            type: object
+            required: [channel, count, pct]
+            properties:
+              channel: { $ref: '#/components/schemas/Channel' }
+              count: { type: integer }
+              pct: { type: number }
+        overdueFollowUpRate:
+          type: number
+          description: Percent of currently open leads with a past-due next action.
+        stageConversion:
+          type: array
+          items:
+            type: object
+            required: [stage, reachedCount, pct]
+            properties:
+              stage: { type: string, enum: [NEW, CONTACTED, ENGAGED, QUALIFIED, PROPOSAL, WON] }
+              reachedCount: { type: integer }
+              pct: { type: number }
+
+    LeadQueueItem:
+      type: object
+      required:
+        [
+          id,
+          contact,
+          stage,
+          sourceType,
+          openedAt,
+          contacted,
+          lastTouchAt,
+          nextActionNote,
+          nextActionAt,
+          buckets,
+        ]
+      description: >
+        One row in the morning work queue (GET /leads/queue) — an open lead enriched with the same
+        contacted/last-touch computation as Contact.currentLead, plus a computed bucket
+        classification. A lead may appear in more than one bucket (e.g. NEW and NEVER_CONTACTED
+        almost always coincide) — the frontend groups/tabs by bucket, this endpoint doesn't force
+        a single mutually-exclusive category.
+      properties:
+        id: { type: string }
+        contact:
+          type: object
+          required: [id, name]
+          properties:
+            id: { type: string }
+            name: { type: string }
+            avatarUrl: { type: string, nullable: true }
+        stage: { type: string, enum: [NEW, CONTACTED, ENGAGED, QUALIFIED, PROPOSAL, WON, LOST] }
+        sourceType: { type: string, enum: [MESSAGE, DEPLOYMENT, AD_RUN, AD_UNIT, MANUAL, IMPORT] }
+        openedAt: { type: string, format: date-time }
+        contacted: { type: boolean }
+        lastTouchAt: { type: string, format: date-time, nullable: true }
+        nextActionNote: { type: string, nullable: true }
+        nextActionAt: { type: string, format: date-time, nullable: true }
+        buckets:
+          type: array
+          items: { type: string, enum: [NEW, NEVER_CONTACTED, NEEDS_FOLLOW_UP, OVERDUE, ENGAGED] }
+
     Lead:
       type: object
       required: [id, businessId, contactId, stage, sourceType, createdAt]
@@ -2260,7 +2943,7 @@ components:
         id: { type: string }
         businessId: { type: string }
         contactId: { type: string }
-        stage: { type: string, enum: [NEW, CONTACTED, QUALIFIED, QUOTED, WON, LOST] }
+        stage: { type: string, enum: [NEW, CONTACTED, ENGAGED, QUALIFIED, PROPOSAL, WON, LOST] }
         owner: { type: string, nullable: true }
         estimatedValue: { type: number, nullable: true }
         sourceType: { type: string, enum: [MESSAGE, DEPLOYMENT, AD_RUN, AD_UNIT, MANUAL, IMPORT] }
@@ -2279,14 +2962,18 @@ components:
             credit," set independently by the same submission and orthogonal to it.
         openedAt: { type: string, format: date-time }
         closedAt: { type: string, format: date-time, nullable: true }
+        nextActionNote: { type: string, nullable: true }
+        nextActionAt: { type: string, format: date-time, nullable: true }
         createdAt: { type: string, format: date-time }
 
     UpdateLeadInput:
       type: object
       properties:
-        stage: { type: string, enum: [NEW, CONTACTED, QUALIFIED, QUOTED, WON, LOST] }
+        stage: { type: string, enum: [NEW, CONTACTED, ENGAGED, QUALIFIED, PROPOSAL, WON, LOST] }
         owner: { type: string, nullable: true }
         estimatedValue: { type: number, nullable: true }
+        nextActionNote: { type: string, nullable: true }
+        nextActionAt: { type: string, format: date-time, nullable: true }
 
     Sale:
       type: object
@@ -2365,6 +3052,10 @@ components:
               AD_CLICK,
               FORM_SUBMITTED,
               PAGE_VIEWED,
+              MEETING,
+              WEBINAR,
+              EVENT,
+              FOLLOW_UP,
             ]
         sourceType:
           {
@@ -2376,21 +3067,76 @@ components:
         sourceDeploymentId: { type: string, nullable: true }
         sourceAdRunId: { type: string, nullable: true }
         sourceAdUnitId: { type: string, nullable: true }
+        channel:
+          allOf: [{ $ref: '#/components/schemas/Channel' }]
+          nullable: true
+          description: >
+            Additive enrichment on top of `type` — the Channel -> Provider -> Activity taxonomy's
+            top layer. Null for pipeline/system types (STATUS_CHANGE, SALE_RECORDED, QUOTE_SENT,
+            NOTE) and for REPLY unless known.
+        provider:
+          allOf: [{ $ref: '#/components/schemas/ChannelProviderRef' }]
+          nullable: true
         metadata:
           type: object
           additionalProperties: true
           nullable: true
         occurredAt: { type: string, format: date-time }
 
+    Channel:
+      type: string
+      description: >
+        The stable top-level layer of the Channel -> Provider -> Activity taxonomy — small and
+        rarely-changing by design. Real products/tools (Mailchimp, LinkedIn, Zoom, ...) live one
+        level down in ChannelProvider instead, so this list doesn't grow every time a business
+        adopts a new tool.
+      enum: [EMAIL, TEXT, SOCIAL, CALL, MEETING, WEBINAR, EVENT, FORM, REFERRAL]
+
+    ChannelProvider:
+      type: object
+      required: [id, businessId, channel, name]
+      properties:
+        id: { type: string }
+        businessId: { type: string }
+        channel: { $ref: '#/components/schemas/Channel' }
+        name: { type: string }
+        usageCount:
+          type: integer
+          description: Number of interactions logged against this provider. Only present on the
+            catalog list endpoint.
+
+    ChannelProviderRef:
+      type: object
+      required: [id, name]
+      description: Compact catalog reference embedded on an Interaction.
+      properties:
+        id: { type: string }
+        name: { type: string }
+
+    CreateChannelProviderInput:
+      type: object
+      required: [channel, name]
+      properties:
+        channel: { $ref: '#/components/schemas/Channel' }
+        name: { type: string, minLength: 1, maxLength: 100 }
+
+    UpdateChannelProviderInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+
     # ---------- Attribution ----------
     SubmitFormInput:
       type: object
-      required: [sessionId, name]
+      required: [sessionId, name, idempotencyKey]
       properties:
         sessionId: { type: string, description: HMAC-signed visitor session token issued on click. }
         name: { type: string, minLength: 1 }
         email: { type: string, format: email }
         phone: { type: string }
+        idempotencyKey: { type: string }
+        embedInstanceId: { type: string }
 
     SubmitFormResult:
       type: object
@@ -2488,7 +3234,11 @@ components:
       required: [value, previousValue, deltaPct]
       properties:
         value: { type: number }
-        previousValue: { type: number, description: The same measure for the prior week — shown alongside deltaPct so the comparison isn't hidden behind a percentage alone. }
+        previousValue:
+          {
+            type: number,
+            description: The same measure for the prior week — shown alongside deltaPct so the comparison isn't hidden behind a percentage alone.,
+          }
         deltaPct:
           type: number
           nullable: true
@@ -2505,7 +3255,18 @@ components:
 
     HomeSummary:
       type: object
-      required: [businessName, generatedAt, brief, rail, inbox, activity, systems, livePresence, weeklyResults]
+      required:
+        [
+          businessName,
+          generatedAt,
+          brief,
+          rail,
+          inbox,
+          activity,
+          systems,
+          livePresence,
+          weeklyResults,
+        ]
       properties:
         businessName: { type: string }
         generatedAt: { type: string, format: date-time }
@@ -2773,7 +3534,7 @@ components:
         contactId: { type: string }
         contactName: { type: string }
         acquiredAt: { type: string, format: date-time }
-        stage: { type: string, enum: [NEW, CONTACTED, QUALIFIED, QUOTED, WON, LOST] }
+        stage: { type: string, enum: [NEW, CONTACTED, ENGAGED, QUALIFIED, PROPOSAL, WON, LOST] }
         sourceType: { type: string, enum: [DEPLOYMENT, AD_RUN, AD_UNIT] }
         platform: { type: string, enum: [META, GOOGLE, TIKTOK, LOOPIE], nullable: true }
         creativeName: { type: string, nullable: true }
@@ -3059,7 +3820,21 @@ components:
 
     ActivityType:
       type: string
-      enum: [FORM_SUBMISSION, LEAD_CREATED, AD_RUN_FAILED, MESSAGE_REPLY, STATUS_CHANGE, PUBLISH, SALE, PAYMENT, AUTOMATION_EXECUTION, SYNC, IDENTITY_MATCH, BROADCAST]
+      enum:
+        [
+          FORM_SUBMISSION,
+          LEAD_CREATED,
+          AD_RUN_FAILED,
+          MESSAGE_REPLY,
+          STATUS_CHANGE,
+          PUBLISH,
+          SALE,
+          PAYMENT,
+          AUTOMATION_EXECUTION,
+          SYNC,
+          IDENTITY_MATCH,
+          BROADCAST,
+        ]
 
     AttentionState:
       type: string
@@ -3096,7 +3871,23 @@ components:
 
     ActivityItem:
       type: object
-      required: [id, businessId, taxonomyVersion, occurredAt, observedAt, projectedAt, storyId, source, type, actor, attention, summary, references, actions]
+      required:
+        [
+          id,
+          businessId,
+          taxonomyVersion,
+          occurredAt,
+          observedAt,
+          projectedAt,
+          storyId,
+          source,
+          type,
+          actor,
+          attention,
+          summary,
+          references,
+          actions,
+        ]
       properties:
         id: { type: string }
         businessId: { type: string }
@@ -3171,6 +3962,45 @@ components:
         name: { type: string, minLength: 1, maxLength: 100 }
 
 paths:
+  # ---------- Embed Deployments ----------
+  /embed-deployments/get-or-create:
+    post:
+      operationId: getOrCreateEmbedDeployment
+      summary: Get or create an embed deployment
+      tags: [embed-deployments]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [objectType, objectId]
+              properties:
+                objectType:
+                  type: string
+                  enum: [PAGE, ADVERTISEMENT]
+                objectId:
+                  type: string
+      responses:
+        '200':
+          description: EmbedDeployment DTO
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/EmbedDeployment'
+        '201':
+          description: EmbedDeployment DTO
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/EmbedDeployment'
+
   # ---------- Activity ----------
   /activity:
     get:
@@ -3371,8 +4201,6 @@ paths:
                 properties:
                   data: { $ref: '#/components/schemas/AttentionItem' }
 
-
-
   # ---------- Auth ----------
   /auth/register:
     post:
@@ -3446,7 +4274,7 @@ paths:
     get:
       operationId: getBusiness
       summary: Get business profile
-      description: 'The current user''s business identity/profile — see docs/strategy/03-product-principles.md''s Singleton, Collection, Entity grammar (Business Profile is the one Singleton).'
+      description: "The current user's business identity/profile — see docs/strategy/03-product-principles.md's Singleton, Collection, Entity grammar (Business Profile is the one Singleton)."
       tags: [business]
       responses:
         '200':
@@ -3488,8 +4316,16 @@ paths:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/SearchQuery'
         - in: query
-          name: tag
-          schema: { type: string }
+          name: tagIds
+          description: Filter to contacts wearing these tag(s). Combine with tagMode.
+          schema: { type: array, items: { type: string } }
+          explode: true
+        - in: query
+          name: tagMode
+          description: >
+            AND ("has all selected tags", the default — more useful for segmentation) or OR ("has
+            any selected tag"). Explicit rather than ambiguous, per product decision.
+          schema: { type: string, enum: [AND, OR], default: AND }
         - in: query
           name: lifecycleStatus
           schema: { type: string, enum: [LEAD, CUSTOMER, PAST_CUSTOMER, NONE] }
@@ -3727,6 +4563,53 @@ paths:
                 properties:
                   data: { $ref: '#/components/schemas/SyncIntegrationResult' }
 
+  /integrations/{integrationId}/preview:
+    post:
+      operationId: previewIntegration
+      summary: Preview contacts, orders, and revenue without importing them
+      tags: [crm]
+      parameters:
+        - $ref: '#/components/parameters/IntegrationId'
+      responses:
+        '200':
+          description: Import preview
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/IntegrationPreview' }
+
+  /webhooks/inbound/{integrationId}:
+    post:
+      operationId: ingestInboundWebhook
+      summary: Ingest an idempotent contact or commerce event from a form or automation tool
+      tags: [crm]
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IntegrationId'
+        - in: header
+          name: Authorization
+          required: true
+          schema: { type: string }
+          description: Bearer token returned once when the inbound webhook integration is created.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InboundWebhookInput' }
+      responses:
+        '202':
+          description: Event accepted; replaying the same eventId is safe.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/ExternalEvent' }
+
   /external-events:
     post:
       operationId: ingestExternalEvent
@@ -3941,6 +4824,294 @@ paths:
                     type: array
                     items: { $ref: '#/components/schemas/Interaction' }
                   meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: logContactActivity
+      summary: Log a manually-observed activity (call, meeting, webinar/event, follow-up, note)
+      tags: [contacts]
+      parameters:
+        - $ref: '#/components/parameters/ContactId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LogContactActivityInput' }
+      responses:
+        '201':
+          description: The logged interaction
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Interaction' }
+
+  /contacts/{contactId}/notes:
+    get:
+      operationId: listContactNotes
+      summary: List a contact's notes
+      tags: [contacts]
+      parameters:
+        - $ref: '#/components/parameters/ContactId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated notes, pinned first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ContactNote' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createContactNote
+      summary: Add a note to a contact
+      tags: [contacts]
+      parameters:
+        - $ref: '#/components/parameters/ContactId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateContactNoteInput' }
+      responses:
+        '201':
+          description: Note created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ContactNote' }
+
+  /contacts/{contactId}/notes/{noteId}:
+    patch:
+      operationId: updateContactNote
+      summary: Edit or pin/unpin a note
+      tags: [contacts]
+      parameters:
+        - $ref: '#/components/parameters/ContactId'
+        - $ref: '#/components/parameters/ContactNoteId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateContactNoteInput' }
+      responses:
+        '200':
+          description: Updated note
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ContactNote' }
+    delete:
+      operationId: deleteContactNote
+      summary: Delete a note
+      tags: [contacts]
+      parameters:
+        - $ref: '#/components/parameters/ContactId'
+        - $ref: '#/components/parameters/ContactNoteId'
+      responses:
+        '200':
+          description: Note deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, nullable: true }
+
+  /contacts/{contactId}/sales:
+    get:
+      operationId: listContactSales
+      summary: "This contact's sale history: where their revenue came from"
+      tags: [contacts]
+      parameters:
+        - $ref: '#/components/parameters/ContactId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated sale history (most recent sale date first) plus a revenue summary
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, summary, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ContactSale' }
+                  summary: { $ref: '#/components/schemas/ContactSalesSummary' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+
+  /channel-providers:
+    get:
+      operationId: listChannelProviders
+      summary: The business's channel-provider catalog (Mailchimp, LinkedIn, Zoom, ...)
+      tags: [contacts]
+      parameters:
+        - in: query
+          name: channel
+          schema: { $ref: '#/components/schemas/Channel' }
+      responses:
+        '200':
+          description: All providers in this business's catalog, optionally scoped to one channel
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ChannelProvider' }
+    post:
+      operationId: createChannelProvider
+      summary: Add a provider to the catalog
+      tags: [contacts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateChannelProviderInput' }
+      responses:
+        '201':
+          description: Provider created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ChannelProvider' }
+
+  /channel-providers/{providerId}:
+    patch:
+      operationId: updateChannelProvider
+      summary: Rename a catalog provider — every interaction referencing it updates implicitly
+      tags: [contacts]
+      parameters:
+        - $ref: '#/components/parameters/ChannelProviderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateChannelProviderInput' }
+      responses:
+        '200':
+          description: Updated provider
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ChannelProvider' }
+
+  /contact-tags:
+    get:
+      operationId: listContactTags
+      summary: The business's tag catalog (for autocomplete and tag management)
+      tags: [contacts]
+      parameters:
+        - $ref: '#/components/parameters/SearchQuery'
+      responses:
+        '200':
+          description: All tags in this business's catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ContactTag' }
+    post:
+      operationId: createContactTag
+      summary: Create a catalog tag
+      tags: [contacts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateContactTagInput' }
+      responses:
+        '201':
+          description: Tag created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ContactTag' }
+
+  /contact-tags/{tagId}:
+    patch:
+      operationId: updateContactTag
+      summary: Rename or recolor a catalog tag — every contact wearing it updates implicitly
+      tags: [contacts]
+      parameters:
+        - $ref: '#/components/parameters/ContactTagId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateContactTagInput' }
+      responses:
+        '200':
+          description: Updated tag
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ContactTag' }
+
+  /contacts/{contactId}/tags:
+    post:
+      operationId: assignContactTag
+      summary: Assign a tag to a contact (by id, or by name to create-and-assign in one step)
+      tags: [contacts]
+      parameters:
+        - $ref: '#/components/parameters/ContactId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssignContactTagInput' }
+      responses:
+        '200':
+          description: The assigned tag
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ContactTagRef' }
+
+  /contacts/{contactId}/tags/{tagId}:
+    delete:
+      operationId: unassignContactTag
+      summary: Remove a tag from a contact — the catalog tag itself is not deleted
+      tags: [contacts]
+      parameters:
+        - $ref: '#/components/parameters/ContactId'
+        - $ref: '#/components/parameters/ContactTagId'
+      responses:
+        '200':
+          description: Assignment removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, nullable: true }
 
   # ---------- Audiences ----------
   /audiences:
@@ -4346,14 +5517,14 @@ paths:
 
   # ---------- Inbox ----------
   # Deliberately narrow per the Messages -> Inbox slice (2026-08-28): no archive, no saved/default
-  # views, no filters beyond all/unread, no send/reply here yet (that's a later slice once
-  # email/SMS transport is connected — compose still lives at POST /messages/{id}/send).
+  # views and no filters beyond all/unread. Native BUSINESS conversations can reply here; external
+  # email/SMS compose still lives at POST /messages/{id}/send.
   /inbox/threads:
     get:
       operationId: listInboxThreads
       summary: List Inbox threads
       description: >
-        CONTACT and ADVERTISEMENT threads together, most-recent-activity first. A CONTACT
+        CONTACT, BUSINESS, and object/system threads together, most-recent-activity first. A CONTACT
         thread's preview/messages are read live from Interaction joined back to Message — real
         communications are never copied into a second row (see InboxService's own doc comment).
         Known limitation: no inbound-reply capture exists yet, so CONTACT threads only ever show
@@ -4416,6 +5587,38 @@ paths:
                 type: object
                 properties:
                   data: { $ref: '#/components/schemas/InboxThreadSummary' }
+
+  /inbox/threads/{threadId}/reply:
+    post:
+      operationId: replyToInboxThread
+      summary: Reply to a native site conversation
+      description: Available only on BUSINESS threads with an authenticated peer; guest messages and system/object threads are one-way.
+      tags: [inbox]
+      parameters:
+        - $ref: '#/components/parameters/InboxThreadId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 4000 }
+      responses:
+        '201':
+          description: Reply sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [threadId, sentAt]
+                    properties:
+                      threadId: { type: string }
+                      sentAt: { type: string, format: date-time }
 
   # ---------- Messages ----------
   /messages:
@@ -5405,7 +6608,6 @@ paths:
                 type: object
                 properties:
                   data: { $ref: '#/components/schemas/Advertisement' }
-
   /advertisements/{advertisementId}:
     get:
       operationId: getAdvertisement
@@ -5442,6 +6644,56 @@ paths:
                 type: object
                 properties:
                   data: { $ref: '#/components/schemas/Advertisement' }
+    delete:
+      operationId: deleteAdvertisement
+      summary: Delete advertisement
+      description: Soft-deletes the advertisement. Active and paused destinations must be ended first.
+      tags: [advertisements]
+      parameters:
+        - $ref: '#/components/parameters/AdvertisementId'
+      responses:
+        '200':
+          description: Advertisement deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { nullable: true }
+
+  /advertisements/{advertisementId}/publish:
+    post:
+      operationId: publishAdvertisement
+      summary: Publish an organic embed version of the advertisement
+      description: >
+        clickBehavior/destinationUrl are optional overrides — when omitted, clickBehavior defaults
+        to URL if the Advertisement has its own destinationUrl set (else HOST), and destinationUrl
+        defaults to the Advertisement's own destinationUrl.
+      tags: [advertisements]
+      parameters:
+        - $ref: '#/components/parameters/AdvertisementId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                clickBehavior: { type: string, enum: [NONE, URL, HOST] }
+                destinationUrl: { type: string }
+      responses:
+        '200':
+          description: Published version created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      version: { type: integer }
 
   /advertisements/{advertisementId}/runs:
     get:
@@ -6389,6 +7641,528 @@ paths:
             text/html:
               schema: { type: string }
 
+  /b/{slug}:
+    get:
+      operationId: servePublicBusinessProfile
+      summary: Serve public business profile
+      tags: [business]
+      security: []
+      description: >
+        A public, mobile-first business front led by the business's artwork and name, followed by
+        consistent contact actions, location/hours/industry metadata, description, audience, and
+        portfolio imagery. River activity, follower controls, and social-feed UI are deliberately
+        not rendered here. 404 if no business has this slug. Content-negotiated:
+        `Accept: application/json` returns the data shape below for the SPA's `/b/:slug` route.
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+      responses:
+        '200':
+          description: 'Rendered HTML by default; JSON when the request sent `Accept: application/json`'
+          content:
+            text/html:
+              schema: { type: string }
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [business, followerCount, viewerIsFollowing, isOwnProfile]
+                    properties:
+                      business: { $ref: '#/components/schemas/Business' }
+                      followerCount: { type: integer }
+                      viewerIsFollowing:
+                        type: boolean
+                        nullable: true
+                        description: null = anonymous request — same tri-state convention as RiverFeedItem.viewer.
+                      isOwnProfile: { type: boolean }
+                      featured:
+                        allOf: [{ $ref: '#/components/schemas/RiverFeedItem' }]
+                        nullable: true
+                        deprecated: true
+                        description: Legacy compatibility field. The business page does not render River posts.
+
+  /b/{slug}/messages:
+    post:
+      operationId: sendBusinessProfileMessage
+      summary: Send a native site message from a business profile
+      tags: [business, inbox]
+      security: []
+      description: >
+        Sends directly into the profiled business's omni inbox. A recognized logged-in business
+        creates a replyable business-to-business conversation mirrored in both inboxes. An
+        anonymous visitor creates a one-way guest message with no reply capability.
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 4000 }
+      responses:
+        '201':
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [sentAt]
+                    properties:
+                      threadId: { type: string, nullable: true }
+                      sentAt: { type: string, format: date-time }
+
+  # ---------- River ----------
+  # Native B2B social feed (see apps/web/public/river-b2b-social-proposal). Authenticated CRUD
+  # below is business-scoped; the four render/redirect operations are public, same shape as
+  # servePublishedLandingPage/servePublicBusinessProfile above.
+  /river:
+    get:
+      operationId: serveRiverFeed
+      summary: Serve public River feed
+      tags: [river]
+      security: []
+      description: >
+        Reverse-chronological, cross-business feed of non-deleted River posts. No impression is
+        recorded for a feed load — only opening a permalink counts as an impression. Recognizes a
+        logged-in viewer via the session cookie when this request lands on the same origin the
+        cookie was issued for (see lib/riverViewer.ts) — the rendered React/Follow controls and
+        the `following` filter only ever appear for a recognized viewer.
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - in: query
+          name: following
+          schema: { type: string }
+          description: 'Set to "1" to show only posts from businesses the viewer follows (a raw query string, not JSON — see Cursor). 400 if requested with no recognized viewer.'
+      responses:
+        '200':
+          description: Rendered HTML feed
+          content:
+            text/html:
+              schema: { type: string }
+
+  /river/feed:
+    get:
+      operationId: getRiverFeed
+      summary: River feed as JSON (the canonical feed API — see RiverFeedItem)
+      tags: [river]
+      security: []
+      description: >
+        Same assembly as GET /river (same fetch, same freshness-first order with a soft
+        same-business anti-repeat rule, same deterministic sponsored insertion — see
+        RiverFeedService#assembleFeed) returned as JSON instead of HTML. Powers the public page's
+        own infinite-scroll and polling; not consumed by the authenticated app. `after` switches
+        to polling mode: a small, unassembled "what's newer than this" preview (no sponsored
+        insertion, no anti-repeat) for a "N new posts" banner — `cursor` and `after` are mutually
+        exclusive, `after` wins if both are sent.
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: following
+          schema: { type: string }
+          description: 'Set to "1" to show only posts from businesses the viewer follows. 400 if requested with no recognized viewer.'
+        - in: query
+          name: after
+          schema: { type: string, format: date-time }
+          description: Polling mode — return only posts published after this timestamp, newest first, no pagination.
+        - in: query
+          name: business
+          schema: { type: string }
+          description: >
+            A business id — scopes the feed to just that business's own posts (the public profile
+            page's "Latest from this business" section). When set, `following` is ignored and
+            neither sponsored insertion nor anti-repeat ever apply (RiverFeedService#listForBusiness).
+        - in: query
+          name: exclude
+          schema: { type: string }
+          description: A River post id to omit from the results — used with `business` so a profile's pinned/Featured post never also appears in the regular list below it.
+      responses:
+        '200':
+          description: River feed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RiverFeedResponse' }
+
+  /river/posts:
+    get:
+      operationId: listRiverPosts
+      summary: List the current business's own River posts
+      tags: [river]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: advertisementId
+          schema: { type: string }
+          description: Return only posts made from this advertisement.
+      responses:
+        '200':
+          description: Paginated River posts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/RiverPost' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createRiverPost
+      summary: Create a River post
+      description: >
+        type=AD requires advertisementId and pins the Advertisement's current
+        PublishedAdvertisementVersion at creation time — 400 if it has never been published.
+        type=TEXT must not set advertisementId. Posts are immutable once created; there is no
+        update operation.
+      tags: [river]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateRiverPostInput' }
+      responses:
+        '201':
+          description: River post created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/RiverPost' }
+
+  /river/posts/{riverPostId}:
+    get:
+      operationId: serveRiverPost
+      summary: Serve River post permalink
+      tags: [river]
+      security: []
+      description: >
+        Renders one post and records an IMPRESSION engagement event (both content-negotiated
+        branches record it — a view is a view regardless of format). 404 if missing or deleted.
+        `Accept: application/json` returns the post as a RiverFeedItem instead of HTML — the
+        SPA's own /river/posts/:id route (see the "River comments" plan doc) is a second consumer
+        of this same lookup, not a reimplementation. The comment thread itself is fetched
+        separately via GET /river/posts/{riverPostId}/comments, not bundled into this response.
+      parameters:
+        - $ref: '#/components/parameters/RiverPostId'
+      responses:
+        '200':
+          description: 'Rendered HTML by default; JSON when the request sent `Accept: application/json`'
+          content:
+            text/html:
+              schema: { type: string }
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [post]
+                    properties:
+                      post: { $ref: '#/components/schemas/RiverFeedItem' }
+    delete:
+      operationId: deleteRiverPost
+      summary: Delete (soft) a River post
+      tags: [river]
+      parameters:
+        - $ref: '#/components/parameters/RiverPostId'
+      responses:
+        '200':
+          description: River post deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, nullable: true }
+
+  /river/posts/{riverPostId}/comments:
+    get:
+      operationId: listRiverComments
+      summary: List a River post's comments
+      tags: [river]
+      security: []
+      description: >
+        Top-level comments newest-first, each with its own replies (oldest-first — reads as a
+        conversation) — one level of nesting only, see the "River comments" plan doc. Public, same
+        as reading the feed itself. `limit: 2` is how the inline feed-card preview asks for just
+        the latest two; the full-thread permalink page requests without a limit (paginated via
+        cursor once a thread grows past the default page size).
+      parameters:
+        - $ref: '#/components/parameters/RiverPostId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated top-level comments
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/RiverComment' }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      operationId: createRiverComment
+      summary: Comment on a River post, or reply to a top-level comment
+      tags: [river]
+      description: >
+        Not owner-restricted — any authenticated business can comment on any post, same as
+        reacting. Set `parentCommentId` to reply; 400 if that comment is itself a reply (one level
+        of nesting only) or 404 if it doesn't belong to this post.
+      parameters:
+        - $ref: '#/components/parameters/RiverPostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 2000 }
+                parentCommentId: { type: string }
+      responses:
+        '201':
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    oneOf:
+                      - { $ref: '#/components/schemas/RiverComment' }
+                      - { $ref: '#/components/schemas/RiverCommentReply' }
+
+  /river/posts/{riverPostId}/comments/{commentId}:
+    delete:
+      operationId: deleteRiverComment
+      summary: Delete (soft) a comment or reply
+      tags: [river]
+      description: Own comment only — 404 for anyone else's, same convention as deleteRiverPost.
+      parameters:
+        - $ref: '#/components/parameters/RiverPostId'
+        - name: commentId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Comment deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, nullable: true }
+
+  /river/posts/{riverPostId}/click:
+    get:
+      operationId: trackRiverClick
+      summary: Tracked click-through redirect for an AD-type River post
+      tags: [river]
+      security: []
+      description: Records a CLICK engagement event and redirects to the pinned PublishedAdvertisementVersion's destinationUrl. 404 if the post has no click-through destination.
+      parameters:
+        - $ref: '#/components/parameters/RiverPostId'
+      responses:
+        '302':
+          description: Redirect to the advertisement's destination
+
+  /river/posts/{riverPostId}/visit-profile:
+    get:
+      operationId: trackRiverProfileVisit
+      summary: Tracked profile-visit redirect
+      tags: [river]
+      security: []
+      description: Records a PROFILE_VISIT engagement event and redirects to the posting business's public profile (GET /b/{slug}). This is the literal href behind a post's business name/logo.
+      parameters:
+        - $ref: '#/components/parameters/RiverPostId'
+      responses:
+        '302':
+          description: Redirect to GET /b/{slug}
+
+  /river/posts/{riverPostId}/react:
+    post:
+      operationId: reactToRiverPost
+      summary: React to a River post
+      tags: [river]
+      description: >
+        Idempotent — reacting again is a no-op. Content-negotiated: the plain HTML form the
+        rendered page shows a recognized viewer sends no `Accept: application/json` header and
+        gets the `302` redirect (see `returnTo`); the authenticated SPA's River page sends
+        `Accept: application/json` and gets the `200` JSON body instead — same underlying
+        service call either way.
+      parameters:
+        - $ref: '#/components/parameters/RiverPostId'
+        - $ref: '#/components/parameters/ReturnTo'
+      responses:
+        '200':
+          description: 'JSON response — only when the request sent `Accept: application/json`'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      riverPostId: { type: string }
+                      reacted: { type: boolean }
+                      reactionCount: { type: integer }
+        '302':
+          description: Redirect to returnTo (or the post's own River permalink) — the default, form-submission response
+
+  /river/posts/{riverPostId}/unreact:
+    post:
+      operationId: unreactToRiverPost
+      summary: Remove a reaction from a River post
+      tags: [river]
+      description: >
+        Idempotent — a no-op if the viewer had not reacted. Same `Accept: application/json`
+        content negotiation as reactToRiverPost.
+      parameters:
+        - $ref: '#/components/parameters/RiverPostId'
+        - $ref: '#/components/parameters/ReturnTo'
+      responses:
+        '200':
+          description: 'JSON response — only when the request sent `Accept: application/json`'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      riverPostId: { type: string }
+                      reacted: { type: boolean }
+                      reactionCount: { type: integer }
+        '302':
+          description: Redirect to returnTo (or the post's own River permalink) — the default, form-submission response
+
+  /river/businesses/{businessId}/follow:
+    post:
+      operationId: followRiverBusiness
+      summary: Follow a business on River
+      tags: [river]
+      description: >
+        Idempotent — following again is a no-op. 400 if businessId is the caller's own business.
+        Same `Accept: application/json` content negotiation as reactToRiverPost.
+      parameters:
+        - $ref: '#/components/parameters/RiverFollowedBusinessId'
+        - $ref: '#/components/parameters/ReturnTo'
+      responses:
+        '200':
+          description: 'JSON response — only when the request sent `Accept: application/json`'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      businessId: { type: string }
+                      following: { type: boolean }
+        '302':
+          description: Redirect to returnTo (or the River feed) — the default, form-submission response
+
+  /river/businesses/{businessId}/unfollow:
+    post:
+      operationId: unfollowRiverBusiness
+      summary: Unfollow a business on River
+      tags: [river]
+      description: >
+        Idempotent — a no-op if the viewer was not following. Same `Accept: application/json`
+        content negotiation as reactToRiverPost.
+      parameters:
+        - $ref: '#/components/parameters/RiverFollowedBusinessId'
+        - $ref: '#/components/parameters/ReturnTo'
+      responses:
+        '200':
+          description: 'JSON response — only when the request sent `Accept: application/json`'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      businessId: { type: string }
+                      following: { type: boolean }
+        '302':
+          description: Redirect to returnTo (or the River feed) — the default, form-submission response
+
+  /river/posts/{riverPostId}/pin:
+    post:
+      operationId: pinRiverPost
+      summary: Pin a River post to the caller's own public profile (the "Featured" section)
+      tags: [river]
+      description: >
+        404 if the post isn't the caller's own. Singular, not additive — pinning replaces
+        whatever was pinned before (Business.pinnedRiverPostId is one nullable column). Same
+        `Accept: application/json` content negotiation as reactToRiverPost.
+      parameters:
+        - $ref: '#/components/parameters/RiverPostId'
+        - $ref: '#/components/parameters/ReturnTo'
+      responses:
+        '200':
+          description: 'JSON response — only when the request sent `Accept: application/json`'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      riverPostId: { type: string }
+                      pinned: { type: boolean }
+        '302':
+          description: Redirect to returnTo (or the caller's own public profile) — the default, form-submission response
+
+  /river/posts/{riverPostId}/unpin:
+    post:
+      operationId: unpinRiverPost
+      summary: Unpin a River post from the caller's own public profile
+      tags: [river]
+      description: >
+        Idempotent — a no-op if this post wasn't the one currently pinned. Same
+        `Accept: application/json` content negotiation as reactToRiverPost.
+      parameters:
+        - $ref: '#/components/parameters/RiverPostId'
+        - $ref: '#/components/parameters/ReturnTo'
+      responses:
+        '200':
+          description: 'JSON response — only when the request sent `Accept: application/json`'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      riverPostId: { type: string }
+                      pinned: { type: boolean }
+        '302':
+          description: Redirect to returnTo (or the caller's own public profile) — the default, form-submission response
+
   # ---------- Forms ----------
   /forms:
     get:
@@ -6580,7 +8354,7 @@ paths:
         - $ref: '#/components/parameters/Limit'
         - in: query
           name: stage
-          schema: { type: string, enum: [NEW, CONTACTED, QUALIFIED, QUOTED, WON, LOST] }
+          schema: { type: string, enum: [NEW, CONTACTED, ENGAGED, QUALIFIED, PROPOSAL, WON, LOST] }
         - in: query
           name: sourceType
           schema: { type: string, enum: [MESSAGE, DEPLOYMENT, MANUAL, IMPORT] }
@@ -6597,6 +8371,40 @@ paths:
                     type: array
                     items: { $ref: '#/components/schemas/Lead' }
                   meta: { $ref: '#/components/schemas/PaginatedMeta' }
+
+  /leads/queue:
+    get:
+      operationId: getLeadQueue
+      summary: "The morning work queue: who's new, uncontacted, needs follow-up, overdue, or engaged"
+      tags: [leads]
+      responses:
+        '200':
+          description: Every open lead, enriched and bucketed — not paginated (see LeadQueueItem)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/LeadQueueItem' }
+
+  /leads/insights:
+    get:
+      operationId: getLeadInsights
+      summary: Time-to-first-contact, touches-to-conversion, channel mix, and pipeline funnel analytics
+      tags: [leads]
+      responses:
+        '200':
+          description: Management-facing lead analytics
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/LeadInsights' }
 
   /leads/{leadId}:
     get:

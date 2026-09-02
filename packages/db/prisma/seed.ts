@@ -4,6 +4,7 @@ import { SEED_ACCOUNTS, SEED_PASSWORD, seedBusinessesAndUsers } from './seed/acc
 import { seedRiversideDemo } from './seed/riverside'
 import { seedAffiliates } from './seed/affiliates'
 import { seedShowcase } from './seed/showcase'
+import { seedRiverAndProfiles } from './seed/river'
 
 async function main() {
   console.log('Seeding...')
@@ -26,6 +27,9 @@ async function main() {
     jane,
     imageAssetId,
   })
+  // Depends on seedRiversideDemo's published landing page and seedShowcase's Advertisement — must
+  // run after both.
+  await seedRiverAndProfiles()
 
   console.log(
     `Seeded "${riverside.name}" + "${oak.name}". Password for every login: ${SEED_PASSWORD}`,

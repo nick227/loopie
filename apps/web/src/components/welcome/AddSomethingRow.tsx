@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, LayoutTemplate, Mail, Megaphone } from 'lucide-react'
+import { ChevronRight, LayoutTemplate, Mail, User, Megaphone } from 'lucide-react'
 import { useQuickCreatePage } from '@/hooks/useQuickCreatePage'
 
 // The same three real creation flows CreateMenu.tsx already offers (Message/Page/Ad — see that
@@ -33,6 +33,13 @@ export function AddSomethingRow() {
       onClick: () => navigate('/ads/new'),
     },
     {
+      key: 'contact',
+      label: 'Add contact',
+      description: 'Update your customer CRM',
+      icon: User,
+      onClick: () => navigate('/contacts/new'),
+    },
+    {
       key: 'message',
       label: 'Send message',
       description: 'Create and send an email or text',
@@ -43,7 +50,6 @@ export function AddSomethingRow() {
 
   return (
     <div className="space-y-2">
-      <h2 className="text-sm font-semibold text-foreground">Add something</h2>
       {pageError ? (
         <p
           role="alert"
@@ -52,7 +58,7 @@ export function AddSomethingRow() {
           {pageError}
         </p>
       ) : null}
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-4">
         {items.map((item) => (
           <button
             key={item.key}

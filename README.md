@@ -8,22 +8,15 @@ CRM/commerce sync → external identity/event ───────────�
 Message, affiliate, import, or manual entry ───────────────┘
 ```
 
-The same attribution spine survives hosted pages, exported HTML, LOOPIE forms, imported identities, and external purchase events. Acquisition can happen in many systems; LOOPIE resolves the person once and keeps the path to revenue intact.
-
-Next Steps
-When you are ready to get App IDs and Keys, we will need to:
-
-Create a Meta App and generate the META_APP_ID and META_APP_SECRET.
-Configure the META_REDIRECT_URI (which the .env.example notes should be {TRACKING_BASE_URL}/platforms/META/oauth/callback).
-(If desired) build out Google Ads connection capabilities.
-(If desired) implement actual user SSO login for Google/Facebook via the API.
+The same attribution spine survives hosted pages, publisher embeds, exported HTML, LOOPIE forms, imported identities, and external purchase events. Acquisition can happen in many systems; LOOPIE resolves the person once and keeps the path to revenue intact.
 
 ## Core Features
 
 - **Advertisements and Platform Runs:** Build an advertisement once, validate its real media for each placement, provision supported platforms idempotently, and manage paid or LOOPIE-owned runs as one portfolio.
-- **Pages, forms, and first-party inventory:** Use Pages as owned destinations, lead-capture experiences, tracked publishing surfaces, and inventory for first-party advertising—hosted by LOOPIE or exported as portable HTML.
+- **Pages, forms, and first-party inventory:** Use Pages as owned destinations, lead-capture experiences, tracked publishing surfaces, and inventory for first-party advertising—hosted by LOOPIE, embedded on third-party sites, or exported as portable HTML.
+- **River and public business profiles:** Publish native posts, advertisements, and Pages to LOOPIE's public cross-business feed; follow businesses, react to posts, and maintain a public profile with contact details, gallery media, and featured content.
 - **Owned communication and live audiences:** Target live customer-graph segments, compose email/text and social drafts, record communication on the shared timeline, and trigger follow-up from lifecycle events.
-- **Operational customer data hub:** Resolve one person across LOOPIE, HubSpot, Shopify, CSV, and connector-ready systems while preserving external identity, provenance, ambiguity, activity, and revenue context.
+- **Operational customer data hub:** Resolve one person across LOOPIE, HubSpot, Shopify, WooCommerce, CSV, and connector-ready systems while preserving external identity, provenance, ambiguity, activity, and revenue context.
 - **Cross-system attribution and revenue:** Carry first-touch UTMs, click IDs, Platform Run, page, and affiliate context through identity resolution, CRM imports, external commerce events, Leads, and Sales.
 - **Acquisition finance and partner revenue:** Maintain append-only client-fund and acquisition accounting alongside SaaS billing, referral policy, frozen commissions, and payout state.
 
@@ -31,10 +24,11 @@ Configure the META_REDIRECT_URI (which the .env.example notes should be {TRACKIN
 
 ### Advertisements & Platform Runs
 
-Top-level navigation is **Home · CRM · Messages · Advertisements · Pages · Media** (Affiliates and Billing are ADMIN-only). Advertisement detail is **Overview → Media → Runs → Performance**.
+The persistent primary navigation is **Home · Pages · Advertising · CRM**, with River in the trailing action cluster. Messages, Activity, Media, integrations, and other working surfaces remain available contextually; Affiliates and Billing are ADMIN-only. Advertisement detail is **Overview → Media → Runs → Performance**.
 
 - **Media** are the reusable source materials (images, video, audio, text, logo).
 - **Advertisements** are the primary product objects you create and preview. They hold media assets and define the conceptual ad.
+- Publishing an Advertisement creates an immutable `PublishedAdvertisementVersion`. That version can be shared to River or assigned to a publisher embed without allowing later draft edits to rewrite what was distributed.
 - **Platform Runs** (internally `AdRun`s) describe where and how the advertisement runs, such as Meta Feed, Meta Reels, TikTok Feed, or a LOOPIE Page.
 - `PLATFORM_CAPABILITIES` is the canonical placement registry shared by API and UI validation. It defines supported media, recommended aspect ratios, copy limits, and destination requirements instead of leaving those rules in form components.
 - Preview aspect ratio and framing react to the selected placement and use the advertisement's real media. `LOOPIE_PAGE` is a first-party placement target, not merely a legacy `AdUnit` concept.
@@ -65,24 +59,43 @@ Legacy `Campaign`, `Deployment`, and `AdUnit` structures remain for compatibilit
 - Only `ACTIVE` ad units on campaigns that have not ended can serve or record traffic. Public tracking responses use `Cache-Control: no-store`, and DB-backed rate limits work across multiple service instances.
 - The routes are intentionally public and allow cross-origin embedding. Campaign management, ad-unit creation and activation, creative editing, landing pages, forms, contacts, and reporting remain in `apps/server`.
 
+The service also hosts the versioned publisher runtime:
+
+- `GET /v1.js` discovers `.loopie-embed` containers, authorizes their current origin, mounts the iframe, and coordinates visibility and resize messages.
+- `POST /v1/embeds/{publicId}/authorize` enforces the deployment's `ANY` or `ALLOWLIST` domain policy and issues a five-minute, single-use nonce; `GET /e/{publicId}` redeems it and creates an `EmbedInstance` tied to the immutable published snapshot.
+- `/v1/embed-events`, `/v1/embed/{publicId}/click`, and `/v1/embed/{publicId}/submit` persist embed activity; impressions are idempotent per embed instance. Advertisement clicks write attribution synchronously, while a retrying worker projects embedded form submissions into the canonical CRM/activity graph.
+- Page embeds render the shared published-page snapshot and support forms. Advertisement deployment, authorization, impression, click, and attribution are wired, but the current advertisement iframe still renders placeholder creative; token redemption also remains folded into iframe rendering rather than implemented by the reserved `/v1/embed-instances/redeem` endpoint.
+
 Run it locally with `pnpm --filter ad-server dev` (default port `3002`). It requires the shared `DATABASE_URL`; `PRIMARY_APP_URL` builds hosted landing-page and media URLs, while `AD_SERVER_URL` builds the public tracking URLs returned by `/serve`. In Railway, deploy it as a second service using `apps/ad-server/railway.json`, connect it to the same MySQL service, and set both public URLs to their deployed origins. See [`apps/ad-server/README.md`](./apps/ad-server/README.md) for the route and deployment reference.
 
 ### Pages, forms, and tracking runtime
 
 Pages combine four roles in one owned surface: destination, lead capture, first-party ad inventory, and attribution runtime.
 
-- Template-driven authoring, not a freeform builder: `LandingPageTemplate → LandingPage` (draft) → `PublishedPageVersion` (immutable).
+- Structured canvas authoring, not unrestricted HTML: `LandingPageTemplate → LandingPage` (draft) → `PublishedPageVersion` (immutable). The current system starters are Corporate Professional, Studio, and Webinar Signup, plus Blank.
 - Hosted at `/p/{slug}`, HTML export, draft/publish lifecycle.
+- Published Pages can also be embedded on third-party sites. An idempotent deployment keeps a stable public ID while republishing moves it to the latest immutable version; `ANY` and origin-allowlist policies are supported.
 - Forms are first-class reusable entities. Submitting a form is the identity transition: anonymous session → Contact → Lead, keeping AdRun / Deployment / AdUnit / UTM attribution.
 - Publishing freezes form fields, submit label, and success copy into the page version. Editing the live Form later does not change an already-published page. Soft-deleting a Form still stops serve/submit everywhere immediately.
 - Hosted and exported pages use the same portable `/loopie.js` runtime. `GET /t/session` mints or reuses a signed, tenant-bound session and persists the first touch rather than overwriting it on later visits.
 - Sessions preserve UTMs, the source AdRun, `click_id`, and platform click IDs such as `gclid`, `fbclid`, and `ttclid`. Tokens are scoped by HMAC and resolved by `(id, businessId)` so a session from one tenant cannot expose or claim another tenant's attribution.
 - When an imported CRM identity or external order later resolves to that person, the canonical Contact connects the acquisition history to the downstream customer activity and revenue instead of starting a disconnected record.
+- Hosted, exported, and embedded Pages share `@project/page-renderer`, preventing the server and ad-server render paths from drifting. Embedded form submissions are projected asynchronously into Contacts, Leads, and Activity through the worker outbox.
+
+### River and public business profiles
+
+River is LOOPIE's first-party public discovery and organic publishing surface. `GET /river` serves the public feed, while the authenticated SPA adds composing and engagement controls.
+
+- Businesses can publish text posts with image galleries, video, links, previews, and calls to action; published Advertisements and Pages can also be shared without copying their mutable drafts.
+- The feed is reverse chronological, supports cursor pagination and a following-only view, limits long same-business streaks, and inserts clearly labeled sponsored Advertisement posts at a fixed cadence. It is intentionally deterministic rather than algorithmically ranked.
+- Authenticated businesses can react, follow/unfollow, delete their own posts, and pin one post as Featured. Click-through and profile-visit events are tracked; anonymous visitors can browse but cannot engage.
+- Every business receives a stable public slug at `/b/{slug}`. The profile combines identity, description, contact details, hours, social links, gallery media, follower count, a Featured post, and that business's latest River posts.
+- Business identity is completed during first-login setup and remains editable inline from Home. Older rows can be assigned slugs with `apps/server/scripts/backfillBusinessSlugs.ts`.
 
 ### Messaging, audiences, and automations
 
-- Messaging is the owned-communication side of the customer graph: select an audience, reuse a template, compose email or text, and retain follow-up activity on the Contact timeline. Social posts are **compose/draft only**—no live publishing.
-- Channel delivery plugins (transactional email/SMS) are not installed; a “send” currently records the same `Interaction` used throughout LOOPIE rather than delivering through a provider.
+- Messaging is the owned-communication side of the customer graph: select an audience, reuse a template, compose email or text, and retain follow-up activity on the Contact timeline. Posts for external social networks are **compose/draft only**—River publishing is the separate live first-party path.
+- Email delivery uses Resend in batches of 50 when `RESEND_API_KEY` is configured. Without it, the send is recorded but no email leaves the system. SMS still records only; delivery/open/click/unsubscribe webhooks and the test-send transport are not wired.
 - Audiences can be manual lists, imported lists, saved filters, or live predefined queries. Examples include recent customers, ad-sourced Leads who never bought, Shopify-linked people, customers, open Leads, no-response Contacts, and recently contacted people.
 - Because derived audiences query the canonical graph, a Sale reversal, provider link, new Lead, purchase, or eligibility change can affect membership without copying the person into another silo.
 - Automations are `Trigger → Wait → Condition → Action`. They **run**: a scheduler creates internal `AutomationRun` rows; a poller evaluates due runs. The user-visible history is `AutomationLog` (`GET /automations/{id}/logs`).
@@ -93,15 +106,18 @@ Pages combine four roles in one owned surface: destination, lead capture, first-
 
 CRM is LOOPIE's operational data hub, not a separate contact book. It consolidates acquisition, communication, provider identity, customer activity, pipeline state, purchases, and revenue around one person while retaining where every external fact came from.
 
-- A person has one canonical `Contact`. HubSpot, Salesforce, Shopify, Square, Pipedrive, and CSV records hang off that Contact as external records with provider identity, raw provenance, and match state.
+- A person has one canonical `Contact`. HubSpot, Salesforce, Shopify, WooCommerce, Square, Pipedrive, and CSV records hang off that Contact as external records with provider identity, raw provenance, and match state.
 - Identity resolution checks scoped external ID, then normalized email, then phone. Conflicting identifiers become an ambiguous match for human resolution; LOOPIE never guesses across people.
 - Existing Contacts are enriched without overwriting authoritative populated fields. Primary identifiers and external record provenance retain where customer data came from.
-- The CRM surface combines **People · Import · Integrations**; **Matches** appears only when unresolved conflicts exist. Each Contact becomes a cross-system customer activity timeline spanning external events, LOOPIE interactions, Leads, Sales, and their original acquisition context.
+- The CRM surface combines **People · Import · Integrations**; **Matches** appears only when unresolved conflicts exist. Contacts support inline create/edit, avatar media, reusable colored tag catalogs and AND/OR tag filtering, pinned or editable notes, Sale history, and a cross-system activity timeline.
+- Contact detail includes the current Lead card, next-action scheduling, and manually logged calls, meetings, webinars/events, follow-ups, and notes. Activities use a stable Channel → Provider → Activity taxonomy, with a per-business provider catalog for tools such as Zoom or Mailchimp.
+- The open-Lead work queue groups records into New, Never contacted, Needs follow-up, Overdue, and Engaged buckets. CRM insights calculate time to first contact, contact-within targets, touches before engagement/win, channel mix, overdue follow-up rate, and stage conversion.
 - CSV/JSON import maps common provider fields, stores unknown fields as profile data, and links unique conflicts to an existing Contact instead of skipping the person. Import jobs report created, linked, ambiguous, and skipped outcomes.
-- HubSpot contact and closed-won deal sync is live. Shopify customer and order sync is live. Sync is incremental, idempotent, resumable, and failure-aware: cursors persist after every processed page, jobs end as completed or failed, duplicate external deliveries reuse the existing event/Sale, and retries continue from durable progress.
-- Salesforce, Square, and Pipedrive currently expose catalog/connector stubs.
+- HubSpot contact and closed-won deal sync is live. Shopify customer and order sync is live. WooCommerce registered customers, guest billing identities, and completed/processing orders are live behind a read-only-key import preview. Sync is incremental, idempotent, resumable, and failure-aware: cursors persist after every processed page, jobs end as completed or failed, duplicate external deliveries reuse the existing event/Sale, and retries continue from durable progress.
+- A generic inbound webhook integration is live. LOOPIE generates a bearer secret and tenant-specific endpoint, then idempotently ingests contact, order, payment, deal, or other external events through the same identity and Sale materialization path.
+- Salesforce, Square, and Pipedrive are catalog roadmap entries and appear as Coming soon rather than connectable integrations.
 - `DEAL_WON`, `ORDER_CREATED`, and `PAYMENT_COMPLETED` events can idempotently materialize a Sale and attach it to the attributed open Lead when one exists.
-- The shared pipeline remains `NEW → CONTACTED → QUALIFIED → QUOTED → WON/LOST`, with one Interaction timeline and acquisition context across messages, runs, first-party ads, affiliates, imports, and manual entry.
+- The shared pipeline is `NEW → CONTACTED → ENGAGED → QUALIFIED → PROPOSAL → WON/LOST`, with one Interaction timeline and acquisition context across messages, runs, first-party ads, affiliates, imports, and manual entry.
 
 ### Sale integrity
 
@@ -126,6 +142,14 @@ The signal rail gives the immediate business pulse. Below it, activity and atten
 - meaningful “what changed” summaries rather than a stream of low-value telemetry.
 
 Routine clicks remain in analytics. Home promotes events only when they change business state, explain an outcome, or require action.
+
+### Activity command center
+
+The dedicated Activity surface is the inspectable operational history behind Home. Projectors normalize meaningful Website, LOOPIE, Platform, and Automation events without blocking the originating business transaction when projection fails.
+
+- The API can filter the cursor-paginated stream by source, type, related person/ad/page, status, or whether action is required; the current UI exposes source and Needs Action and can save filter sets as named views.
+- The inspector links to related records and lets operators resolve or snooze an `AttentionItem`; the API also supports assignment and priority. A lightweight checkpoint supports manual new-item refresh.
+- Projection failures are stored durably and exposed through the Activity health endpoint instead of silently disappearing.
 
 ### Product UI system
 
@@ -154,7 +178,7 @@ Affiliates form a complete referral-revenue subsystem rather than a link-trackin
 
 ## Not in V1
 
-- Full Google Ads and TikTok Ads provisioning/status/spend sync. Meta activation and ongoing status/spend sync. Live social publishing.
+- Full Google Ads and TikTok Ads provisioning/status/spend sync. Meta activation and ongoing status/spend sync. Live publishing to external social networks (River publishing is live).
 - Unified omnichannel inbox, native quotes/invoices, and live card custody for client ad funds.
 - Branching visual automation builder, sequences longer than two steps, and the unwired `CONTACT_REPLIES` / `DATE_REACHED` triggers.
 - A/B/n statistical testing, members-only communities, cross-advertising portals, automated budget pacing.
@@ -171,12 +195,12 @@ These are roadmap items, not claims about currently active behavior.
 
 ## Current integration status
 
-| Status                           | Integrations                                                                                                                                 |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Live**                         | HubSpot contacts + closed-won deals; Shopify customers + orders; LOOPIE Ad Server; Meta Ads paused-draft provisioning when configured        |
-| **Stubbed / architecture-ready** | Salesforce, Square, Pipedrive; Google Ads and TikTok Ads as manually managed Platform Runs                                                   |
-| **Manual**                       | Email/SMS send records, social drafts, client ad-fund deposits and external platform metrics/status where a live connector does not own them |
-| **Planned**                      | The broader platform and channel roadmap below                                                                                               |
+| Status                     | Integrations                                                                                                                                                                                                                                        |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Live**                   | HubSpot contacts + closed-won deals; Shopify customers + orders; WooCommerce customers + orders; generic inbound webhook; Resend email when configured; LOOPIE Ad Server and publisher Page embeds; River; Meta paused-draft pushes when configured |
+| **Manual**                 | Google Ads and TikTok Platform Runs; SMS send records; external social drafts; client ad-fund deposits; connectorless metrics/status                                                                                                                |
+| **Catalog / roadmap only** | Salesforce, Square, and Pipedrive                                                                                                                                                                                                                   |
+| **Planned**                | The broader platform and channel roadmap below                                                                                                                                                                                                      |
 
 ---
 
@@ -185,10 +209,12 @@ These are roadmap items, not claims about currently active behavior.
 ```text
 pnpm workspace
   apps/server      Fastify, contract-first OpenAPI 3.0.3, Prisma + MySQL
-  apps/ad-server   Fastify, public first-party ad serving (not on the OpenAPI contract)
+  apps/ad-server   Fastify, public first-party ad serving and publisher embed runtime
   apps/web         Vite + React + Tailwind SPA
-  packages/db      Prisma schema + shared DB helpers (sessions, rate limit, …)
+  packages/db      Prisma schema + shared DB helpers (content, sessions, rate limit, …)
   packages/api-spec  Canonical openapi.yaml
+  packages/embed-contract  Canonical embed payloads, hashes, origins, and browser protocol
+  packages/page-renderer   Shared landing-page HTML renderer and form snapshots
   packages/sdk     Generated types + React Query hooks (openapi-fetch)
 ```
 
@@ -215,12 +241,27 @@ Do not destructure `{ data, error, response }` off an awaited SDK call or narrow
 
 ```bash
 pnpm install
-# set DATABASE_URL (see .env). Prisma CLI loads packages/db/.env; the server does not.
-export DATABASE_URL='mysql://…'
+# copy/edit the root environment file; app dev scripts load it directly
+cp .env.example .env
+# Prisma runs from packages/db, so export the same URL before DB commands
+export DATABASE_URL='mysql://root:password@localhost:3306/loopie_dev'
 pnpm db:push
 pnpm db:seed
-pnpm --filter server dev    # default PORT=3001; /docs is the OpenAPI UI
-pnpm --filter web dev       # Vite, default 5173; VITE_API_URL must match the API
+pnpm dev # API + worker, ad/embed server, and web app
+```
+
+For isolated work, run `pnpm --filter server dev`, `pnpm --filter ad-server dev`, and `pnpm --filter web dev` in separate terminals. Their default ports are `3001`, `3002`, and `5173`; the API exposes OpenAPI UI at `/docs`.
+
+Media uploads use local disk by default; in production, configure a durable `UPLOAD_DIR`. The optional R2 variables add an object-storage delivery overlay while retaining the local copy as fallback.
+
+### Quality checks
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm sdk:check
+pnpm --filter web test:e2e # requires the three dev services to be running
 ```
 
 ### Seed accounts
@@ -245,7 +286,7 @@ Maya (`maya25`) is an affiliate **without** a login (flat $25 deal), so the admi
 
 Vitest has its own throwaway users (`alice@test.local` ADMIN, `shop@test.local` USER, `bob@test.local` on a second business) in `apps/server/src/__tests__/helpers`. Those are wiped every test and are not for clicking around in the app.
 
-- `apps/server`’s `tsx watch` **does not load `.env`**. Export `DATABASE_URL` (and Stripe keys when you want Checkout/Connect) in the shell that starts it.
+- `apps/server` and `apps/ad-server` load the root `.env` in development. Production `start` commands expect the deployment environment to provide variables.
 - Tests never use whatever `DATABASE_URL` happens to be in the shell. `pnpm --filter server test` / `pnpm --filter ad-server test` default to a dedicated `loopie_test` database. Do not point that suite at the shared `loopie` DB — the suite wipes tables.
 - On a shared machine, check what is actually bound to a port before assuming it is LOOPIE. This repo’s Playwright runs have collided with other projects on **3001**.
 
@@ -267,9 +308,8 @@ This is the broad integration universe, not a claim that these connectors are li
 
 - **First-party advertising**
   - LOOPIE Ad Server
-  - Publisher-site embeds
   - A LOOPIE WordPress publisher plugin for registering sites and inserting managed ad slots
-  - Equivalent embeds or apps for Webflow, Shopify, Ghost, Wix, and custom websites
+  - Native embed-management apps for Webflow, Shopify, Ghost, Wix, and other CMSs on top of the existing generic publisher runtime
   - Sponsored placements and house ads
   - Partner and affiliate inventory
 - **Search, display, and video advertising**

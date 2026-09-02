@@ -2,6 +2,7 @@ import { db } from '@project/db'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { LIFECYCLE_INCLUDE, toContactDTO } from '../lib/contactDto'
 import { requireContacts } from '../lib/ownership'
+import { normalizeTagName } from '../lib/contactTags'
 
 type AudienceFilter = {
   tag?: string
@@ -20,7 +21,13 @@ type AudienceFilter = {
 // schema. Location/ZIP filtering is out of scope for V1 — Contact has no location field.
 function buildFilterWhere(businessId: string, filter: AudienceFilter): any {
   const AND: any[] = []
-  if (filter.tag) AND.push({ tags: { array_contains: filter.tag } })
+  if (filter.tag) {
+    AND.push({
+      tagAssignments: {
+        some: { tag: { businessId, normalizedName: normalizeTagName(filter.tag) } },
+      },
+    })
+  }
   if (filter.hasEmail) AND.push({ email: { not: null } })
   if (filter.hasMobile) AND.push({ phone: { not: null } })
   if (filter.source) AND.push({ source: filter.source })

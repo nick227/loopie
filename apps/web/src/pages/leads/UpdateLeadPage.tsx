@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import type { FieldConfig } from '@/components/ui/Form'
 
 const schema = z.object({
-  stage: z.enum(['NEW', 'CONTACTED', 'QUALIFIED', 'QUOTED', 'WON', 'LOST']).optional(),
+  stage: z.enum(['NEW', 'CONTACTED', 'ENGAGED', 'QUALIFIED', 'PROPOSAL', 'WON', 'LOST']).optional(),
   owner: z.string().optional().or(z.literal('')),
   estimatedValue: z.coerce.number().optional(),
 })
@@ -19,7 +19,7 @@ const fields: FieldConfig[] = [
     type: 'select',
     voice: false,
     required: false,
-    options: ['NEW', 'CONTACTED', 'QUALIFIED', 'QUOTED', 'WON', 'LOST'],
+    options: ['NEW', 'CONTACTED', 'ENGAGED', 'QUALIFIED', 'PROPOSAL', 'WON', 'LOST'],
   },
   { name: 'owner', label: 'Owner', type: 'text', voice: false, required: false },
   {

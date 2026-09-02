@@ -2,6 +2,7 @@ import type { CrmCapabilitySet } from './catalog'
 import { CRM_CATALOG, catalogEntry } from './catalog'
 import { hubspotConnector } from './hubspot'
 import { shopifyConnector } from './shopify'
+import { woocommerceConnector } from './woocommerce'
 import type { CrmLiveConnector } from './types'
 
 export type CrmConnector = {
@@ -10,6 +11,7 @@ export type CrmConnector = {
   oauth: boolean
   configured: () => boolean
   live?: CrmLiveConnector
+  availability: 'LIVE' | 'COMING_SOON'
 }
 
 function stub(provider: (typeof CRM_CATALOG)[number]['provider']): CrmConnector {
@@ -19,6 +21,7 @@ function stub(provider: (typeof CRM_CATALOG)[number]['provider']): CrmConnector 
     capabilities: entry.capabilities,
     oauth: false,
     configured: () => false,
+    availability: 'COMING_SOON',
   }
 }
 
@@ -29,6 +32,7 @@ const connectors: Record<string, CrmConnector> = {
     oauth: true,
     configured: hubspotConnector.configured,
     live: hubspotConnector,
+    availability: 'LIVE',
   },
   SHOPIFY: {
     provider: 'SHOPIFY',
@@ -36,6 +40,22 @@ const connectors: Record<string, CrmConnector> = {
     oauth: true,
     configured: shopifyConnector.configured,
     live: shopifyConnector,
+    availability: 'LIVE',
+  },
+  WOOCOMMERCE: {
+    provider: 'WOOCOMMERCE',
+    capabilities: woocommerceConnector.capabilities,
+    oauth: false,
+    configured: woocommerceConnector.configured,
+    live: woocommerceConnector,
+    availability: 'LIVE',
+  },
+  WEBHOOK: {
+    provider: 'WEBHOOK',
+    capabilities: catalogEntry('WEBHOOK')!.capabilities,
+    oauth: false,
+    configured: () => true,
+    availability: 'LIVE',
   },
   SALESFORCE: stub('SALESFORCE'),
   SQUARE: stub('SQUARE'),
@@ -61,6 +81,7 @@ export function listCrmConnectors() {
       ...row,
       oauth: connector?.oauth ?? false,
       configured: connector?.configured() ?? false,
+      availability: connector?.availability ?? 'COMING_SOON',
     }
   })
 }

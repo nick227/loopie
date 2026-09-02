@@ -6,6 +6,7 @@ export {
 } from './pageThemes'
 export type { PageThemePreset } from './pageThemes'
 import { PAGE_THEME_PRESETS } from './pageThemes'
+import { SECTION_TYPE_TO_SLOT_GROUP, type LayoutConfig, type PageContent } from './content'
 
 export const SYSTEM_LEAD_GEN_TEMPLATE_ID = 'system-template-lead-gen'
 export const SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID = 'system-template-lead-gen-media'
@@ -33,11 +34,11 @@ const HERO = {
   type: 'hero',
   order: 0,
   hideable: false,
-  editable: ['headline', 'subheadline', 'ctaLabel', 'ctaLink'],
+  editable: ['headline', 'body', 'primaryCta'],
 }
 
 const FORM = { key: 'form', type: 'form-embed', hideable: false, editable: [] as string[] }
-const FOOTER = { key: 'footer', type: 'footer', hideable: true, editable: ['text'] }
+const FOOTER = { key: 'footer', type: 'footer', hideable: true, editable: ['body'] }
 
 export const SYSTEM_LEAD_GEN_SCHEMA = {
   sections: [
@@ -47,7 +48,7 @@ export const SYSTEM_LEAD_GEN_SCHEMA = {
       type: 'media-image',
       order: 1,
       hideable: true,
-      editable: ['assetId', 'imageUrl'],
+      editable: ['assetId', 'url'],
     },
     { key: 'features', type: 'feature-grid', order: 2, hideable: true, editable: ['items'] },
     { ...FORM, order: 3 },
@@ -64,7 +65,7 @@ export const SYSTEM_MEDIA_LEAD_GEN_SCHEMA = {
       type: 'split-capture',
       order: 0,
       hideable: false,
-      editable: ['headline', 'assetId', 'imageUrl'],
+      editable: ['headline', 'media'],
     },
   ],
   themeTokens: [],
@@ -80,18 +81,17 @@ export type TemplateSectionDef = {
 }
 
 export type TemplateSchema = {
+  /** Stable visual renderer identity, frozen into PublishedPageVersion.schemaSnapshot. */
+  renderer?: 'standard' | 'corporate-professional' | 'webinar-signup' | 'studio'
   sections?: TemplateSectionDef[]
   themeTokens?: string[]
   themePresets?: typeof PAGE_THEME_PRESETS
 }
 
-export type SectionContent = Record<string, unknown> & { hidden?: boolean }
-export type PageContent = { sections?: Record<string, SectionContent> }
-
-export function defaultContentFromSchema(schema: TemplateSchema): PageContent {
-  const sections: Record<string, SectionContent> = {}
+export function defaultLayoutConfigFromSchema(schema: TemplateSchema): LayoutConfig {
+  const sections: Record<string, { hidden?: boolean; order?: number }> = {}
   for (const section of schema.sections ?? []) {
-    sections[section.key] = { hidden: false }
+    sections[section.key] = { hidden: false, order: section.order }
   }
   return { sections }
 }
@@ -100,36 +100,30 @@ export function starterContentForTemplate(
   schema: TemplateSchema,
   businessName: string,
 ): PageContent {
-  const content = defaultContentFromSchema(schema)
-  const sections = { ...(content.sections ?? {}) }
-  if (sections.hero) {
-    sections.hero = {
-      hidden: false,
-      headline: `${businessName} is booking this week`,
-      subheadline:
-        'Leave your name and the job. We call back the same day with a time that works and a price before we start.',
-      ctaLabel: 'Request a callback',
-      ctaLink: '#form',
-    }
+  const slotGroups = new Set(
+    (schema.sections ?? [])
+      .map((section) => SECTION_TYPE_TO_SLOT_GROUP[section.type])
+      .filter((slot): slot is NonNullable<typeof slot> => !!slot),
+  )
+  const content: PageContent = {}
+  if (slotGroups.has('hero')) {
+    const isSplit = (schema.sections ?? []).some((s) => s.type === 'split-capture')
+    content.hero = isSplit
+      ? { headline: `Get ${businessName}'s next opening`, media: { url: MOCK_STARTER_IMAGE } }
+      : {
+          headline: `${businessName} is booking this week`,
+          body: 'Leave your name and the job. We call back the same day with a time that works and a price before we start.',
+          primaryCta: { label: 'Request a callback', url: '#form' },
+        }
   }
-  if (sections.features) {
-    sections.features = { hidden: false, items: MOCK_FEATURE_ITEMS }
+  if (slotGroups.has('features')) {
+    content.features = { items: MOCK_FEATURE_ITEMS }
   }
-  if (sections.image) {
-    sections.image = { hidden: false, imageUrl: MOCK_STARTER_IMAGE }
+  if (slotGroups.has('media')) {
+    content.media = { kind: 'image', url: MOCK_STARTER_IMAGE }
   }
-  if (sections.split) {
-    sections.split = {
-      hidden: false,
-      headline: `Get ${businessName}'s next opening`,
-      imageUrl: MOCK_STARTER_IMAGE,
-    }
+  if (slotGroups.has('footer')) {
+    content.footer = { body: `${businessName} · Send this form — we reply the same day.` }
   }
-  if (sections.footer) {
-    sections.footer = {
-      hidden: false,
-      text: `${businessName} · Send this form — we reply the same day.`,
-    }
-  }
-  return { sections }
+  return content
 }

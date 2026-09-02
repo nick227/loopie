@@ -3,6 +3,7 @@
 // their first form submission) — a first-ever, still-anonymous visit must stay silent. Also
 // proves the hosted page render itself is never blocked by this (the fire-and-forget contract).
 import { describe, it, expect } from 'vitest'
+import { randomUUID } from 'crypto'
 import { buildTestApp, asAuth, testUserId, testBusinessId } from './helpers'
 import { db, issueSid } from '@project/db'
 
@@ -73,7 +74,11 @@ describe('Inbox: page views tied to known contacts', () => {
     const submitRes = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: sid, data: { email: 'sarah.chen@example.com' } },
+      payload: {
+        sessionId: sid,
+        idempotencyKey: randomUUID(),
+        data: { email: 'sarah.chen@example.com' },
+      },
     })
     expect(submitRes.statusCode).toBe(201)
     const contactId = submitRes.json().data.contactId
@@ -99,7 +104,11 @@ describe('Inbox: page views tied to known contacts', () => {
     await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: sid, data: { email: 'fast@example.com' } },
+      payload: {
+        sessionId: sid,
+        idempotencyKey: randomUUID(),
+        data: { email: 'fast@example.com' },
+      },
     })
 
     const start = Date.now()

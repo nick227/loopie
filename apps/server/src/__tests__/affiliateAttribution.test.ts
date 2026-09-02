@@ -6,6 +6,7 @@
 // flows through FinanceService's existing, already-tested ledger primitives (Commission/Payout) —
 // no new affiliate-balance concept anywhere in this test or the code it exercises.
 import { describe, it, expect } from 'vitest'
+import { randomUUID } from 'crypto'
 import { buildTestApp, asAuth, testUserId } from './helpers'
 import { seedClassAndDeal } from './helpers/affiliateSeed'
 import { db } from '@project/db'
@@ -85,7 +86,11 @@ describe('affiliate attribution: Affiliate -> referral click -> Contact/Lead -> 
     const submitRes = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: sid, data: { email: 'referred@example.com' } },
+      payload: {
+        sessionId: sid,
+        idempotencyKey: randomUUID(),
+        data: { email: 'referred@example.com' },
+      },
     })
     expect(submitRes.statusCode).toBe(201)
     const { contactId, leadId } = submitRes.json().data

@@ -1,21 +1,35 @@
-import { useState } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Suspense, useState } from 'react'
+import { Link, NavLink, Outlet, useLocation, useMatch, useNavigate } from 'react-router-dom'
 import {
   Inbox as InboxIcon,
   Mail,
   LogOut,
   Handshake,
-  CreditCard,
   Bell,
+  Waves,
   Command,
   ArrowLeft,
-  User as UserIcon,
 } from 'lucide-react'
 import { useCurrentUser, useLogout } from '@project/sdk'
 import { cn } from '@/lib/utils'
 import { CreateMenu, CreateButtonTrigger } from '@/components/layout/CreateMenu'
-import { MoreMenu, type MoreMenuItem } from '@/components/layout/MoreMenu'
 import { SetHeaderTitleContext } from '@/lib/headerContext'
+import { ErrorBoundary } from '@/components/layout/ErrorBoundary'
+import { Skeleton } from '@/components/ui/Skeleton'
+
+// Keyed by pathname so a page that crashed mid-render gets a clean slate on the next navigation,
+// without forcing Shell itself (header/nav) to remount — scoped to just the routed content, not
+// the whole layout. See App.tsx's own top-level boundary for why it no longer does this.
+function RouteContent() {
+  const location = useLocation()
+  return (
+    <ErrorBoundary key={location.pathname}>
+      <Suspense fallback={<Skeleton className="h-48 w-full" />}>
+        <Outlet />
+      </Suspense>
+    </ErrorBoundary>
+  )
+}
 
 // Persistent top nav (2026-08-30 revision) — replaces the "Inbox is the root" model
 // (docs/strategy/03-product-principles.md's original 2026-08-29 thesis). That thesis didn't hold
@@ -27,17 +41,12 @@ const NAV_TABS: { to: string; label: string; end?: boolean }[] = [
   { to: '/home', label: 'Home', end: true },
   { to: '/landing-pages', label: 'Pages' },
   { to: '/ads', label: 'Advertising' },
-  { to: '/contacts', label: 'Contacts' },
-  { to: '/messages', label: 'Messages' },
+  { to: '/contacts', label: 'CRM' },
 ]
-const TAB_ROOT_PATHS = new Set(NAV_TABS.map((tab) => tab.to))
-
-// Business-administration concerns — grouped separately inside the launcher, never their own
-// nav presence. Affiliates/Billing are ADMIN-only.
-const ADMIN_UTILITY_NAV: MoreMenuItem[] = [
-  { to: '/affiliates', label: 'Affiliates', icon: Handshake },
-  { to: '/billing', label: 'Billing', icon: CreditCard },
-]
+// River isn't one of the visible text tabs above (it lives in the trailing icon cluster, see
+// Header below) but it's a primary destination in its own right now, not a page reached *from*
+// one of these — so it gets the same "no back-subheader" treatment as the text tabs do.
+const TAB_ROOT_PATHS = new Set([...NAV_TABS.map((tab) => tab.to), '/river'])
 
 const AFFILIATE_NAV = [
   { to: '/portal', label: 'Home', icon: InboxIcon, end: true },
@@ -78,24 +87,35 @@ const ENTITY_ROUTES: { test: RegExp; fallbackLabel: string; fallbackTo: string }
     fallbackTo: '/landing-pages',
   },
   { test: /^\/messages\/(?!new$)[^/]+$/, fallbackLabel: 'Messages', fallbackTo: '/messages' },
+  // Unlike /river itself (a primary nav destination — see TAB_ROOT_PATHS), a business profile is
+  // reached *from* something (a River post, a discovery-module tile, "View public profile") — it
+  // gets a real back-affordance, defaulting to River since that's the most common origin.
+  { test: /^\/b\/[^/]+$/, fallbackLabel: 'River', fallbackTo: '/river' },
+  // A post permalink/detail route (the "View all comments" / MoreMenu "View permalink"
+  // destination — see the "River comments" plan doc) is likewise reached from River, never a
+  // primary destination of its own.
+  { test: /^\/river\/posts\/[^/]+$/, fallbackLabel: 'River', fallbackTo: '/river' },
 ]
 
 function Header({
   pageTitle,
-  role,
   businessName,
   email,
-  onLogout,
+  isLoading,
+  isAuthenticated,
 }: {
   pageTitle: string | null
-  role: string
   businessName?: string
   email?: string
-  onLogout: () => void
+  // River is the one route Shell renders outside <AuthGuard/> (see App.tsx) — an anonymous
+  // visitor can land here directly, so the trailing action cluster (Create/Bell/Profile, all of
+  // which need an authenticated account) has to degrade gracefully instead of assuming `me`
+  // always resolved successfully before Shell ever mounted, the way every other route could.
+  isLoading: boolean
+  isAuthenticated: boolean
 }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const utilityNav = role === 'ADMIN' ? ADMIN_UTILITY_NAV : []
   const pathname = location.pathname
   const isTabRoot = TAB_ROOT_PATHS.has(pathname)
   const singletonMatch = SINGLETON_ROUTES.find((route) => route.test.test(pathname))
@@ -129,7 +149,7 @@ function Header({
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex h-14 w-full max-w-[1200px] items-center gap-2 px-3 sm:px-6">
+      <div className="mx-auto flex h-14 w-full max-w-[900px] items-center gap-2">
         <Link to="/home" className="flex shrink-0 items-center gap-2 rounded-lg py-1.5 pr-1">
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Command size={16} />
@@ -157,7 +177,7 @@ function Header({
               end={tab.end}
               className={({ isActive }) =>
                 cn(
-                  'shrink-0 whitespace-nowrap border-b-2 px-2.5 py-2 text-sm font-medium transition-colors',
+                  'shrink-0 justify-center flex whitespace-nowrap border-b-2 px-auto py-2 text-sm font-medium transition-colors min-w-[90px] align-center',
                   isActive
                     ? 'border-primary text-foreground'
                     : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -170,67 +190,68 @@ function Header({
         </nav>
 
         <div className="flex shrink-0 items-center gap-1">
-          <CreateMenu trigger={({ onClick }) => <CreateButtonTrigger onClick={onClick} />} />
+          {isAuthenticated ? (
+            <CreateMenu trigger={({ onClick }) => <CreateButtonTrigger onClick={onClick} />} />
+          ) : null}
 
-          <button
-            type="button"
-            aria-label="Notifications"
-            className="hidden h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:flex"
+          {isAuthenticated ? (
+            <button
+              type="button"
+              aria-label="Notifications"
+              onClick={() => {
+                navigate('/messages')
+              }}
+              className="hidden h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:flex"
+            >
+              <Bell size={17} />
+            </button>
+          ) : null}
+
+          {/* The one route Shell renders for an anonymous visitor too (River, outside
+              <AuthGuard/> — see App.tsx) — always visible, not gated on isAuthenticated. */}
+          <NavLink
+            to="/river"
+            aria-label="River"
+            className={({ isActive }) =>
+              cn(
+                'hidden h-9 w-9 items-center justify-center rounded-full transition-colors sm:flex',
+                isActive
+                  ? 'bg-accent text-foreground'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+              )
+            }
           >
-            <Bell size={17} />
-          </button>
+            <Waves size={17} />
+          </NavLink>
 
-          {/* The header's one quiet global escape hatch — Business admin utilities plus account
-              actions. Navigation of last resort, not the product's primary map. */}
-          <MoreMenu
-            items={[]}
-            utilityItems={utilityNav}
-            accountActions={(close) => (
-              <>
-                <NavLink
-                  to="/profile"
-                  onClick={close}
-                  className={({ isActive }) =>
-                    cn(
-                      'flex items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium transition-colors',
-                      isActive ? 'bg-accent text-foreground' : 'text-foreground hover:bg-accent',
-                    )
-                  }
-                >
-                  <UserIcon size={16} className="shrink-0 opacity-70" />
-                  Profile
-                </NavLink>
-                <button
-                  type="button"
-                  onClick={() => {
-                    close()
-                    onLogout()
-                  }}
-                  className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                >
-                  <LogOut size={16} className="shrink-0 opacity-70" />
-                  Log out
-                </button>
-              </>
-            )}
-            trigger={({ onClick }) => (
-              <button
-                type="button"
-                onClick={onClick}
-                aria-label="Menu"
-                className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-border bg-accent transition-colors hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              >
-                <span className="text-xs font-semibold text-foreground">
-                  {email?.charAt(0).toUpperCase() || 'U'}
-                </span>
-              </button>
-            )}
-          />
+          {isAuthenticated ? (
+            <NavLink
+              to="/profile"
+              aria-label="Profile"
+              className={({ isActive }) =>
+                cn(
+                  'flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border bg-accent transition-colors hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  isActive ? 'border-foreground/50' : 'border-border',
+                )
+              }
+            >
+              <span className="text-xs font-semibold text-foreground">
+                {email?.charAt(0).toUpperCase() || 'U'}
+              </span>
+            </NavLink>
+          ) : !isLoading ? (
+            <Link
+              to="/login"
+              className="rounded-lg px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            >
+              Log in
+            </Link>
+          ) : null}
         </div>
       </div>
 
       {subheader ? (
-        <div className="mx-auto flex h-11 w-full max-w-[1200px] items-center gap-1 border-t border-border/60 px-3 sm:px-6">
+        <div className="mx-auto flex h-11 w-full max-w-[900px] items-center gap-1 border-t border-border/60">
           <button
             type="button"
             onClick={subheader.back.onClick}
@@ -254,11 +275,19 @@ export function Shell() {
   const me = useCurrentUser()
   const role = me.data?.data?.role ?? 'USER'
   const isAffiliate = role === 'AFFILIATE'
-  // No manual reset-on-navigate needed: App.tsx's ResettableErrorBoundary already keys the whole
-  // Suspense/Routes tree by location.pathname, so Shell itself is a brand-new instance on every
-  // pathname change (same mechanism the earlier state-continuity pass relies on — InboxFeed's
-  // filter had to move to a persisted module store precisely because local state doesn't survive
-  // it). A stale entity title from the previous route can't leak in as a result.
+  const isAuthenticated = Boolean(me.data?.data)
+  const landingPageMatch = useMatch('/landing-pages/:landingPageId')
+  const isLandingPageEditor =
+    Boolean(landingPageMatch) && landingPageMatch?.params.landingPageId !== 'new'
+  // Shell is now a persistent instance across navigation (see App.tsx — the pathname-keyed
+  // boundary that used to force a full remount on every route change was removed so the
+  // header/nav don't tear down and rebuild on every click). No manual reset-on-navigate needed
+  // here regardless: usePageTitle (headerContext.tsx) already calls setTitle(null) on its own
+  // cleanup, which fires whenever <Outlet/> swaps to a different page component — a stale entity
+  // title from the previous route can't leak in. (This is unrelated to InboxFeed's filter state,
+  // which lives in a persisted module store for a different reason: a *page* component's own
+  // local state still doesn't survive its own unmount/remount when Outlet swaps routes — only
+  // Shell itself no longer does.)
   const [pageTitle, setPageTitle] = useState<string | null>(null)
 
   async function handleLogout() {
@@ -312,8 +341,8 @@ export function Shell() {
         </aside>
         <div className="md:pl-64 flex flex-col min-h-screen">
           <main className="flex-1 pb-20 md:pb-8 pt-8">
-            <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 animate-in">
-              <Outlet />
+            <div className="max-w-[900px] mx-auto px-4 sm:px-6 lg:px-8 animate-in">
+              <RouteContent />
             </div>
           </main>
         </div>
@@ -347,18 +376,18 @@ export function Shell() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-primary selection:text-primary-foreground font-sans">
+    <div className="">
       <Header
         pageTitle={pageTitle}
-        role={role}
         businessName={me.data?.data?.businessName}
         email={me.data?.data?.email}
-        onLogout={handleLogout}
+        isLoading={me.isLoading}
+        isAuthenticated={isAuthenticated}
       />
       <main className="flex-1 pb-10 pt-6">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 animate-in">
+        <div className={cn('mx-auto w-full', isLandingPageEditor ? 'max-w-none' : 'max-w-[900px]')}>
           <SetHeaderTitleContext.Provider value={setPageTitle}>
-            <Outlet />
+            <RouteContent />
           </SetHeaderTitleContext.Provider>
         </div>
       </main>

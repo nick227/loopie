@@ -10,6 +10,7 @@
     "start:worker": "tsx src/worker.ts",
     "test": "vitest run",
     "shadow-compare": "tsx --env-file=../../.env scripts/shadow-compare.ts",
+    "seed:activity-backfill": "tsx --env-file=../../.env scripts/backfillSeedActivity.ts",
     "typecheck": "tsc --noEmit",
     "lint": "echo 'no lint configured for server'"
   },
@@ -21,6 +22,8 @@
     "@fastify/swagger-ui": "^3.0.0",
     "@prisma/client": "^5.0.0",
     "@project/db": "workspace:*",
+    "@project/embed-contract": "workspace:*",
+    "@project/page-renderer": "workspace:*",
     "@project/sdk": "workspace:*",
     "bcryptjs": "^2.4.3",
     "fastify": "^4.0.0",

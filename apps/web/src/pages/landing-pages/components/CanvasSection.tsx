@@ -2,63 +2,67 @@ import { FormFieldsEditor, type FormFieldDraft } from '@/components/forms/FormFi
 import { MediaSlotField } from './MediaSlotField'
 import { CanvasText } from './CanvasText'
 import { CanvasSplitCapture } from './CanvasSplitCapture'
+import { EditableLinkTrigger } from './editable/EditableLinkTrigger'
 import { youtubeEmbedUrl } from '@/lib/youtube'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
-import type { FeatureItem, SectionContent, TemplateSection } from './types'
+import type { FeatureItem, PageContent } from './types'
+import type { TemplateSection } from './types'
 
 export type CanvasBlockProps = {
   section: TemplateSection
-  content: SectionContent
-  onChange: (next: SectionContent) => void
+  content: PageContent[keyof PageContent] & Record<string, unknown>
+  onChange: (next: unknown) => void
   hasForm: boolean
   formFields: FormFieldDraft[]
   onFormFields: (fields: FormFieldDraft[]) => void
   submitLabel: string
-  set: (patch: Partial<SectionContent>) => void
+  set: (patch: Record<string, unknown>) => void
 }
 
-const HeroBlock = ({ content, set }: CanvasBlockProps) => (
-  <section className="mx-auto max-w-[1040px] px-6 pb-4 pt-14 sm:pt-16">
-    <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--lp-primary)]">
-      Now booking
-    </p>
-    <CanvasText
-      ariaLabel="Headline"
-      value={content.headline ?? ''}
-      onChange={(headline) => set({ headline })}
-      placeholder="Headline"
-      style={{ fontFamily: 'var(--lp-heading)' }}
-      className="text-[2.6rem] font-semibold leading-[1.12] tracking-tight"
-    />
-    <CanvasText
-      ariaLabel="Subheadline"
-      value={content.subheadline ?? ''}
-      onChange={(subheadline) => set({ subheadline })}
-      placeholder="Subheadline"
-      multiline
-      className="mt-4 max-w-xl text-[1.05rem] leading-relaxed text-[color:color-mix(in_srgb,var(--lp-ink)_72%,var(--lp-bg))]"
-    />
-    <CanvasText
-      ariaLabel="CTA label"
-      value={content.ctaLabel ?? ''}
-      onChange={(ctaLabel) => set({ ctaLabel })}
-      placeholder="Request a callback"
-      className="mt-6 inline-block w-auto bg-[var(--lp-primary)] px-6 py-3 text-sm font-medium tracking-wide text-[color:var(--lp-on-primary)]"
-      style={{ borderRadius: 'var(--lp-radius)' }}
-    />
-    <CanvasText
-      ariaLabel="CTA link"
-      value={content.ctaLink ?? ''}
-      onChange={(ctaLink) => set({ ctaLink })}
-      placeholder="#form"
-      className="mt-2 text-xs text-[color:color-mix(in_srgb,var(--lp-ink)_55%,var(--lp-bg))]"
-    />
-  </section>
-)
+const HeroBlock = ({ content, set }: CanvasBlockProps) => {
+  const cta = (content.primaryCta ?? {}) as { label?: string; url?: string }
+  return (
+    <section className="mx-auto max-w-[1040px] px-6 pb-4 pt-14 sm:pt-16">
+      <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--lp-primary)]">
+        Now booking
+      </p>
+      <CanvasText
+        as="h1"
+        ariaLabel="Headline"
+        value={(content.headline as string) ?? ''}
+        onChange={(headline) => set({ headline })}
+        placeholder="Headline"
+        style={{ fontFamily: 'var(--lp-heading)' }}
+        className="text-[2.6rem] font-semibold leading-[1.12] tracking-tight"
+      />
+      <CanvasText
+        ariaLabel="Body"
+        value={(content.body as string) ?? ''}
+        onChange={(body) => set({ body })}
+        placeholder="Body copy"
+        multiline
+        className="mt-4 max-w-xl text-[1.05rem] leading-relaxed text-[color:color-mix(in_srgb,var(--lp-ink)_72%,var(--lp-bg))]"
+      />
+      <EditableLinkTrigger
+        label={cta.label ?? ''}
+        url={cta.url ?? '#form'}
+        onChange={(next) => set({ primaryCta: next })}
+        className="mt-6"
+      >
+        <span
+          className="inline-block bg-[var(--lp-primary)] px-6 py-3 text-sm font-medium tracking-wide text-[color:var(--lp-on-primary)]"
+          style={{ borderRadius: 'var(--lp-radius)' }}
+        >
+          {cta.label || 'Request a callback'}
+        </span>
+      </EditableLinkTrigger>
+    </section>
+  )
+}
 
 const FeatureGridBlock = ({ content, set }: CanvasBlockProps) => {
-  const items = content.items ?? []
+  const items = (content.items as FeatureItem[] | undefined) ?? []
   return (
     <section className="mx-auto max-w-[1040px] px-6 py-10">
       <div
@@ -159,26 +163,29 @@ const SplitCaptureBlock = ({
   formFields,
   submitLabel,
   set,
-}: CanvasBlockProps) => (
-  <CanvasSplitCapture
-    headline={content.headline ?? ''}
-    assetId={content.assetId}
-    imageUrl={content.imageUrl}
-    hasForm={hasForm}
-    formFields={formFields}
-    submitLabel={submitLabel}
-    onHeadline={(headline) => set({ headline })}
-    onImage={(assetId) => set({ assetId })}
-    onClearImage={() => set({ imageUrl: undefined })}
-  />
-)
+}: CanvasBlockProps) => {
+  const media = (content.media ?? {}) as { assetId?: string; url?: string }
+  return (
+    <CanvasSplitCapture
+      headline={(content.headline as string) ?? ''}
+      assetId={media.assetId}
+      imageUrl={media.url}
+      hasForm={hasForm}
+      formFields={formFields}
+      submitLabel={submitLabel}
+      onHeadline={(headline) => set({ headline })}
+      onImage={(assetId) => set({ media: { ...media, assetId } })}
+      onClearImage={() => set({ media: { ...media, url: undefined } })}
+    />
+  )
+}
 
 const FooterBlock = ({ content, set }: CanvasBlockProps) => (
   <footer className="mx-auto max-w-[1040px] px-6 py-10 text-center text-sm text-[color:color-mix(in_srgb,var(--lp-ink)_65%,var(--lp-bg))]">
     <CanvasText
       ariaLabel="Footer text"
-      value={content.text ?? ''}
-      onChange={(text) => set({ text })}
+      value={(content.body as string) ?? ''}
+      onChange={(body) => set({ body })}
       placeholder="Footer"
       className="text-center text-sm"
     />
@@ -189,10 +196,9 @@ const MediaImageBlock = ({ content, set }: CanvasBlockProps) => (
   <section className="mx-auto max-w-[1040px] px-6 py-6">
     <MediaSlotField
       kind="IMAGE"
-      assetId={content.assetId}
-      fallbackUrl={content.imageUrl}
+      assetId={content.assetId as string | undefined}
+      fallbackUrl={content.url as string | undefined}
       onChange={(assetId) => set({ assetId })}
-      onClearFallback={() => set({ imageUrl: undefined })}
     />
   </section>
 )
@@ -201,19 +207,20 @@ const MediaAudioBlock = ({ content, set }: CanvasBlockProps) => (
   <section className="mx-auto max-w-[1040px] px-6 py-6">
     <MediaSlotField
       kind="AUDIO"
-      assetId={content.assetId}
+      assetId={content.assetId as string | undefined}
       onChange={(assetId) => set({ assetId })}
     />
   </section>
 )
 
 const MediaYoutubeBlock = ({ content, set }: CanvasBlockProps) => {
-  const embed = content.youtubeUrl ? youtubeEmbedUrl(content.youtubeUrl) : null
+  const youtubeUrl = content.youtubeUrl as string | undefined
+  const embed = youtubeUrl ? youtubeEmbedUrl(youtubeUrl) : null
   return (
     <section className="mx-auto max-w-[1040px] space-y-3 px-6 py-6">
       <Input
         aria-label="YouTube URL"
-        value={content.youtubeUrl ?? ''}
+        value={youtubeUrl ?? ''}
         placeholder="Add a video"
         onChange={(e) => set({ youtubeUrl: e.target.value })}
       />
@@ -247,15 +254,13 @@ export const BLOCK_REGISTRY: Record<string, React.FC<CanvasBlockProps>> = {
 }
 
 export function CanvasSection(props: Omit<CanvasBlockProps, 'set'>) {
-  if (props.content.hidden) return null
-
   const BlockComponent = BLOCK_REGISTRY[props.section.type]
 
   if (!BlockComponent) {
     return null
   }
 
-  const set = (patch: Partial<SectionContent>) => props.onChange({ ...props.content, ...patch })
+  const set = (patch: Record<string, unknown>) => props.onChange({ ...props.content, ...patch })
 
   return <BlockComponent {...props} set={set} />
 }

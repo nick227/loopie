@@ -44,6 +44,12 @@ function generateFixture(schema: any, spec: any): any {
             obj[key] = '00000000-0000-0000-0000-000000000011' // testBusinessId
           } else if (key === 'userId' || key === 'ownerId') {
             obj[key] = '00000000-0000-0000-0000-000000000001' // testUserId
+          } else if (key === 'storeUrl') {
+            obj[key] = 'https://example.com/shop'
+          } else if (key === 'consumerKey') {
+            obj[key] = 'ck_test'
+          } else if (key === 'consumerSecret') {
+            obj[key] = 'cs_test'
           } else if ((key.endsWith('Id') || key.endsWith('Ids')) && key !== 'id') {
             throw new Error(`Requires prerequisite ID for ${key}`)
           } else if (isForced) {

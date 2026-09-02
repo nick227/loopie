@@ -18,7 +18,12 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
 
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'], launchOptions: { args: ['--disable-web-security'] } },
+    },
+  ],
 
   // Start both servers before running tests. DATABASE_URL etc. must already be exported in the
   // shell that invokes `pnpm test:e2e` — these commands inherit the parent process env.
@@ -27,6 +32,13 @@ export default defineConfig({
     {
       command: 'pnpm --filter server dev',
       url: `${apiURL}/health`,
+      reuseExistingServer: !process.env.CI,
+      stdout: 'ignore',
+      stderr: 'pipe',
+    },
+    {
+      command: 'pnpm --filter ad-server dev',
+      url: 'http://localhost:3002/health',
       reuseExistingServer: !process.env.CI,
       stdout: 'ignore',
       stderr: 'pipe',

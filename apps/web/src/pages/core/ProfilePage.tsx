@@ -162,15 +162,11 @@ function PermissionsLedger() {
     >
       <div className="flex flex-col gap-3 border-b border-border p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6">
         <div>
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <KeyRound size={15} />
-            <p className="text-xs font-medium uppercase tracking-[0.16em]">Permission ledger</p>
-          </div>
           <h2
             id="permissions-heading"
             className="mt-2 text-xl font-semibold tracking-tight text-foreground"
           >
-            Access currently in use
+            Permissions
           </h2>
         </div>
         {!loading && !loadError ? (
@@ -291,12 +287,8 @@ export function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <section className="p-5 sm:p-8">
+      <section className="p-2">
         <div aria-hidden="true" className="absolute right-0 top-0 h-full w-1 bg-foreground" />
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <LockKeyhole size={14} />
-          <p className="text-xs font-medium uppercase tracking-[0.18em]">Private profile</p>
-        </div>
         <div className="mt-7 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex min-w-0 items-center gap-4">
             <Avatar

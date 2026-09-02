@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { BusinessLogoField } from '@/components/business/BusinessLogoField'
+import { BusinessGalleryField } from '@/components/business/BusinessGalleryField'
 
 type SocialProfileLink = { platform: string; url: string }
 
@@ -15,6 +16,12 @@ export type BusinessIdentityValue = {
   targetAudience: string | null
   socialProfiles: SocialProfileLink[]
   logoUrl: string | null
+  // Slice 5 — the public profile's expanded About/contact section + gallery.
+  description: string | null
+  phone: string | null
+  email: string | null
+  hours: string | null
+  galleryImageUrls: string[]
 }
 
 // One shared form, two framings (docs/strategy/03-product-principles.md's First-Login Experience
@@ -35,6 +42,11 @@ export function BusinessIdentityForm({
   const [targetAudience, setTargetAudience] = useState(initial.targetAudience ?? '')
   const [logoUrl, setLogoUrl] = useState<string | null>(initial.logoUrl)
   const [socialProfiles, setSocialProfiles] = useState<SocialProfileLink[]>(initial.socialProfiles)
+  const [description, setDescription] = useState(initial.description ?? '')
+  const [phone, setPhone] = useState(initial.phone ?? '')
+  const [email, setEmail] = useState(initial.email ?? '')
+  const [hours, setHours] = useState(initial.hours ?? '')
+  const [galleryImageUrls, setGalleryImageUrls] = useState<string[]>(initial.galleryImageUrls)
   const [error, setError] = useState<string | null>(null)
   const update = useUpdateBusiness()
 
@@ -60,6 +72,11 @@ export function BusinessIdentityForm({
         targetAudience: targetAudience.trim() || null,
         logoUrl,
         socialProfiles: cleanedProfiles,
+        description: description.trim() || null,
+        phone: phone.trim() || null,
+        email: email.trim() || null,
+        hours: hours.trim() || null,
+        galleryImageUrls,
       })
       onSaved?.()
     } catch (err) {
@@ -119,6 +136,58 @@ export function BusinessIdentityForm({
           rows={2}
         />
       </div>
+
+      <div className="space-y-1.5">
+        <label htmlFor="business-description" className="text-sm font-medium text-foreground">
+          About (shown on your public profile)
+        </label>
+        <Textarea
+          id="business-description"
+          placeholder="What your business does, in your own words"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={3}
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="space-y-1.5">
+          <label htmlFor="business-phone" className="text-sm font-medium text-foreground">
+            Phone
+          </label>
+          <Input
+            id="business-phone"
+            placeholder="(512) 555-0100"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="business-email" className="text-sm font-medium text-foreground">
+            Email
+          </label>
+          <Input
+            id="business-email"
+            type="email"
+            placeholder="hello@yourbusiness.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="business-hours" className="text-sm font-medium text-foreground">
+            Hours
+          </label>
+          <Input
+            id="business-hours"
+            placeholder="Mon–Fri 9am–5pm"
+            value={hours}
+            onChange={(e) => setHours(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <BusinessGalleryField imageUrls={galleryImageUrls} onChange={setGalleryImageUrls} />
 
       <div className="space-y-2">
         <p className="text-sm font-medium text-foreground">Social profiles</p>

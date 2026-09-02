@@ -75,6 +75,50 @@ export function useUpdateAdvertisement() {
   })
 }
 
+export function useDeleteAdvertisement() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const client = getApiClient()
+      return unwrap(
+        await client.DELETE('/advertisements/{advertisementId}', {
+          params: { path: { advertisementId: id } },
+        }),
+      )
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['advertisements'] })
+    },
+  })
+}
+
+export function usePublishAdvertisement() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      id,
+      clickBehavior,
+      destinationUrl,
+    }: {
+      id: string
+      clickBehavior?: 'NONE' | 'URL' | 'HOST'
+      destinationUrl?: string
+    }) => {
+      const client = getApiClient()
+      return unwrap(
+        await client.POST('/advertisements/{advertisementId}/publish', {
+          params: { path: { advertisementId: id } },
+          body: { clickBehavior, destinationUrl },
+        }),
+      )
+    },
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['advertisements'] })
+      queryClient.invalidateQueries({ queryKey: ['advertisements', id] })
+    },
+  })
+}
+
 export function useAdRuns(advertisementId: string) {
   return useQuery({
     queryKey: ['advertisements', advertisementId, 'runs'],
@@ -82,7 +126,9 @@ export function useAdRuns(advertisementId: string) {
       const client = getApiClient()
       return unwrap(
         await client.GET('/advertisements/{advertisementId}/runs', {
-          params: { path: { advertisementId } },
+          // Destination rows render their publish ledger from these immutable run records.
+          // Fetch the API's maximum page so the editor does not truncate ordinary histories.
+          params: { path: { advertisementId }, query: { limit: 100 } },
         }),
       )
     },

@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Command } from 'lucide-react'
 import { z } from 'zod'
 import { useLogin } from '@project/sdk'
@@ -20,7 +20,13 @@ const fields: FieldConfig[] = [
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const mutation = useLogin()
+  const requestedReturnTo = searchParams.get('returnTo')
+  const returnTo =
+    requestedReturnTo?.startsWith('/') && !requestedReturnTo.startsWith('//')
+      ? requestedReturnTo
+      : '/'
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
@@ -41,7 +47,7 @@ export function LoginPage() {
               schema={schema}
               onSubmit={async (data) => {
                 await mutation.mutateAsync(data)
-                navigate('/')
+                navigate(returnTo)
               }}
               isLoading={mutation.isPending}
               submitLabel="Sign In"

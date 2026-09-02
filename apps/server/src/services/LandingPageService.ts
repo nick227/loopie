@@ -1,8 +1,11 @@
 import {
   db,
   starterContentForTemplate,
+  defaultLayoutConfigFromSchema,
+  normalizeLegacyPageContent,
   DEFAULT_PAGE_THEME,
   SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID,
+  SYSTEM_TEMPLATE_STARTER_CONTENT,
 } from '@project/db'
 import type { Prisma } from '@prisma/client'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
@@ -12,9 +15,10 @@ import {
   landingPageSubmitUrl,
   PUBLIC_SERVER_URL,
 } from '../lib/urls'
-import { renderLandingPageHtml } from '../lib/renderLandingPage'
+import { renderLandingPageHtml } from '@project/page-renderer'
 import { nextUniqueLandingPageSlug } from '../lib/landingPageSlug'
-import { snapshotForm } from '../lib/formSnapshot'
+import { snapshotForm } from '@project/page-renderer'
+import crypto from 'crypto'
 import { ACTIVE_SALE_WHERE } from '../lib/salePredicates'
 import { snapshotSlots, toSlotDTO } from '../lib/adSlots'
 import { CONTACT_FORM_FIELDS, EMAIL_CAPTURE_FIELDS } from '../lib/contactForm'
@@ -34,6 +38,7 @@ function toLandingPageDTO(
     status: string
     content: unknown
     theme: unknown
+    layoutConfig: unknown
     publishedVersionId: string | null
     formStartCount: number
     createdAt: Date
@@ -58,6 +63,7 @@ function toLandingPageDTO(
     status: page.status,
     content: page.content,
     theme: page.theme,
+    layoutConfig: page.layoutConfig,
     publishedVersionId: page.publishedVersionId,
     hostedUrl: hostedPageUrl(page.slug),
     previewUrl: landingPagePreviewUrl(page.id),
@@ -79,6 +85,7 @@ function toVersionDTO(version: any) {
     version: version.version,
     content: version.content,
     theme: version.theme,
+    layoutConfig: version.layoutConfig ?? null,
     formId: version.formId,
     formSnapshot: version.formSnapshot ?? null,
     publishedAt: version.publishedAt.toISOString(),
@@ -195,8 +202,11 @@ export class LandingPageService {
           slug: data.slug,
           content:
             data.content ??
-            (starterContentForTemplate(template.schema as never, business.name) as never),
+            ((SYSTEM_TEMPLATE_STARTER_CONTENT[data.templateId] ??
+              starterContentForTemplate(template.schema as never, business.name)) as never),
           theme: data.theme ?? DEFAULT_PAGE_THEME,
+          layoutConfig:
+            data.layoutConfig ?? (defaultLayoutConfigFromSchema(template.schema as never) as never),
           adSlots: {
             create: [
               {
@@ -275,6 +285,7 @@ export class LandingPageService {
         ...(data.templateId !== undefined ? { templateId: data.templateId } : {}),
         ...(data.content !== undefined ? { content: data.content } : {}),
         ...(data.theme !== undefined ? { theme: data.theme } : {}),
+        ...(data.layoutConfig !== undefined ? { layoutConfig: data.layoutConfig } : {}),
       },
       include: {
         adSlots: { include: { assignments: true }, orderBy: { sortOrder: 'asc' as const } },
@@ -321,16 +332,31 @@ export class LandingPageService {
         orderBy: { sortOrder: 'asc' },
       })
 
+      const adSlotSnapshot = snapshotSlots(slots)
+      const schemaSnapshot = current.template.schema
+
+      const canonicalPayload = JSON.stringify({
+        content: current.content,
+        theme: current.theme,
+        layoutConfig: current.layoutConfig,
+        formSnapshot,
+        adSlotSnapshot,
+        schemaSnapshot,
+      })
+      const checksum = crypto.createHash('sha256').update(canonicalPayload).digest('hex')
+
       const version = await tx.publishedPageVersion.create({
         data: {
           landingPageId,
           version: (last?.version ?? 0) + 1,
           content: current.content as Prisma.InputJsonValue,
           theme: current.theme as Prisma.InputJsonValue | undefined,
+          layoutConfig: current.layoutConfig as Prisma.InputJsonValue | undefined,
           formId: current.formId,
           formSnapshot: formSnapshot as unknown as Prisma.InputJsonValue | undefined,
-          adSlotSnapshot: snapshotSlots(slots) as unknown as Prisma.InputJsonValue,
-          schemaSnapshot: current.template.schema as Prisma.InputJsonValue,
+          adSlotSnapshot: adSlotSnapshot as unknown as Prisma.InputJsonValue,
+          schemaSnapshot: schemaSnapshot as Prisma.InputJsonValue,
+          checksum,
           publishedBy,
         },
       })
@@ -404,17 +430,23 @@ export class LandingPageService {
       include: { assignments: true },
       orderBy: { sortOrder: 'asc' },
     })
-    const content = await withResolvedMedia(page.businessId, page.content as never)
+    const content = await withResolvedMedia(
+      page.businessId,
+      normalizeLegacyPageContent(page.content),
+    )
+    const submissionCount = await db.formSubmission.count({ where: { landingPageId: page.id } })
     const html = renderLandingPageHtml({
       pageName: page.name,
       templateSchema: template.schema as any,
       content,
       theme: page.theme as any,
+      layoutConfig: page.layoutConfig as any,
       form,
       submitActionUrl: landingPageSubmitUrl(page.id),
       adSlots: snapshotSlots(slots),
       runtimeScriptUrl: `${PUBLIC_SERVER_URL}/loopie.js`,
       businessId: page.businessId,
+      submissionCount,
     })
     return { filename: `${page.slug}.html`, html }
   }

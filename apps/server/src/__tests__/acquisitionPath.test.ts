@@ -8,6 +8,7 @@
 // Database"). It typechecks clean and reads correct against the implementation; running it is
 // the next verification step once DATABASE_URL points at a real database.
 import { describe, it, expect } from 'vitest'
+import { randomUUID } from 'crypto'
 import { buildTestApp, asAuth, testUserId, testBusinessId } from './helpers'
 import { db, issueSid, verifySid } from '@project/db'
 
@@ -64,7 +65,12 @@ describe('acquisition path: Campaign -> Creative -> Deployment -> LandingPage ->
       method: 'POST',
       url: '/landing-pages',
       headers: asAuth(testUserId),
-      payload: { templateId: template.id, name: 'Test Page', slug: `test-page-${Date.now()}`, formId },
+      payload: {
+        templateId: template.id,
+        name: 'Test Page',
+        slug: `test-page-${Date.now()}`,
+        formId,
+      },
     })
     expect(pageRes.statusCode).toBe(201)
     const page = pageRes.json().data
@@ -98,7 +104,9 @@ describe('acquisition path: Campaign -> Creative -> Deployment -> LandingPage ->
     const sidFromRedirect = redirectLocation.searchParams.get('sid')
     expect(sidFromRedirect).toBeTruthy()
 
-    const event = await db.attributionEvent.findFirstOrThrow({ where: { deploymentId: deployment.id } })
+    const event = await db.attributionEvent.findFirstOrThrow({
+      where: { deploymentId: deployment.id },
+    })
     expect(verifySid(sidFromRedirect)?.sessionId).toBe(event.sessionId)
 
     // Same session, later: the visitor fills out the form on the hosted page, submitting the
@@ -106,7 +114,11 @@ describe('acquisition path: Campaign -> Creative -> Deployment -> LandingPage ->
     const submitRes = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: sidFromRedirect, data: { name: 'Jane Smith', email: 'jane@example.com' } },
+      payload: {
+        sessionId: sidFromRedirect,
+        idempotencyKey: randomUUID(),
+        data: { name: 'Jane Smith', email: 'jane@example.com' },
+      },
     })
     expect(submitRes.statusCode).toBe(201)
     const result = submitRes.json().data
@@ -122,11 +134,15 @@ describe('acquisition path: Campaign -> Creative -> Deployment -> LandingPage ->
     expect(contact.email).toBe('jane@example.com')
     expect(contact.businessId).toBe(testBusinessId)
 
-    const updatedDeployment = await db.deployment.findUniqueOrThrow({ where: { id: deployment.id } })
+    const updatedDeployment = await db.deployment.findUniqueOrThrow({
+      where: { id: deployment.id },
+    })
     expect(updatedDeployment.clicks).toBe(1)
     expect(updatedDeployment.conversions).toBe(1)
 
-    const submission = await db.formSubmission.findFirstOrThrow({ where: { landingPageId: page.id } })
+    const submission = await db.formSubmission.findFirstOrThrow({
+      where: { landingPageId: page.id },
+    })
     expect(submission.contactId).toBe(result.contactId)
     expect(submission.leadId).toBe(result.leadId)
     expect(submission.sourceDeploymentId).toBe(deployment.id)
@@ -140,7 +156,10 @@ describe('acquisition path: Campaign -> Creative -> Deployment -> LandingPage ->
       method: 'POST',
       url: '/forms',
       headers: asAuth(testUserId),
-      payload: { name: 'Simple form', fields: [{ label: 'Email', fieldKey: 'email', type: 'EMAIL', required: true, order: 0 }] },
+      payload: {
+        name: 'Simple form',
+        fields: [{ label: 'Email', fieldKey: 'email', type: 'EMAIL', required: true, order: 0 }],
+      },
     })
     const formId = formRes.json().data.id
 
@@ -148,21 +167,30 @@ describe('acquisition path: Campaign -> Creative -> Deployment -> LandingPage ->
       method: 'POST',
       url: '/landing-pages',
       headers: asAuth(testUserId),
-      payload: { templateId: template.id, name: 'Organic Page', slug: `organic-page-${Date.now()}`, formId },
+      payload: {
+        templateId: template.id,
+        name: 'Organic Page',
+        slug: `organic-page-${Date.now()}`,
+        formId,
+      },
     })
     const page = pageRes.json().data
 
-      await app.inject({
-        method: 'POST',
-        url: `/landing-pages/${page.id}/publish`,
-        headers: asAuth(testUserId),
-      })
+    await app.inject({
+      method: 'POST',
+      url: `/landing-pages/${page.id}/publish`,
+      headers: asAuth(testUserId),
+    })
 
-      const submitRes = await app.inject({
-        method: 'POST',
-        url: `/landing-pages/${page.id}/submissions`,
-        payload: { sessionId: issueSid().token, data: { email: 'organic@example.com' } },
-      })
+    const submitRes = await app.inject({
+      method: 'POST',
+      url: `/landing-pages/${page.id}/submissions`,
+      payload: {
+        sessionId: issueSid().token,
+        idempotencyKey: randomUUID(),
+        data: { email: 'organic@example.com' },
+      },
+    })
     expect(submitRes.statusCode).toBe(201)
 
     const lead = await db.lead.findUniqueOrThrow({ where: { id: submitRes.json().data.leadId } })

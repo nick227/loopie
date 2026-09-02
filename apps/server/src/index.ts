@@ -35,6 +35,23 @@ async function main() {
   // cookies — must register before glue so request.cookies is populated
   await server.register(cookie)
 
+  // A real browser's <form method="post"> always sends Content-Type: application/x-www-form-
+  // urlencoded by default (no <form enctype> ever gets set on the plain-form River/profile
+  // action buttons — react/unreact, follow/unfollow, pin/unpin, see lib/riverFeedRender.ts's
+  // actionUrl/renderCard). Fastify has no parser for that content-type out of the box and 415s
+  // before the request even reaches routing — found live, not by inspection, via a real-browser
+  // Playwright check of the business-profile page's Unpin button (slice 4). None of these actions
+  // carry real form fields (state travels via query params — returnTo, riverPostId, businessId —
+  // not the body), so there's nothing to actually parse; this just stops Fastify rejecting the
+  // request outright.
+  server.addContentTypeParser(
+    'application/x-www-form-urlencoded',
+    { parseAs: 'string' },
+    (_request, _body, done) => {
+      done(null, {})
+    },
+  )
+
   if (process.env.NODE_ENV !== 'production') {
     await server.register(swagger, { openapi: spec })
     await server.register(swaggerUi, { routePrefix: '/docs' })

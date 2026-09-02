@@ -9,7 +9,12 @@ import type { Integration } from '@prisma/client'
 const events = new ExternalEventService()
 const MAX_PAGES = 8
 
-type CursorState = { contacts?: string | null; orders?: string | null }
+type CursorState = {
+  contacts?: string | null
+  orders?: string | null
+  contactsDone?: boolean
+  ordersDone?: boolean
+}
 
 function parseCursor(raw: string | null): CursorState {
   if (!raw) return {}
@@ -35,14 +40,15 @@ export class CrmSyncService {
     const integration = await db.integration.findFirst({ where: { id: integrationId, businessId } })
     if (!integration) throw { statusCode: 404, message: 'Integration not found' }
     if (integration.status === 'PAUSED') throw { statusCode: 409, message: 'Integration is paused' }
-    const live = getLiveConnector(integration.provider)
-    const creds = readCreds(integration.credentialsEnc)
-    if (!creds?.accessToken)
-      throw { statusCode: 409, message: 'Connect this account with OAuth first' }
-
-    const job = await db.importJob.create({ data: { businessId, status: 'RUNNING' } })
+    await db.integration.update({
+      where: { id: integration.id },
+      data: { lastSyncAttemptAt: new Date(), lastSyncError: null },
+    })
+    const job = await db.importJob.create({
+      data: { businessId, integrationId: integration.id, status: 'RUNNING' },
+    })
+    const contactsBefore = await db.contact.count({ where: { businessId, deletedAt: null } })
     const cursor = parseCursor(integration.syncCursor)
-    const shop = creds.shop ?? integration.externalAccountId ?? undefined
 
     // Explicit state handling for the whole pull/process loop — duplicate delivery and mid-sync
     // failures (a transient DB error, a malformed connector row, a race in ExternalEventService)
@@ -52,6 +58,11 @@ export class CrmSyncService {
     // 0 — see pullContacts/pullOrders below, which persist the cursor after every page instead
     // of only once at the very end of a fully successful run.
     try {
+      const live = getLiveConnector(integration.provider)
+      const creds = readCreds(integration.credentialsEnc)
+      if (!creds?.accessToken)
+        throw { statusCode: 409, message: 'This integration is missing its credentials' }
+      const shop = creds.shop ?? integration.externalAccountId ?? undefined
       const createdLinked = await this.pullContacts(
         integration,
         live,
@@ -63,24 +74,48 @@ export class CrmSyncService {
       const orders = live.listOrders
         ? await this.pullOrders(integration, live, creds.accessToken, cursor, shop)
         : 0
+      if (!live.listOrders) cursor.ordersDone = true
+      // Order payloads can create contacts too (notably WooCommerce guest checkout identities),
+      // so the connector-page counters alone under-report what the import actually created.
+      const contactsAfter = await db.contact.count({ where: { businessId, deletedAt: null } })
+      const result = {
+        ...createdLinked,
+        created: Math.max(0, contactsAfter - contactsBefore),
+      }
 
+      const hasMore = !cursor.contactsDone || !cursor.ordersDone
+      const successfulAt = new Date()
       await db.importJob.update({
         where: { id: job.id },
-        data: { status: 'COMPLETED', ...createdLinked },
+        data: { status: 'COMPLETED', ...result },
+      })
+      const persistedCursor: CursorState = hasMore
+        ? cursor
+        : { contacts: null, orders: cursor.orders, contactsDone: false, ordersDone: false }
+      await db.integration.update({
+        where: { id: integration.id },
+        data: {
+          lastSyncAt: successfulAt,
+          lastSyncError: null,
+          syncHasMore: hasMore,
+          syncCursor: JSON.stringify(persistedCursor),
+          status: 'CONNECTED',
+        },
+      })
+      return { ...result, orders, hasMore, lastSyncAt: successfulAt.toISOString() }
+    } catch (err) {
+      const message = errorMessage(err)
+      await db.importJob.update({
+        where: { id: job.id },
+        data: { status: 'FAILED', error: message },
       })
       await db.integration.update({
         where: { id: integration.id },
         data: {
-          lastSyncAt: new Date(),
+          lastSyncError: message,
+          syncHasMore: true,
           syncCursor: JSON.stringify(cursor),
-          status: 'CONNECTED',
         },
-      })
-      return { ...createdLinked, orders, lastSyncAt: new Date().toISOString() }
-    } catch (err) {
-      await db.importJob.update({
-        where: { id: job.id },
-        data: { status: 'FAILED', error: errorMessage(err) },
       })
       throw err
     }
@@ -94,12 +129,17 @@ export class CrmSyncService {
     shop: string | undefined,
     importJobId: string,
   ) {
+    if (cursor.contactsDone) return { created: 0, linked: 0, ambiguous: 0, skipped: 0 }
     let created = 0
     let linked = 0
     let ambiguous = 0
     let skipped = 0
     for (let page = 0; page < MAX_PAGES; page++) {
-      const batch = await live.listContacts(token, cursor.contacts ?? null, { shop })
+      const creds = readCreds(integration.credentialsEnc)
+      const batch = await live.listContacts(token, cursor.contacts ?? null, {
+        shop,
+        secret: creds?.consumerSecret,
+      })
       for (const row of batch.contacts) {
         if (!row.email && !row.phone && !row.externalId) {
           skipped++
@@ -122,6 +162,13 @@ export class CrmSyncService {
               scopeKey: integrationScope(integration.id),
               integrationId: integration.id,
               importJobId,
+              externalUpdatedAt: row.externalUpdatedAt,
+              sourceSnapshot: {
+                name: row.name,
+                email: row.email,
+                phone: row.phone,
+                company: row.company,
+              },
               raw: row.raw,
             },
           ),
@@ -130,7 +177,8 @@ export class CrmSyncService {
         else if (result.created) created++
         else linked++
       }
-      cursor.contacts = batch.cursor
+      cursor.contacts = batch.cursor ?? batch.checkpoint ?? null
+      cursor.contactsDone = !batch.cursor
       // Persist after every fully-processed page, not just once at the end of a fully successful
       // run — if a later page (or pullOrders afterward) throws, this page's progress must not be
       // discarded and re-processed from scratch on the next retry.
@@ -151,9 +199,14 @@ export class CrmSyncService {
     shop: string | undefined,
   ) {
     if (!live.listOrders) return 0
+    if (cursor.ordersDone) return 0
     let count = 0
     for (let page = 0; page < MAX_PAGES; page++) {
-      const batch = await live.listOrders(token, cursor.orders ?? null, { shop })
+      const creds = readCreds(integration.credentialsEnc)
+      const batch = await live.listOrders(token, cursor.orders ?? null, {
+        shop,
+        secret: creds?.consumerSecret,
+      })
       for (const row of batch.orders) {
         await events.ingest(integration.businessId, {
           integrationId: integration.id,
@@ -173,11 +226,20 @@ export class CrmSyncService {
             email: row.contact.email ?? undefined,
             phone: row.contact.phone ?? undefined,
           },
+          // The customers endpoint was reconciled immediately before orders. Registered-order
+          // billing can be an old checkout snapshot, so it may identify the contact but must not
+          // roll current customer fields backward. Guest orders have no customer record and stay
+          // event-managed.
+          updateContactFromEvent: !(
+            integration.provider === 'WOOCOMMERCE' &&
+            row.contact.externalId?.startsWith('customer:')
+          ),
           payload: row.raw,
         })
         count++
       }
-      cursor.orders = batch.cursor
+      cursor.orders = batch.cursor ?? batch.checkpoint ?? cursor.orders ?? null
+      cursor.ordersDone = !batch.cursor
       await db.integration.update({
         where: { id: integration.id },
         data: { syncCursor: JSON.stringify(cursor) },

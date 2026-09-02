@@ -3,12 +3,16 @@ import { ExternalEventService } from '../services/ExternalEventService'
 import { ContactMatchService } from '../services/ContactMatchService'
 import { CrmOAuthService } from '../services/CrmOAuthService'
 import { CrmSyncService } from '../services/CrmSyncService'
+import { CrmPreviewService } from '../services/CrmPreviewService'
+import { InboundWebhookService } from '../services/InboundWebhookService'
 
 const integrations = new IntegrationService()
 const events = new ExternalEventService()
 const matches = new ContactMatchService()
 const oauth = new CrmOAuthService()
 const sync = new CrmSyncService()
+const preview = new CrmPreviewService()
+const inboundWebhook = new InboundWebhookService()
 
 export async function listCrmCatalog(request: any, reply: any) {
   return reply.send(await integrations.catalog(request.user.businessId))
@@ -21,7 +25,14 @@ export async function listIntegrations(request: any, reply: any) {
 export async function createIntegration(request: any, reply: any) {
   const row = await integrations.create(
     request.user.businessId,
-    request.body as { provider: string; label?: string; externalAccountId?: string },
+    request.body as {
+      provider: string
+      label?: string
+      externalAccountId?: string
+      storeUrl?: string
+      consumerKey?: string
+      consumerSecret?: string
+    },
   )
   return reply.status(201).send({ data: row })
 }
@@ -70,12 +81,26 @@ export async function syncIntegration(request: any, reply: any) {
   return reply.send({ data })
 }
 
+export async function previewIntegration(request: any, reply: any) {
+  const data = await preview.run(request.user.businessId, request.params.integrationId)
+  return reply.send({ data })
+}
+
 export async function ingestExternalEvent(request: any, reply: any) {
   const row = await events.ingest(
     request.user.businessId,
     request.body as Parameters<ExternalEventService['ingest']>[1],
   )
   return reply.status(201).send({ data: row })
+}
+
+export async function ingestInboundWebhook(request: any, reply: any) {
+  const row = await inboundWebhook.ingest(
+    request.params.integrationId,
+    request.headers.authorization,
+    request.body,
+  )
+  return reply.status(202).send({ data: row })
 }
 
 export async function listContactMatches(request: any, reply: any) {

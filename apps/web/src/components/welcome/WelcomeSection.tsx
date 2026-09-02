@@ -47,11 +47,11 @@ export function WelcomeSection() {
 
   return (
     <div className="space-y-6 pb-8">
-      <BusinessIdentityHeader />
-
       <ResultsPanel weeklyResults={home.weeklyResults} />
 
       <AddSomethingRow />
+
+      <BusinessIdentityHeader />
     </div>
   )
 }

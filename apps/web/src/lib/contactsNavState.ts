@@ -8,6 +8,8 @@ const state = {
   scrollY: 0,
   q: '',
   source: '',
+  tagIds: [] as string[],
+  tagMode: 'AND' as 'AND' | 'OR',
 }
 
 export function getContactsScrollY() {
@@ -32,4 +34,20 @@ export function getContactsSourceFilter() {
 
 export function setContactsSourceFilter(source: string) {
   state.source = source
+}
+
+export function getContactsTagIds() {
+  return state.tagIds
+}
+
+export function setContactsTagIds(tagIds: string[]) {
+  state.tagIds = tagIds
+}
+
+export function getContactsTagMode() {
+  return state.tagMode
+}
+
+export function setContactsTagMode(tagMode: 'AND' | 'OR') {
+  state.tagMode = tagMode
 }

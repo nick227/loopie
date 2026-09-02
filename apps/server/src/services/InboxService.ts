@@ -12,9 +12,9 @@ import { db } from '@project/db'
 // This is the direct way to avoid "Message -> projection -> InboxMessage forever": there is
 // exactly one row holding real communication content, so it cannot diverge from itself.
 //
-// Known, stated limitation: no inbound-reply capture exists anywhere in this codebase yet
-// (InteractionType.REPLY is declared, nothing ever writes it) — CONTACT threads therefore only
-// ever show OUTBOUND sent messages until a real inbound path (webhook, provider callback) exists.
+// Known, stated limitation: no external email/SMS inbound-reply capture exists yet
+// (InteractionType.REPLY is declared, nothing ever writes it). Native BUSINESS threads are the
+// exception: their SITE messages and replies are persisted directly as InboxMessage rows.
 function toThreadSummaryDTO(
   thread: {
     id: string
@@ -25,6 +25,7 @@ function toThreadSummaryDTO(
     platform: string | null
     landingPageId: string | null
     integrationPlatform: string | null
+    peerBusinessId: string | null
     lastReadAt: Date | null
     createdAt: Date
   },
@@ -39,6 +40,8 @@ function toThreadSummaryDTO(
     platform: thread.platform,
     landingPageId: thread.landingPageId,
     integrationPlatform: thread.integrationPlatform,
+    peerBusinessId: thread.peerBusinessId,
+    canReply: thread.type === 'BUSINESS' && thread.peerBusinessId !== null,
     previewKind: preview.kind,
     previewBody: preview.body,
     unread: !thread.lastReadAt || thread.lastReadAt < preview.at,

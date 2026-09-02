@@ -11,14 +11,13 @@ const LoginPage = lazy(() =>
 const ContactsPage = lazy(() =>
   import('@/pages/contacts/ContactsPage').then((m) => ({ default: m.ContactsPage })),
 )
-const CreateContactPage = lazy(() =>
-  import('@/pages/contacts/CreateContactPage').then((m) => ({ default: m.CreateContactPage })),
+const ContactsInsightsPage = lazy(() =>
+  import('@/pages/contacts/ContactsInsightsPage').then((m) => ({
+    default: m.ContactsInsightsPage,
+  })),
 )
 const ContactPage = lazy(() =>
   import('@/pages/contacts/ContactPage').then((m) => ({ default: m.ContactPage })),
-)
-const UpdateContactPage = lazy(() =>
-  import('@/pages/contacts/UpdateContactPage').then((m) => ({ default: m.UpdateContactPage })),
 )
 const ContactInteractionsPage = lazy(() =>
   import('@/pages/contacts/ContactInteractionsPage').then((m) => ({
@@ -285,6 +284,15 @@ const ProfilePage = lazy(() =>
 const BusinessSetupPage = lazy(() =>
   import('@/pages/core/BusinessSetupPage').then((m) => ({ default: m.BusinessSetupPage })),
 )
+const RiverPage = lazy(() =>
+  import('@/pages/river/RiverPage').then((m) => ({ default: m.RiverPage })),
+)
+const BusinessProfilePage = lazy(() =>
+  import('@/pages/business/BusinessProfilePage').then((m) => ({ default: m.BusinessProfilePage })),
+)
+const RiverPostPage = lazy(() =>
+  import('@/pages/river/RiverPostPage').then((m) => ({ default: m.RiverPostPage })),
+)
 import { AuthGuard } from '@/lib/AuthGuard'
 import { ActivityPage } from './pages/activity/ActivityPage'
 import { ErrorBoundary } from '@/components/layout/ErrorBoundary'
@@ -333,11 +341,6 @@ const AffiliatePortalPayoutsPage = lazy(() =>
   })),
 )
 
-function ResettableErrorBoundary({ children }: { children: React.ReactNode }) {
-  const location = useLocation()
-  return <ErrorBoundary key={location.pathname}>{children}</ErrorBoundary>
-}
-
 // Plain BrowserRouter/Routes (not a data router) does no scroll management on its own — a normal
 // SPA navigation otherwise leaves window.scrollY wherever it was. Every route starts at the top
 // except /home, which restores its own saved position instead (see InboxSummaryPage's
@@ -354,13 +357,35 @@ function ScrollToTop() {
 export function App() {
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <ResettableErrorBoundary>
+      {/* Not keyed by pathname: Shell (rendered as a nested <Route element={<Shell />}>) must stay
+          mounted across navigation so the persistent header/nav don't tear down and rebuild on
+          every click. Per-route crash recovery and lazy-chunk loading states are now scoped inside
+          Shell itself, around just <Outlet/> — see Shell.tsx. This outer boundary/Suspense only
+          catches the pre-Shell routes (/login, /register, /business/setup) and anything that
+          somehow escapes Shell's own inner boundary. */}
+      <ErrorBoundary>
         <ScrollToTop />
         <Suspense fallback={<Skeleton className="h-48 w-full" />}>
           <Routes>
             {/* Public / auth routes */}
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/login" element={<LoginPage />} />
+            {/* River, River post permalinks, and a business's public profile — the routes Shell
+                renders outside <AuthGuard/>: an anonymous visitor can browse any of them
+                directly, an authenticated business user gets the same Shell chrome plus
+                reactions/follows/composer/pin/comments (each page branches on useCurrentUser()
+                itself). /b/:slug used to be its own standalone page outside the Shell entirely —
+                reversed per the "Business profiles: redesign + fold into the app shell" plan doc:
+                Business Profile is the business's identity *inside* Loopie, not a separate
+                published website product, so River authors should land on it without leaving the
+                app's chrome. GET /b/:slug's server-rendered HTML (content-negotiated, see
+                apps/server/src/lib/renderBusinessProfile.ts) stays the canonical, shareable URL
+                for non-JS visitors, crawlers, and link unfurls. */}
+            <Route element={<Shell />}>
+              <Route path="/river" element={<RiverPage />} />
+              <Route path="/river/posts/:riverPostId" element={<RiverPostPage />} />
+              <Route path="/b/:slug" element={<BusinessProfilePage />} />
+            </Route>
 
             {/* Protected routes */}
             <Route element={<AuthGuard />}>
@@ -373,13 +398,17 @@ export function App() {
                 <Route element={<RequireNonAffiliate />}>
                   <Route index element={<Navigate to="/home" replace />} />
                   <Route path="/contacts" element={<ContactsPage />} />
-                  <Route path="/contacts/new" element={<CreateContactPage />} />
+                  <Route path="/contacts/insights" element={<ContactsInsightsPage />} />
+                  {/* /contacts/new and /contacts/:contactId render the same unified profile
+                      surface (create/view/edit collapsed into one page) — see CLAUDE.md's
+                      dated entry. There is no separate edit route anymore; every field commits
+                      inline on the view surface itself. */}
+                  <Route path="/contacts/new" element={<ContactPage />} />
                   <Route
                     path="/contacts/import/new"
                     element={<Navigate to="/contacts#import" replace />}
                   />
                   <Route path="/contacts/:contactId" element={<ContactPage />} />
-                  <Route path="/contacts/:contactId/edit" element={<UpdateContactPage />} />
                   <Route
                     path="/contacts/:contactId/interactions"
                     element={<ContactInteractionsPage />}
@@ -608,7 +637,7 @@ export function App() {
             <Route path="*" element={<Navigate to="/home" replace />} />
           </Routes>
         </Suspense>
-      </ResettableErrorBoundary>
+      </ErrorBoundary>
     </BrowserRouter>
   )
 }

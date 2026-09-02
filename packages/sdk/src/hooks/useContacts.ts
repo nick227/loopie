@@ -11,6 +11,7 @@ type CreateContactInput = {
   company?: string
   source?: string
   tags?: string[]
+  avatarAssetId?: string
   emailEligible?: boolean
   smsEligible?: boolean
 }
@@ -22,13 +23,15 @@ type UpdateContactInput = {
   phone?: string | null
   company?: string | null
   tags?: string[]
+  avatarAssetId?: string | null
   emailEligible?: boolean
   smsEligible?: boolean
 }
 
 export function useContacts(params?: {
   q?: string
-  tag?: string
+  tagIds?: string[]
+  tagMode?: 'AND' | 'OR'
   source?: string
   lifecycleStatus?: 'LEAD' | 'CUSTOMER' | 'PAST_CUSTOMER' | 'NONE'
   limit?: number
@@ -181,5 +184,232 @@ export function useDeleteContact() {
       if (err) throw new ApiError(status, (err as any).error)
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contacts', 'list'] }),
+  })
+}
+
+export function useContactNotes(contactId: string) {
+  return useInfiniteQuery({
+    queryKey: ['contact', contactId, 'notes'],
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam }) => {
+      const client = getApiClient()
+      const result = await client.GET('/contacts/{contactId}/notes', {
+        params: { path: { contactId }, query: { cursor: pageParam } },
+      })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as any).error)
+      return data!
+    },
+    getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
+    enabled: !!contactId,
+  })
+}
+
+export function useCreateContactNote() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ contactId, body }: { contactId: string; body: string }) => {
+      const client = getApiClient()
+      const result = await client.POST('/contacts/{contactId}/notes', {
+        params: { path: { contactId } },
+        body: { body },
+      })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as any).error)
+      return data!
+    },
+    onSuccess: (_data, variables) =>
+      queryClient.invalidateQueries({ queryKey: ['contact', variables.contactId, 'notes'] }),
+  })
+}
+
+export function useUpdateContactNote() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      contactId,
+      noteId,
+      body,
+      pinned,
+    }: {
+      contactId: string
+      noteId: string
+      body?: string
+      pinned?: boolean
+    }) => {
+      const client = getApiClient()
+      const result = await client.PATCH('/contacts/{contactId}/notes/{noteId}', {
+        params: { path: { contactId, noteId } },
+        body: { body, pinned },
+      })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as any).error)
+      return data!
+    },
+    onSuccess: (_data, variables) =>
+      queryClient.invalidateQueries({ queryKey: ['contact', variables.contactId, 'notes'] }),
+  })
+}
+
+export function useDeleteContactNote() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ contactId, noteId }: { contactId: string; noteId: string }) => {
+      const client = getApiClient()
+      const result = await client.DELETE('/contacts/{contactId}/notes/{noteId}', {
+        params: { path: { contactId, noteId } },
+      })
+      const err = result.error
+      const status = result.response.status
+      if (err) throw new ApiError(status, (err as any).error)
+    },
+    onSuccess: (_data, variables) =>
+      queryClient.invalidateQueries({ queryKey: ['contact', variables.contactId, 'notes'] }),
+  })
+}
+
+export function useContactSales(contactId: string) {
+  return useInfiniteQuery({
+    queryKey: ['contact', contactId, 'sales'],
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam }) => {
+      const client = getApiClient()
+      const result = await client.GET('/contacts/{contactId}/sales', {
+        params: { path: { contactId }, query: { cursor: pageParam } },
+      })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as any).error)
+      return data!
+    },
+    getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
+    enabled: !!contactId,
+  })
+}
+
+export type ContactTagColor =
+  'sky' | 'violet' | 'emerald' | 'amber' | 'rose' | 'cyan' | 'pink' | 'slate'
+
+// The tag catalog, not one contact's assignments — used for autocomplete/the tag manager, and
+// generic enough (no contact-specific naming) to reuse for the Audiences tag picker later.
+export function useContactTags(params?: { q?: string }) {
+  return useQuery({
+    queryKey: ['contact-tags', params],
+    queryFn: async () => {
+      const client = getApiClient()
+      const result = await client.GET('/contact-tags', { params: { query: params } })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as any).error)
+      return data!
+    },
+  })
+}
+
+export function useCreateContactTag() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: { name: string; color?: ContactTagColor }) => {
+      const client = getApiClient()
+      const result = await client.POST('/contact-tags', { body })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as any).error)
+      return data!
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contact-tags'] }),
+  })
+}
+
+export function useUpdateContactTag() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      tagId,
+      ...body
+    }: {
+      tagId: string
+      name?: string
+      color?: ContactTagColor
+    }) => {
+      const client = getApiClient()
+      const result = await client.PATCH('/contact-tags/{tagId}', {
+        params: { path: { tagId } },
+        body,
+      })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as any).error)
+      return data!
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contact-tags'] })
+      // A rename/recolor updates every contact wearing this tag implicitly — the individual
+      // contact/list caches read the tag's name/color off the embedded tagRefs, so they need
+      // invalidating too, not just the catalog list.
+      queryClient.invalidateQueries({ queryKey: ['contacts', 'list'] })
+      queryClient.invalidateQueries({ queryKey: ['contact'] })
+    },
+  })
+}
+
+export function useAssignContactTag() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      contactId,
+      ...body
+    }: {
+      contactId: string
+      tagId?: string
+      name?: string
+      color?: ContactTagColor
+    }) => {
+      const client = getApiClient()
+      const result = await client.POST('/contacts/{contactId}/tags', {
+        params: { path: { contactId } },
+        body,
+      })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as any).error)
+      return data!
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['contact', variables.contactId] })
+      queryClient.invalidateQueries({ queryKey: ['contacts', 'list'] })
+      queryClient.invalidateQueries({ queryKey: ['contact-tags'] })
+    },
+  })
+}
+
+export function useUnassignContactTag() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ contactId, tagId }: { contactId: string; tagId: string }) => {
+      const client = getApiClient()
+      const result = await client.DELETE('/contacts/{contactId}/tags/{tagId}', {
+        params: { path: { contactId, tagId } },
+      })
+      const err = result.error
+      const status = result.response.status
+      if (err) throw new ApiError(status, (err as any).error)
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['contact', variables.contactId] })
+      queryClient.invalidateQueries({ queryKey: ['contacts', 'list'] })
+      queryClient.invalidateQueries({ queryKey: ['contact-tags'] })
+    },
   })
 }

@@ -7,9 +7,11 @@ export type CrmContactPage = {
     email?: string | null
     phone?: string | null
     company?: string | null
+    externalUpdatedAt?: string | null
     raw?: unknown
   }>
   cursor: string | null
+  checkpoint?: string | null
 }
 
 export type CrmOrderPage = {
@@ -27,6 +29,7 @@ export type CrmOrderPage = {
     raw?: unknown
   }>
   cursor: string | null
+  checkpoint?: string | null
 }
 
 export type CrmToken = {
@@ -46,11 +49,11 @@ export type CrmLiveConnector = {
   listContacts: (
     token: string,
     cursor: string | null,
-    opts?: { shop?: string },
+    opts?: { shop?: string; secret?: string },
   ) => Promise<CrmContactPage>
   listOrders?: (
     token: string,
     cursor: string | null,
-    opts?: { shop?: string },
+    opts?: { shop?: string; secret?: string },
   ) => Promise<CrmOrderPage>
 }

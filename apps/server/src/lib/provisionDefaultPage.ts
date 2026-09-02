@@ -5,7 +5,7 @@ import {
   starterContentForTemplate,
   DEFAULT_PAGE_THEME,
 } from '@project/db'
-import { snapshotForm } from './formSnapshot'
+import { snapshotForm } from '@project/page-renderer'
 import { CONTACT_FORM_FIELDS } from './contactForm'
 import { ensureSystemTemplates } from './ensureSystemTemplates'
 

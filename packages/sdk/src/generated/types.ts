@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+  '/embed-deployments/get-or-create': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Get or create an embed deployment */
+    post: operations['getOrCreateEmbedDeployment']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/activity': {
     parameters: {
       query?: never
@@ -376,6 +393,40 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/integrations/{integrationId}/preview': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Preview contacts, orders, and revenue without importing them */
+    post: operations['previewIntegration']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/webhooks/inbound/{integrationId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Ingest an idempotent contact or commerce event from a form or automation tool */
+    post: operations['ingestInboundWebhook']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/external-events': {
     parameters: {
       query?: never
@@ -490,8 +541,166 @@ export interface paths {
     /** List contact interactions */
     get: operations['listContactInteractions']
     put?: never
+    /** Log a manually-observed activity (call, meeting, webinar/event, follow-up, note) */
+    post: operations['logContactActivity']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/contacts/{contactId}/notes': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List a contact's notes */
+    get: operations['listContactNotes']
+    put?: never
+    /** Add a note to a contact */
+    post: operations['createContactNote']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/contacts/{contactId}/notes/{noteId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /** Delete a note */
+    delete: operations['deleteContactNote']
+    options?: never
+    head?: never
+    /** Edit or pin/unpin a note */
+    patch: operations['updateContactNote']
+    trace?: never
+  }
+  '/contacts/{contactId}/sales': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** This contact's sale history: where their revenue came from */
+    get: operations['listContactSales']
+    put?: never
     post?: never
     delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/channel-providers': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** The business's channel-provider catalog (Mailchimp, LinkedIn, Zoom, ...) */
+    get: operations['listChannelProviders']
+    put?: never
+    /** Add a provider to the catalog */
+    post: operations['createChannelProvider']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/channel-providers/{providerId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /** Rename a catalog provider — every interaction referencing it updates implicitly */
+    patch: operations['updateChannelProvider']
+    trace?: never
+  }
+  '/contact-tags': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** The business's tag catalog (for autocomplete and tag management) */
+    get: operations['listContactTags']
+    put?: never
+    /** Create a catalog tag */
+    post: operations['createContactTag']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/contact-tags/{tagId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /** Rename or recolor a catalog tag — every contact wearing it updates implicitly */
+    patch: operations['updateContactTag']
+    trace?: never
+  }
+  '/contacts/{contactId}/tags': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Assign a tag to a contact (by id, or by name to create-and-assign in one step) */
+    post: operations['assignContactTag']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/contacts/{contactId}/tags/{tagId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /** Remove a tag from a contact — the catalog tag itself is not deleted */
+    delete: operations['unassignContactTag']
     options?: never
     head?: never
     patch?: never
@@ -671,7 +880,7 @@ export interface paths {
     }
     /**
      * List Inbox threads
-     * @description CONTACT and ADVERTISEMENT threads together, most-recent-activity first. A CONTACT thread's preview/messages are read live from Interaction joined back to Message — real communications are never copied into a second row (see InboxService's own doc comment). Known limitation: no inbound-reply capture exists yet, so CONTACT threads only ever show outbound sent messages.
+     * @description CONTACT, BUSINESS, and object/system threads together, most-recent-activity first. A CONTACT thread's preview/messages are read live from Interaction joined back to Message — real communications are never copied into a second row (see InboxService's own doc comment). Known limitation: no inbound-reply capture exists yet, so CONTACT threads only ever show outbound sent messages.
      */
     get: operations['listInboxThreads']
     put?: never
@@ -713,6 +922,26 @@ export interface paths {
      * @description Sets the thread's read watermark to now. Thread-level only — no per-message read state.
      */
     post: operations['markInboxThreadRead']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/inbox/threads/{threadId}/reply': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Reply to a native site conversation
+     * @description Available only on BUSINESS threads with an authenticated peer; guest messages and system/object threads are one-way.
+     */
+    post: operations['replyToInboxThread']
     delete?: never
     options?: never
     head?: never
@@ -1358,11 +1587,35 @@ export interface paths {
     get: operations['getAdvertisement']
     put?: never
     post?: never
-    delete?: never
+    /**
+     * Delete advertisement
+     * @description Soft-deletes the advertisement. Active and paused destinations must be ended first.
+     */
+    delete: operations['deleteAdvertisement']
     options?: never
     head?: never
     /** Update advertisement */
     patch: operations['updateAdvertisement']
+    trace?: never
+  }
+  '/advertisements/{advertisementId}/publish': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Publish an organic embed version of the advertisement
+     * @description clickBehavior/destinationUrl are optional overrides — when omitted, clickBehavior defaults to URL if the Advertisement has its own destinationUrl set (else HOST), and destinationUrl defaults to the Advertisement's own destinationUrl.
+     */
+    post: operations['publishAdvertisement']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
     trace?: never
   }
   '/advertisements/{advertisementId}/runs': {
@@ -2009,6 +2262,332 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/b/{slug}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Serve public business profile
+     * @description A public, mobile-first business front led by the business's artwork and name, followed by consistent contact actions, location/hours/industry metadata, description, audience, and portfolio imagery. River activity, follower controls, and social-feed UI are deliberately not rendered here. 404 if no business has this slug. Content-negotiated: `Accept: application/json` returns the data shape below for the SPA's `/b/:slug` route.
+     */
+    get: operations['servePublicBusinessProfile']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/b/{slug}/messages': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Send a native site message from a business profile
+     * @description Sends directly into the profiled business's omni inbox. A recognized logged-in business creates a replyable business-to-business conversation mirrored in both inboxes. An anonymous visitor creates a one-way guest message with no reply capability.
+     */
+    post: operations['sendBusinessProfileMessage']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/river': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Serve public River feed
+     * @description Reverse-chronological, cross-business feed of non-deleted River posts. No impression is recorded for a feed load — only opening a permalink counts as an impression. Recognizes a logged-in viewer via the session cookie when this request lands on the same origin the cookie was issued for (see lib/riverViewer.ts) — the rendered React/Follow controls and the `following` filter only ever appear for a recognized viewer.
+     */
+    get: operations['serveRiverFeed']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/river/feed': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * River feed as JSON (the canonical feed API — see RiverFeedItem)
+     * @description Same assembly as GET /river (same fetch, same freshness-first order with a soft same-business anti-repeat rule, same deterministic sponsored insertion — see RiverFeedService#assembleFeed) returned as JSON instead of HTML. Powers the public page's own infinite-scroll and polling; not consumed by the authenticated app. `after` switches to polling mode: a small, unassembled "what's newer than this" preview (no sponsored insertion, no anti-repeat) for a "N new posts" banner — `cursor` and `after` are mutually exclusive, `after` wins if both are sent.
+     */
+    get: operations['getRiverFeed']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/river/posts': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List the current business's own River posts */
+    get: operations['listRiverPosts']
+    put?: never
+    /**
+     * Create a River post
+     * @description type=AD requires advertisementId and pins the Advertisement's current PublishedAdvertisementVersion at creation time — 400 if it has never been published. type=TEXT must not set advertisementId. Posts are immutable once created; there is no update operation.
+     */
+    post: operations['createRiverPost']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/river/posts/{riverPostId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Serve River post permalink
+     * @description Renders one post and records an IMPRESSION engagement event (both content-negotiated branches record it — a view is a view regardless of format). 404 if missing or deleted. `Accept: application/json` returns the post as a RiverFeedItem instead of HTML — the SPA's own /river/posts/:id route (see the "River comments" plan doc) is a second consumer of this same lookup, not a reimplementation. The comment thread itself is fetched separately via GET /river/posts/{riverPostId}/comments, not bundled into this response.
+     */
+    get: operations['serveRiverPost']
+    put?: never
+    post?: never
+    /** Delete (soft) a River post */
+    delete: operations['deleteRiverPost']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/river/posts/{riverPostId}/comments': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List a River post's comments
+     * @description Top-level comments newest-first, each with its own replies (oldest-first — reads as a conversation) — one level of nesting only, see the "River comments" plan doc. Public, same as reading the feed itself. `limit: 2` is how the inline feed-card preview asks for just the latest two; the full-thread permalink page requests without a limit (paginated via cursor once a thread grows past the default page size).
+     */
+    get: operations['listRiverComments']
+    put?: never
+    /**
+     * Comment on a River post, or reply to a top-level comment
+     * @description Not owner-restricted — any authenticated business can comment on any post, same as reacting. Set `parentCommentId` to reply; 400 if that comment is itself a reply (one level of nesting only) or 404 if it doesn't belong to this post.
+     */
+    post: operations['createRiverComment']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/river/posts/{riverPostId}/comments/{commentId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Delete (soft) a comment or reply
+     * @description Own comment only — 404 for anyone else's, same convention as deleteRiverPost.
+     */
+    delete: operations['deleteRiverComment']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/river/posts/{riverPostId}/click': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Tracked click-through redirect for an AD-type River post
+     * @description Records a CLICK engagement event and redirects to the pinned PublishedAdvertisementVersion's destinationUrl. 404 if the post has no click-through destination.
+     */
+    get: operations['trackRiverClick']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/river/posts/{riverPostId}/visit-profile': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Tracked profile-visit redirect
+     * @description Records a PROFILE_VISIT engagement event and redirects to the posting business's public profile (GET /b/{slug}). This is the literal href behind a post's business name/logo.
+     */
+    get: operations['trackRiverProfileVisit']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/river/posts/{riverPostId}/react': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * React to a River post
+     * @description Idempotent — reacting again is a no-op. Content-negotiated: the plain HTML form the rendered page shows a recognized viewer sends no `Accept: application/json` header and gets the `302` redirect (see `returnTo`); the authenticated SPA's River page sends `Accept: application/json` and gets the `200` JSON body instead — same underlying service call either way.
+     */
+    post: operations['reactToRiverPost']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/river/posts/{riverPostId}/unreact': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Remove a reaction from a River post
+     * @description Idempotent — a no-op if the viewer had not reacted. Same `Accept: application/json` content negotiation as reactToRiverPost.
+     */
+    post: operations['unreactToRiverPost']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/river/businesses/{businessId}/follow': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Follow a business on River
+     * @description Idempotent — following again is a no-op. 400 if businessId is the caller's own business. Same `Accept: application/json` content negotiation as reactToRiverPost.
+     */
+    post: operations['followRiverBusiness']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/river/businesses/{businessId}/unfollow': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Unfollow a business on River
+     * @description Idempotent — a no-op if the viewer was not following. Same `Accept: application/json` content negotiation as reactToRiverPost.
+     */
+    post: operations['unfollowRiverBusiness']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/river/posts/{riverPostId}/pin': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Pin a River post to the caller's own public profile (the "Featured" section)
+     * @description 404 if the post isn't the caller's own. Singular, not additive — pinning replaces whatever was pinned before (Business.pinnedRiverPostId is one nullable column). Same `Accept: application/json` content negotiation as reactToRiverPost.
+     */
+    post: operations['pinRiverPost']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/river/posts/{riverPostId}/unpin': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Unpin a River post from the caller's own public profile
+     * @description Idempotent — a no-op if this post wasn't the one currently pinned. Same `Accept: application/json` content negotiation as reactToRiverPost.
+     */
+    post: operations['unpinRiverPost']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/forms': {
     parameters: {
       query?: never
@@ -2091,6 +2670,40 @@ export interface paths {
     }
     /** List leads */
     get: operations['listLeads']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/leads/queue': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** The morning work queue: who's new, uncontacted, needs follow-up, overdue, or engaged */
+    get: operations['getLeadQueue']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/leads/insights': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Time-to-first-contact, touches-to-conversion, channel mix, and pipeline funnel analytics */
+    get: operations['getLeadInsights']
     put?: never
     post?: never
     delete?: never
@@ -2516,6 +3129,17 @@ export interface paths {
 export type webhooks = Record<string, never>
 export interface components {
   schemas: {
+    EmbedDeployment: {
+      id: string
+      publicId: string
+      /** @enum {string} */
+      objectType: 'PAGE' | 'ADVERTISEMENT'
+      /** @enum {string} */
+      status: 'ACTIVE' | 'INACTIVE'
+      /** @enum {string} */
+      domainPolicy: 'ANY' | 'ALLOWLIST'
+      allowedOrigins?: string[]
+    }
     PaginatedMeta: {
       hasMore: boolean
       nextCursor: string | null
@@ -2566,8 +3190,20 @@ export interface components {
       targetAudience?: string | null
       socialProfiles: components['schemas']['SocialProfileLink'][]
       logoUrl?: string | null
+      /** @description "What we do" — the profile About section, distinct from targetAudience ("who we serve"). */
+      description?: string | null
+      phone?: string | null
+      email?: string | null
+      /** @description Freeform — no structured open/close schedule concept exists yet. */
+      hours?: string | null
+      /** @description Ordered, already-resolved image URLs for the profile Gallery section — not asset ids (mirrors logoUrl). */
+      galleryImageUrls?: string[]
       /** Format: date-time */
       identityCompletedAt?: string | null
+      /** @description Public profile handle — GET /b/{slug}. Null only for a pre-2026-09-01 row not yet backfilled; not user-editable. */
+      slug?: string | null
+      /** @description Full public URL of GET /b/{slug}. Null iff slug is null. */
+      publicProfileUrl?: string | null
     }
     /** @description Partial update — an omitted field is left unchanged; socialProfiles, if sent, replaces the whole list. */
     UpdateBusinessInput: {
@@ -2577,6 +3213,11 @@ export interface components {
       targetAudience?: string | null
       socialProfiles?: components['schemas']['SocialProfileLink'][]
       logoUrl?: string | null
+      description?: string | null
+      phone?: string | null
+      email?: string | null
+      hours?: string | null
+      galleryImageUrls?: string[]
     }
     Billing: {
       subscriptionStatus: string | null
@@ -2602,7 +3243,11 @@ export interface components {
       phone?: string | null
       company?: string | null
       source?: string | null
+      /** @description Legacy shape — tag names only, catalog-backed under the hood. Kept for the plain comma-separated tags field on Create/UpdateContactInput. See tagRefs for the real catalog reference (id + color) the tag picker and filtering use. */
       tags?: string[]
+      tagRefs?: components['schemas']['ContactTagRef'][]
+      avatarAssetId?: string | null
+      avatarUrl?: string | null
       emailEligible: boolean
       smsEligible: boolean
       /** Format: date-time */
@@ -2615,13 +3260,67 @@ export interface components {
       revenue?: number
       provenance?: components['schemas']['FieldProvenance'][]
       records?: components['schemas']['ContactSourceRecord'][]
+      /** @description The contact's open lead, or their most recently closed one if none is open — the "lead card" data. Only populated on GET /contacts/{contactId} (detail); never on the collection list, same discipline as ContactSale's own dedicated endpoint rather than expanding the list response. */
+      currentLead?: components['schemas']['ContactCurrentLead'] | null
+    }
+    ContactCurrentLead: {
+      id: string
+      /** @enum {string} */
+      stage: 'NEW' | 'CONTACTED' | 'ENGAGED' | 'QUALIFIED' | 'PROPOSAL' | 'WON' | 'LOST'
+      /** @enum {string} */
+      sourceType: 'MESSAGE' | 'DEPLOYMENT' | 'AD_RUN' | 'AD_UNIT' | 'MANUAL' | 'IMPORT'
+      /** Format: date-time */
+      openedAt: string
+      /** Format: date-time */
+      closedAt: string | null
+      nextActionNote?: string | null
+      /** Format: date-time */
+      nextActionAt?: string | null
+      /** @description Whether any outbound activity (email/text/call/meeting/webinar/event/ follow-up) has happened since this lead opened. */
+      contacted: boolean
+      /** Format: date-time */
+      lastTouchAt: string | null
+      activityCounts: components['schemas']['ContactActivityCounts']
+    }
+    /** @description Effort invested on this lead, counted from Interaction rows occurring within its open window (openedAt through closedAt, or now if still open) — Interaction has no leadId, so a time-window scope is the pragmatic proxy rather than a new FK. See CLAUDE.md's CRM pipeline/activity slice. */
+    ContactActivityCounts: {
+      email: number
+      text: number
+      call: number
+      meeting: number
+      /** @description WEBINAR + EVENT combined. */
+      webinarEvent: number
+    }
+    /** @description Manually logged effort — the salesperson recording real-world activity (a call, a meeting, a webinar/event, a follow-up, or a plain note) the app has no automatic way to observe. Deliberately cannot log the system-of-record types (EMAIL_SENT, SALE_RECORDED, etc.) — those are written only by the code paths that actually performed them. */
+    LogContactActivityInput: {
+      /** @enum {string} */
+      type: 'CALL_LOGGED' | 'MEETING' | 'WEBINAR' | 'EVENT' | 'FOLLOW_UP' | 'NOTE'
+      /** @description Auto-derived from `type` when omitted (CALL_LOGGED->CALL, MEETING->MEETING, etc.) — set explicitly only to override. */
+      channel?: components['schemas']['Channel']
+      /** @description An existing catalog provider. Use providerName instead to find-or-create by name in one step; at most one of the two should be sent. */
+      providerId?: string
+      providerName?: string
+      note?: string
+      /**
+       * Format: date-time
+       * @description Defaults to now — set this when logging something that already happened.
+       */
+      occurredAt?: string
     }
     FieldProvenance: {
       /** @enum {string} */
       field: 'name' | 'email' | 'phone' | 'company'
       value: string
       /** @enum {string} */
-      source: 'LOOPIE' | 'HUBSPOT' | 'SALESFORCE' | 'PIPEDRIVE' | 'SHOPIFY' | 'SQUARE' | 'CSV'
+      source:
+        | 'LOOPIE'
+        | 'HUBSPOT'
+        | 'SALESFORCE'
+        | 'PIPEDRIVE'
+        | 'SHOPIFY'
+        | 'WOOCOMMERCE'
+        | 'SQUARE'
+        | 'CSV'
     }
     ContactSourceRecord: {
       id: string
@@ -2635,6 +3334,73 @@ export interface components {
         [key: string]: string
       }
     }
+    ContactNote: {
+      id: string
+      contactId: string
+      authorUserId: string
+      body: string
+      /** Format: date-time */
+      pinnedAt?: string | null
+      /** Format: date-time */
+      createdAt: string
+      /** Format: date-time */
+      updatedAt: string
+    }
+    CreateContactNoteInput: {
+      body: string
+    }
+    UpdateContactNoteInput: {
+      body?: string
+      pinned?: boolean
+    }
+    ContactSale: components['schemas']['Sale'] & {
+      /** @description Minimal preview of the linked Lead/opportunity, resolved server-side so the page doesn't need a second fetch per row. */
+      lead?: {
+        id: string
+        /** @enum {string} */
+        stage: 'NEW' | 'CONTACTED' | 'ENGAGED' | 'QUALIFIED' | 'PROPOSAL' | 'WON' | 'LOST'
+      } | null
+    }
+    ContactSalesSummary: {
+      /** @description Sum of non-reversed sales — identical semantics to Contact.revenue. */
+      totalRevenue: number
+      /** @description Count of non-reversed sales. A reversed sale still appears in `data` (with reversedAt set) but is excluded from this count and from totalRevenue, matching how Contact.revenue already treats reversed sales. */
+      saleCount: number
+      /** Format: date-time */
+      lastSaleDate: string | null
+    }
+    /** @enum {string} */
+    ContactTagColor: 'sky' | 'violet' | 'emerald' | 'amber' | 'rose' | 'cyan' | 'pink' | 'slate'
+    ContactTag: {
+      id: string
+      businessId: string
+      name: string
+      color: components['schemas']['ContactTagColor']
+      /** Format: date-time */
+      createdAt: string
+      /** @description Number of contacts currently wearing this tag. Only present on the catalog list endpoint. */
+      usageCount?: number
+    }
+    /** @description Compact catalog reference embedded on a Contact — everything a tag chip needs to render without a second fetch. */
+    ContactTagRef: {
+      id: string
+      name: string
+      color: components['schemas']['ContactTagColor']
+    }
+    CreateContactTagInput: {
+      name: string
+      color?: components['schemas']['ContactTagColor']
+    }
+    UpdateContactTagInput: {
+      name?: string
+      color?: components['schemas']['ContactTagColor']
+    }
+    /** @description Exactly one of tagId or name is required (validated app-side, same "exactly one of two" convention as AttributionEvent.deploymentId/adUnitId elsewhere in this contract). tagId assigns an existing catalog tag (404 if it doesn't belong to this business); name finds-or-creates the tag by name — the "create new tag inline" path — using color only if a new tag is actually created. */
+    AssignContactTagInput: {
+      tagId?: string
+      name?: string
+      color?: components['schemas']['ContactTagColor']
+    }
     CreateContactInput: {
       name: string
       /** Format: email */
@@ -2643,6 +3409,8 @@ export interface components {
       company?: string
       source?: string
       tags?: string[]
+      /** @description An Asset already uploaded via POST /assets. */
+      avatarAssetId?: string
       /** @default true */
       emailEligible: boolean
       /** @default true */
@@ -2683,6 +3451,8 @@ export interface components {
       phone?: string | null
       company?: string | null
       tags?: string[]
+      /** @description Set null to remove the avatar. */
+      avatarAssetId?: string | null
       emailEligible?: boolean
       smsEligible?: boolean
     }
@@ -2706,17 +3476,21 @@ export interface components {
     }
     CrmCatalogEntry: {
       /** @enum {string} */
-      provider: 'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'SQUARE' | 'PIPEDRIVE'
+      provider:
+        'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'WOOCOMMERCE' | 'WEBHOOK' | 'SQUARE' | 'PIPEDRIVE'
       label: string
       capabilities: components['schemas']['CrmCapabilities']
-      oauth?: boolean
-      configured?: boolean
+      oauth: boolean
+      configured: boolean
+      /** @enum {string} */
+      availability: 'LIVE' | 'COMING_SOON'
     }
     Integration: {
       id: string
       businessId: string
       /** @enum {string} */
-      provider: 'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'SQUARE' | 'PIPEDRIVE'
+      provider:
+        'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'WOOCOMMERCE' | 'WEBHOOK' | 'SQUARE' | 'PIPEDRIVE'
       label?: string | null
       externalAccountId?: string | null
       /** @enum {string} */
@@ -2725,6 +3499,16 @@ export interface components {
       syncDirection: 'INBOUND'
       /** Format: date-time */
       lastSyncAt?: string | null
+      /** Format: date-time */
+      lastSuccessfulSyncAt?: string | null
+      /** Format: date-time */
+      lastSyncAttemptAt?: string | null
+      lastSyncError?: string | null
+      syncHasMore?: boolean
+      /** @enum {string|null} */
+      lastSyncStatus?: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | null
+      /** Format: date-time */
+      lastSyncJobAt?: string | null
       lastSyncCreated?: number | null
       lastSyncLinked?: number | null
       lastSyncAmbiguous?: number | null
@@ -2732,6 +3516,10 @@ export interface components {
       capabilities?: components['schemas']['CrmCapabilities']
       oauth?: boolean
       configured?: boolean
+      /** Format: uri */
+      webhookUrl?: string | null
+      /** @description Returned only when a webhook is created. */
+      webhookSecret?: string | null
       /** Format: date-time */
       createdAt: string
     }
@@ -2741,14 +3529,50 @@ export interface components {
       ambiguous: number
       skipped: number
       orders: number
+      hasMore: boolean
       /** Format: date-time */
       lastSyncAt?: string
     }
+    IntegrationPreview: {
+      newContacts: number
+      matchedContacts: number
+      duplicates: number
+      orders: number
+      revenue: number
+      truncated: boolean
+    }
     CreateIntegrationInput: {
       /** @enum {string} */
-      provider: 'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'SQUARE' | 'PIPEDRIVE'
+      provider: 'WOOCOMMERCE' | 'WEBHOOK'
       label?: string
       externalAccountId?: string
+      /** Format: uri */
+      storeUrl?: string
+      consumerKey?: string
+      consumerSecret?: string
+    }
+    InboundWebhookInput: {
+      eventId: string
+      /**
+       * @default CONTACT_UPDATED
+       * @enum {string}
+       */
+      type: 'CONTACT_CREATED' | 'CONTACT_UPDATED' | 'ORDER_CREATED' | 'PAYMENT_COMPLETED'
+      /** Format: date-time */
+      occurredAt?: string
+      amount?: number
+      productOrService?: string
+      contact: {
+        externalId?: string
+        name?: string
+        /** Format: email */
+        email?: string
+        phone?: string
+        company?: string
+      }
+      payload?: {
+        [key: string]: unknown
+      }
     }
     UpdateIntegrationInput: {
       /** @enum {string} */
@@ -3413,12 +4237,20 @@ export interface components {
       id: string
       businessId: string
       name: string
+      /** @description The Feed post's body copy — shown above the media in the Feed preview and checked against each placement's text-length capability. */
+      primaryText?: string | null
+      /** @description Call-to-action button label (e.g. "Learn More", "Book Now") shown on the Feed preview's CTA row. */
+      ctaLabel?: string | null
+      /** @description Where the CTA/click leads. Also the default destinationUrl a publish call uses when none is explicitly passed. */
+      destinationUrl?: string | null
       assetIds: string[]
       assets?: components['schemas']['Asset'][]
       /** Format: date-time */
       createdAt: string
       /** Format: date-time */
       updatedAt: string
+      /** Format: date-time */
+      lastPublishedAt?: string | null
       /**
        * @description Derived from current AdRuns. DRAFT = none, READY = created but not live, RUNNING = at least one active buy, PAUSED = buys exist but none active, FAILED = a buy failed.
        * @enum {string}
@@ -3435,12 +4267,151 @@ export interface components {
     }
     CreateAdvertisementInput: {
       name: string
+      primaryText?: string
+      ctaLabel?: string
+      destinationUrl?: string
       assetIds?: string[]
     }
     UpdateAdvertisementInput: {
       name?: string
+      primaryText?: string | null
+      ctaLabel?: string | null
+      destinationUrl?: string | null
       /** @description Wholesale replace, same convention as Campaign.creativeIds — omit to leave media unchanged. */
       assetIds?: string[]
+    }
+    /** @description A native River post — the literal single-provider content entity (see the River proposal pack in apps/web/public/river-b2b-social-proposal). Immutable once created: type=AD/PAGE posts pin the Advertisement/LandingPage's published version at creation time and never follow a later republish. Slice 6 adds native composer richness (imageAssetIds/ videoAssetId — TEXT-only — plus linkUrl/CTA, available on any type). */
+    RiverPost: {
+      id: string
+      businessId: string
+      /** @enum {string} */
+      type: 'TEXT' | 'AD' | 'PAGE'
+      body: string
+      advertisementId?: string | null
+      publishedAdvertisementVersionId?: string | null
+      landingPageId?: string | null
+      publishedPageVersionId?: string | null
+      /** @description TEXT-only — a share's visual comes from the shared object instead. */
+      imageAssetIds?: string[]
+      videoAssetId?: string | null
+      linkUrl?: string | null
+      linkPreviewTitle?: string | null
+      linkPreviewDescription?: string | null
+      linkPreviewImageUrl?: string | null
+      ctaLabel?: string | null
+      ctaUrl?: string | null
+      /** Format: date-time */
+      createdAt: string
+      /** Format: date-time */
+      deletedAt?: string | null
+      /** @description Full public URL of GET /river/posts/{id}. */
+      permalinkUrl: string
+      reactionCount?: number
+    }
+    /** @description body is optional for AD/PAGE (a caption on top of the shared object) but a TEXT post needs at least one of body/imageAssetIds/videoAssetId/linkUrl — see RiverPostService#create. */
+    CreateRiverPostInput: {
+      /** @enum {string} */
+      type: 'TEXT' | 'AD' | 'PAGE'
+      body?: string
+      /** @description Required when type=AD; must be omitted otherwise. */
+      advertisementId?: string
+      /** @description Required when type=PAGE (must be PUBLISHED and owned by the caller); must be omitted otherwise. */
+      landingPageId?: string
+      /** @description type=TEXT only. */
+      imageAssetIds?: string[]
+      /** @description type=TEXT only. */
+      videoAssetId?: string
+      /** @description Any type. Triggers a server-side preview fetch, frozen at creation. */
+      linkUrl?: string
+      /** @description Must be set together with ctaUrl. */
+      ctaLabel?: string
+      /** @description Must be set together with ctaLabel. */
+      ctaUrl?: string
+    }
+    /** @description The one canonical shape every River feed item renders through — see the River feed v2 and slice-6 plan docs. SPONSORED is a presentation-time label from deterministic feed assembly, never a stored RiverPost.type value. */
+    RiverFeedItem: {
+      id: string
+      /** @enum {string} */
+      type: 'TEXT' | 'AD' | 'PAGE' | 'SPONSORED'
+      business: {
+        id: string
+        name: string
+        slug: string | null
+        logoUrl?: string | null
+      }
+      /** Format: date-time */
+      publishedAt: string
+      /** @description Not populated by any current source — reserved for system-generated activity types. */
+      headline?: string
+      body?: string
+      /** @description A native TEXT post can have both — a VIDEO entry (at most one) listed first, followed by 1+ IMAGE entries for the gallery. An AD post has at most one IMAGE entry (its creative). */
+      media?: {
+        /** @enum {string} */
+        type: 'IMAGE' | 'VIDEO'
+        url: string
+      }[]
+      linkPreview?: {
+        url: string
+        title?: string | null
+        description?: string | null
+        imageUrl?: string | null
+      }
+      cta?: {
+        label: string
+        url: string
+      }
+      /** @description The one tracked click-through, whatever it resolves to server-side (cta > AD destination > shared PAGE's hosted url > linkUrl). */
+      clickUrl?: string
+      pageInfo?: {
+        name: string
+        slug: string
+      }
+      metrics: {
+        reactions: number
+        /** @description Top-level comments only — see GET /river/posts/{riverPostId}/comments. */
+        comments: number
+      }
+      /** @description Omitted entirely for an anonymous request — see lib/riverViewer.ts. */
+      viewer?: {
+        reacted?: boolean
+        following?: boolean
+      }
+    }
+    RiverFeedResponse: {
+      items: components['schemas']['RiverFeedItem'][]
+      nextCursor: string | null
+      /** Format: date-time */
+      generatedAt: string
+    }
+    RiverCommentReply: {
+      id: string
+      riverPostId: string
+      business: {
+        id: string
+        name: string
+        slug: string | null
+        logoUrl?: string | null
+      }
+      body: string
+      parentCommentId: string
+      /** Format: date-time */
+      createdAt: string
+    }
+    RiverComment: {
+      id: string
+      riverPostId: string
+      business: {
+        id: string
+        name: string
+        slug: string | null
+        logoUrl?: string | null
+      }
+      body: string
+      /** @description Always null for a top-level comment. */
+      parentCommentId: string | null
+      /** Format: date-time */
+      createdAt: string
+      replies: components['schemas']['RiverCommentReply'][]
     }
     AdRun: {
       id: string
@@ -3550,7 +4521,7 @@ export interface components {
     InboxThreadSummary: {
       id: string
       /** @enum {string} */
-      type: 'CONTACT' | 'ADVERTISEMENT' | 'PAGE' | 'INTEGRATION' | 'SYSTEM'
+      type: 'CONTACT' | 'ADVERTISEMENT' | 'PAGE' | 'INTEGRATION' | 'BUSINESS' | 'SYSTEM'
       subject: string
       contactId?: string | null
       advertisementId?: string | null
@@ -3559,11 +4530,15 @@ export interface components {
       landingPageId?: string | null
       /** @description Only set when type is INTEGRATION. */
       integrationPlatform?: string | null
+      /** @description The other participant when type is BUSINESS; null for one-way guest messages. */
+      peerBusinessId?: string | null
+      /** @description True only for authenticated business-to-business site conversations. */
+      canReply: boolean
       /**
        * @description The most recent message's kind, for a list-row preview icon/label.
        * @enum {string|null}
        */
-      previewKind?: 'SYSTEM' | 'EMAIL' | 'SMS' | null
+      previewKind?: 'SYSTEM' | 'EMAIL' | 'SMS' | 'SITE' | null
       previewBody?: string | null
       /** @description True when the thread's most recent message postdates its read watermark. */
       unread: boolean
@@ -3576,7 +4551,7 @@ export interface components {
     InboxMessage: {
       id: string
       /** @enum {string} */
-      kind: 'SYSTEM' | 'EMAIL' | 'SMS'
+      kind: 'SYSTEM' | 'EMAIL' | 'SMS' | 'SITE'
       /** @enum {string} */
       direction: 'INBOUND' | 'OUTBOUND' | 'INTERNAL'
       subject?: string | null
@@ -3781,6 +4756,10 @@ export interface components {
       theme?: {
         [key: string]: unknown
       } | null
+      /** @description Presentation only — section visibility/order per slot group. Never content values. */
+      layoutConfig?: {
+        [key: string]: unknown
+      } | null
       publishedVersionId?: string | null
       /** @description Public live URL — GET /p/{slug}. 404 until the page is published. */
       hostedUrl?: string
@@ -3835,6 +4814,9 @@ export interface components {
       theme?: {
         [key: string]: unknown
       }
+      layoutConfig?: {
+        [key: string]: unknown
+      }
     }
     UpdateLandingPageInput: {
       name?: string
@@ -3848,6 +4830,9 @@ export interface components {
       theme?: {
         [key: string]: unknown
       } | null
+      layoutConfig?: {
+        [key: string]: unknown
+      } | null
     }
     PublishedPageVersion: {
       id: string
@@ -3857,6 +4842,9 @@ export interface components {
         [key: string]: unknown
       }
       theme?: {
+        [key: string]: unknown
+      } | null
+      layoutConfig?: {
         [key: string]: unknown
       } | null
       formId?: string | null
@@ -3899,7 +4887,8 @@ export interface components {
       utmMedium?: string
       utmCampaign?: string
       utmContent?: string
-      utmTerm?: string
+      idempotencyKey: string
+      embedInstanceId?: string
     }
     SubmitLandingPageFormResult: {
       submissionId: string
@@ -4001,12 +4990,63 @@ export interface components {
         [key: string]: unknown
       }
     }
+    /** @description Management-facing analytics, computed all-time from Lead's own fields and the existing Interaction timeline — no new state machine, no stage-history table. See lib/leadInsights.ts for exactly how each number is derived, including the deliberate simplifications (LOST leads excluded from stageConversion beyond NEW; contactedWithin only judges leads old enough to have had the full window). */
+    LeadInsights: {
+      totalLeads: number
+      timeToFirstContact: {
+        averageHours: number | null
+        medianHours: number | null
+        /** @description Leads that have actually been contacted — the population the average/ median are computed over. */
+        sampleSize: number
+      }
+      contactedWithin: {
+        within1hPct: number
+        within24hPct: number
+      }
+      avgTouchesBeforeEngaged: number | null
+      avgTouchesBeforeWon: number | null
+      channelMix: {
+        channel: components['schemas']['Channel']
+        count: number
+        pct: number
+      }[]
+      /** @description Percent of currently open leads with a past-due next action. */
+      overdueFollowUpRate: number
+      stageConversion: {
+        /** @enum {string} */
+        stage: 'NEW' | 'CONTACTED' | 'ENGAGED' | 'QUALIFIED' | 'PROPOSAL' | 'WON'
+        reachedCount: number
+        pct: number
+      }[]
+    }
+    /** @description One row in the morning work queue (GET /leads/queue) — an open lead enriched with the same contacted/last-touch computation as Contact.currentLead, plus a computed bucket classification. A lead may appear in more than one bucket (e.g. NEW and NEVER_CONTACTED almost always coincide) — the frontend groups/tabs by bucket, this endpoint doesn't force a single mutually-exclusive category. */
+    LeadQueueItem: {
+      id: string
+      contact: {
+        id: string
+        name: string
+        avatarUrl?: string | null
+      }
+      /** @enum {string} */
+      stage: 'NEW' | 'CONTACTED' | 'ENGAGED' | 'QUALIFIED' | 'PROPOSAL' | 'WON' | 'LOST'
+      /** @enum {string} */
+      sourceType: 'MESSAGE' | 'DEPLOYMENT' | 'AD_RUN' | 'AD_UNIT' | 'MANUAL' | 'IMPORT'
+      /** Format: date-time */
+      openedAt: string
+      contacted: boolean
+      /** Format: date-time */
+      lastTouchAt: string | null
+      nextActionNote: string | null
+      /** Format: date-time */
+      nextActionAt: string | null
+      buckets: ('NEW' | 'NEVER_CONTACTED' | 'NEEDS_FOLLOW_UP' | 'OVERDUE' | 'ENGAGED')[]
+    }
     Lead: {
       id: string
       businessId: string
       contactId: string
       /** @enum {string} */
-      stage: 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'QUOTED' | 'WON' | 'LOST'
+      stage: 'NEW' | 'CONTACTED' | 'ENGAGED' | 'QUALIFIED' | 'PROPOSAL' | 'WON' | 'LOST'
       owner?: string | null
       estimatedValue?: number | null
       /** @enum {string} */
@@ -4023,14 +5063,20 @@ export interface components {
       openedAt?: string
       /** Format: date-time */
       closedAt?: string | null
+      nextActionNote?: string | null
+      /** Format: date-time */
+      nextActionAt?: string | null
       /** Format: date-time */
       createdAt: string
     }
     UpdateLeadInput: {
       /** @enum {string} */
-      stage?: 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'QUOTED' | 'WON' | 'LOST'
+      stage?: 'NEW' | 'CONTACTED' | 'ENGAGED' | 'QUALIFIED' | 'PROPOSAL' | 'WON' | 'LOST'
       owner?: string | null
       estimatedValue?: number | null
+      nextActionNote?: string | null
+      /** Format: date-time */
+      nextActionAt?: string | null
     }
     Sale: {
       id: string
@@ -4089,17 +5135,50 @@ export interface components {
         | 'AD_CLICK'
         | 'FORM_SUBMITTED'
         | 'PAGE_VIEWED'
+        | 'MEETING'
+        | 'WEBINAR'
+        | 'EVENT'
+        | 'FOLLOW_UP'
       /** @enum {string|null} */
       sourceType?: 'MESSAGE' | 'DEPLOYMENT' | 'AD_RUN' | 'AD_UNIT' | 'MANUAL' | 'IMPORT' | null
       sourceMessageId?: string | null
       sourceDeploymentId?: string | null
       sourceAdRunId?: string | null
       sourceAdUnitId?: string | null
+      /** @description Additive enrichment on top of `type` — the Channel -> Provider -> Activity taxonomy's top layer. Null for pipeline/system types (STATUS_CHANGE, SALE_RECORDED, QUOTE_SENT, NOTE) and for REPLY unless known. */
+      channel?: components['schemas']['Channel'] | null
+      provider?: components['schemas']['ChannelProviderRef'] | null
       metadata?: {
         [key: string]: unknown
       } | null
       /** Format: date-time */
       occurredAt: string
+    }
+    /**
+     * @description The stable top-level layer of the Channel -> Provider -> Activity taxonomy — small and rarely-changing by design. Real products/tools (Mailchimp, LinkedIn, Zoom, ...) live one level down in ChannelProvider instead, so this list doesn't grow every time a business adopts a new tool.
+     * @enum {string}
+     */
+    Channel:
+      'EMAIL' | 'TEXT' | 'SOCIAL' | 'CALL' | 'MEETING' | 'WEBINAR' | 'EVENT' | 'FORM' | 'REFERRAL'
+    ChannelProvider: {
+      id: string
+      businessId: string
+      channel: components['schemas']['Channel']
+      name: string
+      /** @description Number of interactions logged against this provider. Only present on the catalog list endpoint. */
+      usageCount?: number
+    }
+    /** @description Compact catalog reference embedded on an Interaction. */
+    ChannelProviderRef: {
+      id: string
+      name: string
+    }
+    CreateChannelProviderInput: {
+      channel: components['schemas']['Channel']
+      name: string
+    }
+    UpdateChannelProviderInput: {
+      name: string
     }
     SubmitFormInput: {
       /** @description HMAC-signed visitor session token issued on click. */
@@ -4108,6 +5187,8 @@ export interface components {
       /** Format: email */
       email?: string
       phone?: string
+      idempotencyKey: string
+      embedInstanceId?: string
     }
     SubmitFormResult: {
       contactId?: string
@@ -4376,7 +5457,7 @@ export interface components {
       /** Format: date-time */
       acquiredAt: string
       /** @enum {string} */
-      stage: 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'QUOTED' | 'WON' | 'LOST'
+      stage: 'NEW' | 'CONTACTED' | 'ENGAGED' | 'QUALIFIED' | 'PROPOSAL' | 'WON' | 'LOST'
       /** @enum {string} */
       sourceType: 'DEPLOYMENT' | 'AD_RUN' | 'AD_UNIT'
       /** @enum {string|null} */
@@ -4685,6 +5766,9 @@ export interface components {
     Limit: number
     SearchQuery: string
     ContactId: string
+    ContactNoteId: string
+    ContactTagId: string
+    ChannelProviderId: string
     AudienceId: string
     AssetId: string
     TemplateId: string
@@ -4699,6 +5783,10 @@ export interface components {
     AdRunId: string
     InboxThreadId: string
     AdvertisementId: string
+    RiverPostId: string
+    RiverFollowedBusinessId: string
+    /** @description Where to redirect after the action — a River feed/permalink URL. Falls back to the acted-on post/business's own River URL if omitted. */
+    ReturnTo: string
     AdPlatform: 'META' | 'GOOGLE' | 'TIKTOK'
     LeadId: string
     SaleId: string
@@ -4711,7 +5799,7 @@ export interface components {
     AdSpendId: string
     CommissionId: string
     IntegrationId: string
-    CrmProviderParam: 'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'SQUARE' | 'PIPEDRIVE'
+    CrmProviderParam: 'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'WOOCOMMERCE' | 'SQUARE' | 'PIPEDRIVE'
     ExternalRecordId: string
     ActivityId: string
     ActivityViewId: string
@@ -4723,6 +5811,47 @@ export interface components {
 }
 export type $defs = Record<string, never>
 export interface operations {
+  getOrCreateEmbedDeployment: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @enum {string} */
+          objectType: 'PAGE' | 'ADVERTISEMENT'
+          objectId: string
+        }
+      }
+    }
+    responses: {
+      /** @description EmbedDeployment DTO */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['EmbedDeployment']
+          }
+        }
+      }
+      /** @description EmbedDeployment DTO */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['EmbedDeployment']
+          }
+        }
+      }
+    }
+  }
   getActivityStream: {
     parameters: {
       query?: {
@@ -5108,7 +6237,10 @@ export interface operations {
         cursor?: components['parameters']['Cursor']
         limit?: components['parameters']['Limit']
         q?: components['parameters']['SearchQuery']
-        tag?: string
+        /** @description Filter to contacts wearing these tag(s). Combine with tagMode. */
+        tagIds?: string[]
+        /** @description AND ("has all selected tags", the default — more useful for segmentation) or OR ("has any selected tag"). Explicit rather than ambiguous, per product decision. */
+        tagMode?: 'AND' | 'OR'
         lifecycleStatus?: 'LEAD' | 'CUSTOMER' | 'PAST_CUSTOMER' | 'NONE'
         /** @description Return contacts whose first-seen source matches this value. */
         source?: string
@@ -5413,6 +6545,61 @@ export interface operations {
       }
     }
   }
+  previewIntegration: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integrationId: components['parameters']['IntegrationId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Import preview */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['IntegrationPreview']
+          }
+        }
+      }
+    }
+  }
+  ingestInboundWebhook: {
+    parameters: {
+      query?: never
+      header: {
+        /** @description Bearer token returned once when the inbound webhook integration is created. */
+        Authorization: string
+      }
+      path: {
+        integrationId: components['parameters']['IntegrationId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['InboundWebhookInput']
+      }
+    }
+    responses: {
+      /** @description Event accepted; replaying the same eventId is safe. */
+      202: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['ExternalEvent']
+          }
+        }
+      }
+    }
+  }
   ingestExternalEvent: {
     parameters: {
       query?: never
@@ -5653,6 +6840,384 @@ export interface operations {
           'application/json': {
             data: components['schemas']['Interaction'][]
             meta: components['schemas']['PaginatedMeta']
+          }
+        }
+      }
+    }
+  }
+  logContactActivity: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        contactId: components['parameters']['ContactId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['LogContactActivityInput']
+      }
+    }
+    responses: {
+      /** @description The logged interaction */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['Interaction']
+          }
+        }
+      }
+    }
+  }
+  listContactNotes: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor returned by the previous page. */
+        cursor?: components['parameters']['Cursor']
+        limit?: components['parameters']['Limit']
+      }
+      header?: never
+      path: {
+        contactId: components['parameters']['ContactId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated notes, pinned first */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['ContactNote'][]
+            meta: components['schemas']['PaginatedMeta']
+          }
+        }
+      }
+    }
+  }
+  createContactNote: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        contactId: components['parameters']['ContactId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateContactNoteInput']
+      }
+    }
+    responses: {
+      /** @description Note created */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['ContactNote']
+          }
+        }
+      }
+    }
+  }
+  deleteContactNote: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        contactId: components['parameters']['ContactId']
+        noteId: components['parameters']['ContactNoteId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Note deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: Record<string, never> | null
+          }
+        }
+      }
+    }
+  }
+  updateContactNote: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        contactId: components['parameters']['ContactId']
+        noteId: components['parameters']['ContactNoteId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateContactNoteInput']
+      }
+    }
+    responses: {
+      /** @description Updated note */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['ContactNote']
+          }
+        }
+      }
+    }
+  }
+  listContactSales: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor returned by the previous page. */
+        cursor?: components['parameters']['Cursor']
+        limit?: components['parameters']['Limit']
+      }
+      header?: never
+      path: {
+        contactId: components['parameters']['ContactId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated sale history (most recent sale date first) plus a revenue summary */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['ContactSale'][]
+            summary: components['schemas']['ContactSalesSummary']
+            meta: components['schemas']['PaginatedMeta']
+          }
+        }
+      }
+    }
+  }
+  listChannelProviders: {
+    parameters: {
+      query?: {
+        channel?: components['schemas']['Channel']
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description All providers in this business's catalog, optionally scoped to one channel */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['ChannelProvider'][]
+          }
+        }
+      }
+    }
+  }
+  createChannelProvider: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateChannelProviderInput']
+      }
+    }
+    responses: {
+      /** @description Provider created */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['ChannelProvider']
+          }
+        }
+      }
+    }
+  }
+  updateChannelProvider: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        providerId: components['parameters']['ChannelProviderId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateChannelProviderInput']
+      }
+    }
+    responses: {
+      /** @description Updated provider */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['ChannelProvider']
+          }
+        }
+      }
+    }
+  }
+  listContactTags: {
+    parameters: {
+      query?: {
+        q?: components['parameters']['SearchQuery']
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description All tags in this business's catalog */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['ContactTag'][]
+          }
+        }
+      }
+    }
+  }
+  createContactTag: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateContactTagInput']
+      }
+    }
+    responses: {
+      /** @description Tag created */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['ContactTag']
+          }
+        }
+      }
+    }
+  }
+  updateContactTag: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        tagId: components['parameters']['ContactTagId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateContactTagInput']
+      }
+    }
+    responses: {
+      /** @description Updated tag */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['ContactTag']
+          }
+        }
+      }
+    }
+  }
+  assignContactTag: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        contactId: components['parameters']['ContactId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AssignContactTagInput']
+      }
+    }
+    responses: {
+      /** @description The assigned tag */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['ContactTagRef']
+          }
+        }
+      }
+    }
+  }
+  unassignContactTag: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        contactId: components['parameters']['ContactId']
+        tagId: components['parameters']['ContactTagId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Assignment removed */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: Record<string, never> | null
           }
         }
       }
@@ -6276,6 +7841,40 @@ export interface operations {
         content: {
           'application/json': {
             data?: components['schemas']['InboxThreadSummary']
+          }
+        }
+      }
+    }
+  }
+  replyToInboxThread: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        threadId: components['parameters']['InboxThreadId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          body: string
+        }
+      }
+    }
+    responses: {
+      /** @description Reply sent */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: {
+              threadId: string
+              /** Format: date-time */
+              sentAt: string
+            }
           }
         }
       }
@@ -7644,6 +9243,30 @@ export interface operations {
       }
     }
   }
+  deleteAdvertisement: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        advertisementId: components['parameters']['AdvertisementId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Advertisement deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: unknown
+          }
+        }
+      }
+    }
+  }
   updateAdvertisement: {
     parameters: {
       query?: never
@@ -7667,6 +9290,41 @@ export interface operations {
         content: {
           'application/json': {
             data?: components['schemas']['Advertisement']
+          }
+        }
+      }
+    }
+  }
+  publishAdvertisement: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        advertisementId: components['parameters']['AdvertisementId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @enum {string} */
+          clickBehavior?: 'NONE' | 'URL' | 'HOST'
+          destinationUrl?: string
+        }
+      }
+    }
+    responses: {
+      /** @description Published version created */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: {
+              id?: string
+              version?: number
+            }
           }
         }
       }
@@ -8781,6 +10439,589 @@ export interface operations {
       }
     }
   }
+  servePublicBusinessProfile: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        slug: components['parameters']['Slug']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Rendered HTML by default; JSON when the request sent `Accept: application/json` */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'text/html': string
+          'application/json': {
+            data?: {
+              business: components['schemas']['Business']
+              followerCount: number
+              /** @description null = anonymous request — same tri-state convention as RiverFeedItem.viewer. */
+              viewerIsFollowing: boolean | null
+              isOwnProfile: boolean
+              /**
+               * @deprecated
+               * @description Legacy compatibility field. The business page does not render River posts.
+               */
+              featured?: components['schemas']['RiverFeedItem'] | null
+            }
+          }
+        }
+      }
+    }
+  }
+  sendBusinessProfileMessage: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        slug: components['parameters']['Slug']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          body: string
+        }
+      }
+    }
+    responses: {
+      /** @description Message sent */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: {
+              threadId?: string | null
+              /** Format: date-time */
+              sentAt: string
+            }
+          }
+        }
+      }
+    }
+  }
+  serveRiverFeed: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor returned by the previous page. */
+        cursor?: components['parameters']['Cursor']
+        /** @description Set to "1" to show only posts from businesses the viewer follows (a raw query string, not JSON — see Cursor). 400 if requested with no recognized viewer. */
+        following?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Rendered HTML feed */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'text/html': string
+        }
+      }
+    }
+  }
+  getRiverFeed: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor returned by the previous page. */
+        cursor?: components['parameters']['Cursor']
+        limit?: components['parameters']['Limit']
+        /** @description Set to "1" to show only posts from businesses the viewer follows. 400 if requested with no recognized viewer. */
+        following?: string
+        /** @description Polling mode — return only posts published after this timestamp, newest first, no pagination. */
+        after?: string
+        /** @description A business id — scopes the feed to just that business's own posts (the public profile page's "Latest from this business" section). When set, `following` is ignored and neither sponsored insertion nor anti-repeat ever apply (RiverFeedService#listForBusiness). */
+        business?: string
+        /** @description A River post id to omit from the results — used with `business` so a profile's pinned/Featured post never also appears in the regular list below it. */
+        exclude?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description River feed */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RiverFeedResponse']
+        }
+      }
+    }
+  }
+  listRiverPosts: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor returned by the previous page. */
+        cursor?: components['parameters']['Cursor']
+        limit?: components['parameters']['Limit']
+        /** @description Return only posts made from this advertisement. */
+        advertisementId?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated River posts */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['RiverPost'][]
+            meta: components['schemas']['PaginatedMeta']
+          }
+        }
+      }
+    }
+  }
+  createRiverPost: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateRiverPostInput']
+      }
+    }
+    responses: {
+      /** @description River post created */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['RiverPost']
+          }
+        }
+      }
+    }
+  }
+  serveRiverPost: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        riverPostId: components['parameters']['RiverPostId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Rendered HTML by default; JSON when the request sent `Accept: application/json` */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'text/html': string
+          'application/json': {
+            data?: {
+              post: components['schemas']['RiverFeedItem']
+            }
+          }
+        }
+      }
+    }
+  }
+  deleteRiverPost: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        riverPostId: components['parameters']['RiverPostId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description River post deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: Record<string, never> | null
+          }
+        }
+      }
+    }
+  }
+  listRiverComments: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor returned by the previous page. */
+        cursor?: components['parameters']['Cursor']
+        limit?: components['parameters']['Limit']
+      }
+      header?: never
+      path: {
+        riverPostId: components['parameters']['RiverPostId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated top-level comments */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['RiverComment'][]
+            meta: components['schemas']['PaginatedMeta']
+          }
+        }
+      }
+    }
+  }
+  createRiverComment: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        riverPostId: components['parameters']['RiverPostId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          body: string
+          parentCommentId?: string
+        }
+      }
+    }
+    responses: {
+      /** @description Comment created */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?:
+              components['schemas']['RiverComment'] | components['schemas']['RiverCommentReply']
+          }
+        }
+      }
+    }
+  }
+  deleteRiverComment: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        riverPostId: components['parameters']['RiverPostId']
+        commentId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Comment deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: Record<string, never> | null
+          }
+        }
+      }
+    }
+  }
+  trackRiverClick: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        riverPostId: components['parameters']['RiverPostId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Redirect to the advertisement's destination */
+      302: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  trackRiverProfileVisit: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        riverPostId: components['parameters']['RiverPostId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Redirect to GET /b/{slug} */
+      302: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  reactToRiverPost: {
+    parameters: {
+      query?: {
+        /** @description Where to redirect after the action — a River feed/permalink URL. Falls back to the acted-on post/business's own River URL if omitted. */
+        returnTo?: components['parameters']['ReturnTo']
+      }
+      header?: never
+      path: {
+        riverPostId: components['parameters']['RiverPostId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description JSON response — only when the request sent `Accept: application/json` */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: {
+              riverPostId?: string
+              reacted?: boolean
+              reactionCount?: number
+            }
+          }
+        }
+      }
+      /** @description Redirect to returnTo (or the post's own River permalink) — the default, form-submission response */
+      302: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  unreactToRiverPost: {
+    parameters: {
+      query?: {
+        /** @description Where to redirect after the action — a River feed/permalink URL. Falls back to the acted-on post/business's own River URL if omitted. */
+        returnTo?: components['parameters']['ReturnTo']
+      }
+      header?: never
+      path: {
+        riverPostId: components['parameters']['RiverPostId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description JSON response — only when the request sent `Accept: application/json` */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: {
+              riverPostId?: string
+              reacted?: boolean
+              reactionCount?: number
+            }
+          }
+        }
+      }
+      /** @description Redirect to returnTo (or the post's own River permalink) — the default, form-submission response */
+      302: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  followRiverBusiness: {
+    parameters: {
+      query?: {
+        /** @description Where to redirect after the action — a River feed/permalink URL. Falls back to the acted-on post/business's own River URL if omitted. */
+        returnTo?: components['parameters']['ReturnTo']
+      }
+      header?: never
+      path: {
+        businessId: components['parameters']['RiverFollowedBusinessId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description JSON response — only when the request sent `Accept: application/json` */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: {
+              businessId?: string
+              following?: boolean
+            }
+          }
+        }
+      }
+      /** @description Redirect to returnTo (or the River feed) — the default, form-submission response */
+      302: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  unfollowRiverBusiness: {
+    parameters: {
+      query?: {
+        /** @description Where to redirect after the action — a River feed/permalink URL. Falls back to the acted-on post/business's own River URL if omitted. */
+        returnTo?: components['parameters']['ReturnTo']
+      }
+      header?: never
+      path: {
+        businessId: components['parameters']['RiverFollowedBusinessId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description JSON response — only when the request sent `Accept: application/json` */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: {
+              businessId?: string
+              following?: boolean
+            }
+          }
+        }
+      }
+      /** @description Redirect to returnTo (or the River feed) — the default, form-submission response */
+      302: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  pinRiverPost: {
+    parameters: {
+      query?: {
+        /** @description Where to redirect after the action — a River feed/permalink URL. Falls back to the acted-on post/business's own River URL if omitted. */
+        returnTo?: components['parameters']['ReturnTo']
+      }
+      header?: never
+      path: {
+        riverPostId: components['parameters']['RiverPostId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description JSON response — only when the request sent `Accept: application/json` */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: {
+              riverPostId?: string
+              pinned?: boolean
+            }
+          }
+        }
+      }
+      /** @description Redirect to returnTo (or the caller's own public profile) — the default, form-submission response */
+      302: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  unpinRiverPost: {
+    parameters: {
+      query?: {
+        /** @description Where to redirect after the action — a River feed/permalink URL. Falls back to the acted-on post/business's own River URL if omitted. */
+        returnTo?: components['parameters']['ReturnTo']
+      }
+      header?: never
+      path: {
+        riverPostId: components['parameters']['RiverPostId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description JSON response — only when the request sent `Accept: application/json` */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: {
+              riverPostId?: string
+              pinned?: boolean
+            }
+          }
+        }
+      }
+      /** @description Redirect to returnTo (or the caller's own public profile) — the default, form-submission response */
+      302: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
   listForms: {
     parameters: {
       query?: {
@@ -9022,7 +11263,7 @@ export interface operations {
         /** @description Opaque cursor returned by the previous page. */
         cursor?: components['parameters']['Cursor']
         limit?: components['parameters']['Limit']
-        stage?: 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'QUOTED' | 'WON' | 'LOST'
+        stage?: 'NEW' | 'CONTACTED' | 'ENGAGED' | 'QUALIFIED' | 'PROPOSAL' | 'WON' | 'LOST'
         sourceType?: 'MESSAGE' | 'DEPLOYMENT' | 'MANUAL' | 'IMPORT'
       }
       header?: never
@@ -9040,6 +11281,50 @@ export interface operations {
           'application/json': {
             data: components['schemas']['Lead'][]
             meta: components['schemas']['PaginatedMeta']
+          }
+        }
+      }
+    }
+  }
+  getLeadQueue: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Every open lead, enriched and bucketed — not paginated (see LeadQueueItem) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['LeadQueueItem'][]
+          }
+        }
+      }
+    }
+  }
+  getLeadInsights: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Management-facing lead analytics */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['LeadInsights']
           }
         }
       }

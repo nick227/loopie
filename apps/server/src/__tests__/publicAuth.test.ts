@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { randomUUID } from 'crypto'
 import { buildTestApp, asAuth, testUserId, testBusinessId } from './helpers'
 import { db, hashSessionToken, issueSid } from '@project/db'
 
@@ -40,14 +41,18 @@ describe('public capture and auth', () => {
     const missing = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { data: { email: 'a@example.com' } },
+      payload: { idempotencyKey: randomUUID(), data: { email: 'a@example.com' } },
     })
     expect(missing.statusCode).toBe(400)
 
     const unsigned = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: 'not-a-signed-sid', data: { email: 'a@example.com' } },
+      payload: {
+        sessionId: 'not-a-signed-sid',
+        idempotencyKey: randomUUID(),
+        data: { email: 'a@example.com' },
+      },
     })
     expect(unsigned.statusCode).toBe(400)
   })
@@ -85,15 +90,19 @@ describe('public capture and auth', () => {
     })
 
     const sessionId = issueSid().token
+    // Dedup is keyed by idempotencyKey (see LandingPageSubmissionService.submit), so a retry that
+    // proves the same submission gets reused must resend the same key, same as a real client retry
+    // would — the session alone is no longer what identifies "the same submit attempt."
+    const idempotencyKey = randomUUID()
     const first = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId, data: { email: 'idem@example.com' } },
+      payload: { sessionId, idempotencyKey, data: { email: 'idem@example.com' } },
     })
     const second = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId, data: { email: 'other@example.com' } },
+      payload: { sessionId, idempotencyKey, data: { email: 'other@example.com' } },
     })
     expect(first.statusCode).toBe(201)
     expect(second.statusCode).toBe(201)
@@ -155,7 +164,11 @@ describe('public capture and auth', () => {
     const submit = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: issueSid().token, data: { email: 'late@example.com' } },
+      payload: {
+        sessionId: issueSid().token,
+        idempotencyKey: randomUUID(),
+        data: { email: 'late@example.com' },
+      },
     })
     expect(submit.statusCode).toBe(409)
   })

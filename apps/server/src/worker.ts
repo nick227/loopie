@@ -3,6 +3,7 @@ import { runDueMessages } from './services/MessageExecutorService'
 import { runDuePayouts } from './services/AffiliatePayoutService'
 import { runDueAdRunSyncs } from './services/AdRunSyncService'
 import { db, cleanupExpiredRateLimitBuckets } from '@project/db'
+import { processEmbedOutbox } from './services/activity/EmbedProjectionWorker'
 
 async function main() {
   console.log('Worker started. Initializing pollers...')
@@ -40,6 +41,13 @@ async function main() {
         console.error('[Worker] Error cleaning rate limit buckets:', err),
       )
     }, rateLimitCleanupIntervalMs)
+
+    const embedProjectionIntervalMs = Number(process.env.EMBED_PROJECTION_INTERVAL_MS ?? 10_000)
+    setInterval(() => {
+      processEmbedOutbox().catch((err) =>
+        console.error('[Worker] Error processing embed outbox:', err),
+      )
+    }, embedProjectionIntervalMs)
   }
 
   const shutdown = async () => {

@@ -1,11 +1,5 @@
 export const AD_SETUP_INTRO =
-  'Name the ad, attach one creative, and check where it should appear. Save keeps it in LOOPIE. Continue reviews paid destinations before anything is sent.'
-
-export const AD_MEDIA_HINT =
-  'Desktop and Mobile only preview how the file crops. They do not change where it appears.'
-
-export const AD_MEDIA_SENT_HINT =
-  'Your changes are saved in LOOPIE. Versions already sent to a platform are unchanged.'
+  'Name the ad, write the Feed post, attach media, and check where it should appear.'
 
 export const AD_DESTINATIONS_HINT = 'Check where this ad should appear. Pages are free.'
 

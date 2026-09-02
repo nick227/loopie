@@ -56,6 +56,7 @@ export class ExternalEventService {
         company?: string
       }
       payload?: unknown
+      updateContactFromEvent?: boolean
     },
   ) {
     const integration = await db.integration.findFirst({
@@ -71,31 +72,14 @@ export class ExternalEventService {
     }
 
     const scopeKey = integrationScope(integration.id)
-
-    // Shared by both the fast-path duplicate check below and the concurrent-race recovery
-    // further down — a replayed/duplicate delivery of the same external event must always be
-    // handled identically, whichever path detected it.
-    const handleExisting = async (row: ExternalEvent) => {
-      if (SALE_TYPES.includes(row.type) && !row.saleId && row.contactId && input.amount != null) {
-        return toDTO(
-          await this.attachSale(row.id, businessId, row.contactId, integration.provider, input),
-        )
+    const resolveIncomingContact = async () => {
+      const contactPayload = input.contact
+      if (
+        !contactPayload ||
+        (!contactPayload.email && !contactPayload.phone && !contactPayload.externalId)
+      ) {
+        return null
       }
-      return toDTO(row)
-    }
-
-    const existing = await db.externalEvent.findUnique({
-      where: { scopeKey_externalEventId: { scopeKey, externalEventId: input.externalEventId } },
-    })
-    if (existing) return handleExisting(existing)
-
-    const occurredAt = input.occurredAt ? new Date(input.occurredAt) : new Date()
-    const contactPayload = input.contact
-    let contactId: string | null = null
-    if (
-      contactPayload &&
-      (contactPayload.email || contactPayload.phone || contactPayload.externalId)
-    ) {
       const resolved = await db.$transaction((tx) =>
         resolveContact(
           tx,
@@ -112,12 +96,68 @@ export class ExternalEventService {
             externalId: contactPayload.externalId ?? input.externalEventId,
             scopeKey,
             integrationId: integration.id,
+            sourceSnapshot:
+              input.updateContactFromEvent === false
+                ? undefined
+                : {
+                    name: contactPayload.name ?? 'Unknown',
+                    email: contactPayload.email,
+                    phone: contactPayload.phone,
+                    company: contactPayload.company,
+                  },
             raw: input.payload ?? contactPayload,
           },
         ),
       )
-      if (resolved.status === 'resolved') contactId = resolved.contact.id
+      return resolved.status === 'resolved' ? resolved.contact.id : null
     }
+
+    // Shared by both the fast-path duplicate check below and the concurrent-race recovery
+    // further down — a replayed/duplicate delivery of the same external event must always be
+    // handled identically, whichever path detected it.
+    const handleExisting = async (row: ExternalEvent) => {
+      const contactId = (await resolveIncomingContact()) ?? row.contactId
+      row = await db.externalEvent.update({
+        where: { id: row.id },
+        data: {
+          contactId,
+          occurredAt: input.occurredAt ? new Date(input.occurredAt) : row.occurredAt,
+          payload: input.payload ?? undefined,
+        },
+      })
+      if (row.saleId && input.amount != null) {
+        const sale = await db.sale.findUnique({
+          where: { id: row.saleId },
+          select: { affiliateSplit: { select: { id: true } } },
+        })
+        await db.sale.update({
+          where: { id: row.saleId },
+          data: {
+            contactId: contactId ?? undefined,
+            // Affiliate economics are frozen when a Sale is created. Changing its gross amount
+            // after a commission split exists would make the ledger disagree with the Sale, so
+            // keep that financial snapshot intact while still refreshing non-economic order data.
+            amount: sale?.affiliateSplit ? undefined : input.amount,
+            date: input.occurredAt ? new Date(input.occurredAt) : undefined,
+            productOrService: input.productOrService,
+          },
+        })
+      }
+      if (SALE_TYPES.includes(row.type) && !row.saleId && row.contactId && input.amount != null) {
+        return toDTO(
+          await this.attachSale(row.id, businessId, row.contactId, integration.provider, input),
+        )
+      }
+      return toDTO(row)
+    }
+
+    const existing = await db.externalEvent.findUnique({
+      where: { scopeKey_externalEventId: { scopeKey, externalEventId: input.externalEventId } },
+    })
+    if (existing) return handleExisting(existing)
+
+    const occurredAt = input.occurredAt ? new Date(input.occurredAt) : new Date()
+    const contactId = await resolveIncomingContact()
 
     let event: ExternalEvent
     try {

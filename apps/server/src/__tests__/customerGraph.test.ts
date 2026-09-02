@@ -1,8 +1,33 @@
 import { describe, it, expect } from 'vitest'
+import { randomUUID } from 'crypto'
 import { buildTestApp, asAuth, testUserId, testBusinessId } from './helpers'
 import { db } from '@project/db'
 
 const app = buildTestApp()
+
+// Shopify is an OAuth-only CRM connector (see lib/crm/registry.ts) — `POST /integrations` rejects
+// a direct create for it (400 "Connect this provider with OAuth", or 503 if unconfigured), by
+// design, same as HubSpot/Salesforce. These tests aren't exercising that endpoint's Shopify
+// gating; they need a Shopify-provider Integration row to exist so external-event ingestion can
+// be tested, so seed it directly rather than going through the OAuth-gated HTTP create.
+async function createShopifyIntegration(externalAccountId: string) {
+  return db.integration.create({
+    data: {
+      businessId: testBusinessId,
+      provider: 'SHOPIFY',
+      externalAccountId,
+      status: 'CONNECTED',
+      capabilities: {
+        contacts: true,
+        companies: false,
+        deals: false,
+        orders: true,
+        payments: true,
+        events: true,
+      },
+    },
+  })
+}
 
 async function createPublishedPage() {
   const template = await db.landingPageTemplate.create({
@@ -46,19 +71,16 @@ describe('CRM customer graph', () => {
     const submit = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: sid, data: { email: 'sarah.graph@example.com' } },
+      payload: {
+        sessionId: sid,
+        idempotencyKey: randomUUID(),
+        data: { email: 'sarah.graph@example.com' },
+      },
     })
     expect(submit.statusCode).toBe(201)
     const contactId = submit.json().data.contactId
 
-    const integration = (
-      await app.inject({
-        method: 'POST',
-        url: '/integrations',
-        headers: asAuth(testUserId),
-        payload: { provider: 'SHOPIFY', externalAccountId: 'shop-form-first' },
-      })
-    ).json().data
+    const integration = await createShopifyIntegration('shop-form-first')
 
     const ingest = await app.inject({
       method: 'POST',
@@ -82,14 +104,7 @@ describe('CRM customer graph', () => {
 
   it('Shopify then form reuses the imported Contact', async () => {
     const page = await createPublishedPage()
-    const integration = (
-      await app.inject({
-        method: 'POST',
-        url: '/integrations',
-        headers: asAuth(testUserId),
-        payload: { provider: 'SHOPIFY', externalAccountId: 'shop-shop-first' },
-      })
-    ).json().data
+    const integration = await createShopifyIntegration('shop-shop-first')
     const ingest = await app.inject({
       method: 'POST',
       url: '/external-events',
@@ -110,7 +125,11 @@ describe('CRM customer graph', () => {
     const submit = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: sid, data: { email: 'jordan.graph@example.com' } },
+      payload: {
+        sessionId: sid,
+        idempotencyKey: randomUUID(),
+        data: { email: 'jordan.graph@example.com' },
+      },
     })
     expect(submit.statusCode).toBe(201)
     expect(submit.json().data.contactId).toBe(importedId)
@@ -295,19 +314,16 @@ describe('CRM customer graph', () => {
     const submit = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: sid, data: { email: 'buyer.graph@example.com' } },
+      payload: {
+        sessionId: sid,
+        idempotencyKey: randomUUID(),
+        data: { email: 'buyer.graph@example.com' },
+      },
     })
     expect(submit.statusCode).toBe(201)
     const { contactId, leadId } = submit.json().data
 
-    const integration = (
-      await app.inject({
-        method: 'POST',
-        url: '/integrations',
-        headers: asAuth(testUserId),
-        payload: { provider: 'SHOPIFY', externalAccountId: 'shop-order' },
-      })
-    ).json().data
+    const integration = await createShopifyIntegration('shop-order')
 
     const event = await app.inject({
       method: 'POST',
@@ -346,14 +362,7 @@ describe('CRM customer graph', () => {
     // event) is normal, expected behavior for an inbound sync system, not an edge case — this
     // must never surface a raw unique-constraint error to the caller, and must never create more
     // than one ExternalEvent or Contact for the same externalEventId.
-    const integration = (
-      await app.inject({
-        method: 'POST',
-        url: '/integrations',
-        headers: asAuth(testUserId),
-        payload: { provider: 'SHOPIFY', externalAccountId: 'shop-race' },
-      })
-    ).json().data
+    const integration = await createShopifyIntegration('shop-race')
 
     const payload = {
       integrationId: integration.id,

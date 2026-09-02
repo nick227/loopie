@@ -20,6 +20,9 @@ export function CreateAdPage() {
   const createRun = useCreateAdRun()
   const resumeRun = useResumeAdRun()
   const [name, setName] = useState('')
+  const [primaryText, setPrimaryText] = useState('')
+  const [ctaLabel, setCtaLabel] = useState('')
+  const [destinationUrl, setDestinationUrl] = useState('')
   const [assetIds, setAssetIds] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   // Set once the Advertisement itself is first persisted, so a retry after a failed run-send
@@ -39,10 +42,23 @@ export function CreateAdPage() {
 
   async function saveAd() {
     if (adId.current) {
-      await updateAd.mutateAsync({ id: adId.current, name, assetIds })
+      await updateAd.mutateAsync({
+        id: adId.current,
+        name,
+        primaryText,
+        ctaLabel,
+        destinationUrl,
+        assetIds,
+      })
       return adId.current
     }
-    const result = await createAd.mutateAsync({ name, assetIds })
+    const result = await createAd.mutateAsync({
+      name,
+      primaryText,
+      ctaLabel,
+      destinationUrl,
+      assetIds,
+    })
     const id = result.data?.id
     if (!id) throw new Error('Could not save ad')
     adId.current = id
@@ -52,17 +68,24 @@ export function CreateAdPage() {
   return (
     <AdEditor
       name={name}
+      primaryText={primaryText}
+      ctaLabel={ctaLabel}
+      destinationUrl={destinationUrl}
       assetIds={assetIds}
       runs={[]}
       pending={pending}
       error={error}
       onName={setName}
+      onPrimaryText={setPrimaryText}
+      onCtaLabel={setCtaLabel}
+      onDestinationUrl={setDestinationUrl}
       onAssetIds={setAssetIds}
       onAddAsset={async (input) => {
         const result = await createAsset.mutateAsync(input)
         const id = result.data?.id
         if (id) setAssetIds([id])
       }}
+      saveReady={name.trim().length > 0}
       onSave={async () => {
         setError(null)
         try {

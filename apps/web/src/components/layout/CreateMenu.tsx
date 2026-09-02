@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Mail, Megaphone, LayoutTemplate, Plus } from 'lucide-react'
+import { Mail, Megaphone, LayoutTemplate, Plus, Waves } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { useQuickCreatePage } from '@/hooks/useQuickCreatePage'
+import { RiverComposerModal } from '@/components/river/RiverComposerModal'
 
 /**
  * The global Create action — persistent, not a root nav item (see
- * docs/strategy/03-product-principles.md's "Global Creation Model"). Deliberately limited to real
- * current creation flows only: Message, Page, Ad. No Email/Social/Automation entries — those
- * aren't real standalone creation flows in this app yet (Message already covers email/SMS via its
- * own channel picker; Automation is explicitly not a Create-sheet item — see the Automation
- * section of that doc).
+ * docs/strategy/03-product-principles.md's "Global Creation Model"). Real current creation flows:
+ * Message, Page, Ad, River post (slice 6 — the first general-purpose composer in the app; opens
+ * its own modal rather than navigating, unlike the others). No Email/Social/Automation entries —
+ * those aren't real standalone creation flows in this app yet (Message already covers email/SMS
+ * via its own channel picker; Automation is explicitly not a Create-sheet item — see the
+ * Automation section of that doc).
  */
 export function CreateMenu({
   trigger,
@@ -18,6 +20,7 @@ export function CreateMenu({
   trigger: (props: { onClick: () => void }) => React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
+  const [riverComposerOpen, setRiverComposerOpen] = useState(false)
   const navigate = useNavigate()
   const quickCreatePage = useQuickCreatePage()
   const [pageError, setPageError] = useState<string | null>(null)
@@ -54,6 +57,16 @@ export function CreateMenu({
       onSelect: () => {
         setOpen(false)
         navigate('/ads/new')
+      },
+    },
+    {
+      key: 'river',
+      label: 'River post',
+      description: 'Post text, media, or share a page/ad',
+      icon: Waves,
+      onSelect: () => {
+        setOpen(false)
+        setRiverComposerOpen(true)
       },
     },
   ]
@@ -96,6 +109,7 @@ export function CreateMenu({
           </div>
         </Modal>
       ) : null}
+      <RiverComposerModal isOpen={riverComposerOpen} onClose={() => setRiverComposerOpen(false)} />
     </>
   )
 }
@@ -126,7 +140,7 @@ export function CreateButtonTrigger({
       onClick={onClick}
       className="flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
     >
-      <Plus size={18} /> Create
+      <Plus size={18} />
     </button>
   )
 }

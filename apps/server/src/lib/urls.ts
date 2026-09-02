@@ -32,10 +32,34 @@ export function hostedPageUrl(slug: string) {
   return `${PUBLIC_BASE_URL}/p/${slug}`
 }
 
+export function publicBusinessProfileUrl(slug: string) {
+  return `${PUBLIC_BASE_URL}/b/${slug}`
+}
+
 export function landingPagePreviewUrl(landingPageId: string) {
   return `${PUBLIC_SERVER_URL}/landing-pages/${landingPageId}/preview`
 }
 
 export function landingPageSubmitUrl(landingPageId: string) {
   return `${PUBLIC_BASE_URL}/landing-pages/${landingPageId}/submissions`
+}
+
+export function riverPostUrl(riverPostId: string) {
+  return `${PUBLIC_BASE_URL}/river/posts/${riverPostId}`
+}
+
+export function riverPostClickUrl(riverPostId: string) {
+  return `${PUBLIC_BASE_URL}/river/posts/${riverPostId}/click`
+}
+
+export function riverPostVisitProfileUrl(riverPostId: string) {
+  return `${PUBLIC_BASE_URL}/river/posts/${riverPostId}/visit-profile`
+}
+
+// PUBLIC_SERVER_URL, not PUBLIC_BASE_URL — same reasoning as landingPagePreviewUrl above: this is
+// the one River link that must stay on the origin the session cookie was issued for, so a logged-in
+// business is actually recognized as a viewer (see lib/riverViewer.ts and the slice-2 plan doc).
+// RiverPost.permalinkUrl stays on PUBLIC_BASE_URL — that one is for anonymous external sharing.
+export function riverViewerUrl(path: string = '/river') {
+  return `${PUBLIC_SERVER_URL}${path}`
 }

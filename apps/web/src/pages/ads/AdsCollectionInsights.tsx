@@ -41,12 +41,7 @@ export function AdsCollectionInsights({ ads }: { ads: Advertisement[] }) {
           ? {
               icon: Trophy,
               href: `/ads/${best.id}`,
-              children: (
-                <>
-                  Top performer: <span className="font-medium text-foreground">{best.name}</span> ·{' '}
-                  {best.conversions} result{best.conversions === 1 ? '' : 's'}
-                </>
-              ),
+              children: `${best.name} is your top performer — ${best.conversions ?? 0} results`,
             }
           : undefined
       }

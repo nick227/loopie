@@ -490,4 +490,58 @@ describe('advertisements API', () => {
       throw new Error('Lifecycle failed:\n' + errors.map((e) => e.message).join('\n'))
     }
   })
+
+  it('publishes advertisement and verifies constraints', async () => {
+    const saved = await saveMediaFile({ mimeType: 'image/png', data: PNG_1X1 })
+    const asset = await db.asset.create({
+      data: {
+        businessId: testBusinessId,
+        type: 'IMAGE',
+        name: 'Publish Pixel',
+        url: saved.url,
+        mimeType: 'image/png',
+      },
+    })
+
+    // Create Ad
+    const createRes = await app.inject({
+      method: 'POST',
+      url: '/advertisements',
+      headers: asAuth(testUserId),
+      payload: { name: 'Publish Test Ad', assetIds: [asset.id] },
+    })
+    const adId = createRes.json().data.id
+
+    // Publish twice -> new version
+    const pub1 = await app.inject({
+      method: 'POST',
+      url: `/advertisements/${adId}/publish`,
+      headers: asAuth(testUserId),
+      payload: { clickBehavior: 'HOST' },
+    })
+    expect(pub1.statusCode).toBe(200)
+    expect(pub1.json().data.version).toBe(1)
+
+    const pub2 = await app.inject({
+      method: 'POST',
+      url: `/advertisements/${adId}/publish`,
+      headers: asAuth(testUserId),
+      payload: { clickBehavior: 'URL', destinationUrl: 'https://example.com' },
+    })
+    expect(pub2.statusCode).toBe(200)
+    expect(pub2.json().data.version).toBe(2)
+
+    // Verify DB
+    const versions = await db.publishedAdvertisementVersion.findMany({
+      where: { advertisementId: adId },
+      orderBy: { version: 'desc' },
+    })
+    expect(versions.length).toBe(2)
+    expect(versions[0].version).toBe(2)
+    expect(versions[0].clickBehavior).toBe('URL')
+    expect(versions[0].destinationUrl).toBe('https://example.com')
+    expect(versions[1].version).toBe(1)
+    expect(versions[1].clickBehavior).toBe('HOST')
+    expect(versions[1].destinationUrl).toBeNull()
+  })
 })

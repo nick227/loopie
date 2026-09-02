@@ -22,6 +22,18 @@ export function Modal({
   const dialogRef = useRef<HTMLDivElement>(null)
   const full = size === 'full'
 
+  // onClose is almost always a fresh closure every render (every caller defines its handleClose
+  // inline) — depending on it directly used to re-run this whole effect on every keystroke inside
+  // the modal, which re-stole focus onto dialogRef via the line below and made any input/textarea
+  // inside a modal unusable. A ref keeps the mount/unmount side effects (focus capture, body
+  // scroll lock, restoring focus on close) running exactly once per open, while onKey still always
+  // calls the latest onClose.
+  const onCloseRef = useRef(onClose)
+
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
+
   useEffect(() => {
     const previousFocus =
       document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -30,7 +42,7 @@ export function Modal({
     dialogRef.current?.focus()
 
     function onKey(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose()
+      if (event.key === 'Escape') onCloseRef.current()
       if (event.key !== 'Tab' || !dialogRef.current) return
       const focusable = Array.from(
         dialogRef.current.querySelectorAll<HTMLElement>(
@@ -57,7 +69,7 @@ export function Modal({
       document.body.style.overflow = previousOverflow
       previousFocus?.focus()
     }
-  }, [onClose])
+  }, [])
 
   const closeButton = (
     <button
@@ -111,7 +123,7 @@ export function Modal({
             ? 'modal-sheet bottom-0 left-0 right-0 h-[94dvh] rounded-t-[1.25rem] border border-b-0 border-border shadow-2xl sm:h-[88dvh] sm:max-h-[56rem] sm:rounded-t-2xl'
             : cn(
                 'left-1/2 top-1/2 w-full -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border',
-                size === 'xl' ? 'max-w-4xl' : 'max-w-lg',
+                size === 'xl' ? 'max-w-[480px]' : 'max-w-lg',
                 'max-h-[calc(100vh-2rem)]',
               ),
         )}

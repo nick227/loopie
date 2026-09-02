@@ -11,8 +11,9 @@ import { InboxProjectionService } from '../services/InboxProjectionService'
 const STAGE_LABEL: Record<string, string> = {
   NEW: 'New',
   CONTACTED: 'Contacted',
+  ENGAGED: 'Engaged',
   QUALIFIED: 'Qualified',
-  QUOTED: 'Quoted',
+  PROPOSAL: 'Proposal',
   WON: 'Won',
   LOST: 'Lost',
 }

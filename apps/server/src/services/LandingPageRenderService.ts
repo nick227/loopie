@@ -1,8 +1,8 @@
-import { db, resolveVisitorSid } from '@project/db'
+import { db, resolveVisitorSid, normalizeLegacyPageContent } from '@project/db'
 import { landingPageSubmitUrl, PUBLIC_SERVER_URL } from '../lib/urls'
-import { renderLandingPageHtml } from '../lib/renderLandingPage'
+import { renderLandingPageHtml } from '@project/page-renderer'
 import { snapshotSlots, type AdSlotSnapshotItem } from '../lib/adSlots'
-import { snapshotForm, isFormLive, type FormSnapshot } from '../lib/formSnapshot'
+import { snapshotForm, isFormLive, type FormSnapshot } from '@project/page-renderer'
 import { withResolvedMedia } from '../lib/pageMedia'
 import { notifyKnownContactPageView } from '../lib/pageViewInbox'
 
@@ -60,8 +60,14 @@ export class LandingPageRenderService {
           orderBy: { sortOrder: 'asc' },
         }),
       )
-    const content = await withResolvedMedia(page.businessId, page.publishedVersion.content as never)
+    const content = await withResolvedMedia(
+      page.businessId,
+      normalizeLegacyPageContent(page.publishedVersion.content),
+    )
     const templateSchema = page.publishedVersion.schemaSnapshot ?? page.template.schema
+    // Real count, computed fresh on every request — no polling, no seeded/fake baseline. See the
+    // webinar-widget's "seats filled" note in renderLandingPageSections.ts.
+    const submissionCount = await db.formSubmission.count({ where: { landingPageId: page.id } })
     return {
       sidToken: visitor.token,
       html: renderLandingPageHtml({
@@ -71,12 +77,14 @@ export class LandingPageRenderService {
         >[0]['templateSchema'],
         content,
         theme: page.publishedVersion.theme as any,
+        layoutConfig: page.publishedVersion.layoutConfig as any,
         form,
         submitActionUrl: landingPageSubmitUrl(page.id),
         sessionToken: visitor.token,
         adSlots,
         runtimeScriptUrl: `${PUBLIC_SERVER_URL}/loopie.js`,
         businessId: page.businessId,
+        submissionCount,
       }),
     }
   }

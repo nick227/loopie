@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import type { components } from '@project/sdk'
 import {
   ApiError,
@@ -17,6 +17,9 @@ import {
   useUpdateAdRunSchedule,
   useUpdateAdRunTargeting,
   useUpdateAdvertisement,
+  usePublishAdvertisement,
+  useCreateRiverPost,
+  useDeleteAdvertisement,
 } from '@project/sdk'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { AdEditor } from '@/components/ads/AdEditor'
@@ -36,8 +39,12 @@ export function AdPage() {
     <AdPageEditor
       id={ad.id}
       name={ad.name}
+      primaryText={ad.primaryText ?? ''}
+      ctaLabel={ad.ctaLabel ?? ''}
+      destinationUrl={ad.destinationUrl ?? ''}
       assetIds={ad.assetIds}
       updatedAt={ad.updatedAt}
+      lastPublishedAt={ad.lastPublishedAt ?? null}
       runs={runsQuery.data?.data ?? []}
     />
   )
@@ -46,18 +53,30 @@ export function AdPage() {
 function AdPageEditor({
   id,
   name: initialName,
+  primaryText: initialPrimaryText,
+  ctaLabel: initialCtaLabel,
+  destinationUrl: initialDestinationUrl,
   assetIds: initialIds,
   updatedAt,
+  lastPublishedAt,
   runs,
 }: {
   id: string
   name: string
+  primaryText: string
+  ctaLabel: string
+  destinationUrl: string
   assetIds: string[]
   updatedAt: string
+  lastPublishedAt: string | null
   runs: components['schemas']['AdRun'][]
 }) {
+  const navigate = useNavigate()
   const createAsset = useCreateAsset()
   const updateAd = useUpdateAdvertisement()
+  const publishAd = usePublishAdvertisement()
+  const createRiverPost = useCreateRiverPost()
+  const deleteAd = useDeleteAdvertisement()
   const createRun = useCreateAdRun()
   const pauseRun = usePauseAdRun()
   const resumeRun = useResumeAdRun()
@@ -70,6 +89,9 @@ function AdPageEditor({
   const replaceDestination = useReplaceAdRunDestination()
   const [name, setName] = useState(initialName)
   usePageTitle(name || 'Ad')
+  const [primaryText, setPrimaryText] = useState(initialPrimaryText)
+  const [ctaLabel, setCtaLabel] = useState(initialCtaLabel)
+  const [destinationUrl, setDestinationUrl] = useState(initialDestinationUrl)
   const [assetIds, setAssetIds] = useState(initialIds)
   const [error, setError] = useState<string | null>(null)
   // Kept separate from the generic `error` banner above — they render inside their own modals
@@ -100,12 +122,66 @@ function AdPageEditor({
     editSchedule.isPending ||
     editTargeting.isPending ||
     replaceCreative.isPending ||
-    replaceDestination.isPending
+    replaceDestination.isPending ||
+    publishAd.isPending ||
+    createRiverPost.isPending ||
+    deleteAd.isPending
+
   const actionPendingRunId =
     (pauseRun.isPending && pauseRun.variables?.runId) ||
     (resumeRun.isPending && resumeRun.variables?.runId) ||
     (endRun.isPending && endRun.variables?.runId) ||
     undefined
+
+  const [dirty, setDirty] = useState(false)
+  const generation = useRef(0)
+
+  const persist = useCallback(async () => {
+    if (!dirty) return
+    await updateAd.mutateAsync({ id, name, primaryText, ctaLabel, destinationUrl, assetIds })
+    setDirty(false)
+  }, [dirty, id, name, primaryText, ctaLabel, destinationUrl, assetIds, updateAd])
+
+  useEffect(() => {
+    if (!dirty) return
+    const timer = window.setTimeout(() => {
+      persist().catch(() => {})
+    }, 800)
+    return () => window.clearTimeout(timer)
+  }, [dirty, name, primaryText, ctaLabel, destinationUrl, assetIds, persist])
+
+  function markDirty(_dirty?: boolean) {
+    generation.current += 1
+    setDirty(true)
+  }
+
+  async function handlePostToRiver() {
+    setError(null)
+    try {
+      await persist()
+      // Each River post pins an immutable published version. Publishing immediately before the
+      // post guarantees the River card gets the editor's current creative and exact CTA.
+      await publishAd.mutateAsync({ id })
+      await createRiverPost.mutateAsync({ type: 'AD', advertisementId: id })
+    } catch (err) {
+      setError(
+        err instanceof ApiError || err instanceof Error ? err.message : 'Could not post to River',
+      )
+    }
+  }
+
+  async function handleDelete() {
+    if (!window.confirm(`Delete “${name}”? This cannot be undone.`)) return
+    setError(null)
+    try {
+      await deleteAd.mutateAsync(id)
+      navigate('/ads')
+    } catch (err) {
+      setError(
+        err instanceof ApiError || err instanceof Error ? err.message : 'Could not delete ad',
+      )
+    }
+  }
 
   async function runAction(
     mutateAsync: (input: { advertisementId: string; runId: string }) => Promise<unknown>,
@@ -210,22 +286,58 @@ function AdPageEditor({
   return (
     <AdEditor
       name={name}
+      primaryText={primaryText}
+      ctaLabel={ctaLabel}
+      destinationUrl={destinationUrl}
       assetIds={assetIds}
       runs={runs}
       updatedAt={updatedAt}
       pending={pending}
       error={error}
-      onName={setName}
-      onAssetIds={setAssetIds}
+      lastPublishedAt={lastPublishedAt}
+      onPostToRiver={() => void handlePostToRiver()}
+      riverPending={publishAd.isPending || createRiverPost.isPending}
+      onDelete={() => void handleDelete()}
+      deletePending={deleteAd.isPending}
+      onName={(val) => {
+        setName(val)
+        markDirty()
+      }}
+      onPrimaryText={(val) => {
+        setPrimaryText(val)
+        markDirty()
+      }}
+      onCtaLabel={(val) => {
+        setCtaLabel(val)
+        markDirty()
+      }}
+      onDestinationUrl={(val) => {
+        setDestinationUrl(val)
+        markDirty()
+      }}
+      onAssetIds={(val) => {
+        setAssetIds(val)
+        markDirty()
+      }}
       onAddAsset={async (input) => {
         const result = await createAsset.mutateAsync(input)
         const nextId = result.data?.id
         if (nextId) setAssetIds([nextId])
       }}
+      saveReady={
+        name.trim().length > 0 &&
+        (name !== initialName ||
+          primaryText !== initialPrimaryText ||
+          ctaLabel !== initialCtaLabel ||
+          destinationUrl !== initialDestinationUrl ||
+          assetIds.length !== initialIds.length ||
+          assetIds.some((id, i) => id !== initialIds[i]))
+      }
       onSave={async () => {
         setError(null)
         try {
-          await updateAd.mutateAsync({ id, name, assetIds })
+          await updateAd.mutateAsync({ id, name, primaryText, ctaLabel, destinationUrl, assetIds })
+          setDirty(false)
         } catch (err) {
           setError(
             err instanceof ApiError || err instanceof Error ? err.message : 'Could not save ad',
@@ -235,7 +347,7 @@ function AdPageEditor({
       onSend={async (targets) => {
         setError(null)
         try {
-          await updateAd.mutateAsync({ id, name, assetIds })
+          await updateAd.mutateAsync({ id, name, primaryText, ctaLabel, destinationUrl, assetIds })
           await startAdRuns(id, targets, createRun.mutateAsync, resumeRun.mutateAsync)
         } catch (err) {
           setError(

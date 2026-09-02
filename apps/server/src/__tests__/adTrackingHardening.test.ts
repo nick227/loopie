@@ -3,6 +3,7 @@
 // creatives can't keep serving, and the full acquisition-to-revenue chain stays traceable end to
 // end. See CLAUDE.md for the six-item fix list this covers.
 import { describe, it, expect } from 'vitest'
+import { randomUUID } from 'crypto'
 import { buildTestApp, asAuth, testUserId, testBusinessId } from './helpers'
 import { db, issueSid, verifySid } from '@project/db'
 
@@ -100,7 +101,11 @@ describe('ad tracking hardening: full chain traceability', () => {
     const submitRes = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: sid, data: { email: 'regression@example.com' } },
+      payload: {
+        sessionId: sid,
+        idempotencyKey: randomUUID(),
+        data: { email: 'regression@example.com' },
+      },
     })
     expect(submitRes.statusCode).toBe(201)
     const { contactId, leadId } = submitRes.json().data
@@ -221,7 +226,11 @@ describe('ad tracking hardening: full chain traceability', () => {
     const submitRes = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: sid, data: { email: 'multitouch@example.com' } },
+      payload: {
+        sessionId: sid,
+        idempotencyKey: randomUUID(),
+        data: { email: 'multitouch@example.com' },
+      },
     })
     expect(submitRes.statusCode).toBe(201)
     const { contactId, leadId } = submitRes.json().data
@@ -322,7 +331,11 @@ describe('ad tracking hardening: full chain traceability', () => {
     const submitRes = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: sidB, data: { email: 'freshsession@example.com' } },
+      payload: {
+        sessionId: sidB,
+        idempotencyKey: randomUUID(),
+        data: { email: 'freshsession@example.com' },
+      },
     })
     expect(submitRes.statusCode).toBe(201)
     const lead = await db.lead.findUniqueOrThrow({ where: { id: submitRes.json().data.leadId } })

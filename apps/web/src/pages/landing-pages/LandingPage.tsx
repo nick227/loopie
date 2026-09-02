@@ -7,11 +7,13 @@ import { usePageTitle } from '@/lib/headerContext'
 import { Code2, ExternalLink, Rocket } from 'lucide-react'
 import { PageCanvas } from './components/PageCanvas'
 import { PageToolbar } from './components/PageToolbar'
-import { TemplateSection } from './components/types'
+import { EmbedModal } from '@/components/shared/EmbedModal'
+import { RICH_TEMPLATE_IDS, type TemplateSection } from './components/types'
 import { useLandingPageEditor } from './hooks/useLandingPageEditor'
 import { AdvancedTemplateRenderer } from './components/AdvancedTemplateRenderer'
+import { ContentView } from './components/ContentView'
 
-type Tab = 'editor' | 'activity'
+type Tab = 'editor' | 'content' | 'activity'
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -58,6 +60,7 @@ function PageActivity({ landingPageId }: { landingPageId: string }) {
 
 export function LandingPage() {
   const [tab, setTab] = useState<Tab>('editor')
+  const [embedModalOpen, setEmbedModalOpen] = useState(false)
   const {
     page,
     pageLoading,
@@ -73,6 +76,8 @@ export function LandingPage() {
     setContent,
     theme,
     setTheme,
+    layoutConfig,
+    setLayoutConfig,
     formId,
     fields,
     setFields,
@@ -82,7 +87,6 @@ export function LandingPage() {
     dirty,
     publishPending,
     setDirty,
-    savedAt,
     saveError,
     handlePublish,
   } = useLandingPageEditor()
@@ -117,7 +121,7 @@ export function LandingPage() {
           affordance for this entity. A second one here would be exactly the duplicate chrome the
           Singleton/Collection/Entity grammar (docs/strategy/03-product-principles.md) argues
           against. */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 max-w-[900px] mx-auto">
         <div>
           <h1>
             <input
@@ -134,26 +138,8 @@ export function LandingPage() {
               className="-ml-1 block min-w-0 max-w-full rounded-md border border-transparent bg-transparent px-1 text-xl font-semibold text-foreground hover:border-input-border focus:border-input-border focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </h1>
-          {page.status === 'PUBLISHED' ? (
-            <p className="text-xs text-muted-foreground">
-              Page URL:{' '}
-              <a href={page.hostedUrl} target="_blank" rel="noreferrer" className="underline">
-                {page.hostedUrl}
-              </a>
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Page URL: <span className="font-mono">{page.hostedUrl}</span> · available after
-              publishing
-            </p>
-          )}
         </div>
         <div className="flex items-center gap-2">
-          {dirty ? (
-            <span className="text-xs text-muted-foreground">Saving…</span>
-          ) : savedAt ? (
-            <span className="text-xs text-muted-foreground">Saved</span>
-          ) : null}
           <Button
             variant="outline"
             disabled={dirty}
@@ -161,13 +147,27 @@ export function LandingPage() {
           >
             <ExternalLink size={14} /> Preview
           </Button>
-          {/* Placeholder for docs/architecture/embeddable-published-objects-v1.md's embed runtime —
-              not built yet (no EmbedDeployment model, no /v1/embeds route). Held here, disabled,
-              so the Page entity's action contract already has this slot and doesn't need
-              restructuring once the runtime ships. */}
-          <Button variant="outline" disabled title="Embed is coming soon">
+          <Button
+            variant="outline"
+            disabled={page.status === 'PUBLISHED'}
+            onClick={() => window.open(page.hostedUrl, '_blank', 'noopener,noreferrer')}
+          >
+            <ExternalLink size={14} /> URL
+          </Button>
+          {/* Render the Embed modal if the button is clicked */}
+          <Button
+            variant="outline"
+            onClick={() => setEmbedModalOpen(true)}
+            disabled={page?.status !== 'PUBLISHED'}
+          >
             <Code2 size={14} /> Embed
           </Button>
+          <EmbedModal
+            isOpen={embedModalOpen}
+            onClose={() => setEmbedModalOpen(false)}
+            objectType="PAGE"
+            objectId={page?.id || 'loading'}
+          />
           <Button
             onClick={handlePublish}
             loading={publishMutation.isPending}
@@ -182,52 +182,70 @@ export function LandingPage() {
       {saveError && (
         <p
           role="alert"
-          className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm"
+          className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm max-w-[900px] mx-auto"
         >
           {saveError}
         </p>
       )}
 
-      {/* Entity-local sections (docs/strategy/03-product-principles.md) — Editor is this page's
+      <div className="max-w-[900px] mx-auto">
+        {/* Entity-local sections (docs/strategy/03-product-principles.md) — Editor is this page's
           own draft/content work, Activity is real performance data (GET /landing-pages/{id}/
           performance) that had nowhere to live on this screen before. Plain local state, not
           routes — nothing here needs its own URL or Back-stack entry. */}
-      <EntityTabs<Tab>
-        tabs={[
-          { key: 'editor', label: 'Editor' },
-          { key: 'activity', label: 'Activity' },
-        ]}
-        active={tab}
-        onChange={setTab}
-      />
+        <EntityTabs<Tab>
+          tabs={[
+            { key: 'editor', label: 'Editor' },
+            { key: 'content', label: 'Content' },
+            { key: 'activity', label: 'Activity' },
+          ]}
+          active={tab}
+          onChange={setTab}
+        />
+      </div>
 
       {tab === 'editor' ? (
         <>
-          <PageToolbar
-            templateId={templateId}
-            templateSchema={template?.schema}
-            theme={theme}
-            onTemplate={(id) => {
-              setTemplateId(id)
-              setDirty(true)
-            }}
-            onTheme={(next) => {
-              setTheme(next)
-              setDirty(true)
-            }}
-          />
+          <div className="max-w-[900px] mx-auto flow">
+            <PageToolbar
+              templateId={templateId}
+              templateSchema={template?.schema}
+              theme={theme}
+              onTemplate={(id) => {
+                setTemplateId(id)
+                setDirty(true)
+              }}
+              onTheme={(next) => {
+                setTheme(next)
+                setDirty(true)
+              }}
+            />
+          </div>
 
-          {template?.schema && 'blocks' in template.schema ? (
+          {RICH_TEMPLATE_IDS.includes(templateId) ? (
             <AdvancedTemplateRenderer
               templateId={templateId}
               content={content}
-              setContent={setContent as any}
-              setDirty={setDirty}
+              theme={theme}
+              layoutConfig={layoutConfig}
+              hasForm={Boolean(formId)}
+              formFields={fields}
+              submitLabel={submitLabel}
+              submissionCount={page.submissionCount}
+              onSlot={(slotGroup, next) => {
+                setContent((c) => ({ ...c, [slotGroup]: next }))
+                setDirty(true)
+              }}
+              onFormFields={(next) => {
+                setFields(next)
+                setDirty(true)
+              }}
             />
           ) : (
             <PageCanvas
               sections={sections}
               content={content}
+              layoutConfig={layoutConfig}
               theme={theme}
               slots={slots}
               hasForm={Boolean(formId)}
@@ -240,16 +258,34 @@ export function LandingPage() {
                 setSlots(next)
                 setDirty(true)
               }}
-              onSection={(key, next) => {
-                setContent((c) => ({ ...c, [key]: next }))
+              onSlot={(slotGroup, next) => {
+                setContent((c) => ({ ...c, [slotGroup]: next }))
                 setDirty(true)
               }}
               submitLabel={submitLabel}
             />
           )}
         </>
+      ) : tab === 'content' ? (
+        <div className="mx-auto w-full max-w-[900px]">
+          <ContentView
+            content={content}
+            sections={sections}
+            layoutConfig={layoutConfig}
+            onSlot={(slotGroup, next) => {
+              setContent((c) => ({ ...c, [slotGroup]: next }))
+              setDirty(true)
+            }}
+            onLayoutConfig={(next) => {
+              setLayoutConfig(next)
+              setDirty(true)
+            }}
+          />
+        </div>
       ) : (
-        <PageActivity landingPageId={page.id} />
+        <div className="mx-auto w-full max-w-[900px]">
+          <PageActivity landingPageId={page.id} />
+        </div>
       )}
     </div>
   )

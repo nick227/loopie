@@ -1,7 +1,6 @@
 import { Image as ImageIcon, X } from 'lucide-react'
 import type { components } from '@project/sdk'
 import { mediaSrc } from '@/lib/media'
-import { PREVIEW_FRAMES, type PreviewFrameId } from '@/lib/adPreview'
 import { cn } from '@/lib/utils'
 
 type Asset = components['schemas']['Asset']
@@ -9,7 +8,7 @@ type Asset = components['schemas']['Asset']
 function Media({ asset }: { asset: Asset }) {
   const src = mediaSrc(asset.url)
   if (asset.type === 'VIDEO' && src) {
-    return <video src={src} className="h-full w-full object-cover" muted playsInline />
+    return <video src={src} className="h-full w-full object-cover" muted playsInline controls />
   }
   if (asset.type === 'IMAGE' && src) {
     return <img src={src} alt="" className="h-full w-full object-cover" />
@@ -26,7 +25,7 @@ function Media({ asset }: { asset: Asset }) {
   )
 }
 
-export const AD_MEDIA_STAGE_HEIGHT = 'h-[27rem]'
+export const AD_MEDIA_STAGE_HEIGHT = 'min-h-[27rem]'
 
 function Remove({ onRemove }: { onRemove: () => void }) {
   return (
@@ -41,61 +40,59 @@ function Remove({ onRemove }: { onRemove: () => void }) {
   )
 }
 
-export function AdMediaStage({
+function destinationHost(url: string | undefined) {
+  if (!url) return null
+  try {
+    return new URL(url).host
+  } catch {
+    return url
+  }
+}
+
+// A Feed post's own preview surface — deliberately just the three things a Feed placement
+// actually renders (image/video, primary post text, CTA), no desktop/mobile frame toggle. See
+// CLAUDE.md's Feed Ad POC pass: the toggle only ever changed how the file cropped, not where the
+// ad appeared, so it was dropped rather than reproduced here.
+export function AdFeedPreview({
   asset,
-  frameId,
-  onFrame,
+  primaryText,
+  ctaLabel,
+  destinationUrl,
   onRemove,
 }: {
   asset: Asset
-  frameId: PreviewFrameId
-  onFrame: (id: PreviewFrameId) => void
+  primaryText: string
+  ctaLabel: string
+  destinationUrl: string
   onRemove: () => void
 }) {
-  const mobile = frameId === 'mobile'
+  const host = destinationHost(destinationUrl)
 
   return (
-    <div className="space-y-3">
+    <div className={cn('flex w-full justify-center', AD_MEDIA_STAGE_HEIGHT)}>
       <div
         data-testid="ad-preview"
-        className={cn(
-          'flex w-full items-center justify-center overflow-hidden',
-          AD_MEDIA_STAGE_HEIGHT,
-        )}
+        className="relative w-full max-w-md self-start overflow-hidden rounded-xl border border-border bg-surface shadow-sm"
       >
-        {mobile ? (
-          <div className="relative overflow-hidden rounded-[2.5rem] border-[8px] border-zinc-900 shadow-xl">
-            <Remove onRemove={onRemove} />
-            <div className="aspect-[9/16] w-56 overflow-hidden">
-              <Media asset={asset} />
-            </div>
+        <Remove onRemove={onRemove} />
+        {primaryText ? (
+          <p className="whitespace-pre-wrap p-4 pr-10 text-sm leading-relaxed">{primaryText}</p>
+        ) : null}
+        <div className="aspect-square w-full overflow-hidden bg-muted">
+          <Media asset={asset} />
+        </div>
+        {ctaLabel || host ? (
+          <div className="flex items-center justify-between gap-3 border-t border-border bg-muted/40 px-4 py-3">
+            <span className="min-w-0 truncate text-xs uppercase tracking-wider text-muted-foreground">
+              {host ?? ''}
+            </span>
+            {ctaLabel ? (
+              <span className="shrink-0 rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background">
+                {ctaLabel}
+              </span>
+            ) : null}
           </div>
-        ) : (
-          <div className="relative w-full overflow-hidden rounded-xl">
-            <Remove onRemove={onRemove} />
-            <div className="aspect-video w-full overflow-hidden">
-              <Media asset={asset} />
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="flex justify-center gap-1">
-        {PREVIEW_FRAMES.map((row) => (
-          <button
-            key={row.id}
-            type="button"
-            onClick={() => onFrame(row.id)}
-            className={cn(
-              'rounded-md px-3 min-h-11 text-sm sm:min-h-0 sm:py-1.5 sm:text-xs',
-              frameId === row.id
-                ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {row.label}
-          </button>
-        ))}
+        ) : null}
       </div>
     </div>
   )

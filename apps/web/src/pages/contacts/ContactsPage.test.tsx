@@ -4,12 +4,15 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import {
   useContacts,
+  useContactTags,
   useCreateIntegration,
   useCrmCatalog,
   useDisconnectIntegration,
   useHomeSummary,
   useImportContacts,
   useIntegrations,
+  useLeadQueue,
+  usePreviewIntegration,
   useStartCrmOAuth,
   useSyncIntegration,
   useUpdateIntegration,
@@ -19,12 +22,15 @@ import { ContactsPage } from './ContactsPage'
 vi.mock('@project/sdk', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@project/sdk')>()),
   useContacts: vi.fn(),
+  useContactTags: vi.fn(),
   useCreateIntegration: vi.fn(),
   useCrmCatalog: vi.fn(),
   useDisconnectIntegration: vi.fn(),
   useHomeSummary: vi.fn(),
   useImportContacts: vi.fn(),
   useIntegrations: vi.fn(),
+  useLeadQueue: vi.fn(),
+  usePreviewIntegration: vi.fn(),
   useStartCrmOAuth: vi.fn(),
   useSyncIntegration: vi.fn(),
   useUpdateIntegration: vi.fn(),
@@ -73,6 +79,17 @@ describe('ContactsPage', () => {
       isPending: false,
       mutateAsync: vi.fn(),
     } as unknown as ReturnType<typeof useDisconnectIntegration>)
+    vi.mocked(usePreviewIntegration).mockReturnValue({
+      isPending: false,
+      mutateAsync: vi.fn(),
+    } as unknown as ReturnType<typeof usePreviewIntegration>)
+    vi.mocked(useContactTags).mockReturnValue({
+      data: { data: [] },
+    } as unknown as ReturnType<typeof useContactTags>)
+    vi.mocked(useLeadQueue).mockReturnValue({
+      isLoading: false,
+      data: { data: [] },
+    } as unknown as ReturnType<typeof useLeadQueue>)
     vi.mocked(useContacts).mockReturnValue({
       isLoading: false,
       isError: false,

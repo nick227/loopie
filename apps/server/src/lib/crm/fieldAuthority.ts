@@ -4,6 +4,8 @@ export const DISPLAY_RANK = [
   'SALESFORCE',
   'PIPEDRIVE',
   'SHOPIFY',
+  'WOOCOMMERCE',
+  'WEBHOOK',
   'SQUARE',
   'CSV',
 ] as const

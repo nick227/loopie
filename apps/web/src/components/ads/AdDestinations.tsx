@@ -1,6 +1,6 @@
+import { useRiverPosts } from '@project/sdk'
 import type { components } from '@project/sdk'
 import { DestinationIntentRow, PageRunRow, PaidRunRow } from '@/components/ads/AdDestinationRow'
-import { AD_DESTINATIONS_HINT } from '@/lib/adCopy'
 import type { AdOrder } from '@/lib/adOrder'
 import {
   PAID_TARGETS,
@@ -40,6 +40,9 @@ export function AdDestinations({
   runs,
   selected,
   advertisementUpdatedAt,
+  advertisementId,
+  onPostToRiver,
+  riverPending,
   onToggle,
   onPausePage,
   onRelaunch,
@@ -75,7 +78,10 @@ export function AdDestinations({
   runs: AdRun[]
   selected: string[]
   advertisementUpdatedAt?: string
-  onToggle: (key: string) => void
+  advertisementId?: string
+  onPostToRiver?: () => void
+  riverPending?: boolean
+  onToggle: (key: string, supersedesRunId?: string) => void
   onPausePage?: (runId: string) => void
   onRelaunch?: (run: AdRun) => void
   onSync?: (run: AdRun) => void
@@ -110,11 +116,20 @@ export function AdDestinations({
   replaceDestinationErrorRunId?: string
   replaceDestinationError?: string | null
 }) {
+  const riverPosts = useRiverPosts({
+    advertisementId,
+    limit: 100,
+    enabled: Boolean(advertisementId),
+  })
   const paid = PAID_TARGETS.filter((row) => !mediaType || row.types.includes(mediaType))
   const byKey = new Map<string, AdRun>()
+  const historyByKey = new Map<string, AdRun[]>()
   for (const run of runs) {
-    if (run.status === 'ENDED') continue
     const key = runDestinationKey(run)
+    if (run.status !== 'VALIDATION_FAILED' && run.status !== 'PROVISIONING_FAILED') {
+      historyByKey.set(key, [...(historyByKey.get(key) ?? []), run])
+    }
+    if (run.status === 'ENDED') continue
     const existing = byKey.get(key)
     // A replace-creative/replace-destination (or generic relaunch) attempt that fails leaves its
     // own new row non-ENDED (VALIDATION_FAILED/PROVISIONING_FAILED) alongside the prior run,
@@ -127,15 +142,32 @@ export function AdDestinations({
       byKey.set(key, run)
     }
   }
+  for (const history of historyByKey.values()) {
+    history.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  }
+  const riverHistory = (riverPosts.data?.data ?? []).map((post) => ({
+    createdAt: post.createdAt,
+    href: post.permalinkUrl,
+  }))
 
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-medium">Where should this ad appear?</p>
-        <p className="text-sm text-muted-foreground">{AD_DESTINATIONS_HINT}</p>
+        <h2 className="text-sm font-medium p-2 bg-surface rounded-lg">Publish to:</h2>
       </div>
 
       <div className="space-y-2">
+        {advertisementId ? (
+          <DestinationIntentRow
+            id="destination-river"
+            label="River"
+            format="Post organically to LOOPIE's B2B feed"
+            publicationRecords={riverHistory}
+            pending={riverPending}
+            disabled={!onPostToRiver}
+            onPublish={() => onPostToRiver?.()}
+          />
+        ) : null}
         {paid.map((row) => {
           const run = byKey.get(row.key)
           if (run)
@@ -189,6 +221,7 @@ export function AdDestinations({
                 replaceDestinationError={
                   replaceDestinationErrorRunId === run.id ? replaceDestinationError : undefined
                 }
+                publicationHistory={(historyByKey.get(row.key) ?? []).map((item) => item.createdAt)}
               />
             )
           return (
@@ -197,8 +230,9 @@ export function AdDestinations({
               id={row.key}
               label={row.brand}
               format={row.format}
-              selected={selected.includes(row.key)}
-              onToggle={() => onToggle(row.key)}
+              publishedAt={(historyByKey.get(row.key) ?? []).map((item) => item.createdAt)}
+              pending={selected.includes(row.key)}
+              onPublish={() => onToggle(row.key)}
             />
           )
         })}
@@ -220,6 +254,8 @@ export function AdDestinations({
                   onPause={
                     run.status === 'ACTIVE' && onPausePage ? () => onPausePage(run.id) : undefined
                   }
+                  publicationHistory={(historyByKey.get(key) ?? []).map((item) => item.createdAt)}
+                  onPublish={() => onToggle(key, run.id)}
                 />
               )
             }
@@ -229,8 +265,9 @@ export function AdDestinations({
                 id={key}
                 label={page.name}
                 format={page.status === 'PUBLISHED' ? undefined : 'Draft'}
-                selected={selected.includes(key)}
-                onToggle={() => onToggle(key)}
+                publishedAt={(historyByKey.get(key) ?? []).map((item) => item.createdAt)}
+                pending={selected.includes(key)}
+                onPublish={() => onToggle(key)}
               />
             )
           })
@@ -240,7 +277,7 @@ export function AdDestinations({
   )
 }
 
-export function selectedPageTargets(selected: string[]): PublishTarget[] {
+export function selectedPageTargets(selected: string[], supersedesRunId?: string): PublishTarget[] {
   const pages: PublishTarget[] = []
   for (const key of selected) {
     const id = pageIdFromKey(key)
@@ -250,6 +287,7 @@ export function selectedPageTargets(selected: string[]): PublishTarget[] {
         placement: 'PAGE',
         budget: 0,
         destinationLandingPageId: id,
+        supersedesRunId,
       })
     }
   }

@@ -42,12 +42,7 @@ export function PagesCollectionInsights({ pages }: { pages: LandingPage[] }) {
           ? {
               icon: Trophy,
               href: `/landing-pages/${best.id}`,
-              children: (
-                <>
-                  Best performer: <span className="font-medium text-foreground">{best.name}</span> ·{' '}
-                  {best.submissionCount} submission{best.submissionCount === 1 ? '' : 's'}
-                </>
-              ),
+              children: `${best.name} is your best performer — ${best.submissionCount} submissions`,
             }
           : undefined
       }

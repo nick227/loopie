@@ -41,6 +41,32 @@ afterEach(async () => {
   await db.lead.deleteMany()
   await db.formField.deleteMany()
 
+  // River references Advertisement/PublishedAdvertisementVersion/Business — must go before all
+  // three are deleted below. RiverReaction/RiverFollow reference Business directly (not just via
+  // RiverPost), so they go first too.
+  await db.riverReaction.deleteMany()
+  await db.riverFollow.deleteMany()
+  await db.riverEngagementEvent.deleteMany()
+  // Self-referencing (a reply's parentCommentId points at another RiverComment row) — deleteMany
+  // handles that fine without an ordering pass, it's not a FK RiverPost itself needs to wait on
+  // beyond "delete comments before the posts they reference."
+  await db.riverComment.deleteMany()
+  await db.riverPost.deleteMany()
+
+  // Embed tables (a concurrent, in-flight session's own work — see CLAUDE.md's typecheck-error
+  // note on @project/embed-contract) reference Advertisement/LandingPage/PublishedPageVersion but
+  // weren't wired into this afterEach yet, which left orphaned rows in loopie_test that made
+  // db.advertisement.deleteMany() below throw a real FK violation for every test in the suite —
+  // found live, not by inspection, while adding the CRM avatar+notes tests. Purely additive
+  // cleanup, children before parents; no application code touched.
+  await db.embedProjectionOutbox.deleteMany()
+  await db.embedEvent.deleteMany()
+  await db.embedInstance.deleteMany()
+  await db.embedAllowedOrigin.deleteMany()
+  await db.embedBootstrapNonce.deleteMany()
+  await db.embedDeployment.deleteMany()
+  await db.publishedAdvertisementVersion.deleteMany()
+
   await db.landingPageAdSlot.deleteMany()
   await db.landingPage.updateMany({ data: { publishedVersionId: null } })
   await db.publishedPageVersion.deleteMany()
@@ -55,6 +81,13 @@ afterEach(async () => {
   await db.affiliate.deleteMany()
   await db.affiliateDeal.deleteMany()
   await db.affiliateClass.deleteMany()
+  await db.embedProjectionOutbox.deleteMany()
+  await db.formSubmission.deleteMany()
+  await db.embedInstance.deleteMany()
+  await db.embedDeployment.deleteMany()
+  await db.publishedAdvertisementVersion.deleteMany()
+  await db.publishedPageVersion.deleteMany()
+  await db.advertisement.deleteMany()
   await db.landingPage.deleteMany()
 
   await db.message.deleteMany()
@@ -71,12 +104,21 @@ afterEach(async () => {
   await db.asset.deleteMany()
   await db.landingPageTemplate.deleteMany()
   await db.performanceSnapshot.deleteMany()
+  await db.contactNote.deleteMany()
+  await db.contactTagAssignment.deleteMany()
+  await db.contactTag.deleteMany()
+  await db.contactIdentifier.deleteMany()
+  await db.externalEvent.deleteMany()
+  await db.externalContactRecord.deleteMany()
+  // Inbox threads may reference Contacts and, for native site conversations, a peer Business.
+  // Remove the projection before either parent table.
+  await db.inboxMessage.deleteMany()
+  await db.inboxThread.deleteMany()
   await db.contact.deleteMany()
   await db.session.deleteMany()
   await db.user.deleteMany()
   await db.platformConnection.deleteMany()
-  await db.inboxMessage.deleteMany()
-  await db.inboxThread.deleteMany()
+  await db.channelProvider.deleteMany()
   await db.business.deleteMany()
 
   // Not FK-scoped to Business/User (rate limiting is per ip+route, not per tenant) — wiped

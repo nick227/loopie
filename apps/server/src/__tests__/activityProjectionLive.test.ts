@@ -78,6 +78,7 @@ describe('Live Activity Projection', () => {
     const email = `test-${Date.now()}@example.com`
     const result = await submissionService.submit(landingPageId, {
       sessionId,
+      idempotencyKey: randomUUID(),
       data: { email, name: 'Proj Tester' },
     })
 

@@ -3,6 +3,7 @@
 // in the bad sense (see InboxProjectionService's own doc comment), each is a different sentence
 // about the same FormSubmission.
 import { describe, it, expect } from 'vitest'
+import { randomUUID } from 'crypto'
 import { buildTestApp, asAuth, testUserId, testBusinessId } from './helpers'
 import { db, issueSid } from '@project/db'
 
@@ -48,7 +49,11 @@ describe('Inbox: one form submission projects into both the contact and page thr
     const submitRes = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: issueSid().token, data: { email: 'marcus.hill@example.com' } },
+      payload: {
+        sessionId: issueSid().token,
+        idempotencyKey: randomUUID(),
+        data: { email: 'marcus.hill@example.com' },
+      },
     })
     expect(submitRes.statusCode).toBe(201)
     const contactId = submitRes.json().data.contactId
@@ -88,12 +93,20 @@ describe('Inbox: one form submission projects into both the contact and page thr
     await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: issueSid().token, data: { email: 'first@example.com' } },
+      payload: {
+        sessionId: issueSid().token,
+        idempotencyKey: randomUUID(),
+        data: { email: 'first@example.com' },
+      },
     })
     await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: issueSid().token, data: { email: 'second@example.com' } },
+      payload: {
+        sessionId: issueSid().token,
+        idempotencyKey: randomUUID(),
+        data: { email: 'second@example.com' },
+      },
     })
 
     const pageThread = await db.inboxThread.findUnique({
@@ -109,12 +122,20 @@ describe('Inbox: one form submission projects into both the contact and page thr
     await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: issueSid().token, data: { email: 'one@example.com' } },
+      payload: {
+        sessionId: issueSid().token,
+        idempotencyKey: randomUUID(),
+        data: { email: 'one@example.com' },
+      },
     })
     await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: issueSid().token, data: { email: 'two@example.com' } },
+      payload: {
+        sessionId: issueSid().token,
+        idempotencyKey: randomUUID(),
+        data: { email: 'two@example.com' },
+      },
     })
 
     const pageThreads = await db.inboxThread.findMany({ where: { landingPageId: page.id } })

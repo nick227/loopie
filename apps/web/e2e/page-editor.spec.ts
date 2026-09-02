@@ -19,7 +19,9 @@ async function registerAndOpenHome(page: Page) {
   await page.getByRole('button', { name: /continue to inbox/i }).click()
   await page.waitForURL(/\/home/)
   await page.goto('/landing-pages')
-  await page.getByRole('link', { name: 'Edit' }).click()
+  // Collection rows are the entire clickable link (UniversalRow) — there is no separate "Edit"
+  // text link. A fresh business already has one default Home page (provisionDefaultPage).
+  await page.locator('a[href^="/landing-pages/"]').first().click()
   await page.waitForURL(/\/landing-pages\/(?!new$)[^/]+$/)
 }
 
@@ -37,8 +39,14 @@ test.describe('page editor canvas', () => {
     await expect(page.getByLabel('Accent')).toHaveCount(0)
     await expect(page.getByLabel('presetId')).toHaveCount(0)
     await expect(page.getByLabel('Headline', { exact: true })).toBeVisible()
+    // CanvasText is double-click-to-activate: idle state is plain text, not a fillable input.
+    await page.getByLabel('Headline', { exact: true }).dblclick()
     await page.getByLabel('Headline', { exact: true }).fill('Canvas Verified Headline')
     await expect(page.getByLabel('Headline', { exact: true })).toHaveValue(
+      'Canvas Verified Headline',
+    )
+    await page.keyboard.press('Enter')
+    await expect(page.getByLabel('Headline', { exact: true })).toHaveText(
       'Canvas Verified Headline',
     )
 
@@ -51,8 +59,10 @@ test.describe('page editor canvas', () => {
     const layout = page.getByLabel('Layout')
     await layout.selectOption({ label: 'Email capture' })
     await expect(page.getByLabel('Headline', { exact: true })).toHaveCount(0)
+    await page.getByLabel('Pitch').dblclick()
     await page.getByLabel('Pitch').fill('Canvas Verified Pitch')
     await expect(page.getByLabel('Pitch')).toHaveValue('Canvas Verified Pitch')
+    await page.keyboard.press('Enter')
     await expect(page.getByLabel('Phone')).toBeVisible()
     await expect(page.getByRole('button', { name: /save draft/i })).toHaveCount(0)
     await expect(page.getByRole('button', { name: /preview/i })).toBeVisible()
@@ -95,7 +105,9 @@ test.describe('page editor canvas', () => {
     expect(html).toContain('name="phone"')
     await expect(page.getByText(/^Live at /)).toBeVisible()
 
+    await page.getByLabel('Pitch').dblclick()
     await page.getByLabel('Pitch').fill('Unpublished draft pitch')
+    await page.keyboard.press('Enter')
     await expect(page.getByText(/Saving/)).toBeVisible()
     await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 10000 })
 

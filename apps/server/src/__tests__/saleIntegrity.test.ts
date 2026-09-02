@@ -3,6 +3,7 @@
 // reports may group it many ways, but no aggregation may count that identity more than once."
 // See CLAUDE.md's "Sale & Reporting Integrity" section for the full design.
 import { describe, it, expect } from 'vitest'
+import { randomUUID } from 'crypto'
 import { buildTestApp, asAuth, testUserId, testBusinessId } from './helpers'
 import { db, issueSid } from '@project/db'
 
@@ -162,7 +163,11 @@ describe('Reversed sales excluded from every revenue rollup', () => {
     const submitRes = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: sid, data: { email: 'reversal@example.com' } },
+      payload: {
+        sessionId: sid,
+        idempotencyKey: randomUUID(),
+        data: { email: 'reversal@example.com' },
+      },
     })
     const { contactId, leadId } = submitRes.json().data
 
@@ -338,7 +343,11 @@ describe('Conversion counting does not inflate on lead reuse', () => {
     const submitA = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: sidA, data: { email: 'reuse-conversion@example.com' } },
+      payload: {
+        sessionId: sidA,
+        idempotencyKey: randomUUID(),
+        data: { email: 'reuse-conversion@example.com' },
+      },
     })
     expect(submitA.statusCode).toBe(201)
 
@@ -349,7 +358,11 @@ describe('Conversion counting does not inflate on lead reuse', () => {
     const submitB = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: sidB, data: { email: 'reuse-conversion@example.com' } },
+      payload: {
+        sessionId: sidB,
+        idempotencyKey: randomUUID(),
+        data: { email: 'reuse-conversion@example.com' },
+      },
     })
     expect(submitB.statusCode).toBe(201)
     expect(submitB.json().data.leadId).toBe(submitA.json().data.leadId)
@@ -373,12 +386,20 @@ describe('Landing-page performance counts distinct leads, not raw submissions', 
     const first = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: issueSid().token, data: { email: 'Repeat.Submitter@example.com' } },
+      payload: {
+        sessionId: issueSid().token,
+        idempotencyKey: randomUUID(),
+        data: { email: 'Repeat.Submitter@example.com' },
+      },
     })
     const second = await app.inject({
       method: 'POST',
       url: `/landing-pages/${page.id}/submissions`,
-      payload: { sessionId: issueSid().token, data: { email: 'repeat.submitter@example.com' } },
+      payload: {
+        sessionId: issueSid().token,
+        idempotencyKey: randomUUID(),
+        data: { email: 'repeat.submitter@example.com' },
+      },
     })
     expect(first.statusCode).toBe(201)
     expect(second.statusCode).toBe(201)

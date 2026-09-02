@@ -15,6 +15,9 @@ export type Attribution = {
   sourceDeploymentId?: string | null
   sourceAdRunId?: string | null
   sourceAdUnitId?: string | null
+  sourceEmbedDeploymentId?: string | null
+  sourceEmbedVersionId?: string | null
+  sourceEmbedInstanceId?: string | null
   clickId?: string | null
   landingSessionId?: string | null
 }
@@ -57,6 +60,16 @@ export async function resolveContact(
   const email = normalizeEmail(input.email)
   const phone = normalizePhone(input.phone)
   const source = input.source ?? 'landing-page'
+  const existingExternal = external
+    ? await tx.externalContactRecord.findUnique({
+        where: {
+          scopeKey_externalId: {
+            scopeKey: external.scopeKey,
+            externalId: external.externalId,
+          },
+        },
+      })
+    : null
   const match = await matchIdentity(tx, businessId, {
     email,
     phone,
@@ -78,13 +91,52 @@ export async function resolveContact(
   }
 
   if (match.status === 'resolved') {
-    const contact = await fillContactBlanks(
+    let contact = await fillContactBlanks(
       tx,
       match.contact,
       { name: input.name, email, phone, company: input.company },
       source,
       external?.integrationId,
     )
+    const previous = existingExternal?.sourceSnapshot
+    const incoming = external?.sourceSnapshot
+    if (previous && typeof previous === 'object' && !Array.isArray(previous) && incoming) {
+      const prior = previous as Record<string, unknown>
+      const updates: Partial<Pick<Contact, 'name' | 'email' | 'phone' | 'company'>> = {}
+      const currentValues = {
+        name: contact.name,
+        email: normalizeEmail(contact.email),
+        phone: normalizePhone(contact.phone),
+        company: contact.company,
+      }
+      const incomingValues = {
+        name: incoming.name?.trim() || null,
+        email: normalizeEmail(incoming.email),
+        phone: normalizePhone(incoming.phone),
+        company: incoming.company?.trim() || null,
+      }
+      const previousValues = {
+        name: typeof prior.name === 'string' ? prior.name : null,
+        email: typeof prior.email === 'string' ? normalizeEmail(prior.email) : null,
+        phone: typeof prior.phone === 'string' ? normalizePhone(prior.phone) : null,
+        company: typeof prior.company === 'string' ? prior.company : null,
+      }
+      for (const field of ['name', 'email', 'phone', 'company'] as const) {
+        // Only advance a provider-owned value. If the local value has diverged since the last
+        // source snapshot, that divergence is a local edit and remains authoritative.
+        if (
+          incomingValues[field] !== null &&
+          currentValues[field] === previousValues[field] &&
+          incomingValues[field] !== currentValues[field]
+        ) {
+          updates[field] = incomingValues[field] as never
+        }
+      }
+      if (Object.keys(updates).length) {
+        contact = await tx.contact.update({ where: { id: contact.id }, data: updates })
+        await syncPrimaryIdentifiers(tx, contact, source, external?.integrationId)
+      }
+    }
     if (external) {
       await upsertExternalRecord(tx, {
         businessId,
@@ -166,6 +218,9 @@ async function insertOrReuseOpenLead(
         sourceDeploymentId: attribution.sourceDeploymentId ?? null,
         sourceAdRunId: attribution.sourceAdRunId ?? null,
         sourceAdUnitId: attribution.sourceAdUnitId ?? null,
+        sourceEmbedDeploymentId: attribution.sourceEmbedDeploymentId ?? null,
+        sourceEmbedVersionId: attribution.sourceEmbedVersionId ?? null,
+        sourceEmbedInstanceId: attribution.sourceEmbedInstanceId ?? null,
         clickId: attribution.clickId ?? null,
         landingSessionId: attribution.landingSessionId ?? null,
         openSlot: OPEN_SLOT,
@@ -218,6 +273,9 @@ export async function resolveContactAndLead(
       sourceDeploymentId: attribution.sourceDeploymentId ?? null,
       sourceAdRunId: attribution.sourceAdRunId ?? null,
       sourceAdUnitId: attribution.sourceAdUnitId ?? null,
+      sourceEmbedDeploymentId: attribution.sourceEmbedDeploymentId ?? null,
+      sourceEmbedVersionId: attribution.sourceEmbedVersionId ?? null,
+      sourceEmbedInstanceId: attribution.sourceEmbedInstanceId ?? null,
     },
   })
 

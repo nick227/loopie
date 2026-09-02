@@ -3,6 +3,7 @@
 // not formStartCount (which also counts abandoned attempts). Batched (list) vs single (get/update)
 // counting paths both exercised here, not just one.
 import { describe, it, expect } from 'vitest'
+import { randomUUID } from 'crypto'
 import { buildTestApp, asAuth, testUserId } from './helpers'
 import { db, issueSid } from '@project/db'
 
@@ -67,7 +68,7 @@ describe('LandingPage.submissionCount', () => {
       const submitRes = await app.inject({
         method: 'POST',
         url: `/landing-pages/${page.id}/submissions`,
-        payload: { sessionId: issueSid().token, data: { email } },
+        payload: { sessionId: issueSid().token, idempotencyKey: randomUUID(), data: { email } },
       })
       expect(submitRes.statusCode).toBe(201)
     }

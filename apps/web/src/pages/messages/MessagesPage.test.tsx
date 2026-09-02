@@ -1,13 +1,14 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { useHomeSummary, useMessages } from '@project/sdk'
+import { useHomeSummary, useInboxThreads, useMessages } from '@project/sdk'
 import { MessagesPage } from './MessagesPage'
 
 vi.mock('@project/sdk', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@project/sdk')>()),
   useMessages: vi.fn(),
   useHomeSummary: vi.fn(),
+  useInboxThreads: vi.fn(),
 }))
 
 describe('MessagesPage', () => {
@@ -21,6 +22,11 @@ describe('MessagesPage', () => {
       data: undefined,
       refetch: vi.fn(),
     } as unknown as ReturnType<typeof useHomeSummary>)
+    vi.mocked(useInboxThreads).mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { data: [] },
+    } as unknown as ReturnType<typeof useInboxThreads>)
     vi.mocked(useMessages).mockReturnValue({
       isLoading: false,
       isError: false,

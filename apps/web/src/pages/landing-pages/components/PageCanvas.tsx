@@ -3,28 +3,35 @@ import { CanvasSection } from './CanvasSection'
 import { CanvasAdBand } from './CanvasAdBand'
 import type { FormFieldDraft } from '@/components/forms/FormFieldsEditor'
 import type { AdSlotDraft } from './adSlots'
-import type { SectionContent, TemplateSection } from './types'
+import {
+  SECTION_TYPE_TO_SLOT_GROUP,
+  type LayoutConfig,
+  type PageContent,
+  type TemplateSection,
+} from './types'
 
 export function PageCanvas({
   sections,
   content,
+  layoutConfig,
   theme,
   slots,
   hasForm,
   formFields,
   submitLabel,
-  onSection,
+  onSlot,
   onFormFields,
   onSlots,
 }: {
   sections: TemplateSection[]
-  content: Record<string, SectionContent>
+  content: PageContent
+  layoutConfig: LayoutConfig
   theme: Record<string, string>
   slots: AdSlotDraft[]
   hasForm: boolean
   formFields: FormFieldDraft[]
   submitLabel: string
-  onSection: (key: string, next: SectionContent) => void
+  onSlot: (slotGroup: keyof PageContent, next: unknown) => void
   onFormFields: (fields: FormFieldDraft[]) => void
   onSlots: (slots: AdSlotDraft[]) => void
 }) {
@@ -68,30 +75,35 @@ export function PageCanvas({
         ['--lp-radius' as string]: radius,
       }}
     >
-      {sections.map((section) => (
-        <div key={section.key}>
-          {section.type === 'form-embed' ? (
-            <CanvasAdBand placement="BEFORE_FORM" slots={slots} onChange={onSlots} />
-          ) : null}
-          <CanvasSection
-            section={section}
-            content={content[section.key] ?? { hidden: false }}
-            onChange={(next) => onSection(section.key, next)}
-            hasForm={hasForm}
-            formFields={formFields}
-            onFormFields={onFormFields}
-            submitLabel={submitLabel}
-          />
-          {section.type === 'hero' ? (
-            <CanvasAdBand placement="AFTER_HERO" slots={slots} onChange={onSlots} />
-          ) : null}
-          {section.type === 'split-capture' ||
-          (section.type === 'form-embed' &&
-            slots.some((slot) => slot.placement === 'AFTER_FORM')) ? (
-            <CanvasAdBand placement="AFTER_FORM" slots={slots} onChange={onSlots} />
-          ) : null}
-        </div>
-      ))}
+      {sections.map((section) => {
+        if (layoutConfig.sections?.[section.key]?.hidden) return null
+        const slotGroup = SECTION_TYPE_TO_SLOT_GROUP[section.type]
+        const slotContent = slotGroup ? ((content as Record<string, unknown>)[slotGroup] ?? {}) : {}
+        return (
+          <div key={section.key}>
+            {section.type === 'form-embed' ? (
+              <CanvasAdBand placement="BEFORE_FORM" slots={slots} onChange={onSlots} />
+            ) : null}
+            <CanvasSection
+              section={section}
+              content={slotContent as never}
+              onChange={(next) => slotGroup && onSlot(slotGroup, next)}
+              hasForm={hasForm}
+              formFields={formFields}
+              onFormFields={onFormFields}
+              submitLabel={submitLabel}
+            />
+            {section.type === 'hero' ? (
+              <CanvasAdBand placement="AFTER_HERO" slots={slots} onChange={onSlots} />
+            ) : null}
+            {section.type === 'split-capture' ||
+            (section.type === 'form-embed' &&
+              slots.some((slot) => slot.placement === 'AFTER_FORM')) ? (
+              <CanvasAdBand placement="AFTER_FORM" slots={slots} onChange={onSlots} />
+            ) : null}
+          </div>
+        )
+      })}
       {hasBottom ? <CanvasAdBand placement="BOTTOM" slots={slots} onChange={onSlots} /> : null}
     </div>
   )

@@ -1,110 +1,104 @@
-import { useState } from 'react'
-import { MapPin, Briefcase, Pencil, X, CheckCircle2 } from 'lucide-react'
+import { Building2, Briefcase, MapPin, ArrowUpRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useBusiness } from '@project/sdk'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { mediaSrc } from '@/lib/media'
 import { BusinessIdentityForm } from '@/components/business/BusinessIdentityForm'
 
-// The one shared identity header, embedded at the top of Home. Editable in place — the standalone
-// Business Profile page (/business, BusinessIdentityForm's other former host) is gone; there's no
-// reason a business's own name/location/industry/audience/social links need a whole extra page
-// when they can be edited right where they're already shown.
 export function BusinessIdentityHeader() {
   const business = useBusiness()
-  const [editing, setEditing] = useState(false)
-  const [justSaved, setJustSaved] = useState(false)
 
-  if (business.isLoading) return <Skeleton className="h-32 w-full rounded-2xl" />
+  if (business.isLoading) {
+    return <Skeleton className="h-72 w-full rounded-2xl" />
+  }
+
   const data = business.data?.data
   if (!data) return null
 
-  if (editing) {
-    return (
-      <div className="rounded-2xl border border-border bg-surface p-5">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-foreground">Edit business profile</p>
-          <button
-            type="button"
-            onClick={() => setEditing(false)}
-            aria-label="Close editor"
-            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <X size={16} />
-          </button>
-        </div>
-        <div className="mt-4">
-          <BusinessIdentityForm
-            initial={{
-              name: data.name,
-              location: data.location ?? null,
-              industry: data.industry ?? null,
-              targetAudience: data.targetAudience ?? null,
-              socialProfiles: data.socialProfiles ?? [],
-              logoUrl: data.logoUrl ?? null,
-            }}
-            submitLabel="Save changes"
-            onSaved={() => {
-              setJustSaved(true)
-              setEditing(false)
-              setTimeout(() => setJustSaved(false), 2500)
-            }}
-          />
-        </div>
-      </div>
-    )
-  }
-
   const src = mediaSrc(data.logoUrl)
+
   const initials = data.name
     .split(' ')
-    .map((w) => w[0])
+    .filter(Boolean)
+    .map((word) => word[0])
     .join('')
     .slice(0, 2)
     .toUpperCase()
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-5 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-4">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-lg font-semibold text-muted-foreground">
-          {src ? (
-            <img src={src} alt="" className="h-full w-full object-cover" loading="lazy" />
-          ) : (
-            initials
-          )}
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-xl font-bold tracking-tight text-foreground">{data.name}</p>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-            {data.location ? (
-              <span className="inline-flex items-center gap-1">
-                <MapPin size={13} /> {data.location}
-              </span>
-            ) : null}
-            {data.industry ? (
-              <span className="inline-flex items-center gap-1">
-                <Briefcase size={13} /> {data.industry}
-              </span>
-            ) : null}
+    <section className="overflow-hidden rounded-2xl border border-border">
+      <div className="grid lg:grid-cols-[190px_minmax(0,1fr)]">
+        {/* Identity / avatar */}
+        <div className="flex items-center gap-4 border-b border-border p-5 lg:flex-col lg:items-start lg:border-b-0 lg:border-r lg:p-6">
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-muted text-xl font-semibold text-foreground shadow-sm sm:h-24 sm:w-24 lg:h-32 lg:w-32">
+            {src ? (
+              <img src={src} alt={`${data.name} logo`} className="h-full w-full object-cover" />
+            ) : initials ? (
+              initials
+            ) : (
+              <Building2 size={32} strokeWidth={1.5} className="text-muted-foreground" />
+            )}
           </div>
-          {justSaved ? (
-            <p className="mt-1.5 flex items-center gap-1.5 text-sm text-success" role="status">
-              <CheckCircle2 size={14} /> Saved
-            </p>
-          ) : (
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              Your live presence across pages, ads, posts, and email.
-            </p>
-          )}
+
+          <div className="min-w-0 lg:w-full">
+            <h2 className="truncate text-lg font-semibold tracking-tight text-foreground">
+              {data.name}
+            </h2>
+
+            <div className="mt-1.5 space-y-1 text-sm text-muted-foreground">
+              {data.industry && (
+                <div className="flex items-center gap-1.5">
+                  <Briefcase size={13} strokeWidth={1.8} />
+                  <span className="truncate">{data.industry}</span>
+                </div>
+              )}
+
+              {data.location && (
+                <div className="flex items-center gap-1.5">
+                  <MapPin size={13} strokeWidth={1.8} />
+                  <span className="truncate">{data.location}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Editable fields */}
+        <div className="min-w-0 p-5 sm:p-6 lg:p-7">
+          <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+            <div className="flex justify-between"></div>
+            {data.slug && (
+              // In-app now — the profile page is a real SPA route (see the "Business profiles:
+              // redesign + fold into the app shell" plan doc) that resolves the same session
+              // cookie the SDK always sends, so the owner is recognized there exactly the way
+              // this external link used to require popping out to VITE_API_URL's own origin for.
+              <Link
+                to={`/b/${data.slug}`}
+                className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                View public profile <ArrowUpRight size={14} />
+              </Link>
+            )}
+
+            <BusinessIdentityForm
+              initial={{
+                name: data.name,
+                location: data.location ?? null,
+                industry: data.industry ?? null,
+                targetAudience: data.targetAudience ?? null,
+                socialProfiles: data.socialProfiles ?? [],
+                logoUrl: data.logoUrl ?? null,
+                description: data.description ?? null,
+                phone: data.phone ?? null,
+                email: data.email ?? null,
+                hours: data.hours ?? null,
+                galleryImageUrls: data.galleryImageUrls ?? [],
+              }}
+              submitLabel="Save changes"
+            />
+          </div>
         </div>
       </div>
-      <button
-        type="button"
-        onClick={() => setEditing(true)}
-        className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-lg border border-input-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent sm:self-center"
-      >
-        <Pencil size={14} />
-        Edit profile
-      </button>
-    </div>
+    </section>
   )
 }

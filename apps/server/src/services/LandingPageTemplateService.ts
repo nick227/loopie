@@ -35,7 +35,10 @@ export class LandingPageTemplateService {
       })
     }
     const templates = await db.landingPageTemplate.findMany({
-      where: { OR: [{ businessId: null }, { businessId }], ...(AND.length ? { AND } : {}) },
+      where: {
+        OR: [{ businessId: null, isSystem: true }, { businessId }],
+        ...(AND.length ? { AND } : {}),
+      },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
     })
@@ -52,7 +55,7 @@ export class LandingPageTemplateService {
   async get(businessId: string, templateId: string) {
     await ensureSystemTemplates(db)
     const template = await db.landingPageTemplate.findFirst({
-      where: { id: templateId, OR: [{ businessId: null }, { businessId }] },
+      where: { id: templateId, OR: [{ businessId: null, isSystem: true }, { businessId }] },
     })
     if (!template) throw { statusCode: 404, message: 'Template not found' }
     return toTemplateDTO(template)

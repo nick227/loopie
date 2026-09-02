@@ -36,7 +36,7 @@ const STAGE_LABEL: Record<string, string> = {
   NEW: 'New',
   CONTACTED: 'Contacted',
   QUALIFIED: 'Qualified',
-  QUOTED: 'Quoted',
+  PROPOSAL: 'Proposal',
   WON: 'Won',
   LOST: 'Lost',
 }
@@ -98,13 +98,13 @@ export async function seedShowcase(opts: {
     { from: 'CONTACTED', to: 'QUALIFIED', at: daysAgo(2) },
   ])
 
-  await upsertLead(businessId, 'demo-lead-derek', derek.id, 'QUOTED', {
+  await upsertLead(businessId, 'demo-lead-derek', derek.id, 'PROPOSAL', {
     openSlot: 'OPEN',
     estimatedValue: 620,
   })
   await stageHistory(businessId, derek.id, [
     { from: 'NEW', to: 'CONTACTED', at: daysAgo(4) },
-    { from: 'CONTACTED', to: 'QUOTED', at: daysAgo(1) },
+    { from: 'CONTACTED', to: 'PROPOSAL', at: daysAgo(1) },
   ])
 
   const priyaLead = await upsertLead(businessId, 'demo-lead-priya', priya.id, 'WON', {
@@ -114,8 +114,8 @@ export async function seedShowcase(opts: {
   })
   await stageHistory(businessId, priya.id, [
     { from: 'NEW', to: 'QUALIFIED', at: daysAgo(7) },
-    { from: 'QUALIFIED', to: 'QUOTED', at: daysAgo(3) },
-    { from: 'QUOTED', to: 'WON', at: daysAgo(0) },
+    { from: 'QUALIFIED', to: 'PROPOSAL', at: daysAgo(3) },
+    { from: 'PROPOSAL', to: 'WON', at: daysAgo(0) },
   ])
   await db.sale.upsert({
     where: { id: 'demo-sale-priya' },
@@ -171,11 +171,11 @@ export async function seedShowcase(opts: {
   // ---------- Advertisement / AdRun — the declarative model, unreferenced by any seed until now ----------
   const advertisement = await db.advertisement.upsert({
     where: { id: 'demo-advertisement-summer' },
-    update: {},
+    update: { name: 'Summer Detail Booking Ad' },
     create: {
       id: 'demo-advertisement-summer',
       businessId,
-      name: 'Summer Roofing Lead Ad',
+      name: 'Summer Detail Booking Ad',
       assets: { create: [{ assetId: imageAssetId }] },
     },
   })
@@ -299,7 +299,7 @@ export async function seedShowcase(opts: {
     'demo-inbox-derek-3',
     derekThread.id,
     'Lead status changed',
-    `Moved from ${STAGE_LABEL.CONTACTED} to ${STAGE_LABEL.QUOTED}.`,
+    `Moved from ${STAGE_LABEL.CONTACTED} to ${STAGE_LABEL.PROPOSAL}.`,
     daysAgo(1),
   )
 
@@ -315,14 +315,14 @@ export async function seedShowcase(opts: {
     'demo-inbox-priya-2',
     priyaThread.id,
     'Lead status changed',
-    `Moved from ${STAGE_LABEL.QUALIFIED} to ${STAGE_LABEL.QUOTED}.`,
+    `Moved from ${STAGE_LABEL.QUALIFIED} to ${STAGE_LABEL.PROPOSAL}.`,
     daysAgo(3),
   )
   await upsertMessage(
     'demo-inbox-priya-3',
     priyaThread.id,
     'Lead status changed',
-    `Moved from ${STAGE_LABEL.QUOTED} to ${STAGE_LABEL.WON}.`,
+    `Moved from ${STAGE_LABEL.PROPOSAL} to ${STAGE_LABEL.WON}.`,
     daysAgo(0),
   )
 

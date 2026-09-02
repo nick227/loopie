@@ -2,6 +2,8 @@ import { db, hashSessionToken, randomSessionToken } from '@project/db'
 import bcrypt from 'bcryptjs'
 import { provisionDefaultPage } from '../lib/provisionDefaultPage'
 import { normalizeEmail } from '../lib/identityResolution'
+import { seedChannelProviders } from '../lib/channelProviders'
+import { nextUniqueBusinessSlug } from '../lib/businessSlug'
 
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
 
@@ -37,11 +39,12 @@ export class AuthService {
     if (!email) throw { statusCode: 400, message: 'Email is required' }
     const hash = await bcrypt.hash(data.password, 12)
     const user = await db.$transaction(async (tx) => {
+      const slug = await nextUniqueBusinessSlug(tx, data.businessName)
       const created = await tx.user.create({
         data: {
           email,
           passwordHash: hash,
-          business: { create: { name: data.businessName } },
+          business: { create: { name: data.businessName, slug } },
         },
         include: { business: true },
       })
@@ -49,6 +52,7 @@ export class AuthService {
         businessId: created.businessId,
         businessName: created.business.name,
       })
+      await seedChannelProviders(tx, created.businessId)
       return created
     })
     const session = await this._createSession(user.id)

@@ -49,12 +49,7 @@ export function ContactsCollectionInsights() {
           ? {
               icon: Trophy,
               href: `/contacts/${best.id}`,
-              children: (
-                <>
-                  Top customer: <span className="font-medium text-foreground">{best.name}</span> ·{' '}
-                  {money(best.revenue ?? 0)}
-                </>
-              ),
+              children: `${best.name} is your top customer — ${money(best.revenue ?? 0)}`,
             }
           : undefined
       }

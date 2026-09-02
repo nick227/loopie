@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { randomUUID } from 'crypto'
 import {
   SYSTEM_LEAD_GEN_TEMPLATE_ID,
   SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID,
@@ -6,7 +7,7 @@ import {
   issueSid,
 } from '@project/db'
 import { buildTestApp, asAuth, testUserId, testOtherUserId } from './helpers'
-import { renderLandingPageHtml } from '../lib/renderLandingPage'
+import { renderLandingPageHtml } from '@project/page-renderer'
 
 const app = buildTestApp()
 
@@ -89,6 +90,7 @@ describe('page editor', () => {
       url: `/landing-pages/${page.id}/submissions`,
       payload: {
         sessionId: issueSid().token,
+        idempotencyKey: randomUUID(),
         data: { name: 'Ada', email: 'ada@example.com' },
       },
     })
@@ -108,8 +110,8 @@ describe('page editor', () => {
     })
     expect(created.statusCode).toBe(201)
     const page = created.json().data
-    expect(page.content.sections.features).toBeTruthy()
-    expect(page.content.sections.image.imageUrl).toContain('images.unsplash.com')
+    expect(page.content.features).toBeTruthy()
+    expect(page.content.media.url).toContain('images.unsplash.com')
     expect(page.formId).toBeTruthy()
 
     const switched = await app.inject({
@@ -120,7 +122,11 @@ describe('page editor', () => {
     })
     expect(switched.statusCode).toBe(200)
     expect(switched.json().data.templateId).toBe(SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID)
-    expect(switched.json().data.content.sections.features).toBeTruthy()
+    // The whole point of the canonical content model: switching templates never touches content
+    // that the new template simply doesn't render — `features` isn't part of the email-capture
+    // template's schema, but it's still there, untouched, ready to reappear if switched back.
+    expect(switched.json().data.content.features).toBeTruthy()
+    expect(switched.json().data.content.media.url).toContain('images.unsplash.com')
 
     const exported = await app.inject({
       method: 'GET',
@@ -145,7 +151,7 @@ describe('page editor', () => {
     })
     expect(created.statusCode).toBe(201)
     const page = created.json().data
-    expect(page.content.sections.split.headline).toContain('next opening')
+    expect(page.content.hero.headline).toContain('next opening')
 
     const exported = await app.inject({
       method: 'GET',
@@ -172,6 +178,7 @@ describe('page editor', () => {
       url: `/landing-pages/${page.id}/submissions`,
       payload: {
         sessionId: issueSid().token,
+        idempotencyKey: randomUUID(),
         data: { email: 'ada@example.com' },
       },
     })
@@ -182,6 +189,7 @@ describe('page editor', () => {
       url: `/landing-pages/${page.id}/submissions`,
       payload: {
         sessionId: issueSid().token,
+        idempotencyKey: randomUUID(),
         data: {},
       },
     })

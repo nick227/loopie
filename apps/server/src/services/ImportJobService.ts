@@ -5,6 +5,7 @@ import { db } from '@project/db'
 import { normalizeImportContact } from '../../../../packages/sdk/src/lib/importContactSchema'
 import { csvScope } from '../lib/crm/catalog'
 import { normalizeEmail, normalizePhone, resolveContact } from '../lib/identityResolution'
+import { syncContactTags } from '../lib/contactTags'
 
 export class ImportJobService {
   async importContacts(businessId: string, contacts: Record<string, unknown>[]) {
@@ -50,13 +51,15 @@ export class ImportJobService {
       }
       if (result.created) {
         created++
-        await db.contact.update({
-          where: { id: result.contact.id },
-          data: {
-            ...(row.tags ? { tags: row.tags } : {}),
-            ...(row.emailEligible !== undefined ? { emailEligible: row.emailEligible } : {}),
-            ...(row.smsEligible !== undefined ? { smsEligible: row.smsEligible } : {}),
-          },
+        await db.$transaction(async (tx) => {
+          await tx.contact.update({
+            where: { id: result.contact.id },
+            data: {
+              ...(row.emailEligible !== undefined ? { emailEligible: row.emailEligible } : {}),
+              ...(row.smsEligible !== undefined ? { smsEligible: row.smsEligible } : {}),
+            },
+          })
+          if (row.tags) await syncContactTags(tx, businessId, result.contact.id, row.tags)
         })
       } else linked++
     }

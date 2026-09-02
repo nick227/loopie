@@ -4,6 +4,7 @@
 // not just that it runs without throwing. The "clean" scenario is the acceptance bar itself:
 // per the user's rule, cutover is only ready when every dimension is match/expected_model_difference.
 import { describe, it, expect } from 'vitest'
+import { randomUUID } from 'crypto'
 import { db } from '@project/db'
 import { buildTestApp, asAuth, testUserId, testBusinessId } from './helpers'
 import { compareSourcePair } from '../lib/shadowComparison'
@@ -79,7 +80,11 @@ async function buildLegacyDeploymentWithConversion(page: { id: string }) {
   const submit = await app.inject({
     method: 'POST',
     url: `/landing-pages/${page.id}/submissions`,
-    payload: { sessionId: sid, data: { email: `shadow-legacy-${Date.now()}@example.com` } },
+    payload: {
+      sessionId: sid,
+      idempotencyKey: randomUUID(),
+      data: { email: `shadow-legacy-${Date.now()}@example.com` },
+    },
   })
   const { contactId, leadId } = submit.json().data
   await app.inject({
@@ -137,7 +142,11 @@ async function buildAdRunWithConversion(page: { id: string }) {
   const submit = await app.inject({
     method: 'POST',
     url: `/landing-pages/${page.id}/submissions`,
-    payload: { sessionId: sid, data: { email: `shadow-adrun-${Date.now()}@example.com` } },
+    payload: {
+      sessionId: sid,
+      idempotencyKey: randomUUID(),
+      data: { email: `shadow-adrun-${Date.now()}@example.com` },
+    },
   })
   const { contactId, leadId } = submit.json().data
   const saleRes = await app.inject({

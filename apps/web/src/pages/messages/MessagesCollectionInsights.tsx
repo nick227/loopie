@@ -13,7 +13,6 @@ function messageLabel(message: Message): string {
 // reached is real, already-computed data (Message.recipientCount, summed across sent messages),
 // not a fabricated open-rate/engagement number no provider in this codebase can back.
 export function MessagesCollectionInsights({ messages }: { messages: Message[] }) {
-  if (messages.length === 0) return null
   const sent = messages.filter((m) => m.status === 'SENT')
   const scheduled = messages.filter((m) => m.status === 'SCHEDULED').length
   const drafts = messages.filter((m) => m.status === 'DRAFT').length

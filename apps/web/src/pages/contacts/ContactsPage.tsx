@@ -10,11 +10,15 @@ import {
   useDisconnectIntegration,
   useImportContacts,
   useIntegrations,
+  usePreviewIntegration,
   useStartCrmOAuth,
   useSyncIntegration,
   useUpdateIntegration,
   type ContactImportFormat,
+  type ContactTagColor,
+  type components,
 } from '@project/sdk'
+import { TAG_COLOR_DOT } from '@/lib/tagColors'
 import { ArrowRight, Check, Link2, List, Plus, RefreshCw, UploadCloud } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -24,8 +28,10 @@ import { Modal } from '@/components/ui/Modal'
 import { SearchFilterBar } from '@/components/ui/SearchFilterBar'
 import { UniversalRow, UniversalRowList } from '@/components/ui/UniversalRow'
 import { relativeTime } from '@/components/home/homeFormat'
+import { mediaSrc } from '@/lib/media'
 import { cn } from '@/lib/utils'
 import { useFlatPages } from '@/hooks/useFlatPages'
+import { ContactTagFilterRow } from '@/components/contacts/ContactTagFilterRow'
 import {
   getContactsScrollY,
   setContactsScrollY,
@@ -33,8 +39,13 @@ import {
   setContactsSearch,
   getContactsSourceFilter,
   setContactsSourceFilter,
+  getContactsTagIds,
+  setContactsTagIds,
+  getContactsTagMode,
+  setContactsTagMode,
 } from '@/lib/contactsNavState'
 import { ContactsCollectionInsights } from './ContactsCollectionInsights'
+import { LeadWorkQueue } from '@/components/contacts/LeadWorkQueue'
 
 // Same best-effort approach as Inbox's/Pages'/Advertising's own scroll restore
 // (InboxSummaryPage.tsx, LandingPagesPage.tsx, AdsPage.tsx) — retry a few times after mount
@@ -72,6 +83,7 @@ const COMMON_SOURCES = [
   'HUBSPOT',
   'SALESFORCE',
   'SHOPIFY',
+  'WOOCOMMERCE',
   'SQUARE',
   'PIPEDRIVE',
   'website',
@@ -128,6 +140,27 @@ function SyncedBadge({ records }: { records?: { provider: string }[] }) {
     <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
       <RefreshCw size={10} />
       {label}
+    </span>
+  )
+}
+
+// Up to 2 tag dots inline on the row, +N overflow — enough to signal "this contact is tagged"
+// without turning every row into a wall of chips. Full chips (with names) live on the contact
+// detail page's ContactTagPicker; the row just needs to be scannable.
+function RowTags({ tagRefs }: { tagRefs?: components['schemas']['ContactTagRef'][] }) {
+  if (!tagRefs || tagRefs.length === 0) return null
+  const shown = tagRefs.slice(0, 2)
+  const overflow = tagRefs.length - shown.length
+  return (
+    <span className="inline-flex items-center gap-1">
+      {shown.map((tag) => (
+        <span
+          key={tag.id}
+          title={tag.name}
+          className={cn('h-2 w-2 rounded-full', TAG_COLOR_DOT[tag.color as ContactTagColor])}
+        />
+      ))}
+      {overflow > 0 ? <span className="text-[11px] text-muted-foreground">+{overflow}</span> : null}
     </span>
   )
 }
@@ -216,7 +249,13 @@ function ContactImport({ onDone }: { onDone: () => void }) {
   )
 }
 
-type CrmProvider = { provider: string; label: string; oauth?: boolean; configured?: boolean }
+type CrmProvider = {
+  provider: string
+  label: string
+  oauth?: boolean
+  configured?: boolean
+  availability?: 'LIVE' | 'COMING_SOON'
+}
 type IntegrationRow = {
   id: string
   provider: string
@@ -224,6 +263,10 @@ type IntegrationRow = {
   lastSyncAt?: string | null
   lastSyncCreated?: number | null
   lastSyncLinked?: number | null
+  lastSyncAttemptAt?: string | null
+  lastSyncError?: string | null
+  syncHasMore?: boolean
+  webhookUrl?: string | null
 }
 
 const INTEGRATION_STATUS_LABEL: Record<IntegrationRow['status'], string> = {
@@ -243,7 +286,21 @@ type ModalView =
   | { kind: 'list' }
   | { kind: 'connect'; provider: CrmProvider }
   | { kind: 'manage'; provider: CrmProvider; row: IntegrationRow }
+  | {
+      kind: 'preview'
+      provider: CrmProvider
+      row: IntegrationRow
+      preview: {
+        newContacts: number
+        matchedContacts: number
+        duplicates: number
+        orders: number
+        revenue: number
+        truncated: boolean
+      }
+    }
   | { kind: 'connected'; provider: CrmProvider; created: number; linked: number }
+  | { kind: 'webhook'; provider: CrmProvider; url: string; secret: string }
 
 // A single button, in line with Import/Add contact — not a permanent row of provider chips on
 // the page. Everything (provider list, connect/disconnect, and per-connection settings) lives
@@ -258,9 +315,13 @@ function ConnectIntegrationsButton() {
   const update = useUpdateIntegration()
   const disconnect = useDisconnectIntegration()
   const sync = useSyncIntegration()
+  const preview = usePreviewIntegration()
   const connected = useFlatPages(list)
 
   const [shop, setShop] = useState('')
+  const [wooStoreUrl, setWooStoreUrl] = useState('')
+  const [wooConsumerKey, setWooConsumerKey] = useState('')
+  const [wooConsumerSecret, setWooConsumerSecret] = useState('')
 
   function close() {
     setOpen(false)
@@ -280,29 +341,33 @@ function ConnectIntegrationsButton() {
         window.location.assign(started.data.url)
         return
       }
+      if (provider.provider === 'WEBHOOK') {
+        const created = await create.mutateAsync({ provider: 'WEBHOOK' })
+        if (!created.data?.webhookUrl || !created.data.webhookSecret) {
+          throw new Error('Webhook created, but its one-time credentials were not returned.')
+        }
+        setView({
+          kind: 'webhook',
+          provider,
+          url: created.data.webhookUrl,
+          secret: created.data.webhookSecret,
+        })
+        return
+      }
+      if (provider.provider !== 'WOOCOMMERCE') {
+        throw new Error(`${provider.label} is not available yet.`)
+      }
       const created = await create.mutateAsync({
-        provider: provider.provider as
-          'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'SQUARE' | 'PIPEDRIVE',
-        externalAccountId: provider.provider === 'SHOPIFY' ? shop || undefined : undefined,
+        provider: 'WOOCOMMERCE',
+        storeUrl: wooStoreUrl,
+        consumerKey: wooConsumerKey,
+        consumerSecret: wooConsumerSecret,
       })
       const row = created.data as IntegrationRow | undefined
       if (!row) throw new Error('Connected, but the integration could not be loaded.')
-      // The connection itself isn't the value — what it found is. Sync immediately so the
-      // "connected" state shows real discovered data, not a plumbing confirmation. See
-      // docs/strategy/03-product-principles.md's First-Login Experience.
-      try {
-        const synced = await sync.mutateAsync(row.id)
-        setView({
-          kind: 'connected',
-          provider,
-          created: synced.data?.created ?? 0,
-          linked: synced.data?.linked ?? 0,
-        })
-      } catch {
-        // The connection itself succeeded even if this first sync didn't — still show the
-        // connected state, just without fresh counts.
-        setView({ kind: 'connected', provider, created: 0, linked: 0 })
-      }
+      const result = await preview.mutateAsync(row.id)
+      if (!result.data) throw new Error('The import preview could not be loaded.')
+      setView({ kind: 'preview', provider, row, preview: result.data })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not connect.')
     }
@@ -351,11 +416,15 @@ function ConnectIntegrationsButton() {
           title={
             view.kind === 'connect'
               ? `Connect ${view.provider.label}`
-              : view.kind === 'connected'
-                ? `${view.provider.label} is connected`
-                : view.kind === 'manage'
-                  ? view.provider.label
-                  : 'Connect integrations'
+              : view.kind === 'webhook'
+                ? 'Inbound webhook ready'
+                : view.kind === 'connected'
+                  ? `${view.provider.label} is connected`
+                  : view.kind === 'preview'
+                    ? 'Review WooCommerce import'
+                    : view.kind === 'manage'
+                      ? view.provider.label
+                      : 'Connect integrations'
           }
           onClose={close}
         >
@@ -364,7 +433,9 @@ function ConnectIntegrationsButton() {
           ) : view.kind === 'connect' ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Connect {view.provider.label} to see its contacts, conversations, and activity here.
+                {view.provider.provider === 'WEBHOOK'
+                  ? 'Create an authenticated endpoint for WordPress forms, Zapier, Make, or a custom site.'
+                  : `Connect ${view.provider.label} to see its contacts, conversations, and activity here.`}
               </p>
               {view.provider.provider === 'SHOPIFY' ? (
                 <input
@@ -375,6 +446,36 @@ function ConnectIntegrationsButton() {
                   autoFocus
                 />
               ) : null}
+              {view.provider.provider === 'WOOCOMMERCE' ? (
+                <div className="space-y-3">
+                  <input
+                    className="flex h-9 w-full rounded-md border border-input-border bg-transparent px-3 py-1 text-sm"
+                    value={wooStoreUrl}
+                    onChange={(event) => setWooStoreUrl(event.target.value)}
+                    placeholder="https://yourstore.com"
+                    aria-label="WooCommerce store URL"
+                    autoFocus
+                  />
+                  <input
+                    className="flex h-9 w-full rounded-md border border-input-border bg-transparent px-3 py-1 text-sm"
+                    value={wooConsumerKey}
+                    onChange={(event) => setWooConsumerKey(event.target.value)}
+                    placeholder="Read-only consumer key (ck_…)"
+                    aria-label="WooCommerce consumer key"
+                  />
+                  <input
+                    type="password"
+                    className="flex h-9 w-full rounded-md border border-input-border bg-transparent px-3 py-1 text-sm"
+                    value={wooConsumerSecret}
+                    onChange={(event) => setWooConsumerSecret(event.target.value)}
+                    placeholder="Consumer secret (cs_…)"
+                    aria-label="WooCommerce consumer secret"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Use a read-only key. Purchasing does not grant marketing consent.
+                  </p>
+                </div>
+              ) : null}
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="outline" onClick={() => setView({ kind: 'list' })}>
                   Back
@@ -383,11 +484,102 @@ function ConnectIntegrationsButton() {
                   onClick={() => connect(view.provider)}
                   disabled={
                     (view.provider.provider === 'SHOPIFY' && !shop) ||
+                    (view.provider.provider === 'WOOCOMMERCE' &&
+                      (!wooStoreUrl || !wooConsumerKey || !wooConsumerSecret)) ||
                     create.isPending ||
-                    oauth.isPending
+                    oauth.isPending ||
+                    preview.isPending
                   }
                 >
-                  {create.isPending || oauth.isPending ? 'Connecting…' : 'Authenticate'}
+                  {create.isPending || oauth.isPending || preview.isPending
+                    ? 'Checking…'
+                    : view.provider.provider === 'WOOCOMMERCE'
+                      ? 'Preview import'
+                      : view.provider.provider === 'WEBHOOK'
+                        ? 'Create endpoint'
+                        : 'Authenticate'}
+                </Button>
+              </div>
+            </div>
+          ) : view.kind === 'webhook' ? (
+            <div className="space-y-4 text-sm">
+              <p>
+                Send JSON from WordPress forms, Zapier, Make, or a custom site to this URL with an{' '}
+                <code>Authorization: Bearer …</code> header.
+              </p>
+              <div className="space-y-2 rounded-lg border border-border p-3">
+                <p className="text-xs text-muted-foreground">Endpoint</p>
+                <p className="break-all font-mono text-xs">{view.url}</p>
+                <p className="pt-2 text-xs text-warning">
+                  Copy this secret now. It will not be shown again.
+                </p>
+                <p className="break-all font-mono text-xs">{view.secret}</p>
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={() => setView({ kind: 'list' })}>Done</Button>
+              </div>
+            </div>
+          ) : view.kind === 'preview' ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="rounded-lg border border-border p-3">
+                  <strong>{view.preview.newContacts}</strong>
+                  <br />
+                  <span className="text-muted-foreground">New contacts</span>
+                </div>
+                <div className="rounded-lg border border-border p-3">
+                  <strong>{view.preview.matchedContacts}</strong>
+                  <br />
+                  <span className="text-muted-foreground">Matched contacts</span>
+                </div>
+                <div className="rounded-lg border border-border p-3">
+                  <strong>{view.preview.duplicates}</strong>
+                  <br />
+                  <span className="text-muted-foreground">Duplicates</span>
+                </div>
+                <div className="rounded-lg border border-border p-3">
+                  <strong>{view.preview.orders}</strong>
+                  <br />
+                  <span className="text-muted-foreground">Orders</span>
+                </div>
+              </div>
+              <p className="text-sm">
+                Revenue found:{' '}
+                <strong>
+                  $
+                  {view.preview.revenue.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </strong>
+              </p>
+              {view.preview.truncated ? (
+                <p className="text-xs text-warning">
+                  This is only the first capped batch. Import it now, then use Continue sync until
+                  the store is current.
+                </p>
+              ) : null}
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setView({ kind: 'list' })}>
+                  Cancel
+                </Button>
+                <Button
+                  disabled={sync.isPending}
+                  onClick={async () => {
+                    const result = await sync.mutateAsync(view.row.id)
+                    setView({
+                      kind: 'connected',
+                      provider: view.provider,
+                      created: result.data?.created ?? 0,
+                      linked: result.data?.linked ?? 0,
+                    })
+                  }}
+                >
+                  {sync.isPending
+                    ? 'Importing…'
+                    : view.preview.truncated
+                      ? 'Import first batch'
+                      : 'Import contacts and orders'}
                 </Button>
               </div>
             </div>
@@ -433,6 +625,16 @@ function ConnectIntegrationsButton() {
                   ? `Last synced ${relativeTime(view.row.lastSyncAt)} · ${view.row.lastSyncCreated ?? 0} new, ${view.row.lastSyncLinked ?? 0} linked`
                   : 'Not synced yet.'}
               </p>
+              {view.row.webhookUrl ? (
+                <p className="break-all rounded-lg border border-border p-3 font-mono text-xs">
+                  {view.row.webhookUrl}
+                </p>
+              ) : null}
+              {view.row.lastSyncError ? (
+                <p className="text-sm text-destructive">
+                  Last attempt failed: {view.row.lastSyncError}
+                </p>
+              ) : null}
               {view.row.status === 'NEEDS_REAUTH' ? (
                 <p className="text-sm text-warning">
                   {view.provider.label} needs to be reauthorized before it can sync again.
@@ -442,7 +644,11 @@ function ConnectIntegrationsButton() {
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={sync.isPending || view.row.status !== 'CONNECTED'}
+                  disabled={
+                    sync.isPending ||
+                    view.row.status !== 'CONNECTED' ||
+                    view.provider.provider === 'WEBHOOK'
+                  }
                   onClick={async () => {
                     try {
                       await sync.mutateAsync(view.row.id)
@@ -452,7 +658,7 @@ function ConnectIntegrationsButton() {
                     }
                   }}
                 >
-                  Sync now
+                  {view.row.syncHasMore ? 'Continue sync' : 'Sync now'}
                 </Button>
                 {view.row.status === 'CONNECTED' || view.row.status === 'PAUSED' ? (
                   <Button
@@ -484,8 +690,11 @@ function ConnectIntegrationsButton() {
             <div className="space-y-4">
               <div className="space-y-1.5">
                 {(catalog.data?.data ?? []).map((provider) => {
-                  const row = connected.find((item) => item.provider === provider.provider) as
-                    IntegrationRow | undefined
+                  const row = (
+                    provider.availability === 'LIVE'
+                      ? connected.find((item) => item.provider === provider.provider)
+                      : undefined
+                  ) as IntegrationRow | undefined
                   return (
                     <div
                       key={provider.provider}
@@ -507,13 +716,24 @@ function ConnectIntegrationsButton() {
                       <Button
                         variant="outline"
                         size="sm"
+                        disabled={
+                          !row &&
+                          (provider.availability !== 'LIVE' ||
+                            (Boolean(provider.oauth) && !provider.configured))
+                        }
                         onClick={() =>
                           row
                             ? setView({ kind: 'manage', provider, row })
                             : setView({ kind: 'connect', provider })
                         }
                       >
-                        {row ? 'Manage' : 'Connect'}
+                        {row
+                          ? 'Manage'
+                          : provider.availability !== 'LIVE'
+                            ? 'Coming soon'
+                            : provider.oauth && !provider.configured
+                              ? 'Unavailable'
+                              : 'Connect'}
                       </Button>
                     </div>
                   )
@@ -542,6 +762,8 @@ export function ContactsPage() {
   useRestoreContactsScroll()
   const [q, setQState] = useState(getContactsSearch)
   const [source, setSourceState] = useState(getContactsSourceFilter)
+  const [tagIds, setTagIdsState] = useState(getContactsTagIds)
+  const [tagMode, setTagModeState] = useState(getContactsTagMode)
   const [importOpen, setImportOpen] = useState(false)
   // Persisted through contactsNavState so Back from a Contact entity restores search/filter, same
   // continuity contract as Pages (pagesNavState.ts) and Advertising (adsNavState.ts).
@@ -553,7 +775,19 @@ export function ContactsPage() {
     setSourceState(next)
     setContactsSourceFilter(next)
   }
-  const query = useContacts({ ...(q ? { q } : {}), ...(source ? { source } : {}) })
+  function setTagIds(next: string[]) {
+    setTagIdsState(next)
+    setContactsTagIds(next)
+  }
+  function setTagMode(next: 'AND' | 'OR') {
+    setTagModeState(next)
+    setContactsTagMode(next)
+  }
+  const query = useContacts({
+    ...(q ? { q } : {}),
+    ...(source ? { source } : {}),
+    ...(tagIds.length ? { tagIds, tagMode } : {}),
+  })
   const items = useFlatPages(query)
 
   const sources = useMemo(() => {
@@ -605,13 +839,21 @@ export function ContactsPage() {
             onChange: setSource,
           },
         ]}
-        trailing={
-          <span className="whitespace-nowrap text-xs font-medium text-muted-foreground">
-            {items.length}
-            {query.hasNextPage ? '+' : ''} people
-          </span>
-        }
       />
+
+      <ContactTagFilterRow
+        selectedIds={tagIds}
+        mode={tagMode}
+        onChange={setTagIds}
+        onModeChange={setTagMode}
+      />
+
+      {/* The default CRM landing experience (CLAUDE.md's work-queue slice) — sits above the
+          searchable full list below, which stays for browsing/finding anyone, not just today's
+          actionable set. */}
+      <div className="rounded-2xl border border-border bg-surface p-2">
+        <LeadWorkQueue />
+      </div>
 
       {query.isLoading ? (
         <div className="space-y-px">
@@ -657,14 +899,22 @@ export function ContactsPage() {
                 state={{ from: 'Contacts', fromTo: '/contacts' }}
                 leadingShape="circle"
                 leading={
-                  <span
-                    className={cn(
-                      'grid h-full w-full place-items-center border text-base',
-                      sourceStyle(contact.source),
-                    )}
-                  >
-                    {initials(contact.name)}
-                  </span>
+                  contact.avatarUrl ? (
+                    <img
+                      src={mediaSrc(contact.avatarUrl) ?? undefined}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span
+                      className={cn(
+                        'grid h-full w-full place-items-center border text-base',
+                        sourceStyle(contact.source),
+                      )}
+                    >
+                      {initials(contact.name)}
+                    </span>
+                  )
                 }
                 title={contact.name}
                 subtitle={
@@ -689,6 +939,7 @@ export function ContactsPage() {
                       {LIFECYCLE_LABEL[contact.lifecycleStatus ?? 'NONE']}
                     </span>
                     <SyncedBadge records={contact.records} />
+                    <RowTags tagRefs={contact.tagRefs} />
                     {contact.email ? (
                       <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                         {contact.email}

@@ -4,7 +4,7 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
   return (
     <div
       className={cn(
-        'rounded-xl border border-border bg-surface/50 backdrop-blur-md text-surface-foreground transition-all duration-200 overflow-hidden',
+        'rounded-xl text-surface-foreground transition-all duration-200 overflow-hidden',
         className,
       )}
       {...props}
@@ -21,13 +21,21 @@ export function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDi
 }
 
 export function CardFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('flex items-center p-4 pt-0', className)} {...props} />
+  return (
+    <div
+      className={cn(
+        'flex items-center p-4 pt-0 border border-border bg-surface backdrop-blur-md',
+        className,
+      )}
+      {...props}
+    />
+  )
 }
 
 export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h3
-      className={cn('text-2xl font-semibold leading-none tracking-tight', className)}
+      className={cn('text-2xl font-semibold leading-none tracking-tight bg-surface', className)}
       {...props}
     />
   )

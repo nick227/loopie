@@ -6,7 +6,15 @@ import { InboxThreadPage } from './InboxThreadPage'
 
 vi.mock('@project/sdk', async () => {
   const actual = await vi.importActual('@project/sdk')
-  return { ...(actual as object), useInboxThread: vi.fn(), useMarkInboxThreadRead: vi.fn() }
+  return {
+    ...(actual as object),
+    useInboxThread: vi.fn(),
+    useMarkInboxThreadRead: vi.fn(),
+    useReplyToInboxThread: vi.fn(() => ({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    })),
+  }
 })
 
 function stub<T>(value: object): T {

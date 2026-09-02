@@ -46,3 +46,22 @@ export function useMarkInboxThreadRead() {
     },
   })
 }
+
+export function useReplyToInboxThread() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ threadId, body }: { threadId: string; body: string }) => {
+      const client = getApiClient()
+      return unwrap(
+        await client.POST('/inbox/threads/{threadId}/reply', {
+          params: { path: { threadId } },
+          body: { body },
+        }),
+      )
+    },
+    onSuccess: (_, { threadId }) => {
+      queryClient.invalidateQueries({ queryKey: ['inbox', 'threads'] })
+      queryClient.invalidateQueries({ queryKey: ['inbox', 'threads', threadId] })
+    },
+  })
+}

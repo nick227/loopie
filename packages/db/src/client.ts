@@ -35,10 +35,38 @@ export {
   PAGE_THEME_PRESETS,
   MOCK_FEATURE_ITEMS,
   MOCK_STARTER_IMAGE,
-  defaultContentFromSchema,
+  defaultLayoutConfigFromSchema,
   starterContentForTemplate,
   themeFromPreset,
   matchThemePreset,
 } from './leadGenTemplate'
-export type { PageThemePreset } from './leadGenTemplate'
+export type { PageThemePreset, TemplateSchema, TemplateSectionDef } from './leadGenTemplate'
 export { parseYoutubeId, youtubeEmbedUrl } from './youtube'
+export {
+  normalizeLegacyPageContent,
+  SECTION_TYPE_TO_SLOT_GROUP,
+  KNOWN_SLOT_GROUPS,
+} from './content'
+export type { PageContent, LayoutConfig, SlotGroupKey } from './content'
+export {
+  SYSTEM_CORPORATE_PROFESSIONAL_TEMPLATE_ID,
+  corporateProfessionalTitle,
+  corporateProfessionalDescription,
+  corporateProfessionalSchema,
+  corporateProfessionalStarterContent,
+} from './data/corporate-professional'
+export {
+  SYSTEM_WEBINAR_SIGNUP_TEMPLATE_ID,
+  webinarSignupTitle,
+  webinarSignupDescription,
+  webinarSignupSchema,
+  webinarSignupStarterContent,
+} from './data/webinar-signup'
+export {
+  SYSTEM_STUDIO_TEMPLATE_ID,
+  studioTitle,
+  studioDescription,
+  studioSchema,
+  studioStarterContent,
+} from './data/studio'
+export { SYSTEM_TEMPLATE_STARTER_CONTENT } from './systemTemplates'

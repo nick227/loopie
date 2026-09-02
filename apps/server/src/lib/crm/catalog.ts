@@ -8,7 +8,8 @@ export type CrmCapabilitySet = {
 }
 
 export type CrmCatalogEntry = {
-  provider: 'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'SQUARE' | 'PIPEDRIVE'
+  provider:
+    'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'WOOCOMMERCE' | 'WEBHOOK' | 'SQUARE' | 'PIPEDRIVE'
   label: string
   capabilities: CrmCapabilitySet
 }
@@ -41,6 +42,30 @@ export const CRM_CATALOG: CrmCatalogEntry[] = [
   {
     provider: 'SHOPIFY',
     label: 'Shopify',
+    capabilities: {
+      contacts: true,
+      companies: false,
+      deals: false,
+      orders: true,
+      payments: true,
+      events: true,
+    },
+  },
+  {
+    provider: 'WOOCOMMERCE',
+    label: 'WooCommerce',
+    capabilities: {
+      contacts: true,
+      companies: false,
+      deals: false,
+      orders: true,
+      payments: true,
+      events: true,
+    },
+  },
+  {
+    provider: 'WEBHOOK',
+    label: 'Inbound webhook',
     capabilities: {
       contacts: true,
       companies: false,

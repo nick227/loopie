@@ -7,7 +7,12 @@ import { normalizeShop } from '../lib/crm/shopify'
 import { catalogEntry } from '../lib/crm/catalog'
 import type { CrmProvider } from '@prisma/client'
 
-type Creds = { accessToken: string; refreshToken?: string; shop?: string }
+export type Creds = {
+  accessToken: string
+  refreshToken?: string
+  shop?: string
+  consumerSecret?: string
+}
 
 export function readCreds(enc: string | null): Creds | null {
   if (!enc) return null
@@ -18,7 +23,14 @@ export function writeCreds(creds: Creds) {
   return sealToken(JSON.stringify(creds))
 }
 
-const PROVIDERS: CrmProvider[] = ['HUBSPOT', 'SALESFORCE', 'SHOPIFY', 'SQUARE', 'PIPEDRIVE']
+const PROVIDERS: CrmProvider[] = [
+  'HUBSPOT',
+  'SALESFORCE',
+  'SHOPIFY',
+  'WOOCOMMERCE',
+  'SQUARE',
+  'PIPEDRIVE',
+]
 
 function asProvider(value: string): CrmProvider {
   if (!PROVIDERS.includes(value as CrmProvider))

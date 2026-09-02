@@ -100,7 +100,10 @@ export function Form<T extends FieldValues>({
         const id = `field-${field.name}`
         const isGroup = field.type === 'radio' || field.type === 'checkboxes'
         return (
-          <div key={field.name} className="flex flex-col gap-1.5">
+          <div
+            key={field.name}
+            className={`flex gap-1.5 ${field.type === 'checkbox' ? 'flex-row' : 'flex-col'}`}
+          >
             {isGroup ? (
               <span className="text-sm font-medium">
                 {field.label}
