@@ -69,6 +69,12 @@ COPY --from=builder /app/packages/sdk/package.json ./packages/sdk/
 # runtime — confirmed live via apps/ad-server hitting the identical crash for this same package.
 COPY --from=builder /app/packages/page-renderer/src ./packages/page-renderer/src
 COPY --from=builder /app/packages/page-renderer/package.json ./packages/page-renderer/
+# AdvertisementService.ts imports @project/embed-contract directly — same no-build-step shape as
+# the packages above, so it needs the same runtime copy. Confirmed live: fixing page-renderer
+# alone got the build stage green but the container still crash-looped, this time on this
+# package (MODULE_NOT_FOUND, requireStack ending at AdvertisementService.ts).
+COPY --from=builder /app/packages/embed-contract/src ./packages/embed-contract/src
+COPY --from=builder /app/packages/embed-contract/package.json ./packages/embed-contract/
 COPY --from=builder /app/apps/server/src ./apps/server/src
 COPY --from=builder /app/apps/server/package.json ./apps/server/
 
