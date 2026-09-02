@@ -48,11 +48,6 @@ export function BusinessIdentityHeader() {
                 website: data.website ?? null,
                 tagline: data.tagline ?? null,
                 address: data.address ?? null,
-                foundedYear: data.foundedYear ?? null,
-                teamSize: data.teamSize ?? null,
-                businessType: data.businessType ?? null,
-                priceRange: data.priceRange ?? null,
-                timezone: data.timezone ?? null,
               }}
               submitLabel="Save changes"
             />

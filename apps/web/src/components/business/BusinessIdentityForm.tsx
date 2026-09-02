@@ -28,11 +28,6 @@ export type BusinessIdentityValue = {
   website: string | null
   tagline: string | null
   address: string | null
-  foundedYear: number | null
-  teamSize: string | null
-  businessType: string | null
-  priceRange: string | null
-  timezone: string | null
 }
 
 // One shared form, two framings (docs/strategy/03-product-principles.md's First-Login Experience
@@ -62,13 +57,6 @@ export function BusinessIdentityForm({
   const [website, setWebsite] = useState(initial.website ?? '')
   const [tagline, setTagline] = useState(initial.tagline ?? '')
   const [address, setAddress] = useState(initial.address ?? '')
-  const [foundedYear, setFoundedYear] = useState(
-    initial.foundedYear != null ? String(initial.foundedYear) : '',
-  )
-  const [teamSize, setTeamSize] = useState(initial.teamSize ?? '')
-  const [businessType, setBusinessType] = useState(initial.businessType ?? '')
-  const [priceRange, setPriceRange] = useState(initial.priceRange ?? '')
-  const [timezone, setTimezone] = useState(initial.timezone ?? '')
   const [error, setError] = useState<string | null>(null)
   const update = useUpdateBusiness()
 
@@ -86,11 +74,6 @@ export function BusinessIdentityForm({
     const cleanedProfiles = socialProfiles
       .map((row) => ({ platform: row.platform.trim(), url: row.url.trim() }))
       .filter((row) => row.platform && row.url)
-    const parsedFoundedYear = foundedYear.trim() ? Number.parseInt(foundedYear, 10) : null
-    if (foundedYear.trim() && Number.isNaN(parsedFoundedYear as number)) {
-      setError('Founded year must be a number.')
-      return
-    }
     try {
       await update.mutateAsync({
         name: name.trim(),
@@ -107,11 +90,6 @@ export function BusinessIdentityForm({
         website: website.trim() || null,
         tagline: tagline.trim() || null,
         address: address.trim() || null,
-        foundedYear: parsedFoundedYear,
-        teamSize: teamSize.trim() || null,
-        businessType: businessType.trim() || null,
-        priceRange: priceRange.trim() || null,
-        timezone: timezone.trim() || null,
       })
       onSaved?.()
     } catch (err) {
@@ -287,68 +265,6 @@ export function BusinessIdentityForm({
           value={address}
           onChange={(e) => setAddress(e.target.value)}
         />
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="space-y-1.5">
-          <label htmlFor="business-founded-year" className="text-sm font-medium text-foreground">
-            Founded year
-          </label>
-          <Input
-            id="business-founded-year"
-            placeholder="2019"
-            inputMode="numeric"
-            value={foundedYear}
-            onChange={(e) => setFoundedYear(e.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <label htmlFor="business-team-size" className="text-sm font-medium text-foreground">
-            Team size
-          </label>
-          <Input
-            id="business-team-size"
-            placeholder="1-10 employees"
-            value={teamSize}
-            onChange={(e) => setTeamSize(e.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <label htmlFor="business-type" className="text-sm font-medium text-foreground">
-            Business type
-          </label>
-          <Input
-            id="business-type"
-            placeholder="LLC"
-            value={businessType}
-            onChange={(e) => setBusinessType(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <label htmlFor="business-price-range" className="text-sm font-medium text-foreground">
-            Price range
-          </label>
-          <Input
-            id="business-price-range"
-            placeholder="$$"
-            value={priceRange}
-            onChange={(e) => setPriceRange(e.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <label htmlFor="business-timezone" className="text-sm font-medium text-foreground">
-            Timezone
-          </label>
-          <Input
-            id="business-timezone"
-            placeholder="America/Chicago"
-            value={timezone}
-            onChange={(e) => setTimezone(e.target.value)}
-          />
-        </div>
       </div>
 
       <BusinessGalleryField imageUrls={galleryImageUrls} onChange={setGalleryImageUrls} />

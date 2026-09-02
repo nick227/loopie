@@ -3,16 +3,12 @@ import { Link, useParams } from 'react-router-dom'
 import {
   ArrowUpRight,
   BriefcaseBusiness,
-  Building2,
-  Calendar,
   Clock3,
-  DollarSign,
   Globe,
   Mail,
   MapPin,
   MessageCircle,
   Phone,
-  Users,
 } from 'lucide-react'
 import { useBusinessProfile, useCurrentUser } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
@@ -121,15 +117,7 @@ export function BusinessProfilePage() {
     /^https?:\/\//i.test(profile.url),
   )
   const hasFacts = Boolean(
-    business.location ||
-    business.hours ||
-    business.industry ||
-    business.address ||
-    business.foundedYear ||
-    business.teamSize ||
-    business.businessType ||
-    business.priceRange ||
-    business.timezone,
+    business.location || business.hours || business.industry || business.address,
   )
 
   return (
@@ -315,21 +303,6 @@ export function BusinessProfilePage() {
                   ) : null}
                   {business.address ? (
                     <FactRow icon={MapPin} label="Address" value={business.address} />
-                  ) : null}
-                  {business.businessType ? (
-                    <FactRow icon={Building2} label="Type" value={business.businessType} />
-                  ) : null}
-                  {business.foundedYear ? (
-                    <FactRow icon={Calendar} label="Founded" value={business.foundedYear} />
-                  ) : null}
-                  {business.teamSize ? (
-                    <FactRow icon={Users} label="Team size" value={business.teamSize} />
-                  ) : null}
-                  {business.priceRange ? (
-                    <FactRow icon={DollarSign} label="Price" value={business.priceRange} />
-                  ) : null}
-                  {business.timezone ? (
-                    <FactRow icon={Clock3} label="Timezone" value={business.timezone} />
                   ) : null}
                 </dl>
               ) : null}

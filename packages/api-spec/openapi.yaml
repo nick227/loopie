@@ -334,11 +334,6 @@ components:
         website: { type: string, nullable: true }
         tagline: { type: string, nullable: true, description: 'Short one-line pitch shown near the business name.' }
         address: { type: string, nullable: true, description: 'Full mailing/street address, distinct from location (city/service area).' }
-        foundedYear: { type: integer, nullable: true }
-        teamSize: { type: string, nullable: true, description: 'Freeform, e.g. "1-10 employees".' }
-        businessType: { type: string, nullable: true, description: 'Legal structure, e.g. LLC, Sole Proprietorship.' }
-        priceRange: { type: string, nullable: true, description: 'Freeform, e.g. "$", "$$", "$$$".' }
-        timezone: { type: string, nullable: true }
         identityCompletedAt: { type: string, format: date-time, nullable: true }
         slug:
           {
@@ -375,11 +370,6 @@ components:
         website: { type: string, maxLength: 500, nullable: true }
         tagline: { type: string, maxLength: 140, nullable: true }
         address: { type: string, maxLength: 300, nullable: true }
-        foundedYear: { type: integer, nullable: true }
-        teamSize: { type: string, maxLength: 60, nullable: true }
-        businessType: { type: string, maxLength: 60, nullable: true }
-        priceRange: { type: string, maxLength: 10, nullable: true }
-        timezone: { type: string, maxLength: 60, nullable: true }
 
     Billing:
       type: object
