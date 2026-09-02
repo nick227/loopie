@@ -4,15 +4,19 @@ RUN corepack enable
 
 WORKDIR /app
 
-# Copy workspace manifests first for layer caching
+# Copy workspace manifests first for layer caching. Every workspace package apps/server depends
+# on needs its package.json present here — confirmed live: when packages/embed-contract/package.json
+# was missing from this layer, `pnpm install --frozen-lockfile` did not create a working
+# apps/server/node_modules/@project/embed-contract symlink (despite the lockfile listing it and
+# the install step itself reporting success), so the runtime container hit MODULE_NOT_FOUND for
+# it even though the real package.json/src were both already being copied into the runtime image.
+# Copying page-renderer's manifest here additionally fixes a typecheck-time failure: its own deps
+# (@prisma/client, @project/db) must be resolvable at install time or `tsc` fails downstream with
+# "Cannot find module '@prisma/client'" inside packages/page-renderer/src.
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY packages/db/package.json ./packages/db/
-# packages/page-renderer's own dependencies (@prisma/client, @project/db) need to be resolvable
-# at `pnpm install` time, which only reads package.json files present at this layer — without
-# this, install still succeeds (pnpm workspace symlinks don't require the target to exist yet)
-# but page-renderer's own deps never get installed, and typecheck fails downstream with
-# "Cannot find module '@prisma/client'"/"'@project/db'" inside packages/page-renderer/src.
 COPY packages/page-renderer/package.json ./packages/page-renderer/
+COPY packages/embed-contract/package.json ./packages/embed-contract/
 COPY apps/server/package.json ./apps/server/
 
 RUN pnpm install --frozen-lockfile
@@ -70,9 +74,8 @@ COPY --from=builder /app/packages/sdk/package.json ./packages/sdk/
 COPY --from=builder /app/packages/page-renderer/src ./packages/page-renderer/src
 COPY --from=builder /app/packages/page-renderer/package.json ./packages/page-renderer/
 # AdvertisementService.ts imports @project/embed-contract directly — same no-build-step shape as
-# the packages above, so it needs the same runtime copy. Confirmed live: fixing page-renderer
-# alone got the build stage green but the container still crash-looped, this time on this
-# package (MODULE_NOT_FOUND, requireStack ending at AdvertisementService.ts).
+# the packages above, so it needs the same runtime copy. This copy alone was NOT sufficient on
+# its own, though — see the pre-install manifest comment above for the other half of the fix.
 COPY --from=builder /app/packages/embed-contract/src ./packages/embed-contract/src
 COPY --from=builder /app/packages/embed-contract/package.json ./packages/embed-contract/
 COPY --from=builder /app/apps/server/src ./apps/server/src
