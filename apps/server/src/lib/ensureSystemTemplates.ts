@@ -24,6 +24,10 @@ import {
   storeTitle,
   storeDescription,
   storeSchema,
+  SYSTEM_EMAIL_OUTREACH_TEMPLATE_ID,
+  emailOutreachTitle,
+  emailOutreachDescription,
+  emailOutreachSchema,
 } from '@project/db'
 
 type TemplateClient = {
@@ -156,6 +160,24 @@ export async function ensureSystemTemplates(tx: TemplateClient) {
       category: 'advanced',
       formatVersion: '2.0',
       schema: storeSchema as any,
+    },
+  })
+
+  await tx.landingPageTemplate.upsert({
+    where: { id: SYSTEM_EMAIL_OUTREACH_TEMPLATE_ID },
+    update: {
+      name: emailOutreachTitle,
+      description: emailOutreachDescription,
+      schema: emailOutreachSchema as any,
+    },
+    create: {
+      id: SYSTEM_EMAIL_OUTREACH_TEMPLATE_ID,
+      isSystem: true,
+      name: emailOutreachTitle,
+      description: emailOutreachDescription,
+      category: 'advanced',
+      formatVersion: '2.0',
+      schema: emailOutreachSchema as any,
     },
   })
 }

@@ -10,12 +10,14 @@ export const WEBINAR_SIGNUP_TEMPLATE_ID = 'system-template-webinar-signup'
 export const STUDIO_TEMPLATE_ID = 'system-template-studio'
 export const PORTFOLIO_TEMPLATE_ID = 'system-template-portfolio'
 export const STORE_TEMPLATE_ID = 'system-template-store'
+export const EMAIL_OUTREACH_TEMPLATE_ID = 'system-template-email-outreach'
 export const RICH_TEMPLATE_IDS = [
   CORPORATE_PROFESSIONAL_TEMPLATE_ID,
   WEBINAR_SIGNUP_TEMPLATE_ID,
   STUDIO_TEMPLATE_ID,
   PORTFOLIO_TEMPLATE_ID,
   STORE_TEMPLATE_ID,
+  EMAIL_OUTREACH_TEMPLATE_ID,
 ]
 
 export type MediaRef = { assetId?: string; url?: string; alt?: string; src?: string }
@@ -57,7 +59,12 @@ export type CategoryItem = { label: string; url?: string; media?: MediaRef }
 export type NavLink = { label: string; url: string }
 
 export const DEFAULT_PAGE_FAVICON_URL = '/favicon.png'
-export type PageBrowserSettings = { title?: string; faviconUrl?: string }
+export type PageBrowserSettings = {
+  title?: string
+  favicon?: MediaRef
+  /** @deprecated Compatibility with the short-lived URL setting. */
+  faviconUrl?: string
+}
 
 export type PageContent = {
   browser?: PageBrowserSettings

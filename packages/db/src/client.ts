@@ -84,4 +84,16 @@ export {
   storeSchema,
   storeStarterContent,
 } from './data/store'
+export {
+  SYSTEM_EMAIL_OUTREACH_TEMPLATE_ID,
+  emailOutreachTitle,
+  emailOutreachDescription,
+  emailOutreachSchema,
+  emailOutreachStarterContent,
+} from './data/email-outreach'
 export { SYSTEM_TEMPLATE_STARTER_CONTENT } from './systemTemplates'
+export {
+  STATIC_GOAL_IDEA_TEMPLATES,
+  DYNAMIC_GOAL_IDEA_TEMPLATES,
+  type GoalIdeaTemplateSeed,
+} from './data/goalIdeas'

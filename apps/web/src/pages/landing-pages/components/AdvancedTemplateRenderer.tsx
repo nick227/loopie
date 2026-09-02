@@ -4,6 +4,7 @@ import { WebinarSignup } from '../../../components/landing-pages/templates/Webin
 import { Studio } from '../../../components/landing-pages/templates/Studio'
 import { Portfolio } from '../../../components/landing-pages/templates/Portfolio'
 import { Store } from '../../../components/landing-pages/templates/Store'
+import { EmailOutreach } from '../../../components/landing-pages/templates/EmailOutreach'
 import type { FormFieldDraft } from '@/components/forms/FormFieldsEditor'
 import {
   CORPORATE_PROFESSIONAL_TEMPLATE_ID,
@@ -11,6 +12,7 @@ import {
   STUDIO_TEMPLATE_ID,
   PORTFOLIO_TEMPLATE_ID,
   STORE_TEMPLATE_ID,
+  EMAIL_OUTREACH_TEMPLATE_ID,
   type LayoutConfig,
   type PageContent,
 } from './types'
@@ -99,6 +101,14 @@ export function AdvancedTemplateRenderer({
         />
       ) : templateId === STORE_TEMPLATE_ID ? (
         <Store
+          {...shared}
+          hasForm={hasForm}
+          formFields={formFields}
+          onFormFields={onFormFields}
+          submitLabel={submitLabel}
+        />
+      ) : templateId === EMAIL_OUTREACH_TEMPLATE_ID ? (
+        <EmailOutreach
           {...shared}
           hasForm={hasForm}
           formFields={formFields}

@@ -88,7 +88,13 @@ export type TemplateSectionDef = {
 export type TemplateSchema = {
   /** Stable visual renderer identity, frozen into PublishedPageVersion.schemaSnapshot. */
   renderer?:
-    'standard' | 'corporate-professional' | 'webinar-signup' | 'studio' | 'portfolio' | 'store'
+    | 'standard'
+    | 'corporate-professional'
+    | 'webinar-signup'
+    | 'studio'
+    | 'portfolio'
+    | 'store'
+    | 'email-outreach'
   sections?: TemplateSectionDef[]
   themeTokens?: string[]
   themePresets?: typeof PAGE_THEME_PRESETS
@@ -112,7 +118,7 @@ export function starterContentForTemplate(
       .filter((slot): slot is NonNullable<typeof slot> => !!slot),
   )
   const content: PageContent = {
-    browser: { title: businessName, faviconUrl: DEFAULT_PAGE_FAVICON_URL },
+    browser: { title: businessName, favicon: { url: DEFAULT_PAGE_FAVICON_URL } },
   }
   if (slotGroups.has('hero')) {
     const isSplit = (schema.sections ?? []).some((s) => s.type === 'split-capture')
