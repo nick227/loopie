@@ -40,10 +40,19 @@ ENV NODE_ENV=production
 
 # Copy only what ad-server needs at runtime — no packages/api-spec or apps/server, this is a
 # genuinely separate deployable, not the main API server.
+#
+# packages/page-renderer is required too: EmbedServingService.ts imports @project/page-renderer
+# directly, and (like @project/db/@project/sdk) its package.json#main points straight at .ts
+# source with no build step — node_modules/@project/page-renderer is a pnpm symlink into
+# packages/page-renderer, so without copying the real directory here the symlink target is
+# missing at runtime and the import crashes with MODULE_NOT_FOUND. Confirmed live via a Railway
+# healthcheck failure (the process crash-looped before ever binding to PORT).
 COPY --from=builder /app/pnpm-workspace.yaml ./
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages/db ./packages/db
+COPY --from=builder /app/packages/page-renderer/src ./packages/page-renderer/src
+COPY --from=builder /app/packages/page-renderer/package.json ./packages/page-renderer/
 COPY --from=builder /app/apps/ad-server/src ./apps/ad-server/src
 COPY --from=builder /app/apps/ad-server/package.json ./apps/ad-server/
 

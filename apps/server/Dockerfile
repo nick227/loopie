@@ -7,6 +7,12 @@ WORKDIR /app
 # Copy workspace manifests first for layer caching
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY packages/db/package.json ./packages/db/
+# packages/page-renderer's own dependencies (@prisma/client, @project/db) need to be resolvable
+# at `pnpm install` time, which only reads package.json files present at this layer — without
+# this, install still succeeds (pnpm workspace symlinks don't require the target to exist yet)
+# but page-renderer's own deps never get installed, and typecheck fails downstream with
+# "Cannot find module '@prisma/client'"/"'@project/db'" inside packages/page-renderer/src.
+COPY packages/page-renderer/package.json ./packages/page-renderer/
 COPY apps/server/package.json ./apps/server/
 
 RUN pnpm install --frozen-lockfile
@@ -56,6 +62,13 @@ COPY --from=builder /app/packages/api-spec ./packages/api-spec
 # Dockerfile had otherwise never copied packages/sdk at all.
 COPY --from=builder /app/packages/sdk/src ./packages/sdk/src
 COPY --from=builder /app/packages/sdk/package.json ./packages/sdk/
+# LandingPageService.ts/LandingPageRenderService.ts/LandingPageSubmissionService.ts/
+# provisionDefaultPage.ts import @project/page-renderer directly. Same shape of bug as
+# @project/sdk above: its package.json#main points straight at .ts source with no build step, so
+# the node_modules symlink needs the real directory copied in or it's MODULE_NOT_FOUND at
+# runtime — confirmed live via apps/ad-server hitting the identical crash for this same package.
+COPY --from=builder /app/packages/page-renderer/src ./packages/page-renderer/src
+COPY --from=builder /app/packages/page-renderer/package.json ./packages/page-renderer/
 COPY --from=builder /app/apps/server/src ./apps/server/src
 COPY --from=builder /app/apps/server/package.json ./apps/server/
 
