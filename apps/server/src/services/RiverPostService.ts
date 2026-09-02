@@ -166,6 +166,7 @@ export async function toFeedCards(
     // fields are an explicit per-post override; without one, keep the exact label and target the
     // user published with the ad instead of making the client invent a generic "Learn more".
     const versionSnapshot = version?.creativeSnapshot as {
+      primaryText?: string | null
       ctaLabel?: string | null
       destinationUrl?: string | null
     } | null
@@ -175,6 +176,7 @@ export async function toFeedCards(
         ? { label: versionSnapshot.ctaLabel, url: version.destinationUrl }
         : null
     const cta = postCta ?? advertisementCta
+    const body = row.body || (row.type === 'AD' ? (versionSnapshot?.primaryText ?? '') : row.body)
     const pageInfo =
       row.type === 'PAGE' && row.landingPage
         ? { name: row.landingPage.name, slug: row.landingPage.slug }
@@ -190,7 +192,7 @@ export async function toFeedCards(
     return {
       id: row.id,
       type: row.type,
-      body: row.body,
+      body,
       createdAt: row.createdAt,
       // A raw Prisma logoUrl is a relative path (/uploads/...) — resolved everywhere else this
       // card touches media (imageUrls/videoUrl/linkPreview.imageUrl below), but this one was

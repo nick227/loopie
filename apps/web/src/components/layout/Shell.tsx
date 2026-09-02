@@ -1,15 +1,6 @@
 import { Suspense, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useMatch, useNavigate } from 'react-router-dom'
-import {
-  Inbox as InboxIcon,
-  Mail,
-  LogOut,
-  Handshake,
-  Bell,
-  Waves,
-  Command,
-  ArrowLeft,
-} from 'lucide-react'
+import { Inbox as InboxIcon, Mail, LogOut, Handshake, Bell, Waves, Command } from 'lucide-react'
 import { useCurrentUser, useLogout } from '@project/sdk'
 import { cn } from '@/lib/utils'
 import { CreateMenu, CreateButtonTrigger } from '@/components/layout/CreateMenu'
@@ -46,55 +37,11 @@ const NAV_TABS: { to: string; label: string; end?: boolean }[] = [
 // River isn't one of the visible text tabs above (it lives in the trailing icon cluster, see
 // Header below) but it's a primary destination in its own right now, not a page reached *from*
 // one of these — so it gets the same "no back-subheader" treatment as the text tabs do.
-const TAB_ROOT_PATHS = new Set([...NAV_TABS.map((tab) => tab.to), '/river'])
 
 const AFFILIATE_NAV = [
   { to: '/portal', label: 'Home', icon: InboxIcon, end: true },
   { to: '/portal/team', label: 'Team', icon: Handshake },
   { to: '/portal/payouts', label: 'Payouts', icon: Mail },
-]
-
-// Back-button grammar for everything that ISN'T one of the five tab roots (which show no back
-// button at all — the highlighted tab already communicates location, see Header below).
-//
-// - SINGLETON_ROUTES / ENTITY_ROUTES: unchanged in shape from before this revision, just
-//   retargeted — the universal fallback used to be "‹ Inbox" (when Inbox was the app's only root);
-//   now it's "‹ Home". An entity's *real* back label/destination still comes from `location.state`
-//   — set at the exact link that navigated here (a collection row, or an Inbox thread's "Open
-//   contact"/"Open ad"/"Open page" link) — via `{ from, fromTo }`. That's what lets the same
-//   Contact page correctly read "‹ Contacts" when browsed from the collection and "‹ Home" when
-//   opened directly from an Inbox thread, without lying about which one actually happened. `state`
-//   is lost on a direct load/refresh, which is exactly when the fallback (the entity's own
-//   collection) is correct anyway. Deliberately *not* navigate(-1): the label must always match
-//   where clicking it actually goes, and a raw history pop can't guarantee that once a route (like
-//   an Inbox thread) sits in between.
-// - Every other authenticated route (create/edit forms, /profile, /activity, legacy Campaign
-//   pages, the ~70 still-generic generated pages) falls back to a plain "‹ Home" — always correct,
-//   just not a bespoke label. Regexes (not react-router's matchPath) since matchPath would happily
-//   bind :contactId to the literal string "new".
-//
-// No more Business Profile singleton route — its editable fields now live inline on Home
-// (WelcomeSection → BusinessIdentityHeader), so there's no longer a standalone page to name here.
-// SINGLETON_ROUTES stays as an extension point for a future singleton, not deleted outright.
-const SINGLETON_ROUTES: { test: RegExp; fallbackTitle: string }[] = []
-
-const ENTITY_ROUTES: { test: RegExp; fallbackLabel: string; fallbackTo: string }[] = [
-  { test: /^\/contacts\/(?!new$)[^/]+$/, fallbackLabel: 'Contacts', fallbackTo: '/contacts' },
-  { test: /^\/ads\/(?!new$)[^/]+$/, fallbackLabel: 'Advertising', fallbackTo: '/ads' },
-  {
-    test: /^\/landing-pages\/(?!new$)[^/]+$/,
-    fallbackLabel: 'Pages',
-    fallbackTo: '/landing-pages',
-  },
-  { test: /^\/messages\/(?!new$)[^/]+$/, fallbackLabel: 'Messages', fallbackTo: '/messages' },
-  // Unlike /river itself (a primary nav destination — see TAB_ROOT_PATHS), a business profile is
-  // reached *from* something (a River post, a discovery-module tile, "View public profile") — it
-  // gets a real back-affordance, defaulting to River since that's the most common origin.
-  { test: /^\/b\/[^/]+$/, fallbackLabel: 'River', fallbackTo: '/river' },
-  // A post permalink/detail route (the "View all comments" / MoreMenu "View permalink"
-  // destination — see the "River comments" plan doc) is likewise reached from River, never a
-  // primary destination of its own.
-  { test: /^\/river\/posts\/[^/]+$/, fallbackLabel: 'River', fallbackTo: '/river' },
 ]
 
 function Header({
@@ -117,35 +64,6 @@ function Header({
   const location = useLocation()
   const navigate = useNavigate()
   const pathname = location.pathname
-  const isTabRoot = TAB_ROOT_PATHS.has(pathname)
-  const singletonMatch = SINGLETON_ROUTES.find((route) => route.test.test(pathname))
-  const entityMatch = ENTITY_ROUTES.find((route) => route.test.test(pathname))
-  const navState = location.state as { from?: string; fromTo?: string } | null | undefined
-
-  // Row 2 (the "‹ Back  Title" strip) only ever renders for non-tab-root pages — a selected tab
-  // above already says where you are, so it needs no back affordance of its own.
-  let subheader: { title: string; back: { label: string; onClick: () => void } } | null = null
-  if (!isTabRoot) {
-    if (singletonMatch) {
-      subheader = {
-        title: pageTitle ?? singletonMatch.fallbackTitle,
-        back: { label: 'Home', onClick: () => navigate('/home') },
-      }
-    } else if (entityMatch) {
-      subheader = {
-        title: pageTitle ?? '…',
-        back: {
-          label: navState?.from ?? entityMatch.fallbackLabel,
-          onClick: () => navigate(navState?.fromTo ?? entityMatch.fallbackTo),
-        },
-      }
-    } else {
-      subheader = {
-        title: pageTitle ?? '',
-        back: { label: 'Home', onClick: () => navigate('/home') },
-      }
-    }
-  }
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-md">
@@ -249,22 +167,6 @@ function Header({
           ) : null}
         </div>
       </div>
-
-      {subheader ? (
-        <div className="mx-auto flex h-11 w-full max-w-[900px] items-center gap-1 border-t border-border/60">
-          <button
-            type="button"
-            onClick={subheader.back.onClick}
-            className="flex shrink-0 items-center gap-1 rounded-lg py-1.5 pl-1.5 pr-1 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <ArrowLeft size={15} />
-            <span className="max-w-[6rem] truncate sm:max-w-[10rem]">{subheader.back.label}</span>
-          </button>
-          <span className="min-w-0 truncate pl-0.5 text-sm font-semibold text-foreground">
-            {subheader.title}
-          </span>
-        </div>
-      ) : null}
     </header>
   )
 }

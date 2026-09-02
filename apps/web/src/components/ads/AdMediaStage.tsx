@@ -75,9 +75,6 @@ export function AdFeedPreview({
         className="relative w-full max-w-md self-start overflow-hidden rounded-xl border border-border bg-surface shadow-sm"
       >
         <Remove onRemove={onRemove} />
-        {primaryText ? (
-          <p className="whitespace-pre-wrap p-4 pr-10 text-sm leading-relaxed">{primaryText}</p>
-        ) : null}
         <div className="aspect-square w-full overflow-hidden bg-muted">
           <Media asset={asset} />
         </div>

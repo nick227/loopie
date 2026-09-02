@@ -189,6 +189,7 @@ describe('River feed v2', () => {
       headers: asAuth(business.userId),
       payload: {
         name: 'Shop ad',
+        primaryText: 'Fresh arrivals are ready to shop.',
         ctaLabel: 'Shop now',
         destinationUrl: 'https://example.com/shop',
         assetIds: [asset.id],
@@ -213,6 +214,7 @@ describe('River feed v2', () => {
       .json()
       .items.find((candidate: { id: string }) => candidate.id === postRes.json().data.id)
     expect(item.cta).toEqual({ label: 'Shop now', url: expect.stringContaining('/click') })
+    expect(item.body).toBe('Fresh arrivals are ready to shop.')
   })
 
   it('after= polling mode returns only newer items and an empty batch once caught up', async () => {

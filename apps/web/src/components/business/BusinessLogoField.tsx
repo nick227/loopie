@@ -24,21 +24,11 @@ export function BusinessLogoField({
   const createAsset = useCreateAsset()
 
   return (
-    <div className="flex items-center gap-4">
-      <Avatar src={mediaSrc(logoUrl)} name={name} size="lg" className="h-16 w-16 text-lg" />
+    <div className="">
       <div className="space-y-1">
-        <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
-          {logoUrl ? 'Replace logo' : 'Add logo'}
-        </Button>
-        {logoUrl ? (
-          <button
-            type="button"
-            onClick={() => onChange(null)}
-            className="block text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
-          >
-            Remove
-          </button>
-        ) : null}
+        <a onClick={() => setOpen(true)}>
+          <Avatar src={mediaSrc(logoUrl)} name={name} size="lg" className="h-36 w-36 text-lg" />
+        </a>
       </div>
       {open ? (
         <MediaPicker

@@ -124,13 +124,7 @@ export function LeadWorkQueue() {
 
   if (query.isLoading) return <Skeleton className="w-full" />
   if (items.length === 0) {
-    return (
-      <EmptyState
-        icon={PartyPopper}
-        title="All caught up"
-        description="No leads need attention right now."
-      />
-    )
+    return <EmptyState icon={PartyPopper} title="All caught up" />
   }
 
   return (

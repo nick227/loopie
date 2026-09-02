@@ -728,11 +728,11 @@ export function RiverFeedCard({
       <article
         ref={stageRef}
         style={stageStyle}
-        className="flex min-h-[55vh] mb-48 flex-col border-b border-border/60 px-6 py-6 snap-start"
+        className="flex min-h-[55vh] mb-24 flex-col border-b border-border/60 px-6 py-6 snap-start"
       >
         <div className="shrink-0">{authorRow}</div>
 
-        <div className="flex w-full flex-1 min-h-0 flex-col items-center justify-center gap-4 overflow-y-auto py-4">
+        <div className="flex w-full flex-1 min-h-0 flex-col items-center justify-center gap-4 overflow-y-auto py-4 pt-16">
           {isTextOnly ? (
             <StageTextFrame body={item.body ?? ''} />
           ) : (
