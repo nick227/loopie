@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, ArrowUpRight, MapPin, Briefcase } from 'lucide-react'
 import { useUpdateBusiness, ApiError } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { BusinessLogoField } from '@/components/business/BusinessLogoField'
 import { BusinessGalleryField } from '@/components/business/BusinessGalleryField'
+import { Link } from 'react-router-dom'
 
 type SocialProfileLink = { platform: string; url: string }
 
@@ -20,8 +21,18 @@ export type BusinessIdentityValue = {
   description: string | null
   phone: string | null
   email: string | null
+  slug: string | null
   hours: string | null
   galleryImageUrls: string[]
+  // Slice 6 — additional common/optional profile facts.
+  website: string | null
+  tagline: string | null
+  address: string | null
+  foundedYear: number | null
+  teamSize: string | null
+  businessType: string | null
+  priceRange: string | null
+  timezone: string | null
 }
 
 // One shared form, two framings (docs/strategy/03-product-principles.md's First-Login Experience
@@ -39,6 +50,7 @@ export function BusinessIdentityForm({
   const [name, setName] = useState(initial.name)
   const [location, setLocation] = useState(initial.location ?? '')
   const [industry, setIndustry] = useState(initial.industry ?? '')
+  const [slug, setSlug] = useState(initial.slug ?? '')
   const [targetAudience, setTargetAudience] = useState(initial.targetAudience ?? '')
   const [logoUrl, setLogoUrl] = useState<string | null>(initial.logoUrl)
   const [socialProfiles, setSocialProfiles] = useState<SocialProfileLink[]>(initial.socialProfiles)
@@ -47,6 +59,16 @@ export function BusinessIdentityForm({
   const [email, setEmail] = useState(initial.email ?? '')
   const [hours, setHours] = useState(initial.hours ?? '')
   const [galleryImageUrls, setGalleryImageUrls] = useState<string[]>(initial.galleryImageUrls)
+  const [website, setWebsite] = useState(initial.website ?? '')
+  const [tagline, setTagline] = useState(initial.tagline ?? '')
+  const [address, setAddress] = useState(initial.address ?? '')
+  const [foundedYear, setFoundedYear] = useState(
+    initial.foundedYear != null ? String(initial.foundedYear) : '',
+  )
+  const [teamSize, setTeamSize] = useState(initial.teamSize ?? '')
+  const [businessType, setBusinessType] = useState(initial.businessType ?? '')
+  const [priceRange, setPriceRange] = useState(initial.priceRange ?? '')
+  const [timezone, setTimezone] = useState(initial.timezone ?? '')
   const [error, setError] = useState<string | null>(null)
   const update = useUpdateBusiness()
 
@@ -64,6 +86,11 @@ export function BusinessIdentityForm({
     const cleanedProfiles = socialProfiles
       .map((row) => ({ platform: row.platform.trim(), url: row.url.trim() }))
       .filter((row) => row.platform && row.url)
+    const parsedFoundedYear = foundedYear.trim() ? Number.parseInt(foundedYear, 10) : null
+    if (foundedYear.trim() && Number.isNaN(parsedFoundedYear as number)) {
+      setError('Founded year must be a number.')
+      return
+    }
     try {
       await update.mutateAsync({
         name: name.trim(),
@@ -77,6 +104,14 @@ export function BusinessIdentityForm({
         email: email.trim() || null,
         hours: hours.trim() || null,
         galleryImageUrls,
+        website: website.trim() || null,
+        tagline: tagline.trim() || null,
+        address: address.trim() || null,
+        foundedYear: parsedFoundedYear,
+        teamSize: teamSize.trim() || null,
+        businessType: businessType.trim() || null,
+        priceRange: priceRange.trim() || null,
+        timezone: timezone.trim() || null,
       })
       onSaved?.()
     } catch (err) {
@@ -90,7 +125,37 @@ export function BusinessIdentityForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <BusinessLogoField name={name || 'Business'} logoUrl={logoUrl} onChange={setLogoUrl} />
+      <div className="flex gap-1 align-items-center items-center">
+        <BusinessLogoField name={name || 'Business'} logoUrl={logoUrl} onChange={setLogoUrl} />
+
+        <h2 className="font-semibold tracking-tight text-foreground text-3xl">
+          {name || 'Business'}
+        </h2>
+      </div>
+      <Link
+        to={`/b/${slug}`}
+        className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        View public profile <ArrowUpRight size={14} />
+      </Link>
+
+      <div className="min-w-0 lg:w-full">
+        <div className="mt-1.5 space-y-1 text-sm text-muted-foreground">
+          {industry && (
+            <div className="flex items-center gap-1.5">
+              <Briefcase size={13} strokeWidth={1.8} />
+              <span className="truncate">{industry}</span>
+            </div>
+          )}
+
+          {location && (
+            <div className="flex items-center gap-1.5">
+              <MapPin size={13} strokeWidth={1.8} />
+              <span className="truncate">{location}</span>
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="space-y-1.5">
         <label htmlFor="business-name" className="text-sm font-medium text-foreground">
@@ -183,6 +248,105 @@ export function BusinessIdentityForm({
             placeholder="Mon–Fri 9am–5pm"
             value={hours}
             onChange={(e) => setHours(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <label htmlFor="business-website" className="text-sm font-medium text-foreground">
+            Website
+          </label>
+          <Input
+            id="business-website"
+            placeholder="https://yourbusiness.com"
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="business-tagline" className="text-sm font-medium text-foreground">
+            Tagline
+          </label>
+          <Input
+            id="business-tagline"
+            placeholder="A short line describing what you do"
+            value={tagline}
+            onChange={(e) => setTagline(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <label htmlFor="business-address" className="text-sm font-medium text-foreground">
+          Address
+        </label>
+        <Input
+          id="business-address"
+          placeholder="123 Main St, Austin, TX 78701"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="space-y-1.5">
+          <label htmlFor="business-founded-year" className="text-sm font-medium text-foreground">
+            Founded year
+          </label>
+          <Input
+            id="business-founded-year"
+            placeholder="2019"
+            inputMode="numeric"
+            value={foundedYear}
+            onChange={(e) => setFoundedYear(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="business-team-size" className="text-sm font-medium text-foreground">
+            Team size
+          </label>
+          <Input
+            id="business-team-size"
+            placeholder="1-10 employees"
+            value={teamSize}
+            onChange={(e) => setTeamSize(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="business-type" className="text-sm font-medium text-foreground">
+            Business type
+          </label>
+          <Input
+            id="business-type"
+            placeholder="LLC"
+            value={businessType}
+            onChange={(e) => setBusinessType(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <label htmlFor="business-price-range" className="text-sm font-medium text-foreground">
+            Price range
+          </label>
+          <Input
+            id="business-price-range"
+            placeholder="$$"
+            value={priceRange}
+            onChange={(e) => setPriceRange(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="business-timezone" className="text-sm font-medium text-foreground">
+            Timezone
+          </label>
+          <Input
+            id="business-timezone"
+            placeholder="America/Chicago"
+            value={timezone}
+            onChange={(e) => setTimezone(e.target.value)}
           />
         </div>
       </div>

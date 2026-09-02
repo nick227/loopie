@@ -3198,6 +3198,19 @@ export interface components {
       hours?: string | null
       /** @description Ordered, already-resolved image URLs for the profile Gallery section — not asset ids (mirrors logoUrl). */
       galleryImageUrls?: string[]
+      website?: string | null
+      /** @description Short one-line pitch shown near the business name. */
+      tagline?: string | null
+      /** @description Full mailing/street address, distinct from location (city/service area). */
+      address?: string | null
+      foundedYear?: number | null
+      /** @description Freeform, e.g. "1-10 employees". */
+      teamSize?: string | null
+      /** @description Legal structure, e.g. LLC, Sole Proprietorship. */
+      businessType?: string | null
+      /** @description Freeform, e.g. "$", "$$", "$$$". */
+      priceRange?: string | null
+      timezone?: string | null
       /** Format: date-time */
       identityCompletedAt?: string | null
       /** @description Public profile handle — GET /b/{slug}. Null only for a pre-2026-09-01 row not yet backfilled; not user-editable. */
@@ -3218,6 +3231,14 @@ export interface components {
       email?: string | null
       hours?: string | null
       galleryImageUrls?: string[]
+      website?: string | null
+      tagline?: string | null
+      address?: string | null
+      foundedYear?: number | null
+      teamSize?: string | null
+      businessType?: string | null
+      priceRange?: string | null
+      timezone?: string | null
     }
     Billing: {
       subscriptionStatus: string | null

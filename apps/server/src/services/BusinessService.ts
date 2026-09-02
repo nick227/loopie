@@ -20,6 +20,15 @@ function toBusinessDTO(business: Business) {
     email: business.email,
     hours: business.hours,
     galleryImageUrls: (business.galleryImageUrls as unknown as string[] | null) ?? [],
+    // Slice 6 — additional common/optional profile facts (see schema comment).
+    website: business.website,
+    tagline: business.tagline,
+    address: business.address,
+    foundedYear: business.foundedYear,
+    teamSize: business.teamSize,
+    businessType: business.businessType,
+    priceRange: business.priceRange,
+    timezone: business.timezone,
     identityCompletedAt: business.identityCompletedAt?.toISOString() ?? null,
     // Both null only for a pre-2026-09-01 row that hasn't been backfilled yet — see
     // scripts/backfillBusinessSlugs.ts. Every business created after that gets one at
@@ -49,6 +58,14 @@ export class BusinessService {
       email?: string | null
       hours?: string | null
       galleryImageUrls?: string[]
+      website?: string | null
+      tagline?: string | null
+      address?: string | null
+      foundedYear?: number | null
+      teamSize?: string | null
+      businessType?: string | null
+      priceRange?: string | null
+      timezone?: string | null
     },
   ) {
     const existing = await db.business.findUniqueOrThrow({ where: { id: businessId } })
@@ -66,6 +83,14 @@ export class BusinessService {
         ...(data.email !== undefined ? { email: data.email } : {}),
         ...(data.hours !== undefined ? { hours: data.hours } : {}),
         ...(data.galleryImageUrls !== undefined ? { galleryImageUrls: data.galleryImageUrls } : {}),
+        ...(data.website !== undefined ? { website: data.website } : {}),
+        ...(data.tagline !== undefined ? { tagline: data.tagline } : {}),
+        ...(data.address !== undefined ? { address: data.address } : {}),
+        ...(data.foundedYear !== undefined ? { foundedYear: data.foundedYear } : {}),
+        ...(data.teamSize !== undefined ? { teamSize: data.teamSize } : {}),
+        ...(data.businessType !== undefined ? { businessType: data.businessType } : {}),
+        ...(data.priceRange !== undefined ? { priceRange: data.priceRange } : {}),
+        ...(data.timezone !== undefined ? { timezone: data.timezone } : {}),
         // Every successful save counts as "the business has been defined" — setup and a later
         // edit are the same action (see docs/strategy/03-product-principles.md), so this is a
         // one-way stamp, never reset by a subsequent edit.

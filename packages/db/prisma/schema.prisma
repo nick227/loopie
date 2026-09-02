@@ -82,6 +82,18 @@ model Business {
   // directly). No join table, same reasoning already on record for socialProfiles: nothing ever
   // needs to query "which businesses feature this asset."
   galleryImageUrls     Json?
+  // Slice 6 (2026-09-02) — additional common/optional profile facts, same "freeform, no
+  // controlled vocabulary" reasoning as the fields above. website/tagline/address/foundedYear/
+  // teamSize/businessType/priceRange/timezone round out what a typical business-profile platform
+  // (Google Business Profile, Yelp) asks for beyond the Slice 5 About/contact set.
+  website              String?
+  tagline              String?
+  address              String?
+  foundedYear          Int?
+  teamSize             String?
+  businessType         String?
+  priceRange           String?
+  timezone             String?
   stripeCustomerId     String?   @unique
   stripeSubscriptionId String?
   subscriptionStatus   String?

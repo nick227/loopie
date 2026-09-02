@@ -35,6 +35,7 @@ export function BusinessSetupPage() {
             <BusinessIdentityForm
               initial={{
                 name: data?.name ?? '',
+                slug: data?.slug ?? '',
                 location: data?.location ?? null,
                 industry: data?.industry ?? null,
                 targetAudience: data?.targetAudience ?? null,
@@ -45,6 +46,14 @@ export function BusinessSetupPage() {
                 email: data?.email ?? null,
                 hours: data?.hours ?? null,
                 galleryImageUrls: data?.galleryImageUrls ?? [],
+                website: data?.website ?? null,
+                tagline: data?.tagline ?? null,
+                address: data?.address ?? null,
+                foundedYear: data?.foundedYear ?? null,
+                teamSize: data?.teamSize ?? null,
+                businessType: data?.businessType ?? null,
+                priceRange: data?.priceRange ?? null,
+                timezone: data?.timezone ?? null,
               }}
               submitLabel="Continue to Inbox"
               onSaved={() => navigate('/home', { replace: true })}

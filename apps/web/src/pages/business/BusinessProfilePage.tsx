@@ -3,11 +3,16 @@ import { Link, useParams } from 'react-router-dom'
 import {
   ArrowUpRight,
   BriefcaseBusiness,
+  Building2,
+  Calendar,
   Clock3,
+  DollarSign,
+  Globe,
   Mail,
   MapPin,
   MessageCircle,
   Phone,
+  Users,
 } from 'lucide-react'
 import { useBusinessProfile, useCurrentUser } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
@@ -115,7 +120,17 @@ export function BusinessProfilePage() {
   const socialProfiles = business.socialProfiles.filter((profile) =>
     /^https?:\/\//i.test(profile.url),
   )
-  const hasFacts = Boolean(business.location || business.hours || business.industry)
+  const hasFacts = Boolean(
+    business.location ||
+    business.hours ||
+    business.industry ||
+    business.address ||
+    business.foundedYear ||
+    business.teamSize ||
+    business.businessType ||
+    business.priceRange ||
+    business.timezone,
+  )
 
   return (
     // No bespoke wordmark/header here — the page renders inside Shell now (see App.tsx), which
@@ -166,6 +181,9 @@ export function BusinessProfilePage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             {business.name}
           </h1>
+          {business.tagline ? (
+            <p className="mt-1 text-sm text-muted-foreground">{business.tagline}</p>
+          ) : null}
           {business.location ? (
             <p className="mt-1.5 flex items-center gap-1.5 text-sm text-muted-foreground">
               <MapPin size={14} strokeWidth={1.8} />
@@ -244,7 +262,7 @@ export function BusinessProfilePage() {
                     <MessageCircle size={16} />
                     Message {business.name}
                   </Button>
-                  {business.phone || business.email ? (
+                  {business.phone || business.email || business.website ? (
                     <div className="space-y-2">
                       {business.phone ? (
                         <ContactRow href={`tel:${business.phone}`} icon={Phone}>
@@ -254,6 +272,11 @@ export function BusinessProfilePage() {
                       {business.email ? (
                         <ContactRow href={`mailto:${business.email}`} icon={Mail}>
                           {business.email}
+                        </ContactRow>
+                      ) : null}
+                      {business.website ? (
+                        <ContactRow href={business.website} icon={Globe}>
+                          {business.website}
                         </ContactRow>
                       ) : null}
                     </div>
@@ -289,6 +312,24 @@ export function BusinessProfilePage() {
                   ) : null}
                   {business.industry ? (
                     <FactRow icon={BriefcaseBusiness} label="Work" value={business.industry} />
+                  ) : null}
+                  {business.address ? (
+                    <FactRow icon={MapPin} label="Address" value={business.address} />
+                  ) : null}
+                  {business.businessType ? (
+                    <FactRow icon={Building2} label="Type" value={business.businessType} />
+                  ) : null}
+                  {business.foundedYear ? (
+                    <FactRow icon={Calendar} label="Founded" value={business.foundedYear} />
+                  ) : null}
+                  {business.teamSize ? (
+                    <FactRow icon={Users} label="Team size" value={business.teamSize} />
+                  ) : null}
+                  {business.priceRange ? (
+                    <FactRow icon={DollarSign} label="Price" value={business.priceRange} />
+                  ) : null}
+                  {business.timezone ? (
+                    <FactRow icon={Clock3} label="Timezone" value={business.timezone} />
                   ) : null}
                 </dl>
               ) : null}
