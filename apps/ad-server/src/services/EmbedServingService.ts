@@ -328,6 +328,9 @@ export class EmbedServingService {
     }
 
     const destination = deployment.activeAdvertisementVersion!.destinationUrl
+    if (!destination) {
+      throw { statusCode: 404, message: 'No destination URL configured for this advertisement' }
+    }
 
     const sidToken = await trackBaseClick({
       sourceEmbedDeploymentId: deployment.id,

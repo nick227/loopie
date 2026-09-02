@@ -14,9 +14,15 @@ RUN pnpm install --frozen-lockfile
 # Copy full source
 COPY . .
 
-# Generate Prisma client and catch type errors at build time
+# Generate Prisma client and catch type errors at build time. Uses tsconfig.build.json (excludes
+# src/__tests__), not the plain `pnpm typecheck` script — several test files reach directly into
+# apps/server/src (shared embed-serving logic, see e.g. __tests__/embedServing.test.ts), and this
+# minimal build context only installs deps for packages/db + apps/ad-server, not apps/server or
+# its own deps (@project/page-renderer, @project/embed-contract). Those cross-app test imports
+# typecheck fine in CI/local dev (full monorepo installed) — confirmed live via a Railway build
+# failure that a local `pnpm --filter ad-server typecheck` couldn't reproduce.
 RUN pnpm --filter "./packages/db" exec prisma generate
-RUN pnpm --filter "./apps/ad-server" typecheck
+RUN pnpm --filter "./apps/ad-server" exec tsc --noEmit -p tsconfig.build.json
 
 # Runtime stage — tsx runs TypeScript source directly, handling the @project/db workspace package
 FROM node:20-alpine AS runner
