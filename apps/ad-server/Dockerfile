@@ -7,6 +7,7 @@ WORKDIR /app
 # Copy workspace manifests first for layer caching
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY packages/db/package.json ./packages/db/
+COPY packages/page-renderer/package.json ./packages/page-renderer/
 COPY apps/ad-server/package.json ./apps/ad-server/
 
 RUN pnpm install --frozen-lockfile

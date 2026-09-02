@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EntityTabs } from '@/components/ui/EntityTabs'
 import { usePageTitle } from '@/lib/headerContext'
-import { Code2, ExternalLink, Rocket } from 'lucide-react'
+import { Check, Eye, Loader2, Rocket } from 'lucide-react'
 import { PageCanvas } from './components/PageCanvas'
 import { PageToolbar } from './components/PageToolbar'
+import { LandingPageShareMenu } from './components/LandingPageShareMenu'
 import { EmbedModal } from '@/components/shared/EmbedModal'
 import { RICH_TEMPLATE_IDS, type TemplateSection } from './components/types'
 import { useLandingPageEditor } from './hooks/useLandingPageEditor'
@@ -85,6 +86,7 @@ export function LandingPage() {
     slots,
     setSlots,
     dirty,
+    savedAt,
     publishPending,
     setDirty,
     saveError,
@@ -117,13 +119,14 @@ export function LandingPage() {
 
   return (
     <div className="space-y-4">
+      <h1 className="sr-only">{name || 'Landing page editor'}</h1>
       {/* No "‹ Pages" link here — the persistent header (Shell.tsx) already shows it as the Back
           affordance for this entity. A second one here would be exactly the duplicate chrome the
           Singleton/Collection/Entity grammar (docs/strategy/03-product-principles.md) argues
           against. */}
-      <div className="flex flex-wrap items-center justify-between gap-3 max-w-[900px] mx-auto">
-        <div>
-          <h1>
+      <div className="sticky top-14 z-20 border-y border-border bg-background/95 backdrop-blur-md">
+        <div className="mx-auto flex min-h-12 max-w-[900px] flex-wrap items-center gap-2 px-3 py-2 lg:flex-nowrap lg:px-0">
+          <div className="flex min-w-[10rem] flex-1 items-center gap-1.5 lg:max-w-[13rem]">
             <input
               value={name}
               onChange={(event) => {
@@ -135,78 +138,36 @@ export function LandingPage() {
               }}
               aria-label="Page title"
               maxLength={150}
-              className="-ml-1 block min-w-0 max-w-full rounded-md border border-transparent bg-transparent px-1 text-xl font-semibold text-foreground hover:border-input-border focus:border-input-border focus:outline-none focus:ring-2 focus:ring-ring"
+              className="min-w-0 flex-1 truncate rounded-md border border-transparent bg-transparent px-1.5 py-1 text-sm font-semibold text-foreground hover:border-input-border focus:border-input-border focus:outline-none focus:ring-2 focus:ring-ring"
             />
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            disabled={dirty}
-            onClick={() => window.open(previewHref, '_blank', 'noopener,noreferrer')}
-          >
-            <ExternalLink size={14} /> Preview
-          </Button>
-          <Button
-            variant="outline"
-            disabled={page.status === 'PUBLISHED'}
-            onClick={() => window.open(page.hostedUrl, '_blank', 'noopener,noreferrer')}
-          >
-            <ExternalLink size={14} /> URL
-          </Button>
-          {/* Render the Embed modal if the button is clicked */}
-          <Button
-            variant="outline"
-            onClick={() => setEmbedModalOpen(true)}
-            disabled={page?.status !== 'PUBLISHED'}
-          >
-            <Code2 size={14} /> Embed
-          </Button>
-          <EmbedModal
-            isOpen={embedModalOpen}
-            onClose={() => setEmbedModalOpen(false)}
-            objectType="PAGE"
-            objectId={page?.id || 'loading'}
+            {dirty || savedAt ? (
+              <span
+                aria-live="polite"
+                title={dirty ? 'Saving changes' : 'Changes saved'}
+                className="inline-flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground"
+              >
+                {dirty ? (
+                  <Loader2 size={12} aria-hidden="true" className="animate-spin" />
+                ) : (
+                  <Check size={12} aria-hidden="true" className="text-success" />
+                )}
+                <span className="sr-only xl:not-sr-only">{dirty ? 'Saving…' : 'Saved'}</span>
+              </span>
+            ) : null}
+          </div>
+
+          <EntityTabs<Tab>
+            compact
+            tabs={[
+              { key: 'editor', label: 'Editor' },
+              { key: 'content', label: 'Content' },
+              { key: 'activity', label: 'Activity' },
+            ]}
+            active={tab}
+            onChange={setTab}
           />
-          <Button
-            onClick={handlePublish}
-            loading={publishMutation.isPending}
-            disabled={!publishPending}
-            title={publishPending ? 'Publish the latest changes' : 'No unpublished changes'}
-          >
-            <Rocket size={14} /> Publish
-          </Button>
-        </div>
-      </div>
 
-      {saveError && (
-        <p
-          role="alert"
-          className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm max-w-[900px] mx-auto"
-        >
-          {saveError}
-        </p>
-      )}
-
-      <div className="max-w-[900px] mx-auto">
-        {/* Entity-local sections (docs/strategy/03-product-principles.md) — Editor is this page's
-          own draft/content work, Activity is real performance data (GET /landing-pages/{id}/
-          performance) that had nowhere to live on this screen before. Plain local state, not
-          routes — nothing here needs its own URL or Back-stack entry. */}
-        <EntityTabs<Tab>
-          tabs={[
-            { key: 'editor', label: 'Editor' },
-            { key: 'content', label: 'Content' },
-            { key: 'activity', label: 'Activity' },
-          ]}
-          active={tab}
-          onChange={setTab}
-        />
-      </div>
-
-      {tab === 'editor' ? (
-        <>
-          <div className="max-w-[900px] mx-auto flow">
+          {tab === 'editor' ? (
             <PageToolbar
               templateId={templateId}
               templateSchema={template?.schema}
@@ -220,8 +181,56 @@ export function LandingPage() {
                 setDirty(true)
               }}
             />
-          </div>
+          ) : null}
 
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              disabled={dirty}
+              onClick={() => window.open(previewHref, '_blank', 'noopener,noreferrer')}
+              aria-label="Preview draft"
+              title={dirty ? 'Wait for changes to save before previewing' : 'Preview draft'}
+            >
+              <Eye size={14} />
+            </Button>
+            <LandingPageShareMenu
+              hostedUrl={page.hostedUrl ?? ''}
+              published={page.status === 'PUBLISHED' && Boolean(page.hostedUrl)}
+              onEmbed={() => setEmbedModalOpen(true)}
+            />
+            <Button
+              size="sm"
+              onClick={handlePublish}
+              loading={publishMutation.isPending}
+              disabled={!publishPending}
+              title={publishPending ? 'Publish the latest changes' : 'No unpublished changes'}
+            >
+              <Rocket size={14} /> Publish
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <EmbedModal
+        isOpen={embedModalOpen}
+        onClose={() => setEmbedModalOpen(false)}
+        objectType="PAGE"
+        objectId={page.id}
+      />
+
+      {saveError && (
+        <p
+          role="alert"
+          className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm max-w-[900px] mx-auto"
+        >
+          {saveError}
+        </p>
+      )}
+
+      {tab === 'editor' ? (
+        <>
           {RICH_TEMPLATE_IDS.includes(templateId) ? (
             <AdvancedTemplateRenderer
               templateId={templateId}

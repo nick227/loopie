@@ -11,13 +11,23 @@ export function EntityTabs<K extends string>({
   tabs,
   active,
   onChange,
+  compact = false,
 }: {
   tabs: EntityTab<K>[]
   active: K
   onChange: (key: K) => void
+  compact?: boolean
 }) {
   return (
-    <div role="tablist" className="flex flex-wrap gap-1.5 border-b border-border pb-3">
+    <div
+      role="tablist"
+      className={cn(
+        'flex flex-wrap',
+        compact
+          ? 'shrink-0 gap-0.5 rounded-lg bg-muted/70 p-0.5'
+          : 'gap-1.5 border-b border-border pb-3',
+      )}
+    >
       {tabs.map((tab) => (
         <button
           key={tab.key}
@@ -26,9 +36,12 @@ export function EntityTabs<K extends string>({
           aria-selected={active === tab.key}
           onClick={() => onChange(tab.key)}
           className={cn(
-            'rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
+            'font-medium transition-colors',
+            compact ? 'rounded-md px-2.5 py-1.5 text-xs' : 'rounded-full px-3.5 py-1.5 text-sm',
             active === tab.key
-              ? 'bg-primary text-primary-foreground'
+              ? compact
+                ? 'bg-background text-foreground shadow-sm'
+                : 'bg-primary text-primary-foreground'
               : 'text-muted-foreground hover:bg-accent hover:text-foreground',
           )}
         >
