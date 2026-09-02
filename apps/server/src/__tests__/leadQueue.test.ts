@@ -129,18 +129,18 @@ describe('lead work queue', () => {
     expect(row.buckets).not.toContain('NEEDS_FOLLOW_UP')
   })
 
-  it('ENGAGED stage lands in the ENGAGED bucket', async () => {
+  it('INTERESTED stage lands in the INTERESTED bucket', async () => {
     const contact = await seedContact()
-    const lead = await seedLead(contact.id, testBusinessId, { stage: 'ENGAGED' })
+    const lead = await seedLead(contact.id, testBusinessId, { stage: 'INTERESTED' })
 
     const queue = await getQueue()
     const row = queue.find((r) => r.id === lead.id)
-    expect(row.buckets).toContain('ENGAGED')
+    expect(row.buckets).toContain('INTERESTED')
   })
 
   it('WON/LOST leads never appear in the queue', async () => {
     const contact = await seedContact()
-    const wonLead = await seedLead(contact.id, testBusinessId, { stage: 'WON', openSlot: null })
+    const wonLead = await seedLead(contact.id, testBusinessId, { stage: 'CLOSED', openSlot: null })
 
     const queue = await getQueue()
     expect(queue.some((r) => r.id === wonLead.id)).toBe(false)
@@ -149,7 +149,7 @@ describe('lead work queue', () => {
   it("an older closed lead's activity does not leak into a new open lead's contacted status", async () => {
     const contact = await seedContact()
     await seedLead(contact.id, testBusinessId, {
-      stage: 'LOST',
+      stage: 'NOT_INTERESTED',
       openSlot: null,
       openedAt: new Date('2026-01-01'),
     })

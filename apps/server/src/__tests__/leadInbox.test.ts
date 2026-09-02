@@ -37,7 +37,7 @@ describe('Inbox: Lead stage changes post into the contact thread', () => {
       method: 'PATCH',
       url: `/leads/${lead.id}`,
       headers: asAuth(testUserId),
-      payload: { stage: 'QUALIFIED' },
+      payload: { stage: 'INTERESTED' },
     })
     expect(res.statusCode).toBe(200)
 
@@ -49,7 +49,7 @@ describe('Inbox: Lead stage changes post into the contact thread', () => {
     expect(thread!.messages[0]!.kind).toBe('SYSTEM')
     expect(thread!.messages[0]!.direction).toBe('INTERNAL')
     expect(thread!.messages[0]!.subject).toBe('Lead status changed')
-    expect(thread!.messages[0]!.body).toBe('Moved from New to Qualified.')
+    expect(thread!.messages[0]!.body).toBe('Moved from New to Interested.')
   })
 
   it('lands in the SAME thread as a real sent message, not a separate CRM thread', async () => {
@@ -79,7 +79,7 @@ describe('Inbox: Lead stage changes post into the contact thread', () => {
       method: 'PATCH',
       url: `/leads/${lead.id}`,
       headers: asAuth(testUserId),
-      payload: { stage: 'CONTACTED' },
+      payload: { stage: 'UNDECIDED' },
     })
 
     const threads = await db.inboxThread.findMany({ where: { contactId: contact.id } })
@@ -108,7 +108,7 @@ describe('Inbox: Lead stage changes post into the contact thread', () => {
       method: 'PATCH',
       url: `/leads/${lead.id}`,
       headers: asAuth(testUserId),
-      payload: { stage: 'QUALIFIED' },
+      payload: { stage: 'INTERESTED' },
     })
 
     const res = await app.inject({
@@ -119,7 +119,7 @@ describe('Inbox: Lead stage changes post into the contact thread', () => {
     const thread = res.json().data.find((t: any) => t.contactId === contact.id)
     expect(thread).toBeTruthy()
     expect(thread.previewKind).toBe('SYSTEM')
-    expect(thread.previewBody).toBe('Moved from New to Qualified.')
+    expect(thread.previewBody).toBe('Moved from New to Interested.')
   })
 
   it('picks whichever of a stage change or a real message is actually most recent for the preview', async () => {
@@ -134,7 +134,7 @@ describe('Inbox: Lead stage changes post into the contact thread', () => {
       method: 'PATCH',
       url: `/leads/${lead.id}`,
       headers: asAuth(testUserId),
-      payload: { stage: 'CONTACTED' },
+      payload: { stage: 'UNDECIDED' },
     })
     // ...then a real message, which should now win the preview.
     const messageRes = await app.inject({
@@ -171,18 +171,18 @@ describe('Inbox: Lead stage changes post into the contact thread', () => {
       method: 'PATCH',
       url: `/leads/${lead.id}`,
       headers: asAuth(testUserId),
-      payload: { stage: 'CONTACTED' },
+      payload: { stage: 'UNDECIDED' },
     })
     await app.inject({
       method: 'PATCH',
       url: `/leads/${lead.id}`,
       headers: asAuth(testUserId),
-      payload: { stage: 'QUALIFIED' },
+      payload: { stage: 'INTERESTED' },
     })
 
     const thread = await threadForContact(contact.id)
     expect(thread!.messages).toHaveLength(2)
-    expect(thread!.messages[0]!.body).toBe('Moved from New to Contacted.')
-    expect(thread!.messages[1]!.body).toBe('Moved from Contacted to Qualified.')
+    expect(thread!.messages[0]!.body).toBe('Moved from New to Undecided.')
+    expect(thread!.messages[1]!.body).toBe('Moved from Undecided to Interested.')
   })
 })

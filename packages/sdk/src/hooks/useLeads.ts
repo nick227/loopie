@@ -3,11 +3,20 @@ import { getApiClient, ApiError } from '../client'
 
 type UpdateLeadInput = {
   leadId: string
-  stage?: 'NEW' | 'CONTACTED' | 'ENGAGED' | 'QUALIFIED' | 'PROPOSAL' | 'WON' | 'LOST'
+  stage?: 'NEW' | 'UNDECIDED' | 'INTERESTED' | 'CLOSED' | 'NOT_INTERESTED'
   owner?: string | null
   estimatedValue?: number | null
   nextActionNote?: string | null
   nextActionAt?: string | null
+  activity?: {
+    emailed?: boolean
+    called?: boolean
+    texted?: boolean
+    webinar?: boolean
+    meeting?: boolean
+    followUp?: boolean
+    proposalSent?: boolean
+  }
 }
 
 export function useLeads(params?: { stage?: string; sourceType?: string; limit?: number }) {
@@ -30,7 +39,7 @@ export function useLeads(params?: { stage?: string; sourceType?: string; limit?:
 }
 
 // The morning work queue — every open lead, bucketed (NEW/NEVER_CONTACTED/NEEDS_FOLLOW_UP/
-// OVERDUE/ENGAGED). Not paginated (bounded operational list, see LeadService.queue's QUEUE_CAP).
+// OVERDUE/INTERESTED). Not paginated (bounded operational list, see LeadService.queue's QUEUE_CAP).
 export function useLeadQueue() {
   return useQuery({
     queryKey: ['leads', 'queue'],

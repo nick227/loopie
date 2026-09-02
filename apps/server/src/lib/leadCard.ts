@@ -1,5 +1,6 @@
 import { db } from '@project/db'
 import type { InteractionType } from '@prisma/client'
+import { toLeadActivityDTO } from './leadActivity'
 
 // Manually loggable via POST /contacts/{contactId}/interactions — everything else in
 // InteractionType is a system-of-record event written by the code path that performed it
@@ -85,5 +86,6 @@ export async function currentLeadCard(businessId: string, contactId: string) {
     contacted,
     lastTouchAt: lastTouchAt?.toISOString() ?? null,
     activityCounts: counts,
+    activity: toLeadActivityDTO(lead),
   }
 }

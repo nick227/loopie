@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import type { FieldConfig } from '@/components/ui/Form'
 
 const schema = z.object({
-  stage: z.enum(['NEW', 'CONTACTED', 'ENGAGED', 'QUALIFIED', 'PROPOSAL', 'WON', 'LOST']).optional(),
+  stage: z.enum(['NEW', 'UNDECIDED', 'INTERESTED', 'CLOSED', 'NOT_INTERESTED']).optional(),
   owner: z.string().optional().or(z.literal('')),
   estimatedValue: z.coerce.number().optional(),
 })
@@ -15,11 +15,11 @@ type FormData = z.infer<typeof schema>
 const fields: FieldConfig[] = [
   {
     name: 'stage',
-    label: 'Stage',
+    label: 'Status',
     type: 'select',
     voice: false,
     required: false,
-    options: ['NEW', 'CONTACTED', 'ENGAGED', 'QUALIFIED', 'PROPOSAL', 'WON', 'LOST'],
+    options: ['NEW', 'UNDECIDED', 'INTERESTED', 'CLOSED', 'NOT_INTERESTED'],
   },
   { name: 'owner', label: 'Owner', type: 'text', voice: false, required: false },
   {

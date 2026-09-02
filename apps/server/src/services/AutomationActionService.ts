@@ -1,5 +1,6 @@
 import { db } from '@project/db'
 import type { Automation, AutomationRun, Contact, Lead } from '@prisma/client'
+import { isClosedStage, markOpenLeadActivityFromInteraction } from '../lib/leadActivity'
 
 const OUTBOUND_INTERACTION_TYPE = { SEND_EMAIL: 'EMAIL_SENT', SEND_TEXT: 'TEXT_SENT' } as const
 
@@ -8,17 +9,27 @@ export class AutomationActionService {
     switch (automation.action) {
       case 'SEND_EMAIL':
       case 'SEND_TEXT': {
-        await db.$transaction([
-          db.interaction.create({
+        const interactionType = OUTBOUND_INTERACTION_TYPE[automation.action]
+        await db.$transaction(async (tx) => {
+          await tx.interaction.create({
             data: {
               businessId: contact.businessId,
               contactId: contact.id,
-              type: OUTBOUND_INTERACTION_TYPE[automation.action],
+              type: interactionType,
               metadata: { automationId: automation.id },
             },
-          }),
-          db.contact.update({ where: { id: contact.id }, data: { lastContactedAt: new Date() } }),
-        ])
+          })
+          await tx.contact.update({
+            where: { id: contact.id },
+            data: { lastContactedAt: new Date() },
+          })
+          await markOpenLeadActivityFromInteraction(
+            contact.businessId,
+            contact.id,
+            interactionType,
+            tx,
+          )
+        })
         return
       }
       case 'CREATE_REMINDER': {
@@ -38,7 +49,7 @@ export class AutomationActionService {
         const stage = (automation.actionValue as { stage?: string } | null)?.stage
         if (!stage) throw new Error('CHANGE_LEAD_STATUS actionValue.stage is missing')
         const current = await db.lead.findUnique({ where: { id: run.leadId } })
-        const closesNow = (stage === 'WON' || stage === 'LOST') && !current?.closedAt
+        const closesNow = isClosedStage(stage) && !current?.closedAt
         await db.lead.update({
           where: { id: run.leadId },
           data: {

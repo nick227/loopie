@@ -11,11 +11,14 @@ import { ImportJobService } from './ImportJobService'
 import { ACTIVE_SALE_WHERE } from '../lib/salePredicates'
 import { syncContactTags } from '../lib/contactTags'
 import { currentLeadCard, LOGGABLE_ACTIVITY_TYPES } from '../lib/leadCard'
+import { markOpenLeadActivityFromInteraction } from '../lib/leadActivity'
 import { channelForInteractionType, findOrCreateProvider } from '../lib/channelProviders'
 import { toInteractionDTO } from '../lib/interactionDto'
 import type { Channel } from '@prisma/client'
+import { CalendarService } from './CalendarService'
 
 const importJobs = new ImportJobService()
+const calendarService = new CalendarService()
 
 export class ContactService {
   async list(
@@ -226,6 +229,11 @@ export class ContactService {
       },
       include: { provider: true },
     })
+    await markOpenLeadActivityFromInteraction(businessId, contactId, data.type)
+    // "When the corresponding CRM interaction is logged, Calendar should be capable of
+    // considering that work complete" — the loop the product spec calls out. Best-effort, see
+    // CalendarService.completeCrmWorkOnActivity's own comment.
+    await calendarService.completeCrmWorkOnActivity(businessId, contactId)
     return toInteractionDTO(interaction)
   }
 

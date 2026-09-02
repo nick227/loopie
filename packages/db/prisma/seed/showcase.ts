@@ -34,11 +34,10 @@ function daysAgo(n: number, hour = 9) {
 
 const STAGE_LABEL: Record<string, string> = {
   NEW: 'New',
-  CONTACTED: 'Contacted',
-  QUALIFIED: 'Qualified',
-  PROPOSAL: 'Proposal',
-  WON: 'Won',
-  LOST: 'Lost',
+  UNDECIDED: 'Undecided',
+  INTERESTED: 'Interested',
+  CLOSED: 'Closed',
+  NOT_INTERESTED: 'Not interested',
 }
 
 export async function seedShowcase(opts: {
@@ -88,34 +87,33 @@ export async function seedShowcase(opts: {
     '512-555-0129',
   )
 
-  await stageHistory(businessId, jane.id, [{ from: 'NEW', to: 'QUALIFIED', at: daysAgo(6) }])
+  await stageHistory(businessId, jane.id, [{ from: 'NEW', to: 'INTERESTED', at: daysAgo(6) }])
 
   await upsertLead(businessId, 'demo-lead-marcus', marcus.id, 'NEW', { openSlot: 'OPEN' })
 
-  await upsertLead(businessId, 'demo-lead-sarah', sarah.id, 'QUALIFIED', { openSlot: 'OPEN' })
+  await upsertLead(businessId, 'demo-lead-sarah', sarah.id, 'INTERESTED', { openSlot: 'OPEN' })
   await stageHistory(businessId, sarah.id, [
-    { from: 'NEW', to: 'CONTACTED', at: daysAgo(5) },
-    { from: 'CONTACTED', to: 'QUALIFIED', at: daysAgo(2) },
+    { from: 'NEW', to: 'UNDECIDED', at: daysAgo(5) },
+    { from: 'UNDECIDED', to: 'INTERESTED', at: daysAgo(2) },
   ])
 
-  await upsertLead(businessId, 'demo-lead-derek', derek.id, 'PROPOSAL', {
+  await upsertLead(businessId, 'demo-lead-derek', derek.id, 'INTERESTED', {
     openSlot: 'OPEN',
     estimatedValue: 620,
   })
   await stageHistory(businessId, derek.id, [
-    { from: 'NEW', to: 'CONTACTED', at: daysAgo(4) },
-    { from: 'CONTACTED', to: 'PROPOSAL', at: daysAgo(1) },
+    { from: 'NEW', to: 'UNDECIDED', at: daysAgo(4) },
+    { from: 'UNDECIDED', to: 'INTERESTED', at: daysAgo(1) },
   ])
 
-  const priyaLead = await upsertLead(businessId, 'demo-lead-priya', priya.id, 'WON', {
+  const priyaLead = await upsertLead(businessId, 'demo-lead-priya', priya.id, 'CLOSED', {
     openSlot: null,
     closedAt: daysAgo(0),
     estimatedValue: 940,
   })
   await stageHistory(businessId, priya.id, [
-    { from: 'NEW', to: 'QUALIFIED', at: daysAgo(7) },
-    { from: 'QUALIFIED', to: 'PROPOSAL', at: daysAgo(3) },
-    { from: 'PROPOSAL', to: 'WON', at: daysAgo(0) },
+    { from: 'NEW', to: 'INTERESTED', at: daysAgo(7) },
+    { from: 'INTERESTED', to: 'CLOSED', at: daysAgo(0) },
   ])
   await db.sale.upsert({
     where: { id: 'demo-sale-priya' },
@@ -133,11 +131,13 @@ export async function seedShowcase(opts: {
     },
   })
 
-  await upsertLead(businessId, 'demo-lead-chris', chris.id, 'LOST', {
+  await upsertLead(businessId, 'demo-lead-chris', chris.id, 'NOT_INTERESTED', {
     openSlot: null,
     closedAt: daysAgo(1),
   })
-  await stageHistory(businessId, chris.id, [{ from: 'QUALIFIED', to: 'LOST', at: daysAgo(1) }])
+  await stageHistory(businessId, chris.id, [
+    { from: 'INTERESTED', to: 'NOT_INTERESTED', at: daysAgo(1) },
+  ])
 
   // A second real communication channel alongside Jane's email — gives the Contact-thread bubble
   // rendering an SMS example, not just email.
@@ -244,7 +244,7 @@ export async function seedShowcase(opts: {
     'demo-inbox-jane-1',
     janeThread.id,
     'Lead status changed',
-    'Moved from New to Qualified.',
+    'Moved from New to Interested.',
     daysAgo(6),
   )
 
@@ -262,7 +262,7 @@ export async function seedShowcase(opts: {
     'demo-inbox-sarah-1',
     sarahThread.id,
     'Lead status changed',
-    `Moved from ${STAGE_LABEL.NEW} to ${STAGE_LABEL.CONTACTED}.`,
+    `Moved from ${STAGE_LABEL.NEW} to ${STAGE_LABEL.UNDECIDED}.`,
     daysAgo(5),
   )
   await upsertMessage(
@@ -276,7 +276,7 @@ export async function seedShowcase(opts: {
     'demo-inbox-sarah-3',
     sarahThread.id,
     'Lead status changed',
-    `Moved from ${STAGE_LABEL.CONTACTED} to ${STAGE_LABEL.QUALIFIED}.`,
+    `Moved from ${STAGE_LABEL.UNDECIDED} to ${STAGE_LABEL.INTERESTED}.`,
     daysAgo(2),
   )
 
@@ -292,14 +292,14 @@ export async function seedShowcase(opts: {
     'demo-inbox-derek-2',
     derekThread.id,
     'Lead status changed',
-    `Moved from ${STAGE_LABEL.NEW} to ${STAGE_LABEL.CONTACTED}.`,
+    `Moved from ${STAGE_LABEL.NEW} to ${STAGE_LABEL.UNDECIDED}.`,
     daysAgo(4),
   )
   await upsertMessage(
     'demo-inbox-derek-3',
     derekThread.id,
     'Lead status changed',
-    `Moved from ${STAGE_LABEL.CONTACTED} to ${STAGE_LABEL.PROPOSAL}.`,
+    `Moved from ${STAGE_LABEL.UNDECIDED} to ${STAGE_LABEL.INTERESTED}.`,
     daysAgo(1),
   )
 
@@ -308,21 +308,14 @@ export async function seedShowcase(opts: {
     'demo-inbox-priya-1',
     priyaThread.id,
     'Lead status changed',
-    `Moved from ${STAGE_LABEL.NEW} to ${STAGE_LABEL.QUALIFIED}.`,
+    `Moved from ${STAGE_LABEL.NEW} to ${STAGE_LABEL.INTERESTED}.`,
     daysAgo(7),
   )
   await upsertMessage(
     'demo-inbox-priya-2',
     priyaThread.id,
     'Lead status changed',
-    `Moved from ${STAGE_LABEL.QUALIFIED} to ${STAGE_LABEL.PROPOSAL}.`,
-    daysAgo(3),
-  )
-  await upsertMessage(
-    'demo-inbox-priya-3',
-    priyaThread.id,
-    'Lead status changed',
-    `Moved from ${STAGE_LABEL.PROPOSAL} to ${STAGE_LABEL.WON}.`,
+    `Moved from ${STAGE_LABEL.INTERESTED} to ${STAGE_LABEL.CLOSED}.`,
     daysAgo(0),
   )
 
@@ -331,7 +324,7 @@ export async function seedShowcase(opts: {
     'demo-inbox-chris-1',
     chrisThread.id,
     'Lead status changed',
-    `Moved from ${STAGE_LABEL.QUALIFIED} to ${STAGE_LABEL.LOST}.`,
+    `Moved from ${STAGE_LABEL.INTERESTED} to ${STAGE_LABEL.NOT_INTERESTED}.`,
     daysAgo(1),
   )
 

@@ -3,17 +3,9 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardContent, CardHeader } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { usePageTitle } from '@/lib/headerContext'
+import { LEAD_STAGE_LABEL } from '@/lib/leadStages'
 
 type LeadInsights = components['schemas']['LeadInsights']
-
-const STAGE_LABEL: Record<LeadInsights['stageConversion'][number]['stage'], string> = {
-  NEW: 'New',
-  CONTACTED: 'Contacted',
-  ENGAGED: 'Engaged',
-  QUALIFIED: 'Qualified',
-  PROPOSAL: 'Proposal',
-  WON: 'Won',
-}
 
 // Partial, not Record — channelMix only ever returns the outbound-effort channels (see
 // leadInsights.ts's INSIGHTS_CHANNELS), never FORM/REFERRAL, but the shared Channel enum includes
@@ -134,12 +126,12 @@ export function ContactsInsightsPage() {
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <StatTile
-            label="Avg touches before Engaged"
-            value={formatAvg(insights.avgTouchesBeforeEngaged)}
+            label="Avg touches before Interested"
+            value={formatAvg(insights.avgTouchesBeforeInterested)}
           />
           <StatTile
-            label="Avg touches before Won"
-            value={formatAvg(insights.avgTouchesBeforeWon)}
+            label="Avg touches before Closed"
+            value={formatAvg(insights.avgTouchesBeforeClosed)}
           />
           <StatTile
             label="Overdue follow-ups"
@@ -175,7 +167,12 @@ export function ContactsInsightsPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           {insights.stageConversion.map((s) => (
-            <BarRow key={s.stage} label={STAGE_LABEL[s.stage]} count={s.reachedCount} pct={s.pct} />
+            <BarRow
+              key={s.stage}
+              label={LEAD_STAGE_LABEL[s.stage as keyof typeof LEAD_STAGE_LABEL] ?? s.stage}
+              count={s.reachedCount}
+              pct={s.pct}
+            />
           ))}
         </CardContent>
       </Card>

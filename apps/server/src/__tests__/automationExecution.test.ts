@@ -143,7 +143,7 @@ describe('automation execution', () => {
         trigger: 'LEAD_CREATED',
         waitDays: 0,
         action: 'CHANGE_LEAD_STATUS',
-        actionValue: { stage: 'CONTACTED' },
+        actionValue: { stage: 'UNDECIDED' },
         isActive: true,
       },
     })
@@ -152,7 +152,7 @@ describe('automation execution', () => {
     await runDueAutomations()
 
     const lead = await db.lead.findUniqueOrThrow({ where: { id: leadId } })
-    expect(lead.stage).toBe('CONTACTED')
+    expect(lead.stage).toBe('UNDECIDED')
 
     const log = await db.automationLog.findFirstOrThrow({ where: { automationId: automation.id } })
     expect(log.outcome).toBe('SENT')

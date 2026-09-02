@@ -4,6 +4,10 @@ import { scheduleAutomationRuns } from '../lib/automationScheduling'
 import { notifyLeadStageChanged } from '../lib/leadInbox'
 import { OUTBOUND_TYPES } from '../lib/leadCard'
 import { computeLeadInsights } from '../lib/leadInsights'
+import { isClosedStage, LEAD_ACTIVITY_FLAGS, toLeadActivityDTO } from '../lib/leadActivity'
+import { CalendarService } from './CalendarService'
+
+const calendarService = new CalendarService()
 
 // A bounded, unpaginated "what needs attention today" set — same operational-list philosophy as
 // DashboardService.home(), not a browsable collection. A business with more open leads than this
@@ -30,6 +34,7 @@ function toLeadDTO(lead: any) {
     closedAt: lead.closedAt?.toISOString() ?? null,
     nextActionNote: lead.nextActionNote,
     nextActionAt: lead.nextActionAt?.toISOString() ?? null,
+    activity: toLeadActivityDTO(lead),
     createdAt: lead.createdAt.toISOString(),
   }
 }
@@ -74,7 +79,7 @@ export class LeadService {
   // The morning work queue: every open lead, enriched with the same contacted/last-touch
   // computation as the per-contact lead card, plus a computed `buckets` classification. Bucketed
   // client-side into tabs, not paginated — see QUEUE_CAP. Only the pipeline's open leads are
-  // queue material; WON/LOST leads are done, not something to work.
+  // queue material; CLOSED/NOT_INTERESTED leads are done, not something to work.
   //
   // "Contacted" here is computed the same way as lib/leadCard.ts's currentLeadCard, but batched
   // across every open lead in one extra query instead of one query per lead — every open lead's
@@ -128,7 +133,7 @@ export class LeadService {
         const buckets: string[] = []
         if (lead.stage === 'NEW') buckets.push('NEW')
         if (!contacted) buckets.push('NEVER_CONTACTED')
-        if (lead.stage === 'ENGAGED') buckets.push('ENGAGED')
+        if (lead.stage === 'INTERESTED') buckets.push('INTERESTED')
         if (overdue) buckets.push('OVERDUE')
         // "Needs follow-up" = has been reached, but nobody has decided what happens next — a
         // gap in the plan, distinct from OVERDUE (a plan exists but its date has passed).
@@ -154,19 +159,25 @@ export class LeadService {
     }
   }
 
-  // Management-facing analytics — time-to-first-contact, touches before ENGAGED/WON, channel
+  // Management-facing analytics — time-to-first-contact, touches before INTERESTED/CLOSED, channel
   // mix, overdue rate, stage conversion. See lib/leadInsights.ts for the full computation.
   async insights(businessId: string) {
     return computeLeadInsights(businessId)
   }
 
-  // Won/Lost stops active follow-up and closes the lead (docs/07-sales-flow-spec.md). Sale
-  // capture itself is a separate step — POST /sales, per the openapi.yaml updateLead description.
+  // CLOSED / NOT_INTERESTED stops active follow-up and closes the lead. Sale capture itself is a
+  // separate step — POST /sales, per the openapi.yaml updateLead description.
   async update(businessId: string, leadId: string, data: any) {
     const current = await this._find(businessId, leadId)
-    const closesNow = (data.stage === 'WON' || data.stage === 'LOST') && !current.closedAt
+    const closesNow = data.stage !== undefined && isClosedStage(data.stage) && !current.closedAt
 
     const stageChanged = data.stage !== undefined && data.stage !== current.stage
+    const activityPatch: Record<string, boolean> = {}
+    if (data.activity && typeof data.activity === 'object') {
+      for (const flag of LEAD_ACTIVITY_FLAGS) {
+        if (typeof data.activity[flag] === 'boolean') activityPatch[flag] = data.activity[flag]
+      }
+    }
 
     // Atomic: a stage change must never commit without its STATUS_CHANGE interaction — that
     // interaction's id is the idempotency key scheduleAutomationRuns keys off, so losing it to a
@@ -183,6 +194,7 @@ export class LeadService {
           ...(data.nextActionAt !== undefined
             ? { nextActionAt: data.nextActionAt ? new Date(data.nextActionAt) : null }
             : {}),
+          ...activityPatch,
           ...(closesNow ? { closedAt: new Date(), openSlot: null } : {}),
         },
       })
@@ -226,6 +238,26 @@ export class LeadService {
         console.error('Failed to project lead status change', err)
       }
       await notifyLeadStageChanged(businessId, current.contactId, current.stage, lead.stage)
+    }
+
+    if (data.nextActionAt !== undefined) {
+      try {
+        if (lead.nextActionAt) {
+          const contact = await db.contact.findUnique({
+            where: { id: current.contactId },
+            select: { name: true },
+          })
+          await calendarService.upsertCrmNextActionGoal(businessId, leadId, {
+            note: `Follow up with ${contact?.name ?? 'this contact'}`,
+            at: lead.nextActionAt,
+            contactId: current.contactId,
+          })
+        } else {
+          await calendarService.dismissCrmNextActionGoal(businessId, leadId)
+        }
+      } catch (err) {
+        console.error('Failed to sync Calendar for lead next action', err)
+      }
     }
 
     return toLeadDTO(lead)

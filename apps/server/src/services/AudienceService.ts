@@ -60,7 +60,7 @@ function buildPredefinedWhere(businessId: string, name: string): any {
     case 'Everyone':
       return base
     case 'Leads':
-      return { ...base, leads: { some: { stage: { notIn: ['WON', 'LOST'] } } } }
+      return { ...base, leads: { some: { stage: { notIn: ['CLOSED', 'NOT_INTERESTED'] } } } }
     case 'Customers':
     case 'Repeat customers':
       return { ...base, sales: { some: { reversedAt: null } } }

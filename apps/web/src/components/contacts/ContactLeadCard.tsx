@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Mail, MessageSquare, Phone, Users, Presentation, Plus, Check } from 'lucide-react'
+import { Plus, Check } from 'lucide-react'
 import {
   useLogContactActivity,
   useUpdateLead,
@@ -12,32 +12,23 @@ import { Card, CardContent, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
-import { relativeTimeLabel } from '@/components/home/homeFormat'
+import { LEAD_STAGE_LABEL, LEAD_STAGE_OPTIONS } from '@/lib/leadStages'
 import { cn } from '@/lib/utils'
 
 type ContactCurrentLead = components['schemas']['ContactCurrentLead']
+type LeadActivity = components['schemas']['LeadActivity']
+type LeadStage = ContactCurrentLead['stage']
 
-const STAGE_LABEL: Record<ContactCurrentLead['stage'], string> = {
-  NEW: 'New',
-  CONTACTED: 'Contacted',
-  ENGAGED: 'Engaged',
-  QUALIFIED: 'Qualified',
-  PROPOSAL: 'Proposal',
-  WON: 'Won',
-  LOST: 'Lost',
-}
-const STAGE_STYLE: Record<ContactCurrentLead['stage'], string> = {
-  NEW: 'bg-muted text-muted-foreground',
-  CONTACTED: 'bg-info/10 text-info',
-  ENGAGED: 'bg-info/10 text-info',
-  QUALIFIED: 'bg-primary/10 text-primary',
-  PROPOSAL: 'bg-primary/10 text-primary',
-  WON: 'bg-success/10 text-success',
-  LOST: 'bg-muted text-muted-foreground',
-}
+const ACTIVITY_OPTIONS: { key: keyof LeadActivity; label: string }[] = [
+  { key: 'emailed', label: 'Emailed' },
+  { key: 'called', label: 'Called' },
+  { key: 'texted', label: 'Texted' },
+  { key: 'meeting', label: 'Meeting' },
+  { key: 'webinar', label: 'Webinar' },
+  { key: 'followUp', label: 'Follow-up' },
+  { key: 'proposalSent', label: 'Proposal sent' },
+]
 
-// channel mirrors lib/channelProviders.ts#channelForInteractionType server-side — FOLLOW_UP has
-// no deterministic channel (it's not tied to one medium), so it gets no provider field.
 const LOGGABLE_TYPES: {
   value: 'CALL_LOGGED' | 'MEETING' | 'WEBINAR' | 'EVENT' | 'FOLLOW_UP'
   label: string
@@ -50,24 +41,6 @@ const LOGGABLE_TYPES: {
   { value: 'FOLLOW_UP', label: 'Follow-up' },
 ]
 
-function CountTile({
-  icon: Icon,
-  count,
-  label,
-}: {
-  icon: typeof Mail
-  count: number
-  label: string
-}) {
-  return (
-    <div className="flex items-center gap-1.5 text-sm">
-      <Icon size={14} className="text-muted-foreground" />
-      <span className="font-semibold tabular-nums text-foreground">{count}</span>
-      <span className="text-xs text-muted-foreground">{label}</span>
-    </div>
-  )
-}
-
 function LogActivityButton({ contactId }: { contactId: string }) {
   const [open, setOpen] = useState(false)
   const [type, setType] = useState<(typeof LOGGABLE_TYPES)[number]['value']>('CALL_LOGGED')
@@ -76,8 +49,6 @@ function LogActivityButton({ contactId }: { contactId: string }) {
   const logActivity = useLogContactActivity()
   const ref = useRef<HTMLDivElement>(null)
   const channel = LOGGABLE_TYPES.find((o) => o.value === type)?.channel
-  // Existing providers on this channel, offered as suggestions — free text still creates a new
-  // one (find-or-create), same discipline as ContactTagPicker's tag input.
   const providerQuery = useChannelProviders(channel ? { channel } : undefined)
   const providers = providerQuery.data?.data ?? []
 
@@ -166,6 +137,78 @@ function LogActivityButton({ contactId }: { contactId: string }) {
   )
 }
 
+function StatusSelect({ leadId, stage }: { leadId: string; stage: LeadStage }) {
+  const update = useUpdateLead()
+
+  async function onChange(next: LeadStage) {
+    if (next === stage) return
+    try {
+      await update.mutateAsync({ leadId, stage: next })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not update status.')
+    }
+  }
+
+  return (
+    <label className="block space-y-1">
+      <span className="text-xs text-muted-foreground">Status</span>
+      <select
+        value={stage}
+        disabled={update.isPending}
+        onChange={(event) => onChange(event.target.value as LeadStage)}
+        className="h-9 w-full max-w-xs rounded-md border border-input-border bg-transparent px-2 text-sm"
+      >
+        {LEAD_STAGE_OPTIONS.map((value) => (
+          <option key={value} value={value}>
+            {LEAD_STAGE_LABEL[value]}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+function ActivityCheckboxes({ leadId, activity }: { leadId: string; activity: LeadActivity }) {
+  const update = useUpdateLead()
+  const [pending, setPending] = useState<keyof LeadActivity | null>(null)
+
+  async function toggle(key: keyof LeadActivity) {
+    setPending(key)
+    try {
+      await update.mutateAsync({
+        leadId,
+        activity: { [key]: !activity[key] },
+      })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not update activity.')
+    } finally {
+      setPending(null)
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-muted-foreground">Activity</p>
+      <div className="flex flex-wrap gap-x-4 gap-y-2">
+        {ACTIVITY_OPTIONS.map(({ key, label }) => (
+          <label key={key} className="inline-flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={activity[key]}
+              disabled={pending === key || update.isPending}
+              onChange={() => toggle(key)}
+              className="size-3.5 rounded border-border"
+            />
+            <span className={cn(activity[key] ? 'text-foreground' : 'text-muted-foreground')}>
+              {label}
+            </span>
+          </label>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function NextAction({
   leadId,
   note,
@@ -177,15 +220,25 @@ function NextAction({
 }) {
   const [editing, setEditing] = useState(false)
   const [draftNote, setDraftNote] = useState(note ?? '')
-  const [draftAt, setDraftAt] = useState(at ? at.slice(0, 10) : '')
+  const [draftDate, setDraftDate] = useState(at ? at.slice(0, 10) : '')
+  const [draftTime, setDraftTime] = useState(at ? new Date(at).toTimeString().slice(0, 5) : '')
   const update = useUpdateLead()
 
   async function save() {
     try {
+      let nextActionAt: string | null = null
+      if (draftDate) {
+        if (draftTime) {
+          nextActionAt = new Date(`${draftDate}T${draftTime}`).toISOString()
+        } else {
+          const [year, month, day] = draftDate.split('-').map(Number)
+          nextActionAt = new Date(Date.UTC(year!, month! - 1, day!)).toISOString()
+        }
+      }
       await update.mutateAsync({
         leadId,
         nextActionNote: draftNote.trim() || null,
-        nextActionAt: draftAt ? new Date(`${draftAt}T00:00:00`).toISOString() : null,
+        nextActionAt,
       })
       setEditing(false)
     } catch (error) {
@@ -206,8 +259,14 @@ function NextAction({
         <div className="flex items-center gap-2">
           <input
             type="date"
-            value={draftAt}
-            onChange={(event) => setDraftAt(event.target.value)}
+            value={draftDate}
+            onChange={(event) => setDraftDate(event.target.value)}
+            className="h-8 rounded border border-input-border bg-transparent px-2 text-xs"
+          />
+          <input
+            type="time"
+            value={draftTime}
+            onChange={(event) => setDraftTime(event.target.value)}
             className="h-8 rounded border border-input-border bg-transparent px-2 text-xs"
           />
           <div className="ml-auto flex gap-2">
@@ -230,7 +289,7 @@ function NextAction({
         onClick={() => setEditing(true)}
         className="text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
       >
-        + Add next action
+        Schedule follow-up
       </button>
     )
   }
@@ -239,17 +298,17 @@ function NextAction({
     <button type="button" onClick={() => setEditing(true)} className="block w-full text-left">
       <p className="text-sm text-foreground">{note}</p>
       {at ? (
-        <p className="text-xs text-muted-foreground">Due {new Date(at).toLocaleDateString()}</p>
+        <p className="text-xs text-muted-foreground">
+          Due {new Date(at).toLocaleDateString()}
+          {new Date(at).getUTCHours() || new Date(at).getUTCMinutes()
+            ? ` at ${new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+            : ''}
+        </p>
       ) : null}
     </button>
   )
 }
 
-// The "lead card" — makes the CRM feel operational rather than archival (CLAUDE.md's CRM
-// pipeline/activity slice). Stage is explicit; everything else here is either derived from real
-// Interaction rows (contacted?, counts, last touch) or a plain editable field (next action) — no
-// second state machine, per the "pipeline stage is explicit, marketing effort is observable from
-// activity" principle.
 export function ContactLeadCard({
   contactId,
   currentLead,
@@ -267,56 +326,29 @@ export function ContactLeadCard({
     )
   }
 
-  const counts = currentLead.activityCounts
-
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0">
-        <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider',
-              STAGE_STYLE[currentLead.stage],
-            )}
-          >
-            {STAGE_LABEL[currentLead.stage]}
-          </span>
-          <span
-            className={cn(
-              'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
-              currentLead.contacted
-                ? 'bg-success/10 text-success'
-                : 'bg-muted text-muted-foreground',
-            )}
-          >
-            {currentLead.contacted ? 'Contacted' : 'Not yet contacted'}
-          </span>
-        </div>
+        <p className="text-sm font-medium text-foreground">Sales</p>
         <LogActivityButton contactId={contactId} />
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex flex-wrap gap-x-5 gap-y-2">
-          <CountTile icon={Mail} count={counts.email} label="email" />
-          <CountTile icon={MessageSquare} count={counts.text} label="text" />
-          <CountTile icon={Phone} count={counts.call} label="call" />
-          <CountTile icon={Users} count={counts.meeting} label="meeting" />
-          <CountTile icon={Presentation} count={counts.webinarEvent} label="webinar/event" />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 border-t border-border pt-3">
-          <div>
-            <p className="text-xs text-muted-foreground">Last touch</p>
-            <p className="text-sm text-foreground">
-              {currentLead.lastTouchAt ? relativeTimeLabel(currentLead.lastTouchAt) : 'Never'}
-            </p>
-          </div>
-          <div>
-            <p className="mb-1 text-xs text-muted-foreground">Next action</p>
+      <CardContent className="space-y-5">
+        <StatusSelect leadId={currentLead.id} stage={currentLead.stage} />
+        <ActivityCheckboxes leadId={currentLead.id} activity={currentLead.activity} />
+        <div className="border-t border-border pt-3">
+          <p className="mb-1 text-xs text-muted-foreground">Next</p>
+          <div className="space-y-1">
             <NextAction
               leadId={currentLead.id}
               note={currentLead.nextActionNote ?? null}
               at={currentLead.nextActionAt ?? null}
             />
+            <a
+              href="#contact-notes"
+              className="block text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              Add note
+            </a>
           </div>
         </div>
       </CardContent>

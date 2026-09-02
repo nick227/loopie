@@ -1265,14 +1265,14 @@ enum SourceType {
 // specifically). ENGAGED is new, inserted between CONTACTED and QUALIFIED. QUOTED was renamed to
 // PROPOSAL (same pipeline position) — migrated via a real one-time backfill of existing rows
 // before the old value was removed from this enum, same discipline as the ContactTag migration.
+// Small-business CRM status — quick state, not a sales methodology. Closed outcomes are
+// CLOSED (won / done) and NOT_INTERESTED; everything else stays openSlot='OPEN'.
 enum LeadStage {
   NEW
-  CONTACTED
-  ENGAGED
-  QUALIFIED
-  PROPOSAL
-  WON
-  LOST
+  UNDECIDED
+  INTERESTED
+  CLOSED
+  NOT_INTERESTED
 }
 
 model Lead {
@@ -1297,11 +1297,20 @@ model Lead {
   // once at creation only (see resolveContactAndLead in lib/identityResolution.ts). Plain field,
   // not a relation, matching this schema's no-new-FK-sprawl pattern for loose cross-references.
   referringAffiliateId    String?
-  // 'OPEN' while stage is not WON/LOST; null once closed. Unique with contactId so
+  // 'OPEN' while stage is not CLOSED/NOT_INTERESTED; null once closed. Unique with contactId so
   // concurrent form submits cannot insert a second active lead for the same person.
   openSlot                String?
   openedAt                DateTime   @default(now())
   closedAt                DateTime?
+  // Lightweight sales-history facts on this opportunity — auto-set from real activity where
+  // Loopie observes it, still manually toggleable so bad/imported data can be corrected.
+  emailed                 Boolean    @default(false)
+  called                  Boolean    @default(false)
+  texted                  Boolean    @default(false)
+  webinar                 Boolean    @default(false)
+  meeting                 Boolean    @default(false)
+  followUp                Boolean    @default(false)
+  proposalSent            Boolean    @default(false)
   // "What happens next" on the lead card — a plain salesperson-set note + optional due date, not
   // a task/reminder system. CREATE_REMINDER automation actions still just write a NOTE-type
   // Interaction (unchanged); this is the one explicit, editable field the card itself shows.
@@ -2905,6 +2914,22 @@ enum GoalSubjectType {
   BUSINESS
 }
 
+// The one universal progression Loopie coaches every business through (2026-09-02 "Calendar as
+// business coach" pass) — Foundation (get the basics live) -> Attract (put yourself out there) ->
+// Capture (turn attention into leads) -> Convert (turn leads into customers) -> Grow (compound
+// it). A single fixed ladder for V1, not a business-configurable Playbook table: there is exactly
+// one playbook (indie web developers/studios/service businesses), so its order lives here as an
+// enum rather than as rows nobody edits. GoalIdeaTemplate.stage assigns each idea a rung; the
+// board's `currentStage` is computed (not stored) from which stage's ideas are still actionable —
+// see CalendarService.
+enum CoachStage {
+  FOUNDATION
+  ATTRACT
+  CAPTURE
+  CONVERT
+  GROW
+}
+
 // The classification from the product spec (action/outcome/maintenance/...) — deliberately
 // invisible in the initial UI, kept only so future surfacing (grouping, tone, iconography) has
 // something to key off without another migration.
@@ -2965,8 +2990,31 @@ model GoalIdeaTemplate {
   businessId String?
   isSystem   Boolean @default(true)
   title      String
+  // The "why this matters" copy shown in the detail view — never surfaced in the compact row,
+  // matching the minimal-UI mandate; only shown once someone taps in for more.
+  detail     String? @db.Text
   ideaType   GoalIdeaType    @default(ACTION)
   subjectType GoalSubjectType @default(GENERAL)
+  stage       CoachStage      @default(FOUNDATION)
+  // Template ids (this business's own ScheduledGoal history) that must have a DONE goal before
+  // this idea is offered — the deterministic "completing work unlocks the next useful
+  // suggestion" mechanism. Most ideas have none (universal, always on offer, like "Ask 3
+  // customers for reviews"); a handful of Attract/Capture ideas require the Foundation homepage
+  // first. Evaluated in lib/coachRules.ts, not a stage-order blanket lock — `stage` is display/
+  // narrative grouping, this field is the actual gate.
+  requiresTemplateIds Json?
+  // Calendar as command center, not just a list: an idea can carry a real destination inside
+  // Loopie so acting on it is one click, not a hunt through nav. NAVIGATE is the only type this
+  // pass implements (a plain in-app path); OPEN_MODAL/START_FLOW are declared now so a future
+  // in-place action (open a modal, kick off a guided flow) is additive, not a schema change. A
+  // handful of templates resolve this live instead of from this static field — see
+  // lib/coachRules.ts's resolveAction (e.g. "finish your ad draft" points at whichever draft
+  // Advertisement actually exists, not a fixed path).
+  actionType   String?
+  actionTarget String?
+  // Human label for the action button (e.g. "Open profile", "Import contacts") — kept separate
+  // from actionTarget so the frontend never has to derive button copy from a URL path.
+  actionLabel  String?
   // Freeform string[] of industry keywords (e.g. ["auto", "detailing"]), loosely matched
   // case-insensitively against Business.industry — that field is itself freeform (see its own
   // schema comment), so a controlled vocabulary here would be enforcing a taxonomy that doesn't
@@ -3021,6 +3069,18 @@ model ScheduledGoal {
   id               String              @id @default(cuid())
   businessId       String
   title            String
+  // Copied from the source template's `detail` at creation time (or set directly for
+  // USER_CREATED/CRM_NEXT_ACTION goals that have none) — read-only in the detail view; editing an
+  // in-flight goal's own notes is out of POC scope.
+  detail           String?             @db.Text
+  // Frozen at schedule/creation time from whichever destination was resolved then (a template's
+  // static actionTarget, a live-resolved one such as a specific draft ad, or set directly for
+  // CRM_NEXT_ACTION mirrors — see lib/coachRules.ts's resolveAction and LeadService). Not
+  // recomputed on read the way currentValue is; if the underlying record is later deleted the
+  // link simply 404s, same as any other stale deep link elsewhere in the app.
+  actionType       String?
+  actionTarget     String?
+  actionLabel      String?
   source           ScheduledGoalSource
   sourceTemplateId String?
   // Idempotency key for system-mirrored goals only, e.g. "crm-next-action:<leadId>" — lets
@@ -3043,11 +3103,13 @@ model ScheduledGoal {
   // scheduled for "next week" correctly slides into "this week" as the calendar actually turns
   // over — a static label would need its own rollover job to do the same thing correctly.
   scheduledFor DateTime?
-  // Optional "HH:mm" local time-of-day, kept separate from the date above — most quick-scheduled
-  // ideas have no specific time and should never render one; a CRM callback or a "Pick date" entry
-  // that does give a time renders it and is the only thing the reminder poller fires a
-  // time-precise notification for.
-  scheduledTime  String?
+  // Whether scheduledFor carries a meaningful time-of-day (true) or is just a bucket day at local
+  // midnight (false, the quick-schedule default). Deliberately not a formatted "HH:mm" string:
+  // the frontend renders the time itself from scheduledFor using the viewer's own timezone
+  // (Date.toLocaleTimeString), which a server-baked string could never localize correctly for
+  // every viewer. Only hasTime=true goals get a time-precise reminder from the poller — see
+  // CalendarReminderService.
+  hasTime        Boolean             @default(false)
   completedAt    DateTime?
   dismissedAt    DateTime?
   status         ScheduledGoalStatus @default(SCHEDULED)

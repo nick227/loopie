@@ -10,12 +10,10 @@ import { InboxProjectionService } from '../services/InboxProjectionService'
 // Inbox-worthy event on its own, not conditional on a message having happened first.
 const STAGE_LABEL: Record<string, string> = {
   NEW: 'New',
-  CONTACTED: 'Contacted',
-  ENGAGED: 'Engaged',
-  QUALIFIED: 'Qualified',
-  PROPOSAL: 'Proposal',
-  WON: 'Won',
-  LOST: 'Lost',
+  UNDECIDED: 'Undecided',
+  INTERESTED: 'Interested',
+  CLOSED: 'Closed',
+  NOT_INTERESTED: 'Not interested',
 }
 
 // Best-effort, non-blocking — same discipline as lib/adRunInbox.ts's notifyAdRunEvent. Posting an

@@ -465,7 +465,7 @@ describe('Sale reversal is concurrency-safe', () => {
     expect(leadUpdateCount).toBe(1)
 
     const finalLead = await db.lead.findUniqueOrThrow({ where: { id: lead.id } })
-    expect(finalLead.stage).toBe('QUALIFIED')
+    expect(finalLead.stage).toBe('INTERESTED')
     expect(finalLead.closedAt).toBeNull()
   })
 })

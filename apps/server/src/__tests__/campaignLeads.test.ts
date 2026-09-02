@@ -6,7 +6,11 @@ const app = buildTestApp()
 
 async function seedAttributedLead() {
   const contact = await db.contact.create({
-    data: { businessId: testBusinessId, name: 'Jordan Hale', email: `jordan-${Date.now()}@example.com` },
+    data: {
+      businessId: testBusinessId,
+      name: 'Jordan Hale',
+      email: `jordan-${Date.now()}@example.com`,
+    },
   })
   const creative = await db.creative.create({
     data: { businessId: testBusinessId, name: 'Raw Stories Creative' },
@@ -38,7 +42,7 @@ async function seedAttributedLead() {
     data: {
       businessId: testBusinessId,
       contactId: contact.id,
-      stage: 'QUALIFIED',
+      stage: 'INTERESTED',
       estimatedValue: 850,
       sourceType: 'DEPLOYMENT',
       sourceDeploymentId: deployment.id,
@@ -76,7 +80,7 @@ describe('listCampaignLeads', () => {
     expect(body.data).toHaveLength(1)
     expect(body.data[0].contactName).toBe('Jordan Hale')
     expect(body.data[0].contactId).toBe(contact.id)
-    expect(body.data[0].stage).toBe('QUALIFIED')
+    expect(body.data[0].stage).toBe('INTERESTED')
     expect(body.data[0].sourceType).toBe('DEPLOYMENT')
     expect(body.data[0].platform).toBe('META')
     expect(body.data[0].sourceLabel).toContain('META')

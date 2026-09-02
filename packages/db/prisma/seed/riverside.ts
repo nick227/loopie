@@ -83,7 +83,7 @@ export async function seedRiversideDemo(businessId: string) {
       id: 'demo-lead-jane',
       businessId,
       contactId: jane.id,
-      stage: 'QUALIFIED',
+      stage: 'INTERESTED',
       estimatedValue: 850,
       sourceType: 'MESSAGE',
       sourceMessageId: message.id,

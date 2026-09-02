@@ -1,18 +1,9 @@
 import { Link } from 'react-router-dom'
 import type { components } from '@project/sdk'
 import { formatDollars } from '@/lib/money'
+import { LEAD_STAGE_LABEL } from '@/lib/leadStages'
 
 type CampaignLead = components['schemas']['CampaignLead']
-
-const STAGE_LABEL: Record<CampaignLead['stage'], string> = {
-  NEW: 'New',
-  CONTACTED: 'Contacted',
-  ENGAGED: 'Engaged',
-  QUALIFIED: 'Qualified',
-  PROPOSAL: 'Proposal',
-  WON: 'Won',
-  LOST: 'Lost',
-}
 
 const FOLLOW_UP_LABEL: Record<CampaignLead['followUpStatus'], string> = {
   NONE: 'No follow-up',
@@ -59,7 +50,7 @@ export function CampaignLeadRow({ lead }: { lead: CampaignLead }) {
         </Link>
       </td>
       <td className="py-3 pr-6 align-top text-sm">{lead.sourceLabel}</td>
-      <td className="py-3 pr-6 align-top text-sm">{STAGE_LABEL[lead.stage]}</td>
+      <td className="py-3 pr-6 align-top text-sm">{LEAD_STAGE_LABEL[lead.stage]}</td>
       <td className="py-3 pr-6 align-top text-sm tabular-nums">
         {lead.attributedValue == null ? '—' : formatDollars(lead.attributedValue)}
       </td>

@@ -6,38 +6,27 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { relativeTime } from '@/components/home/homeFormat'
 import { mediaSrc } from '@/lib/media'
+import { LEAD_STAGE_LABEL } from '@/lib/leadStages'
 import { cn } from '@/lib/utils'
 import { PartyPopper } from 'lucide-react'
 
 type LeadQueueItem = components['schemas']['LeadQueueItem']
-type Bucket = 'OVERDUE' | 'NEVER_CONTACTED' | 'NEEDS_FOLLOW_UP' | 'NEW' | 'ENGAGED'
+type Bucket = 'OVERDUE' | 'NEVER_CONTACTED' | 'NEEDS_FOLLOW_UP' | 'NEW' | 'INTERESTED'
 
-// Most-urgent-first, both as the tab order and the default selection — one order, not two that
-// could drift apart. See CLAUDE.md's CRM work-queue slice for the full design.
 const BUCKETS: { key: Bucket; label: string }[] = [
   { key: 'OVERDUE', label: 'Overdue' },
   { key: 'NEVER_CONTACTED', label: 'Never contacted' },
   { key: 'NEEDS_FOLLOW_UP', label: 'Needs follow-up' },
   { key: 'NEW', label: 'New' },
-  { key: 'ENGAGED', label: 'Engaged' },
+  { key: 'INTERESTED', label: 'Interested' },
 ]
-
-const STAGE_LABEL: Record<LeadQueueItem['stage'], string> = {
-  NEW: 'New',
-  CONTACTED: 'Contacted',
-  ENGAGED: 'Engaged',
-  QUALIFIED: 'Qualified',
-  PROPOSAL: 'Proposal',
-  WON: 'Won',
-  LOST: 'Lost',
-}
 
 const ACCENT: Record<Bucket, 'destructive' | 'warning' | 'info' | 'neutral' | 'primary'> = {
   OVERDUE: 'destructive',
   NEVER_CONTACTED: 'warning',
   NEEDS_FOLLOW_UP: 'info',
   NEW: 'neutral',
-  ENGAGED: 'primary',
+  INTERESTED: 'primary',
 }
 
 function initials(name: string) {
@@ -71,7 +60,7 @@ function QueueRow({ item, activeBucket }: { item: LeadQueueItem; activeBucket: B
       title={item.contact.name}
       subtitle={
         <>
-          {STAGE_LABEL[item.stage]} · opened {relativeTime(item.openedAt)} ago
+          {LEAD_STAGE_LABEL[item.stage]} · opened {relativeTime(item.openedAt)} ago
           {item.lastTouchAt
             ? ` · last touch ${relativeTime(item.lastTouchAt)} ago`
             : ' · never touched'}

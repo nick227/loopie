@@ -157,7 +157,7 @@ describe('listContactSales', () => {
         businessId: testBusinessId,
         contactId: contact.id,
         sourceType: 'MANUAL',
-        stage: 'WON',
+        stage: 'CLOSED',
       },
     })
     const sale = await seedSale(contact.id, { leadId: lead.id })
@@ -168,6 +168,6 @@ describe('listContactSales', () => {
       headers: asAuth(testUserId),
     })
     const row = res.json().data.find((s: any) => s.id === sale.id)
-    expect(row.lead).toEqual({ id: lead.id, stage: 'WON' })
+    expect(row.lead).toEqual({ id: lead.id, stage: 'CLOSED' })
   })
 })

@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useFlatPages } from '@/hooks/useFlatPages'
+import { LEAD_STAGE_LABEL } from '@/lib/leadStages'
 
 type ContactSale = components['schemas']['ContactSale']
 
@@ -14,16 +15,6 @@ const SOURCE_LABEL: Record<ContactSale['sourceType'], string> = {
   AD_UNIT: 'LOOPIE ad',
   MANUAL: 'Manual',
   IMPORT: 'Imported',
-}
-
-const STAGE_LABEL: Record<string, string> = {
-  NEW: 'New',
-  CONTACTED: 'Contacted',
-  ENGAGED: 'Engaged',
-  QUALIFIED: 'Qualified',
-  PROPOSAL: 'Proposal',
-  WON: 'Won',
-  LOST: 'Lost',
 }
 
 function money(value: number) {
@@ -60,7 +51,8 @@ function SaleRow({ sale }: { sale: ContactSale }) {
           ) : null}
           {sale.lead ? (
             <span className="rounded-full bg-info/10 px-2 py-0.5 text-[11px] font-medium text-info">
-              {STAGE_LABEL[sale.lead.stage] ?? sale.lead.stage}
+              {LEAD_STAGE_LABEL[sale.lead.stage as keyof typeof LEAD_STAGE_LABEL] ??
+                sale.lead.stage}
             </span>
           ) : null}
         </div>

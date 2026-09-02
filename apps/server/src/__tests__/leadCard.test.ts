@@ -42,37 +42,70 @@ async function seedLead(
 }
 
 describe('pipeline stage vocabulary', () => {
-  it('accepts the new ENGAGED and PROPOSAL stages, and WON/LOST behavior is unchanged', async () => {
+  it('accepts simplified stages and closes on CLOSED', async () => {
     const contact = await seedContact()
     const lead = await seedLead(contact.id)
 
-    const engaged = await app.inject({
+    const undecided = await app.inject({
       method: 'PATCH',
       url: `/leads/${lead.id}`,
       headers: asAuth(testUserId),
-      payload: { stage: 'ENGAGED' },
+      payload: { stage: 'UNDECIDED' },
     })
-    expect(engaged.statusCode).toBe(200)
-    expect(engaged.json().data.stage).toBe('ENGAGED')
+    expect(undecided.statusCode).toBe(200)
+    expect(undecided.json().data.stage).toBe('UNDECIDED')
 
-    const proposal = await app.inject({
+    const interested = await app.inject({
       method: 'PATCH',
       url: `/leads/${lead.id}`,
       headers: asAuth(testUserId),
-      payload: { stage: 'PROPOSAL' },
+      payload: { stage: 'INTERESTED' },
     })
-    expect(proposal.json().data.stage).toBe('PROPOSAL')
-    // WON/LOST close the lead exactly as before — unaffected by the vocabulary change.
-    expect(proposal.json().data.closedAt).toBeNull()
+    expect(interested.json().data.stage).toBe('INTERESTED')
+    expect(interested.json().data.closedAt).toBeNull()
 
-    const won = await app.inject({
+    const closed = await app.inject({
       method: 'PATCH',
       url: `/leads/${lead.id}`,
       headers: asAuth(testUserId),
-      payload: { stage: 'WON' },
+      payload: { stage: 'CLOSED' },
     })
-    expect(won.json().data.stage).toBe('WON')
-    expect(won.json().data.closedAt).not.toBeNull()
+    expect(closed.json().data.stage).toBe('CLOSED')
+    expect(closed.json().data.closedAt).not.toBeNull()
+  })
+
+  it('toggles activity flags and auto-checks on logged call', async () => {
+    const contact = await seedContact()
+    const lead = await seedLead(contact.id)
+
+    const manual = await app.inject({
+      method: 'PATCH',
+      url: `/leads/${lead.id}`,
+      headers: asAuth(testUserId),
+      payload: { activity: { proposalSent: true } },
+    })
+    expect(manual.json().data.activity.proposalSent).toBe(true)
+
+    await app.inject({
+      method: 'POST',
+      url: `/contacts/${contact.id}/interactions`,
+      headers: asAuth(testUserId),
+      payload: { type: 'CALL_LOGGED' },
+    })
+    const afterCall = await app.inject({
+      method: 'GET',
+      url: `/contacts/${contact.id}`,
+      headers: asAuth(testUserId),
+    })
+    expect(afterCall.json().data.currentLead.activity.called).toBe(true)
+
+    const unchecked = await app.inject({
+      method: 'PATCH',
+      url: `/leads/${lead.id}`,
+      headers: asAuth(testUserId),
+      payload: { activity: { called: false } },
+    })
+    expect(unchecked.json().data.activity.called).toBe(false)
   })
 })
 
@@ -196,7 +229,7 @@ describe('lead card (Contact.currentLead)', () => {
       openSlot: null,
       openedAt: new Date('2026-01-01'),
       closedAt: new Date('2026-01-05'),
-      stage: 'LOST',
+      stage: 'NOT_INTERESTED',
     })
     await db.interaction.create({
       data: {
@@ -231,7 +264,7 @@ describe('lead card (Contact.currentLead)', () => {
 
   it('falls back to the most recently created lead when none is open', async () => {
     const contact = await seedContact()
-    await seedLead(contact.id, { openSlot: null, closedAt: new Date(), stage: 'LOST' })
+    await seedLead(contact.id, { openSlot: null, closedAt: new Date(), stage: 'NOT_INTERESTED' })
 
     const res = await app.inject({
       method: 'GET',
@@ -239,7 +272,7 @@ describe('lead card (Contact.currentLead)', () => {
       headers: asAuth(testUserId),
     })
     expect(res.json().data.currentLead).not.toBeNull()
-    expect(res.json().data.currentLead.stage).toBe('LOST')
+    expect(res.json().data.currentLead.stage).toBe('NOT_INTERESTED')
   })
 })
 

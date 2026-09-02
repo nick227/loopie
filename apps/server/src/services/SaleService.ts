@@ -141,7 +141,7 @@ export class SaleService {
     }
   }
 
-  // Contact lifecycle becomes CUSTOMER (derived, not stored) and the linked Lead moves to WON —
+  // Contact lifecycle becomes CUSTOMER (derived, not stored) and the linked Lead moves to CLOSED —
   // docs/07-sales-flow-spec.md "When marked Won". Attribution follows the linked Lead's source
   // when known, otherwise the sale is MANUAL.
   //
@@ -213,10 +213,10 @@ export class SaleService {
           },
         })
 
-        if (lead && lead.stage !== 'WON') {
+        if (lead && lead.stage !== 'CLOSED') {
           await tx.lead.update({
             where: { id: lead.id },
-            data: { stage: 'WON', closedAt: new Date(), openSlot: null },
+            data: { stage: 'CLOSED', closedAt: new Date(), openSlot: null },
           })
         }
 
@@ -354,7 +354,7 @@ export class SaleService {
         if (otherActiveSales === 0) {
           await tx.lead.update({
             where: { id: sale.leadId },
-            data: { stage: 'QUALIFIED', closedAt: null },
+            data: { stage: 'INTERESTED', closedAt: null },
           })
         }
       }

@@ -2,14 +2,9 @@ import { db } from '@project/db'
 import type { Channel, LeadStage } from '@prisma/client'
 import { OUTBOUND_TYPES } from './leadCard'
 
-// The funnel order insights reports against — LOST is deliberately excluded (see stageConversion
-// below): it isn't a milestone a lead "reaches," it's an exit, and this schema keeps no
-// stage-history table to know how far a since-lost lead actually got.
-const PIPELINE_STAGES: LeadStage[] = ['NEW', 'CONTACTED', 'ENGAGED', 'QUALIFIED', 'PROPOSAL', 'WON']
+// Funnel milestones — NOT_INTERESTED is an exit (like old LOST), not a stage a lead "reaches."
+const PIPELINE_STAGES: LeadStage[] = ['NEW', 'UNDECIDED', 'INTERESTED', 'CLOSED']
 
-// Outbound-effort channels only — FORM (inbound) and REFERRAL (not tied to any Interaction type
-// today) aren't "how are we reaching out," so they're excluded from this specific report even
-// though both are valid Channel enum values elsewhere (the ChannelProvider catalog).
 const INSIGHTS_CHANNELS: Channel[] = [
   'EMAIL',
   'TEXT',
@@ -31,10 +26,6 @@ function average(values: number[]) {
   return values.reduce((sum, v) => sum + v, 0) / values.length
 }
 
-// Correlates a flat list of timestamped events against one lead's own open window
-// [openedAt, closedAt ?? +Infinity) — the same window-scoping discipline used throughout the CRM
-// pipeline/activity slice (Interaction has no leadId; a contact's multiple leads over time must
-// not bleed into each other's numbers).
 function withinLeadWindow<T extends { occurredAt: Date }>(
   events: T[],
   lead: { openedAt: Date; closedAt: Date | null },
@@ -44,9 +35,6 @@ function withinLeadWindow<T extends { occurredAt: Date }>(
   )
 }
 
-// Everything here is derived from Lead's own current-state fields and the existing Interaction
-// timeline — no new state machine, no stage-history table. Computed all-time (no date-range
-// filter yet); revisit only if a business's real usage makes an all-time number stop being useful.
 export async function computeLeadInsights(businessId: string) {
   const leads = await db.lead.findMany({
     where: { businessId },
@@ -67,8 +55,8 @@ export async function computeLeadInsights(businessId: string) {
       totalLeads: 0,
       timeToFirstContact: { averageHours: null, medianHours: null, sampleSize: 0 },
       contactedWithin: { within1hPct: 0, within24hPct: 0 },
-      avgTouchesBeforeEngaged: null,
-      avgTouchesBeforeWon: null,
+      avgTouchesBeforeInterested: null,
+      avgTouchesBeforeClosed: null,
       channelMix: INSIGHTS_CHANNELS.map((channel) => ({ channel, count: 0, pct: 0 })),
       overdueFollowUpRate: 0,
       stageConversion: PIPELINE_STAGES.map((stage) => ({ stage, reachedCount: 0, pct: 0 })),
@@ -102,10 +90,6 @@ export async function computeLeadInsights(businessId: string) {
       select: { contactId: true, occurredAt: true, metadata: true },
       orderBy: { occurredAt: 'asc' },
     }),
-    // Channel mix is a business-wide count, not scoped to any one lead's window — "how are we
-    // actually communicating," not "effort on currently-tracked leads." Groups by the real
-    // `channel` column (auto-tagged on write, backfilled for historical rows — see
-    // scripts/backfillChannelProviders.ts) instead of re-deriving it from `type` by hand.
     db.interaction.groupBy({
       by: ['channel'],
       where: { businessId, channel: { in: INSIGHTS_CHANNELS } },
@@ -128,12 +112,8 @@ export async function computeLeadInsights(businessId: string) {
 
   const nowForWindow = new Date()
   const firstContactHours: number[] = []
-  const touchesBeforeEngaged: number[] = []
-  const touchesBeforeWon: number[] = []
-  // Eligible = the lead is old enough to have had the full window to be contacted in — a lead
-  // opened 10 minutes ago hasn't failed the 24h test yet, so it must not drag the rate down.
-  // A lead that already WAS contacted within the window counts regardless of its current age
-  // (it already earned the result); only a not-yet-contacted lead needs the eligibility check.
+  const touchesBeforeInterested: number[] = []
+  const touchesBeforeClosed: number[] = []
   let eligible1h = 0
   let within1h = 0
   let eligible24h = 0
@@ -141,7 +121,7 @@ export async function computeLeadInsights(businessId: string) {
 
   for (const lead of leads) {
     const windowTouches = withinLeadWindow(touchesByContact.get(lead.contactId) ?? [], lead)
-    const firstTouch = windowTouches[0] // already sorted ascending by the query's orderBy
+    const firstTouch = windowTouches[0]
     const ageHours = (nowForWindow.getTime() - lead.openedAt.getTime()) / 3_600_000
     if (firstTouch) {
       const hoursToContact = (firstTouch.occurredAt.getTime() - lead.openedAt.getTime()) / 3_600_000
@@ -155,21 +135,23 @@ export async function computeLeadInsights(businessId: string) {
       if (ageHours >= 24) eligible24h++
     }
 
-    if (lead.stage === 'WON' && lead.closedAt) {
-      touchesBeforeWon.push(windowTouches.length) // already bounded by closedAt via withinLeadWindow
+    if (lead.stage === 'CLOSED' && lead.closedAt) {
+      touchesBeforeClosed.push(windowTouches.length)
     }
 
     const windowStatusChanges = withinLeadWindow(
       statusChangesByContact.get(lead.contactId) ?? [],
       lead,
     )
-    const firstEngaged = windowStatusChanges.find(
+    const firstInterested = windowStatusChanges.find(
       (s) =>
-        s.metadata && typeof s.metadata === 'object' && (s.metadata as any).stage === 'ENGAGED',
+        s.metadata &&
+        typeof s.metadata === 'object' &&
+        (s.metadata as { stage?: string }).stage === 'INTERESTED',
     )
-    if (firstEngaged) {
-      touchesBeforeEngaged.push(
-        windowTouches.filter((t) => t.occurredAt <= firstEngaged.occurredAt).length,
+    if (firstInterested) {
+      touchesBeforeInterested.push(
+        windowTouches.filter((t) => t.occurredAt <= firstInterested.occurredAt).length,
       )
     }
   }
@@ -188,8 +170,10 @@ export async function computeLeadInsights(businessId: string) {
   const stageConversion = PIPELINE_STAGES.map((stage, idx) => {
     const reachedCount =
       stage === 'NEW'
-        ? totalLeads // every lead was NEW once, including ones since lost — see the module comment
-        : leads.filter((l) => l.stage !== 'LOST' && PIPELINE_STAGES.indexOf(l.stage) >= idx).length
+        ? totalLeads
+        : leads.filter(
+            (l) => l.stage !== 'NOT_INTERESTED' && PIPELINE_STAGES.indexOf(l.stage) >= idx,
+          ).length
     return { stage, reachedCount, pct: totalLeads ? (reachedCount / totalLeads) * 100 : 0 }
   })
 
@@ -203,13 +187,11 @@ export async function computeLeadInsights(businessId: string) {
       sampleSize: firstContactHours.length,
     },
     contactedWithin: {
-      // Denominator is leads old enough to have had the full window, not every lead ever — see
-      // the eligible1h/eligible24h comment above.
       within1hPct: eligible1h ? (within1h / eligible1h) * 100 : 0,
       within24hPct: eligible24h ? (within24h / eligible24h) * 100 : 0,
     },
-    avgTouchesBeforeEngaged: average(touchesBeforeEngaged),
-    avgTouchesBeforeWon: average(touchesBeforeWon),
+    avgTouchesBeforeInterested: average(touchesBeforeInterested),
+    avgTouchesBeforeClosed: average(touchesBeforeClosed),
     channelMix,
     overdueFollowUpRate: openLeads.length ? (overdueCount / openLeads.length) * 100 : 0,
     stageConversion,

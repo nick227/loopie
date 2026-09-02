@@ -67,8 +67,8 @@ describe('lead insights: empty state', () => {
       sampleSize: 0,
     })
     expect(data.contactedWithin).toEqual({ within1hPct: 0, within24hPct: 0 })
-    expect(data.avgTouchesBeforeEngaged).toBeNull()
-    expect(data.avgTouchesBeforeWon).toBeNull()
+    expect(data.avgTouchesBeforeInterested).toBeNull()
+    expect(data.avgTouchesBeforeClosed).toBeNull()
     expect(data.overdueFollowUpRate).toBe(0)
   })
 })
@@ -132,11 +132,11 @@ describe('contacted within 1h / 24h', () => {
   })
 })
 
-describe('touches before ENGAGED / WON', () => {
-  it('counts outbound touches strictly before the first ENGAGED status change', async () => {
+describe('touches before INTERESTED / CLOSED', () => {
+  it('counts outbound touches strictly before the first INTERESTED status change', async () => {
     const contact = await seedContact()
     const openedAt = new Date(Date.now() - 5 * DAY)
-    await seedLead(contact.id, testBusinessId, { openedAt, stage: 'ENGAGED' })
+    await seedLead(contact.id, testBusinessId, { openedAt, stage: 'INTERESTED' })
 
     await db.interaction.createMany({
       data: [
@@ -157,9 +157,8 @@ describe('touches before ENGAGED / WON', () => {
           contactId: contact.id,
           type: 'STATUS_CHANGE',
           occurredAt: new Date(openedAt.getTime() + 3 * HOUR),
-          metadata: { stage: 'ENGAGED' },
+          metadata: { stage: 'INTERESTED' },
         },
-        // After the ENGAGED transition — must not count.
         {
           businessId: testBusinessId,
           contactId: contact.id,
@@ -170,14 +169,19 @@ describe('touches before ENGAGED / WON', () => {
     })
 
     const data = await getInsights()
-    expect(data.avgTouchesBeforeEngaged).toBeCloseTo(2, 5)
+    expect(data.avgTouchesBeforeInterested).toBeCloseTo(2, 5)
   })
 
-  it('counts outbound touches up to closedAt for a WON lead, regardless of which code path won it', async () => {
+  it('counts outbound touches up to closedAt for a CLOSED lead', async () => {
     const contact = await seedContact()
     const openedAt = new Date(Date.now() - 5 * DAY)
     const closedAt = new Date(openedAt.getTime() + 3 * HOUR)
-    await seedLead(contact.id, testBusinessId, { openedAt, stage: 'WON', openSlot: null, closedAt })
+    await seedLead(contact.id, testBusinessId, {
+      openedAt,
+      stage: 'CLOSED',
+      openSlot: null,
+      closedAt,
+    })
 
     await db.interaction.createMany({
       data: [
@@ -193,7 +197,6 @@ describe('touches before ENGAGED / WON', () => {
           type: 'CALL_LOGGED',
           occurredAt: new Date(openedAt.getTime() + 2 * HOUR),
         },
-        // After closedAt — must not count.
         {
           businessId: testBusinessId,
           contactId: contact.id,
@@ -204,7 +207,7 @@ describe('touches before ENGAGED / WON', () => {
     })
 
     const data = await getInsights()
-    expect(data.avgTouchesBeforeWon).toBeCloseTo(2, 5)
+    expect(data.avgTouchesBeforeClosed).toBeCloseTo(2, 5)
   })
 })
 
@@ -293,13 +296,21 @@ describe('overdue follow-up rate', () => {
 })
 
 describe('stage conversion', () => {
-  it('reports a monotonically non-increasing funnel and excludes LOST beyond NEW', async () => {
-    const stages = ['NEW', 'NEW', 'CONTACTED', 'ENGAGED', 'QUALIFIED', 'WON', 'LOST']
+  it('reports a monotonically non-increasing funnel and excludes NOT_INTERESTED beyond NEW', async () => {
+    const stages = [
+      'NEW',
+      'NEW',
+      'UNDECIDED',
+      'INTERESTED',
+      'INTERESTED',
+      'CLOSED',
+      'NOT_INTERESTED',
+    ]
     for (const stage of stages) {
       const c = await seedContact(testBusinessId, `Stage ${stage} ${Math.random()}`)
       await seedLead(c.id, testBusinessId, {
         stage,
-        openSlot: stage === 'WON' || stage === 'LOST' ? null : 'OPEN',
+        openSlot: stage === 'CLOSED' || stage === 'NOT_INTERESTED' ? null : 'OPEN',
       })
     }
 
@@ -308,13 +319,11 @@ describe('stage conversion', () => {
       data.stageConversion.map((s: any) => [s.stage, s.reachedCount]),
     )
     expect(data.totalLeads).toBe(7)
-    expect(byStage.NEW).toBe(7) // everyone was NEW once, including the LOST one
-    expect(byStage.CONTACTED).toBe(4) // CONTACTED, ENGAGED, QUALIFIED, WON — not the 2 NEW, not LOST
-    expect(byStage.ENGAGED).toBe(3)
-    expect(byStage.QUALIFIED).toBe(2)
-    expect(byStage.WON).toBe(1)
+    expect(byStage.NEW).toBe(7)
+    expect(byStage.UNDECIDED).toBe(4)
+    expect(byStage.INTERESTED).toBe(3)
+    expect(byStage.CLOSED).toBe(1)
 
-    // Monotonically non-increasing along the funnel.
     const counts = data.stageConversion.map((s: any) => s.reachedCount)
     for (let i = 1; i < counts.length; i++) expect(counts[i]).toBeLessThanOrEqual(counts[i - 1])
   })
@@ -324,7 +333,7 @@ describe('window isolation', () => {
   it("an older closed lead's touches do not count toward a new lead's time-to-first-contact", async () => {
     const contact = await seedContact()
     await seedLead(contact.id, testBusinessId, {
-      stage: 'LOST',
+      stage: 'NOT_INTERESTED',
       openSlot: null,
       openedAt: new Date('2026-01-01'),
       closedAt: new Date('2026-01-05'),
@@ -355,12 +364,12 @@ describe('tenant isolation', () => {
     await seedLead(mine.id, testBusinessId)
     const theirs = await seedContact(testOtherBusinessId, 'Other Tenant')
     await seedLead(theirs.id, testOtherBusinessId, {
-      stage: 'WON',
+      stage: 'CLOSED',
       openSlot: null,
       closedAt: new Date(),
     })
     await seedLead(theirs.id, testOtherBusinessId, {
-      stage: 'WON',
+      stage: 'CLOSED',
       openSlot: null,
       closedAt: new Date(),
     })

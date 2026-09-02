@@ -2730,6 +2730,108 @@ export interface paths {
     patch: operations['updateLead']
     trace?: never
   }
+  '/calendar/board': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Today, this week, and the ideas pool — the one screen Calendar renders */
+    get: operations['getCalendarBoard']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/calendar/goals': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Scheduled goals within an arbitrary date range — the Week/Month calendar views' own read. Unlike the board's fixed "relative to now" buckets, this is navigable: a real calendar has to be able to show last month or next month. */
+    get: operations['listCalendarGoalsInRange']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/calendar/ideas': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Quickly add a user-created idea — title only, no metadata required */
+    post: operations['createGoalIdea']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/calendar/ideas/{templateId}/schedule': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Move an idea from the pool into a scheduled ScheduledGoal */
+    post: operations['scheduleGoalIdea']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/calendar/ideas/{templateId}/dismiss': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Hide this idea from the pool going forward, without deleting the template */
+    post: operations['dismissGoalIdea']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/calendar/goals/{goalId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /** Complete, reopen, or reschedule a scheduled item */
+    patch: operations['updateScheduledGoal']
+    trace?: never
+  }
   '/sales': {
     parameters: {
       query?: never
@@ -3274,7 +3376,7 @@ export interface components {
     ContactCurrentLead: {
       id: string
       /** @enum {string} */
-      stage: 'NEW' | 'CONTACTED' | 'ENGAGED' | 'QUALIFIED' | 'PROPOSAL' | 'WON' | 'LOST'
+      stage: 'NEW' | 'UNDECIDED' | 'INTERESTED' | 'CLOSED' | 'NOT_INTERESTED'
       /** @enum {string} */
       sourceType: 'MESSAGE' | 'DEPLOYMENT' | 'AD_RUN' | 'AD_UNIT' | 'MANUAL' | 'IMPORT'
       /** Format: date-time */
@@ -3289,6 +3391,17 @@ export interface components {
       /** Format: date-time */
       lastTouchAt: string | null
       activityCounts: components['schemas']['ContactActivityCounts']
+      activity: components['schemas']['LeadActivity']
+    }
+    /** @description Lightweight sales-history facts on the open Lead — auto-checked when Loopie observes the real event (email send, call log, etc.), still manually uncheckable for corrections. Status (Lead.stage) is current state; these are things that happened. */
+    LeadActivity: {
+      emailed: boolean
+      called: boolean
+      texted: boolean
+      webinar: boolean
+      meeting: boolean
+      followUp: boolean
+      proposalSent: boolean
     }
     /** @description Effort invested on this lead, counted from Interaction rows occurring within its open window (openedAt through closedAt, or now if still open) — Interaction has no leadId, so a time-window scope is the pragmatic proxy rather than a new FK. See CLAUDE.md's CRM pipeline/activity slice. */
     ContactActivityCounts: {
@@ -3366,7 +3479,7 @@ export interface components {
       lead?: {
         id: string
         /** @enum {string} */
-        stage: 'NEW' | 'CONTACTED' | 'ENGAGED' | 'QUALIFIED' | 'PROPOSAL' | 'WON' | 'LOST'
+        stage: 'NEW' | 'UNDECIDED' | 'INTERESTED' | 'CLOSED' | 'NOT_INTERESTED'
       } | null
     }
     ContactSalesSummary: {
@@ -4898,14 +5011,7 @@ export interface components {
       utmTerm?: string
       idempotencyKey: string
       embedInstanceId?: string
-      /**
-       * @description The PublishedPageVersion id the visitor's page was actually rendered from (embedded by
-       *     the hosted page's own submit script). When present, submission is validated against
-       *     this exact frozen version rather than whichever version is currently live, so a
-       *     republish that happens while the visitor is mid-form doesn't invalidate or
-       *     misvalidate their in-flight submission. Omitted by legacy/exported HTML and falls back
-       *     to the page's current published version.
-       */
+      /** @description The PublishedPageVersion id the visitor's page was actually rendered from (embedded by the hosted page's own submit script). When present, submission is validated against this exact frozen version rather than whichever version is currently live, so a republish that happens while the visitor is mid-form doesn't invalidate or misvalidate their in-flight submission. Omitted by legacy/exported HTML and falls back to the page's current published version. */
       publishedVersionId?: string
     }
     SubmitLandingPageFormResult: {
@@ -4925,11 +5031,7 @@ export interface components {
       options?: string[] | null
       /** @default 0 */
       order: number
-      /**
-       * @description Fixed value baked into the rendered form for type = HIDDEN — hidden fields have no
-       *     human to fill them in, so this is their only value source. A required HIDDEN field
-       *     published with no defaultValue is rejected at publish time.
-       */
+      /** @description Fixed value baked into the rendered form for type = HIDDEN — hidden fields have no human to fill them in, so this is their only value source. A required HIDDEN field published with no defaultValue is rejected at publish time. */
       defaultValue?: string | null
     }
     Form: {
@@ -5014,7 +5116,7 @@ export interface components {
         [key: string]: unknown
       }
     }
-    /** @description Management-facing analytics, computed all-time from Lead's own fields and the existing Interaction timeline — no new state machine, no stage-history table. See lib/leadInsights.ts for exactly how each number is derived, including the deliberate simplifications (LOST leads excluded from stageConversion beyond NEW; contactedWithin only judges leads old enough to have had the full window). */
+    /** @description Management-facing analytics, computed all-time from Lead's own fields and the existing Interaction timeline — no new state machine, no stage-history table. See lib/leadInsights.ts for exactly how each number is derived, including the deliberate simplifications (NOT_INTERESTED leads excluded from stageConversion beyond NEW; contactedWithin only judges leads old enough to have had the full window). */
     LeadInsights: {
       totalLeads: number
       timeToFirstContact: {
@@ -5027,8 +5129,8 @@ export interface components {
         within1hPct: number
         within24hPct: number
       }
-      avgTouchesBeforeEngaged: number | null
-      avgTouchesBeforeWon: number | null
+      avgTouchesBeforeInterested: number | null
+      avgTouchesBeforeClosed: number | null
       channelMix: {
         channel: components['schemas']['Channel']
         count: number
@@ -5038,7 +5140,7 @@ export interface components {
       overdueFollowUpRate: number
       stageConversion: {
         /** @enum {string} */
-        stage: 'NEW' | 'CONTACTED' | 'ENGAGED' | 'QUALIFIED' | 'PROPOSAL' | 'WON'
+        stage: 'NEW' | 'UNDECIDED' | 'INTERESTED' | 'CLOSED'
         reachedCount: number
         pct: number
       }[]
@@ -5052,7 +5154,7 @@ export interface components {
         avatarUrl?: string | null
       }
       /** @enum {string} */
-      stage: 'NEW' | 'CONTACTED' | 'ENGAGED' | 'QUALIFIED' | 'PROPOSAL' | 'WON' | 'LOST'
+      stage: 'NEW' | 'UNDECIDED' | 'INTERESTED' | 'CLOSED' | 'NOT_INTERESTED'
       /** @enum {string} */
       sourceType: 'MESSAGE' | 'DEPLOYMENT' | 'AD_RUN' | 'AD_UNIT' | 'MANUAL' | 'IMPORT'
       /** Format: date-time */
@@ -5063,14 +5165,14 @@ export interface components {
       nextActionNote: string | null
       /** Format: date-time */
       nextActionAt: string | null
-      buckets: ('NEW' | 'NEVER_CONTACTED' | 'NEEDS_FOLLOW_UP' | 'OVERDUE' | 'ENGAGED')[]
+      buckets: ('NEW' | 'NEVER_CONTACTED' | 'NEEDS_FOLLOW_UP' | 'OVERDUE' | 'INTERESTED')[]
     }
     Lead: {
       id: string
       businessId: string
       contactId: string
       /** @enum {string} */
-      stage: 'NEW' | 'CONTACTED' | 'ENGAGED' | 'QUALIFIED' | 'PROPOSAL' | 'WON' | 'LOST'
+      stage: 'NEW' | 'UNDECIDED' | 'INTERESTED' | 'CLOSED' | 'NOT_INTERESTED'
       owner?: string | null
       estimatedValue?: number | null
       /** @enum {string} */
@@ -5090,17 +5192,123 @@ export interface components {
       nextActionNote?: string | null
       /** Format: date-time */
       nextActionAt?: string | null
+      activity: components['schemas']['LeadActivity']
       /** Format: date-time */
       createdAt: string
     }
     UpdateLeadInput: {
       /** @enum {string} */
-      stage?: 'NEW' | 'CONTACTED' | 'ENGAGED' | 'QUALIFIED' | 'PROPOSAL' | 'WON' | 'LOST'
+      stage?: 'NEW' | 'UNDECIDED' | 'INTERESTED' | 'CLOSED' | 'NOT_INTERESTED'
       owner?: string | null
       estimatedValue?: number | null
       nextActionNote?: string | null
       /** Format: date-time */
       nextActionAt?: string | null
+      /** @description Partial activity-flag patch — omitted keys unchanged; false unchecks. */
+      activity?: {
+        emailed?: boolean
+        called?: boolean
+        texted?: boolean
+        webinar?: boolean
+        meeting?: boolean
+        followUp?: boolean
+        proposalSent?: boolean
+      }
+    }
+    /** @description A pool row — resolved from a GoalIdeaTemplate, never hard-coded client-side. Dynamic templates (e.g. "Follow up with {n} qualified leads") arrive here with `title` and `targetValue` already substituted with the live count. Deliberately carries no action destination — an idea is a possibility, not committed work; only ScheduledGoal (after scheduling) gets a one-click destination. */
+    GoalIdea: {
+      templateId: string
+      title: string
+      /** @description The "why this matters" copy shown in the detail view — never in the compact row. */
+      detail?: string | null
+      /** @enum {string} */
+      ideaType:
+        'ACTION' | 'OUTCOME' | 'MAINTENANCE' | 'CREATION' | 'RELATIONSHIP' | 'EXPERIMENT' | 'REVIEW'
+      /** @enum {string} */
+      subjectType: 'GENERAL' | 'CRM' | 'ADVERTISEMENT' | 'PAGE' | 'RIVER' | 'BUSINESS'
+      /**
+       * @description This idea's rung on the one universal Foundation->Attract->Capture->Convert->Grow progression.
+       * @enum {string}
+       */
+      stage: 'FOUNDATION' | 'ATTRACT' | 'CAPTURE' | 'CONVERT' | 'GROW'
+      isSystem: boolean
+      /** @enum {string} */
+      defaultHorizon: 'TODAY' | 'THIS_WEEK' | 'NEXT_WEEK'
+      defaultEstimateMinutes?: number | null
+      /** @enum {string} */
+      trackingType: 'MANUAL' | 'ENTITY_STATE' | 'COUNT'
+      metricKey?: string | null
+      targetValue?: number | null
+    }
+    /** @description The one concrete unit of work Calendar owns. subjectType/subjectId is an optional pointer at an object another feature already owns (e.g. a Lead) — Calendar never copies that feature's own data in, see the model's schema.prisma doc comment. */
+    ScheduledGoal: {
+      id: string
+      title: string
+      detail?: string | null
+      /** @enum {string} */
+      source: 'IDEA_TEMPLATE' | 'USER_CREATED' | 'CRM_NEXT_ACTION' | 'WORKFLOW'
+      sourceTemplateId?: string | null
+      /** @enum {string} */
+      subjectType: 'GENERAL' | 'CRM' | 'ADVERTISEMENT' | 'PAGE' | 'RIVER' | 'BUSINESS'
+      subjectId?: string | null
+      /** @enum {string} */
+      trackingType: 'MANUAL' | 'ENTITY_STATE' | 'COUNT'
+      metricKey?: string | null
+      targetValue?: number | null
+      /** @description Computed live for ENTITY_STATE/COUNT tracking; hand-set (or null) for MANUAL. */
+      currentValue?: number | null
+      estimateMinutes?: number | null
+      /** Format: date-time */
+      scheduledFor?: string | null
+      /** @description Whether scheduledFor carries a meaningful time-of-day. The frontend renders the time itself from scheduledFor in the viewer's own timezone when this is true. */
+      hasTime?: boolean
+      /** @enum {string} */
+      status: 'SCHEDULED' | 'DONE' | 'DISMISSED'
+      /** @enum {string|null} */
+      actionType?: 'NAVIGATE' | 'OPEN_MODAL' | 'START_FLOW' | null
+      actionTarget?: string | null
+      actionLabel?: string | null
+      /** Format: date-time */
+      completedAt?: string | null
+      /** Format: date-time */
+      createdAt: string
+    }
+    CalendarBoard: {
+      today: components['schemas']['ScheduledGoal'][]
+      thisWeek: components['schemas']['ScheduledGoal'][]
+      /** @description DONE goals from the last 14 days, most recent first, capped — "keep it visible rather than making it disappear," not a full history/archive. */
+      recentlyCompleted: components['schemas']['ScheduledGoal'][]
+      ideas: components['schemas']['GoalIdea'][]
+      /**
+       * @description The earliest stage, in progression order, that still has an actionable idea in the pool — a light coaching narrative ("You're focused on Attract right now"), not a gate. Null once nothing is left to suggest.
+       * @enum {string|null}
+       */
+      currentStage?: 'FOUNDATION' | 'ATTRACT' | 'CAPTURE' | 'CONVERT' | 'GROW' | null
+    }
+    ScheduleGoalIdeaInput: {
+      /**
+       * @description Defaults to the template's own defaultHorizon when omitted.
+       * @enum {string}
+       */
+      when?: 'TODAY' | 'THIS_WEEK' | 'NEXT_WEEK' | 'DATE'
+      /**
+       * Format: date-time
+       * @description Required when when=DATE. An ISO instant; include a real time to also set hasTime.
+       */
+      date?: string
+      /** @description Only meaningful when when=DATE. */
+      hasTime?: boolean
+      estimateMinutes?: number | null
+      /** @default 0 */
+      utcOffsetMinutes: number
+    }
+    UpdateScheduledGoalInput: {
+      /** @enum {string} */
+      status?: 'SCHEDULED' | 'DONE'
+      /** Format: date-time */
+      scheduledFor?: string | null
+      hasTime?: boolean
+      estimateMinutes?: number | null
     }
     Sale: {
       id: string
@@ -5481,7 +5689,7 @@ export interface components {
       /** Format: date-time */
       acquiredAt: string
       /** @enum {string} */
-      stage: 'NEW' | 'CONTACTED' | 'ENGAGED' | 'QUALIFIED' | 'PROPOSAL' | 'WON' | 'LOST'
+      stage: 'NEW' | 'UNDECIDED' | 'INTERESTED' | 'CLOSED' | 'NOT_INTERESTED'
       /** @enum {string} */
       sourceType: 'DEPLOYMENT' | 'AD_RUN' | 'AD_UNIT'
       /** @enum {string|null} */
@@ -5813,6 +6021,8 @@ export interface components {
     ReturnTo: string
     AdPlatform: 'META' | 'GOOGLE' | 'TIKTOK'
     LeadId: string
+    GoalTemplateId: string
+    GoalId: string
     SaleId: string
     LandingPageTemplateId: string
     LandingPageId: string
@@ -11287,7 +11497,7 @@ export interface operations {
         /** @description Opaque cursor returned by the previous page. */
         cursor?: components['parameters']['Cursor']
         limit?: components['parameters']['Limit']
-        stage?: 'NEW' | 'CONTACTED' | 'ENGAGED' | 'QUALIFIED' | 'PROPOSAL' | 'WON' | 'LOST'
+        stage?: 'NEW' | 'UNDECIDED' | 'INTERESTED' | 'CLOSED' | 'NOT_INTERESTED'
         sourceType?: 'MESSAGE' | 'DEPLOYMENT' | 'MANUAL' | 'IMPORT'
       }
       header?: never
@@ -11393,7 +11603,7 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Updated lead. Setting stage=WON prompts sale capture client-side and stops active follow-up automation (docs/07-sales-flow-spec.md); Customer status is derived, not stored. */
+      /** @description Updated lead. Setting stage=CLOSED prompts sale capture client-side and stops active follow-up automation; Customer status is derived, not stored. Activity flags may be toggled independently (auto-set from real events, still manually uncheckable). */
       200: {
         headers: {
           [name: string]: unknown
@@ -11401,6 +11611,166 @@ export interface operations {
         content: {
           'application/json': {
             data?: components['schemas']['Lead']
+          }
+        }
+      }
+    }
+  }
+  getCalendarBoard: {
+    parameters: {
+      query?: {
+        /** @description Viewer's local UTC offset in minutes, same convention as GET /dashboard/home. */
+        utcOffsetMinutes?: number
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The Calendar board */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['CalendarBoard']
+          }
+        }
+      }
+    }
+  }
+  listCalendarGoalsInRange: {
+    parameters: {
+      query: {
+        from: string
+        to: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Scheduled or done goals with scheduledFor in [from, to) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['ScheduledGoal'][]
+          }
+        }
+      }
+    }
+  }
+  createGoalIdea: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          title: string
+        }
+      }
+    }
+    responses: {
+      /** @description The new idea */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['GoalIdea']
+          }
+        }
+      }
+    }
+  }
+  scheduleGoalIdea: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        templateId: components['parameters']['GoalTemplateId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ScheduleGoalIdeaInput']
+      }
+    }
+    responses: {
+      /** @description The scheduled goal */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['ScheduledGoal']
+          }
+        }
+      }
+    }
+  }
+  dismissGoalIdea: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        templateId: components['parameters']['GoalTemplateId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Dismissed */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: {
+              templateId?: string
+            }
+          }
+        }
+      }
+    }
+  }
+  updateScheduledGoal: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        goalId: components['parameters']['GoalId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateScheduledGoalInput']
+      }
+    }
+    responses: {
+      /** @description The updated scheduled goal */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['ScheduledGoal']
           }
         }
       }
@@ -11446,7 +11816,7 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Sale recorded; contact lifecycle becomes CUSTOMER and linked Lead (if any) moves to WON */
+      /** @description Sale recorded; contact lifecycle becomes CUSTOMER and linked Lead (if any) moves to CLOSED */
       201: {
         headers: {
           [name: string]: unknown

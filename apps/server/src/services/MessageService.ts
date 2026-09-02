@@ -4,6 +4,7 @@ import { resolveAudienceWhere } from './AudienceService'
 import { requireAudience, requireAutomation, requireTemplate } from '../lib/ownership'
 import { scheduleAutomationRuns } from '../lib/automationScheduling'
 import { ACTIVE_SALE_WHERE } from '../lib/salePredicates'
+import { markOpenLeadActivityFromInteraction } from '../lib/leadActivity'
 
 function toMessageDTO(message: any, recipientCount = 0) {
   return {
@@ -206,6 +207,12 @@ export class MessageService {
           where: { id: { in: recipients.map((r) => r.id) } },
           data: { lastContactedAt: new Date() },
         })
+        await markOpenLeadActivityFromInteraction(
+          businessId,
+          recipients.map((r) => r.id),
+          interactionType,
+          tx,
+        )
       }
       return tx.message.update({
         where: { id: messageId },

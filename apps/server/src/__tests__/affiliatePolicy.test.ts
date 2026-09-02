@@ -108,7 +108,7 @@ describe('affiliate policy', () => {
     const sale = await recordSale(contact.id, lead.id, 500)
 
     const wonLead = await db.lead.findUniqueOrThrow({ where: { id: lead.id } })
-    expect(wonLead.stage).toBe('WON')
+    expect(wonLead.stage).toBe('CLOSED')
 
     const commission = await db.commission.findFirstOrThrow({ where: { sourceRef: sale.id } })
     const payableRes = await app.inject({
@@ -129,7 +129,7 @@ describe('affiliate policy', () => {
     expect(reverseRes.json().data.reversedAt).toBeTruthy()
 
     const reopenedLead = await db.lead.findUniqueOrThrow({ where: { id: lead.id } })
-    expect(reopenedLead.stage).toBe('QUALIFIED')
+    expect(reopenedLead.stage).toBe('INTERESTED')
     expect(reopenedLead.closedAt).toBeNull()
 
     const reversedCommission = await db.commission.findUniqueOrThrow({

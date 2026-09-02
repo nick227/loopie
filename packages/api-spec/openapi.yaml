@@ -149,6 +149,16 @@ components:
       name: leadId
       required: true
       schema: { type: string }
+    GoalTemplateId:
+      in: path
+      name: templateId
+      required: true
+      schema: { type: string }
+    GoalId:
+      in: path
+      name: goalId
+      required: true
+      schema: { type: string }
     SaleId:
       in: path
       name: saleId
@@ -452,10 +462,21 @@ components:
 
     ContactCurrentLead:
       type: object
-      required: [id, stage, sourceType, openedAt, closedAt, contacted, lastTouchAt, activityCounts]
+      required:
+        [
+          id,
+          stage,
+          sourceType,
+          openedAt,
+          closedAt,
+          contacted,
+          lastTouchAt,
+          activityCounts,
+          activity,
+        ]
       properties:
         id: { type: string }
-        stage: { type: string, enum: [NEW, CONTACTED, ENGAGED, QUALIFIED, PROPOSAL, WON, LOST] }
+        stage: { type: string, enum: [NEW, UNDECIDED, INTERESTED, CLOSED, NOT_INTERESTED] }
         sourceType: { type: string, enum: [MESSAGE, DEPLOYMENT, AD_RUN, AD_UNIT, MANUAL, IMPORT] }
         openedAt: { type: string, format: date-time }
         closedAt: { type: string, format: date-time, nullable: true }
@@ -467,6 +488,23 @@ components:
             follow-up) has happened since this lead opened.
         lastTouchAt: { type: string, format: date-time, nullable: true }
         activityCounts: { $ref: '#/components/schemas/ContactActivityCounts' }
+        activity: { $ref: '#/components/schemas/LeadActivity' }
+
+    LeadActivity:
+      type: object
+      required: [emailed, called, texted, webinar, meeting, followUp, proposalSent]
+      description: >
+        Lightweight sales-history facts on the open Lead — auto-checked when Loopie observes the
+        real event (email send, call log, etc.), still manually uncheckable for corrections.
+        Status (Lead.stage) is current state; these are things that happened.
+      properties:
+        emailed: { type: boolean }
+        called: { type: boolean }
+        texted: { type: boolean }
+        webinar: { type: boolean }
+        meeting: { type: boolean }
+        followUp: { type: boolean }
+        proposalSent: { type: boolean }
 
     ContactActivityCounts:
       type: object
@@ -573,7 +611,7 @@ components:
               properties:
                 id: { type: string }
                 stage:
-                  { type: string, enum: [NEW, CONTACTED, ENGAGED, QUALIFIED, PROPOSAL, WON, LOST] }
+                  { type: string, enum: [NEW, UNDECIDED, INTERESTED, CLOSED, NOT_INTERESTED] }
 
     ContactSalesSummary:
       type: object
@@ -2864,8 +2902,8 @@ components:
           totalLeads,
           timeToFirstContact,
           contactedWithin,
-          avgTouchesBeforeEngaged,
-          avgTouchesBeforeWon,
+          avgTouchesBeforeInterested,
+          avgTouchesBeforeClosed,
           channelMix,
           overdueFollowUpRate,
           stageConversion,
@@ -2874,7 +2912,7 @@ components:
         Management-facing analytics, computed all-time from Lead's own fields and the existing
         Interaction timeline — no new state machine, no stage-history table. See
         lib/leadInsights.ts for exactly how each number is derived, including the deliberate
-        simplifications (LOST leads excluded from stageConversion beyond NEW; contactedWithin only
+        simplifications (NOT_INTERESTED leads excluded from stageConversion beyond NEW; contactedWithin only
         judges leads old enough to have had the full window).
       properties:
         totalLeads: { type: integer }
@@ -2894,8 +2932,8 @@ components:
           properties:
             within1hPct: { type: number }
             within24hPct: { type: number }
-        avgTouchesBeforeEngaged: { type: number, nullable: true }
-        avgTouchesBeforeWon: { type: number, nullable: true }
+        avgTouchesBeforeInterested: { type: number, nullable: true }
+        avgTouchesBeforeClosed: { type: number, nullable: true }
         channelMix:
           type: array
           items:
@@ -2914,7 +2952,7 @@ components:
             type: object
             required: [stage, reachedCount, pct]
             properties:
-              stage: { type: string, enum: [NEW, CONTACTED, ENGAGED, QUALIFIED, PROPOSAL, WON] }
+              stage: { type: string, enum: [NEW, UNDECIDED, INTERESTED, CLOSED] }
               reachedCount: { type: integer }
               pct: { type: number }
 
@@ -2948,7 +2986,7 @@ components:
             id: { type: string }
             name: { type: string }
             avatarUrl: { type: string, nullable: true }
-        stage: { type: string, enum: [NEW, CONTACTED, ENGAGED, QUALIFIED, PROPOSAL, WON, LOST] }
+        stage: { type: string, enum: [NEW, UNDECIDED, INTERESTED, CLOSED, NOT_INTERESTED] }
         sourceType: { type: string, enum: [MESSAGE, DEPLOYMENT, AD_RUN, AD_UNIT, MANUAL, IMPORT] }
         openedAt: { type: string, format: date-time }
         contacted: { type: boolean }
@@ -2957,16 +2995,16 @@ components:
         nextActionAt: { type: string, format: date-time, nullable: true }
         buckets:
           type: array
-          items: { type: string, enum: [NEW, NEVER_CONTACTED, NEEDS_FOLLOW_UP, OVERDUE, ENGAGED] }
+          items: { type: string, enum: [NEW, NEVER_CONTACTED, NEEDS_FOLLOW_UP, OVERDUE, INTERESTED] }
 
     Lead:
       type: object
-      required: [id, businessId, contactId, stage, sourceType, createdAt]
+      required: [id, businessId, contactId, stage, sourceType, activity, createdAt]
       properties:
         id: { type: string }
         businessId: { type: string }
         contactId: { type: string }
-        stage: { type: string, enum: [NEW, CONTACTED, ENGAGED, QUALIFIED, PROPOSAL, WON, LOST] }
+        stage: { type: string, enum: [NEW, UNDECIDED, INTERESTED, CLOSED, NOT_INTERESTED] }
         owner: { type: string, nullable: true }
         estimatedValue: { type: number, nullable: true }
         sourceType: { type: string, enum: [MESSAGE, DEPLOYMENT, AD_RUN, AD_UNIT, MANUAL, IMPORT] }
@@ -2987,16 +3025,146 @@ components:
         closedAt: { type: string, format: date-time, nullable: true }
         nextActionNote: { type: string, nullable: true }
         nextActionAt: { type: string, format: date-time, nullable: true }
+        activity: { $ref: '#/components/schemas/LeadActivity' }
         createdAt: { type: string, format: date-time }
 
     UpdateLeadInput:
       type: object
       properties:
-        stage: { type: string, enum: [NEW, CONTACTED, ENGAGED, QUALIFIED, PROPOSAL, WON, LOST] }
+        stage: { type: string, enum: [NEW, UNDECIDED, INTERESTED, CLOSED, NOT_INTERESTED] }
         owner: { type: string, nullable: true }
         estimatedValue: { type: number, nullable: true }
         nextActionNote: { type: string, nullable: true }
         nextActionAt: { type: string, format: date-time, nullable: true }
+        activity:
+          type: object
+          description: Partial activity-flag patch — omitted keys unchanged; false unchecks.
+          properties:
+            emailed: { type: boolean }
+            called: { type: boolean }
+            texted: { type: boolean }
+            webinar: { type: boolean }
+            meeting: { type: boolean }
+            followUp: { type: boolean }
+            proposalSent: { type: boolean }
+
+    GoalIdea:
+      type: object
+      required: [templateId, title, ideaType, subjectType, stage, isSystem, defaultHorizon, trackingType]
+      description: >
+        A pool row — resolved from a GoalIdeaTemplate, never hard-coded client-side. Dynamic
+        templates (e.g. "Follow up with {n} qualified leads") arrive here with `title` and
+        `targetValue` already substituted with the live count. Deliberately carries no action
+        destination — an idea is a possibility, not committed work; only ScheduledGoal (after
+        scheduling) gets a one-click destination.
+      properties:
+        templateId: { type: string }
+        title: { type: string }
+        detail:
+          type: string
+          nullable: true
+          description: The "why this matters" copy shown in the detail view — never in the compact row.
+        ideaType:
+          type: string
+          enum: [ACTION, OUTCOME, MAINTENANCE, CREATION, RELATIONSHIP, EXPERIMENT, REVIEW]
+        subjectType: { type: string, enum: [GENERAL, CRM, ADVERTISEMENT, PAGE, RIVER, BUSINESS] }
+        stage:
+          type: string
+          enum: [FOUNDATION, ATTRACT, CAPTURE, CONVERT, GROW]
+          description: This idea's rung on the one universal Foundation->Attract->Capture->Convert->Grow progression.
+        isSystem: { type: boolean }
+        defaultHorizon: { type: string, enum: [TODAY, THIS_WEEK, NEXT_WEEK] }
+        defaultEstimateMinutes: { type: integer, nullable: true }
+        trackingType: { type: string, enum: [MANUAL, ENTITY_STATE, COUNT] }
+        metricKey: { type: string, nullable: true }
+        targetValue: { type: integer, nullable: true }
+
+    ScheduledGoal:
+      type: object
+      required: [id, title, source, subjectType, trackingType, status, createdAt]
+      description: >
+        The one concrete unit of work Calendar owns. subjectType/subjectId is an optional pointer
+        at an object another feature already owns (e.g. a Lead) — Calendar never copies that
+        feature's own data in, see the model's schema.prisma doc comment.
+      properties:
+        id: { type: string }
+        title: { type: string }
+        detail: { type: string, nullable: true }
+        source: { type: string, enum: [IDEA_TEMPLATE, USER_CREATED, CRM_NEXT_ACTION, WORKFLOW] }
+        sourceTemplateId: { type: string, nullable: true }
+        subjectType: { type: string, enum: [GENERAL, CRM, ADVERTISEMENT, PAGE, RIVER, BUSINESS] }
+        subjectId: { type: string, nullable: true }
+        trackingType: { type: string, enum: [MANUAL, ENTITY_STATE, COUNT] }
+        metricKey: { type: string, nullable: true }
+        targetValue: { type: integer, nullable: true }
+        currentValue:
+          type: integer
+          nullable: true
+          description: Computed live for ENTITY_STATE/COUNT tracking; hand-set (or null) for MANUAL.
+        estimateMinutes: { type: integer, nullable: true }
+        scheduledFor: { type: string, format: date-time, nullable: true }
+        hasTime:
+          type: boolean
+          description: >
+            Whether scheduledFor carries a meaningful time-of-day. The frontend renders the time
+            itself from scheduledFor in the viewer's own timezone when this is true.
+        status: { type: string, enum: [SCHEDULED, DONE, DISMISSED] }
+        actionType: { type: string, nullable: true, enum: [NAVIGATE, OPEN_MODAL, START_FLOW] }
+        actionTarget: { type: string, nullable: true }
+        actionLabel: { type: string, nullable: true }
+        completedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    CalendarBoard:
+      type: object
+      required: [today, thisWeek, recentlyCompleted, ideas]
+      properties:
+        today:
+          type: array
+          items: { $ref: '#/components/schemas/ScheduledGoal' }
+        thisWeek:
+          type: array
+          items: { $ref: '#/components/schemas/ScheduledGoal' }
+        recentlyCompleted:
+          type: array
+          items: { $ref: '#/components/schemas/ScheduledGoal' }
+          description: >
+            DONE goals from the last 14 days, most recent first, capped — "keep it visible rather
+            than making it disappear," not a full history/archive.
+        ideas:
+          type: array
+          items: { $ref: '#/components/schemas/GoalIdea' }
+        currentStage:
+          type: string
+          nullable: true
+          enum: [FOUNDATION, ATTRACT, CAPTURE, CONVERT, GROW]
+          description: >
+            The earliest stage, in progression order, that still has an actionable idea in the
+            pool — a light coaching narrative ("You're focused on Attract right now"), not a gate.
+            Null once nothing is left to suggest.
+
+    ScheduleGoalIdeaInput:
+      type: object
+      properties:
+        when:
+          type: string
+          enum: [TODAY, THIS_WEEK, NEXT_WEEK, DATE]
+          description: Defaults to the template's own defaultHorizon when omitted.
+        date:
+          type: string
+          format: date-time
+          description: Required when when=DATE. An ISO instant; include a real time to also set hasTime.
+        hasTime: { type: boolean, description: Only meaningful when when=DATE. }
+        estimateMinutes: { type: integer, nullable: true }
+        utcOffsetMinutes: { type: integer, default: 0 }
+
+    UpdateScheduledGoalInput:
+      type: object
+      properties:
+        status: { type: string, enum: [SCHEDULED, DONE] }
+        scheduledFor: { type: string, format: date-time, nullable: true }
+        hasTime: { type: boolean }
+        estimateMinutes: { type: integer, nullable: true }
 
     Sale:
       type: object
@@ -3557,7 +3725,7 @@ components:
         contactId: { type: string }
         contactName: { type: string }
         acquiredAt: { type: string, format: date-time }
-        stage: { type: string, enum: [NEW, CONTACTED, ENGAGED, QUALIFIED, PROPOSAL, WON, LOST] }
+        stage: { type: string, enum: [NEW, UNDECIDED, INTERESTED, CLOSED, NOT_INTERESTED] }
         sourceType: { type: string, enum: [DEPLOYMENT, AD_RUN, AD_UNIT] }
         platform: { type: string, enum: [META, GOOGLE, TIKTOK, LOOPIE], nullable: true }
         creativeName: { type: string, nullable: true }
@@ -8377,7 +8545,7 @@ paths:
         - $ref: '#/components/parameters/Limit'
         - in: query
           name: stage
-          schema: { type: string, enum: [NEW, CONTACTED, ENGAGED, QUALIFIED, PROPOSAL, WON, LOST] }
+          schema: { type: string, enum: [NEW, UNDECIDED, INTERESTED, CLOSED, NOT_INTERESTED] }
         - in: query
           name: sourceType
           schema: { type: string, enum: [MESSAGE, DEPLOYMENT, MANUAL, IMPORT] }
@@ -8459,14 +8627,154 @@ paths:
       responses:
         '200':
           description: >
-            Updated lead. Setting stage=WON prompts sale capture client-side and stops active
-            follow-up automation (docs/07-sales-flow-spec.md); Customer status is derived, not stored.
+            Updated lead. Setting stage=CLOSED prompts sale capture client-side and stops active
+            follow-up automation; Customer status is derived, not stored. Activity flags may be
+            toggled independently (auto-set from real events, still manually uncheckable).
           content:
             application/json:
               schema:
                 type: object
                 properties:
                   data: { $ref: '#/components/schemas/Lead' }
+
+  /calendar/board:
+    get:
+      operationId: getCalendarBoard
+      summary: Today, this week, and the ideas pool — the one screen Calendar renders
+      tags: [calendar]
+      parameters:
+        - in: query
+          name: utcOffsetMinutes
+          schema: { type: integer, default: 0 }
+          description: Viewer's local UTC offset in minutes, same convention as GET /dashboard/home.
+      responses:
+        '200':
+          description: The Calendar board
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/CalendarBoard' }
+
+  /calendar/goals:
+    get:
+      operationId: listCalendarGoalsInRange
+      summary: >
+        Scheduled goals within an arbitrary date range — the Week/Month calendar views' own read.
+        Unlike the board's fixed "relative to now" buckets, this is navigable: a real calendar has
+        to be able to show last month or next month.
+      tags: [calendar]
+      parameters:
+        - in: query
+          name: from
+          required: true
+          schema: { type: string, format: date-time }
+        - in: query
+          name: to
+          required: true
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Scheduled or done goals with scheduledFor in [from, to)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ScheduledGoal' }
+
+  /calendar/ideas:
+    post:
+      operationId: createGoalIdea
+      summary: "Quickly add a user-created idea — title only, no metadata required"
+      tags: [calendar]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: { type: string, minLength: 1, maxLength: 200 }
+      responses:
+        '201':
+          description: The new idea
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/GoalIdea' }
+
+  /calendar/ideas/{templateId}/schedule:
+    post:
+      operationId: scheduleGoalIdea
+      summary: Move an idea from the pool into a scheduled ScheduledGoal
+      tags: [calendar]
+      parameters:
+        - $ref: '#/components/parameters/GoalTemplateId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ScheduleGoalIdeaInput' }
+      responses:
+        '201':
+          description: The scheduled goal
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ScheduledGoal' }
+
+  /calendar/ideas/{templateId}/dismiss:
+    post:
+      operationId: dismissGoalIdea
+      summary: Hide this idea from the pool going forward, without deleting the template
+      tags: [calendar]
+      parameters:
+        - $ref: '#/components/parameters/GoalTemplateId'
+      responses:
+        '200':
+          description: Dismissed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      templateId: { type: string }
+
+  /calendar/goals/{goalId}:
+    patch:
+      operationId: updateScheduledGoal
+      summary: Complete, reopen, or reschedule a scheduled item
+      tags: [calendar]
+      parameters:
+        - $ref: '#/components/parameters/GoalId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateScheduledGoalInput' }
+      responses:
+        '200':
+          description: The updated scheduled goal
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ScheduledGoal' }
 
   /sales:
     get:
@@ -8500,7 +8808,7 @@ paths:
             schema: { $ref: '#/components/schemas/CreateSaleInput' }
       responses:
         '201':
-          description: Sale recorded; contact lifecycle becomes CUSTOMER and linked Lead (if any) moves to WON
+          description: Sale recorded; contact lifecycle becomes CUSTOMER and linked Lead (if any) moves to CLOSED
           content:
             application/json:
               schema:

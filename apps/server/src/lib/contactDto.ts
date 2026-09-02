@@ -11,7 +11,7 @@ import type { currentLeadCard } from './leadCard'
 export const LIFECYCLE_INCLUDE = {
   sales: { take: 1, select: { id: true } },
   leads: {
-    where: { stage: { notIn: [LeadStage.WON, LeadStage.LOST] } },
+    where: { stage: { notIn: [LeadStage.CLOSED, LeadStage.NOT_INTERESTED] } },
     take: 1,
     select: { id: true },
   },

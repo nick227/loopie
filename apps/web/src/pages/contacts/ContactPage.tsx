@@ -331,7 +331,7 @@ export function ContactPage() {
 
           {tab === 'overview' ? (
             <div className="space-y-4">
-              <Card>
+              <Card id="contact-notes">
                 <CardHeader>
                   <p className="text-sm font-medium">Notes</p>
                 </CardHeader>
