@@ -2,7 +2,7 @@ import { useBusiness, useUpdateBusiness } from '@project/sdk'
 import { BusinessLogoField } from '@/components/business/BusinessLogoField'
 import { Spinner } from '@/components/ui/Spinner'
 
-export function AssistantLogoStep({ onDone }: { onDone: () => void }) {
+export function AssistantLogoStep({ onSuccess }: { onSuccess: () => void }) {
   const business = useBusiness()
   const updateBusiness = useUpdateBusiness()
 
@@ -13,7 +13,7 @@ export function AssistantLogoStep({ onDone }: { onDone: () => void }) {
   async function handleChange(logoUrl: string | null) {
     if (!logoUrl) return
     await updateBusiness.mutateAsync({ logoUrl })
-    onDone()
+    onSuccess()
   }
 
   return (

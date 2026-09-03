@@ -79,5 +79,6 @@ describe('getNextStep', () => {
     step = await getNextStep()
     expect(step.actionId).toBeNull()
     expect(step.progress).toEqual({ completed: 4, total: 4 })
+    expect(step.homepageUrl).toContain('/p/')
   })
 })

@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { useQuickCreatePage } from '@/hooks/useQuickCreatePage'
 import { Button } from '@/components/ui/Button'
 import { CORPORATE_PROFESSIONAL_TEMPLATE_ID } from '@/pages/landing-pages/components/types'
+import { STEP_COPY } from '../copy'
 
-export function AssistantHomepageCreateStep({ onDone }: { onDone: () => void }) {
+export function AssistantHomepageCreateStep({ onSuccess }: { onSuccess: () => void }) {
   const { create, isPending } = useQuickCreatePage()
   const [error, setError] = useState<string | null>(null)
 
@@ -11,7 +12,7 @@ export function AssistantHomepageCreateStep({ onDone }: { onDone: () => void }) 
     setError(null)
     const result = await create(CORPORATE_PROFESSIONAL_TEMPLATE_ID)
     if (result.ok) {
-      onDone()
+      onSuccess()
     } else {
       setError(result.message)
     }
@@ -19,12 +20,9 @@ export function AssistantHomepageCreateStep({ onDone }: { onDone: () => void }) 
 
   return (
     <div className="space-y-2">
-      <p className="text-sm text-muted-foreground">
-        We&apos;ll set up a homepage from a template you can edit right after.
-      </p>
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
-      <Button onClick={handleClick} size="sm" loading={isPending} className="w-full">
-        Create homepage
+      <Button onClick={handleClick} loading={isPending} className="w-full">
+        {STEP_COPY.homepage_create.actionLabel}
       </Button>
     </div>
   )

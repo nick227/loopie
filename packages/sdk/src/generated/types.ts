@@ -3605,6 +3605,8 @@ export interface components {
       fields?: components['schemas']['AssistantFieldSpec'][] | null
       /** @description Populated only for homepage_publish (the draft to publish); null otherwise. */
       landingPageId?: string | null
+      /** @description The live hosted URL of the business's homepage, once published. Display-only (e.g. a "View homepage" link) — never used to derive actionId. Null until published. */
+      homepageUrl?: string | null
       progress?: {
         completed?: number
         total?: number

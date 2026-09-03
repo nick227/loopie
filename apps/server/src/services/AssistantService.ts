@@ -1,5 +1,6 @@
 import { db } from '@project/db'
 import { BusinessService } from './BusinessService'
+import { hostedPageUrl } from '../lib/urls'
 import { ASSISTANT_STEPS, HOMEPAGE_TEMPLATE_ID, type AssistantState } from '../lib/assistantSteps'
 
 const businessService = new BusinessService()
@@ -12,6 +13,7 @@ export class AssistantService {
       orderBy: { createdAt: 'asc' },
     })
     const state: AssistantState = { business, homepage }
+    const homepageUrl = homepage?.status === 'PUBLISHED' ? hostedPageUrl(homepage.slug) : null
 
     const step = ASSISTANT_STEPS.find((s) => !s.isComplete(state))
     if (!step) {
@@ -21,6 +23,7 @@ export class AssistantService {
         question: null,
         fields: null,
         landingPageId: null,
+        homepageUrl,
         progress: { completed: ASSISTANT_STEPS.length, total: ASSISTANT_STEPS.length },
       }
     }
@@ -31,6 +34,7 @@ export class AssistantService {
       question: step.question,
       fields: step.getFields ? step.getFields(state) : null,
       landingPageId: step.actionId === 'homepage_publish' ? homepage!.id : null,
+      homepageUrl,
       progress: { completed: ASSISTANT_STEPS.indexOf(step), total: ASSISTANT_STEPS.length },
     }
   }

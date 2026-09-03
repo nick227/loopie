@@ -543,6 +543,12 @@ components:
           type: string
           nullable: true
           description: Populated only for homepage_publish (the draft to publish); null otherwise.
+        homepageUrl:
+          type: string
+          nullable: true
+          description: >
+            The live hosted URL of the business's homepage, once published. Display-only (e.g. a
+            "View homepage" link) — never used to derive actionId. Null until published.
         progress:
           type: object
           nullable: true

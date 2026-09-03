@@ -7,7 +7,7 @@ import { CreateMenu, CreateButtonTrigger } from '@/components/layout/CreateMenu'
 import { SetHeaderTitleContext } from '@/lib/headerContext'
 import { ErrorBoundary } from '@/components/layout/ErrorBoundary'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { AssistantPanel } from '@/components/assistant/AssistantPanel'
+import { AssistantLauncher } from '@/components/assistant/AssistantLauncher'
 
 // Keyed by pathname so a page that crashed mid-render gets a clean slate on the next navigation,
 // without forcing Shell itself (header/nav) to remount — scoped to just the routed content, not
@@ -131,6 +131,8 @@ function Header({
           ) : null}
 
           {isAuthenticated ? <MessagesButton /> : null}
+
+          {isAuthenticated ? <AssistantLauncher /> : null}
 
           {/* The one route Shell renders for an anonymous visitor too (River, outside
               <AuthGuard/> — see App.tsx) — always visible, not gated on isAuthenticated. */}
@@ -300,7 +302,6 @@ export function Shell() {
           </SetHeaderTitleContext.Provider>
         </div>
       </main>
-      {isAuthenticated ? <AssistantPanel /> : null}
     </div>
   )
 }
