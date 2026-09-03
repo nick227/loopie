@@ -311,6 +311,7 @@ img { max-width: 100%; }
 .lp-brand { font-family: var(--lp-heading); font-size: 1.35rem; font-weight: 800; text-decoration: none; }
 .lp-nav-links { display: flex; align-items: center; gap: 1.75rem; }
 .lp-nav-links a { color: color-mix(in srgb, var(--lp-ink) 72%, var(--lp-bg)); font-size: 0.875rem; font-weight: 600; text-decoration: none; }
+.lp-nav-cta { display: inline-flex; align-items: center; padding: 0.55rem 1.1rem; background: var(--lp-primary); color: var(--lp-on-primary); text-decoration: none; border-radius: var(--lp-radius); font-size: 0.875rem; font-weight: 700; white-space: nowrap; }
 .lp-kicker { margin: 0 0 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--lp-primary); }
 .lp-hero-eyebrow, .lp-hero-badge { display: inline-block; margin: 0 0 1.25rem; padding: 0.4rem 0.9rem; border-radius: 999px; background: color-mix(in srgb, var(--lp-ink) 10%, var(--lp-bg)); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
 .lp-hero h1 { font-family: var(--lp-heading); font-size: clamp(2.1rem, 4vw, 3.15rem); line-height: 1.12; letter-spacing: -0.03em; margin: 0 0 1rem; font-weight: 600; }
@@ -448,8 +449,9 @@ button[type="submit"] { padding: 0.8rem 1.4rem; background: var(--lp-primary); c
 .lp-template-webinar-signup .lp-footer { max-width: none; padding-block: 80px; border-top: 1px solid color-mix(in srgb, var(--lp-ink) 12%, var(--lp-bg)); }
 
 .lp-template-studio .lp-nav { max-width: 1152px; min-height: 88px; border-bottom: 1px solid color-mix(in srgb, var(--lp-ink) 12%, var(--lp-bg)); }
-.lp-template-studio .lp-nav-links a:not(:first-child) { display: none; }
-.lp-template-studio .lp-nav-links a { text-decoration: underline; text-underline-offset: 4px; }
+.lp-template-studio .lp-nav-cta { background: transparent; color: var(--lp-ink); padding: 0; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
+.lp-template-portfolio .lp-nav-cta { background: transparent; color: var(--lp-ink); padding: 0; font-weight: 500; text-decoration: underline; text-underline-offset: 4px; }
+.lp-template-email-outreach .lp-nav-cta { display: none; }
 .lp-template-studio .lp-hero { max-width: 1152px; padding-block: 80px; display: grid; grid-template-columns: 1.15fr .85fr; gap: 64px; align-items: end; }
 .lp-template-studio .lp-hero h1 { font-size: clamp(3.5rem, 8vw, 6.5rem); line-height: .95; font-weight: 700; }
 .lp-template-studio .lp-hero-media { margin: 0; }

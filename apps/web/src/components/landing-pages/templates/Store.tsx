@@ -297,7 +297,7 @@ function ProductsSection({ content, editable, onChange }: SectionProps<'products
   if (!items.length && !editable) return null
 
   return (
-    <section className="py-20">
+    <section id="products" className="py-20">
       <div className="mx-auto max-w-6xl px-6 lg:px-8">
         <div className="mb-10 max-w-xl">
           {editable ? (

@@ -99,6 +99,20 @@ function renderCta(cta: unknown): string {
   return `<a class="lp-cta" href="${escapeHtml(typeof url === 'string' && url ? url : '#')}">${escapeHtml(label)}</a>`
 }
 
+function sectionIdAttr(section: TemplateSection): string {
+  if (section.type === 'studio-contact') return ' id="contact"'
+  if (section.type === 'webinar-widget') return ' id="signup"'
+  if (section.type === 'form-embed' || section.type === 'split-capture') return ' id="form"'
+  if (section.key && section.key !== 'nav' && section.key !== 'hero' && section.key !== 'footer') {
+    return ` id="${escapeHtml(section.key)}"`
+  }
+  return ''
+}
+
+function isNavAskUrl(url: string | undefined): boolean {
+  return url === '#contact' || url === '#signup' || url === '#products'
+}
+
 export function renderSection(
   section: TemplateSection,
   content: unknown,
@@ -106,17 +120,24 @@ export function renderSection(
   submissionCount = 0,
 ): string {
   const c = (content && typeof content === 'object' ? content : {}) as Record<string, unknown>
+  const idAttr = sectionIdAttr(section)
 
   switch (section.type) {
     case 'nav': {
       const brand = typeof c.brand === 'string' ? c.brand : ''
       const links = Array.isArray(c.links) ? (c.links as { label?: string; url?: string }[]) : []
-      const linksHtml = links
+      const askIndex = links.findIndex((link) => isNavAskUrl(link.url))
+      const ask = askIndex >= 0 ? links[askIndex] : null
+      const menuLinks = askIndex >= 0 ? links.filter((_, index) => index !== askIndex) : links
+      const linksHtml = menuLinks
         .map(
           (link) => `<a href="${escapeHtml(link.url || '#')}">${escapeHtml(link.label || '')}</a>`,
         )
         .join('')
-      return `<nav class="lp-nav"><a class="lp-brand" href="#">${escapeHtml(brand)}</a><div class="lp-nav-links">${linksHtml}</div></nav>`
+      const askHtml = ask?.label
+        ? `<a class="lp-nav-cta" href="${escapeHtml(ask.url || '#')}">${escapeHtml(ask.label)}</a>`
+        : ''
+      return `<nav class="lp-nav"><a class="lp-brand" href="#">${escapeHtml(brand)}</a><div class="lp-nav-links">${linksHtml}</div>${askHtml}</nav>`
     }
     case 'hero': {
       const eyebrow = c.eyebrow ? `<p class="lp-hero-eyebrow">${escapeHtml(c.eyebrow)}</p>` : ''
@@ -148,10 +169,10 @@ export function renderSection(
         .join('')
       const headline = c.headline ? `<h2>${escapeHtml(c.headline)}</h2>` : ''
       const body = c.body ? `<p class="lp-section-intro">${escapeHtml(c.body)}</p>` : ''
-      return `<section class="lp-section lp-features"><div class="lp-section-heading">${headline}${body}</div><div class="lp-feature-grid">${itemsHtml}</div></section>`
+      return `<section class="lp-section lp-features"${idAttr}><div class="lp-section-heading">${headline}${body}</div><div class="lp-feature-grid">${itemsHtml}</div></section>`
     }
     case 'form-embed':
-      return `<section class="lp-section lp-form" id="form"><div class="lp-form-card"><p class="lp-form-title">Tell us about the job</p>${formHtml}</div></section>`
+      return `<section class="lp-section lp-form"${idAttr}><div class="lp-form-card"><p class="lp-form-title">Tell us about the job</p>${formHtml}</div></section>`
     case 'split-capture': {
       const media = (c.media && typeof c.media === 'object' ? c.media : {}) as Record<
         string,
@@ -162,7 +183,7 @@ export function renderSection(
         ? `<div class="lp-split-media"><img src="${escapeHtml(src)}" alt="" /></div>`
         : `<div class="lp-split-media lp-split-media-empty"></div>`
       const pitch = c.headline ? `<h1>${escapeHtml(c.headline)}</h1>` : ''
-      return `<section class="lp-split" id="form">${mediaHtml}<div class="lp-split-copy">${pitch}${formHtml}</div></section>`
+      return `<section class="lp-split"${idAttr}>${mediaHtml}<div class="lp-split-copy">${pitch}${formHtml}</div></section>`
     }
     case 'footer':
     case 'cta-band': {
@@ -174,7 +195,7 @@ export function renderSection(
     case 'studio-contact': {
       const headline = c.headline ? `<h2>${escapeHtml(c.headline)}</h2>` : ''
       const body = c.body ? `<p>${escapeHtml(c.body)}</p>` : ''
-      return `<section class="lp-section lp-studio-contact" id="contact"><div>${headline}${body}</div><div class="lp-form-card">${formHtml}</div></section>`
+      return `<section class="lp-section lp-studio-contact"${idAttr}><div>${headline}${body}</div><div class="lp-form-card">${formHtml}</div></section>`
     }
     case 'media-image': {
       const src = safeHttpUrl(c.src) || safeHttpUrl(c.url)
@@ -223,7 +244,7 @@ export function renderSection(
           return `<article class="lp-service${index === 0 ? ' is-active' : ''}"><div class="lp-service-copy"><h3>${escapeHtml(item.label)}</h3>${item.headline ? `<h4>${escapeHtml(item.headline)}</h4>` : ''}<p>${escapeHtml(item.description ?? '')}</p>${renderCta(item.cta)}</div>${media}</article>`
         })
         .join('')
-      return `<section class="lp-section lp-services"><div class="lp-section-heading">${title}${body}</div><div class="lp-service-grid">${rows}</div></section>`
+      return `<section class="lp-section lp-services"${idAttr}><div class="lp-section-heading">${title}${body}</div><div class="lp-service-grid">${rows}</div></section>`
     }
     case 'metrics': {
       const items = Array.isArray(c.items)
@@ -265,7 +286,7 @@ export function renderSection(
         .join('')
       const headline = c.headline ? `<h2>${escapeHtml(c.headline)}</h2>` : ''
       const body = c.body ? `<p class="lp-section-intro">${escapeHtml(c.body)}</p>` : ''
-      return `<section class="lp-section lp-testimonials"><div class="lp-section-heading">${headline}${body}</div><div class="lp-testimonial-grid">${rows}</div></section>`
+      return `<section class="lp-section lp-testimonials"${idAttr}><div class="lp-section-heading">${headline}${body}</div><div class="lp-testimonial-grid">${rows}</div></section>`
     }
     case 'webinar-widget': {
       const eventDate = typeof c.eventDate === 'string' ? c.eventDate : ''
@@ -298,7 +319,7 @@ export function renderSection(
       const countdownHtml = eventDate
         ? `<div class="lp-webinar-countdown" data-lp-countdown-for="${escapeHtml(eventDate)}"></div>`
         : ''
-      return `<section class="lp-section lp-webinar" id="signup">
+      return `<section class="lp-section lp-webinar"${idAttr}>
         <div class="lp-webinar-meta">
           ${countdownHtml}
           ${dateHtml}
@@ -376,7 +397,7 @@ export function renderSection(
           return `<article class="lp-product">${badge}<div class="lp-product-media">${media}</div><h3>${escapeHtml(item.name)}</h3>${price}${renderCta(item.cta)}</article>`
         })
         .join('')
-      return `<section class="lp-section lp-products"><div class="lp-section-heading">${headline}${body}</div><div class="lp-product-grid">${cards}</div></section>`
+      return `<section class="lp-section lp-products"${idAttr}><div class="lp-section-heading">${headline}${body}</div><div class="lp-product-grid">${cards}</div></section>`
     }
     case 'category-grid': {
       const items = Array.isArray(c.items)

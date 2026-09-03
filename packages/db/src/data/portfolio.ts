@@ -92,7 +92,7 @@ export const portfolioStarterContent: PageContent = {
           url: 'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&q=80&w=1800',
           alt: 'Intimate outdoor wedding ceremony on a beach',
         },
-        cta: { label: 'View the story', url: '#' },
+        cta: { label: 'Inquire about this shoot', url: '#contact' },
       },
       {
         id: 'kinfolk-editorial',
@@ -103,7 +103,7 @@ export const portfolioStarterContent: PageContent = {
           url: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&q=80&w=1800',
           alt: 'Editorial portrait in warm natural light',
         },
-        cta: { label: 'View the story', url: '#' },
+        cta: { label: 'Inquire about this shoot', url: '#contact' },
       },
       {
         id: 'juniper-house',
@@ -114,7 +114,7 @@ export const portfolioStarterContent: PageContent = {
           url: 'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&q=80&w=1800',
           alt: 'Couple embracing on a mountain ridge',
         },
-        cta: { label: 'View the story', url: '#' },
+        cta: { label: 'Inquire about this shoot', url: '#contact' },
       },
     ],
   },

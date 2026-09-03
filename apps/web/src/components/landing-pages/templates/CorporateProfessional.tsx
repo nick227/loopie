@@ -439,24 +439,53 @@ function ServiceSelectorSection({ content, editable, onChange }: SectionProps<'s
                     />
                   )}
                 </div>
-                {!editable && activeService.cta ? (
-                  <div
-                    className="absolute inset-0 flex flex-col justify-end p-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                    style={{ background: `linear-gradient(to top, ${inv(85)}, transparent)` }}
-                  >
-                    <h4 className="text-2xl font-bold mb-4" style={{ color: 'var(--lp-bg)' }}>
-                      {activeService.headline}
-                    </h4>
-                    <a
-                      href={activeService.cta.url}
-                      className="inline-flex items-center font-semibold transition-colors"
-                      style={{ color: 'var(--lp-bg)' }}
-                    >
-                      {activeService.cta.label}
-                      <ArrowRight className="ml-2 w-5 h-5" />
-                    </a>
-                  </div>
-                ) : null}
+                <div className="p-8">
+                  {editable ? (
+                    <>
+                      <CanvasText
+                        as="h3"
+                        ariaLabel={`Service ${items.indexOf(activeService) + 1} headline`}
+                        value={activeService.headline ?? ''}
+                        onChange={(headline) =>
+                          updateItem(items.indexOf(activeService), { headline })
+                        }
+                        style={{ color: 'var(--lp-ink)' }}
+                        className="text-2xl font-bold mb-4"
+                      />
+                      <EditableLinkTrigger
+                        label={activeService.cta?.label ?? ''}
+                        url={activeService.cta?.url ?? '#contact'}
+                        onChange={(next) => updateItem(items.indexOf(activeService), { cta: next })}
+                      >
+                        <span
+                          className="inline-flex items-center font-semibold"
+                          style={{ color: 'var(--lp-primary)' }}
+                        >
+                          {activeService.cta?.label || 'Add a call to action'}
+                          <ArrowRight className="ml-2 w-5 h-5" />
+                        </span>
+                      </EditableLinkTrigger>
+                    </>
+                  ) : (
+                    <>
+                      {activeService.headline ? (
+                        <h3 className="text-2xl font-bold mb-4" style={{ color: 'var(--lp-ink)' }}>
+                          {activeService.headline}
+                        </h3>
+                      ) : null}
+                      {activeService.cta?.label ? (
+                        <a
+                          href={activeService.cta.url}
+                          className="inline-flex items-center font-semibold"
+                          style={{ color: 'var(--lp-primary)' }}
+                        >
+                          {activeService.cta.label}
+                          <ArrowRight className="ml-2 w-5 h-5" />
+                        </a>
+                      ) : null}
+                    </>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -538,7 +567,7 @@ function FeatureGridSection({ content, editable, onChange }: SectionProps<'featu
     onChange({ items: items.map((row, idx) => (idx === i ? { ...row, ...patch } : row)) })
   }
   return (
-    <section id="approach" className="py-24" style={{ backgroundColor: 'var(--lp-bg)' }}>
+    <section id="features" className="py-24" style={{ backgroundColor: 'var(--lp-bg)' }}>
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-20">
           {editable ? (
@@ -1112,6 +1141,10 @@ function NavBar({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const brand = content?.brand ?? ''
   const links = content?.links ?? []
+  const contactIndex = links.findIndex((link) => link.url === '#contact')
+  const contactLink =
+    contactIndex >= 0 ? links[contactIndex]! : { label: 'Get in Touch', url: '#contact' }
+  const menuLinks = contactIndex >= 0 ? links.filter((_, index) => index !== contactIndex) : links
 
   function updateLink(i: number, patch: Partial<NavLink>) {
     onChange({ links: links.map((row, idx) => (idx === i ? { ...row, ...patch } : row)) })
@@ -1157,13 +1190,14 @@ function NavBar({
           </div>
 
           <div className="hidden md:flex items-center gap-8">
-            {links.map((link, i) =>
-              editable ? (
+            {menuLinks.map((link) => {
+              const sourceIndex = links.indexOf(link)
+              return editable ? (
                 <EditableLinkTrigger
-                  key={i}
+                  key={sourceIndex}
                   label={link.label}
                   url={link.url}
-                  onChange={(next) => updateLink(i, next)}
+                  onChange={(next) => updateLink(sourceIndex, next)}
                 >
                   <span className="text-sm font-semibold" style={{ color: ink(70) }}>
                     {link.label}
@@ -1171,15 +1205,15 @@ function NavBar({
                 </EditableLinkTrigger>
               ) : (
                 <a
-                  key={i}
+                  key={sourceIndex}
                   href={link.url}
                   className="text-sm font-semibold transition-colors"
                   style={{ color: ink(70) }}
                 >
                   {link.label}
                 </a>
-              ),
-            )}
+              )
+            })}
             {editable ? (
               <button
                 type="button"
@@ -1194,18 +1228,36 @@ function NavBar({
           </div>
 
           <div className="hidden md:flex items-center gap-4">
-            <a
-              href="#contact"
-              className="text-sm font-bold px-6 py-2.5 rounded-lg shadow-md transition-all hover:-translate-y-0.5"
-              style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
-            >
-              Get in Touch
-            </a>
+            {editable && contactIndex >= 0 ? (
+              <EditableLinkTrigger
+                label={contactLink.label}
+                url={contactLink.url}
+                onChange={(next) => updateLink(contactIndex, next)}
+              >
+                <span
+                  className="text-sm font-bold px-6 py-2.5 rounded-lg"
+                  style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+                >
+                  {contactLink.label}
+                </span>
+              </EditableLinkTrigger>
+            ) : (
+              <a
+                href={contactLink.url}
+                className="text-sm font-bold px-6 py-2.5 rounded-lg shadow-md transition-all hover:-translate-y-0.5"
+                style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+              >
+                {contactLink.label}
+              </a>
+            )}
           </div>
 
           <button
+            type="button"
             className="md:hidden p-2"
             style={{ color: ink(70) }}
+            aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileMenuOpen}
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -1219,7 +1271,7 @@ function NavBar({
           style={{ backgroundColor: 'var(--lp-bg)', borderColor: ink(10) }}
         >
           <div className="flex flex-col gap-4">
-            {links.map((link, i) => (
+            {menuLinks.map((link, i) => (
               <a
                 key={i}
                 href={link.url}
@@ -1232,11 +1284,12 @@ function NavBar({
             ))}
             <hr style={{ borderColor: ink(10) }} />
             <a
-              href="#contact"
+              href={contactLink.url}
+              onClick={() => setMobileMenuOpen(false)}
               className="text-center text-base font-bold px-6 py-3 rounded-lg"
               style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
             >
-              Get in Touch
+              {contactLink.label}
             </a>
           </div>
         </div>

@@ -72,15 +72,15 @@ export const corporateProfessionalSchema: TemplateSchema = {
 export const corporateProfessionalStarterContent: PageContent = {
   browser: {
     title: corporateProfessionalTitle,
-    faviconUrl: DEFAULT_PAGE_FAVICON_URL,
+    favicon: { url: DEFAULT_PAGE_FAVICON_URL },
   },
   nav: {
     brand: 'Nexus',
     links: [
       { label: 'Services', url: '#services' },
-      { label: 'Our Approach', url: '#approach' },
+      { label: 'Our Approach', url: '#features' },
       { label: 'Testimonials', url: '#testimonials' },
-      { label: 'Contact', url: '#contact' },
+      { label: 'Get in Touch', url: '#contact' },
     ],
   },
   hero: {
@@ -118,7 +118,7 @@ export const corporateProfessionalStarterContent: PageContent = {
           url: 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&q=80&w=800',
           alt: 'Strategy meeting',
         },
-        cta: { label: 'Learn More', url: '#' },
+        cta: { label: 'Talk about strategy', url: '#contact' },
       },
       {
         id: 'digital',
@@ -131,7 +131,7 @@ export const corporateProfessionalStarterContent: PageContent = {
           url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=800',
           alt: 'Digital network',
         },
-        cta: { label: 'View Capabilities', url: '#' },
+        cta: { label: 'Talk about digital', url: '#contact' },
       },
       {
         id: 'finance',
@@ -144,7 +144,7 @@ export const corporateProfessionalStarterContent: PageContent = {
           url: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=800',
           alt: 'Financial charts',
         },
-        cta: { label: 'Consult our Experts', url: '#' },
+        cta: { label: 'Talk about M&A', url: '#contact' },
       },
     ],
   },
