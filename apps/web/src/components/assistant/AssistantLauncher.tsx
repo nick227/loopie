@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Bot } from 'lucide-react'
-import { useNextStep } from '@project/sdk'
+import { useNextAction } from '@project/sdk'
 import { AssistantPanel } from './AssistantPanel'
 
 // The Header's entry point into Loopie Assistant — always visible (unlike the neighboring
@@ -9,9 +9,13 @@ import { AssistantPanel } from './AssistantPanel'
 // mounted (not conditionally rendered) so its own slide transition can run both ways — see its
 // own comment.
 export function AssistantLauncher() {
-  const { data } = useNextStep()
+  const { data } = useNextAction()
   const [open, setOpen] = useState(false)
-  const hasNextAction = !!data?.actionId
+  // The resolver always resolves to *something* now (Calendar is an unconditional fallback), so
+  // the dot means "a genuine product gap is waiting," not "the assistant has an opinion" — it
+  // would be on permanently otherwise, which is exactly the "aggressive badge" this is meant to
+  // avoid.
+  const hasNextAction = !!data?.actionId && data.actionId !== 'calendar'
 
   return (
     <>

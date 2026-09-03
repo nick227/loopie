@@ -5,8 +5,8 @@ import { ArrowLeft, ArrowRight, Check, X } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   useBusiness,
-  useNextStep,
-  nextStepQueryKey,
+  useNextAction,
+  nextActionQueryKey,
   useCalendarBoard,
   useScheduleGoalIdea,
 } from '@project/sdk'
@@ -16,56 +16,45 @@ import { cn } from '@/lib/utils'
 import { AssistantBusinessInfoStep } from './steps/AssistantBusinessInfoStep'
 import { AssistantLogoStep } from './steps/AssistantLogoStep'
 import { AssistantHomepageCreateStep } from './steps/AssistantHomepageCreateStep'
-import { AssistantHomepagePublishStep } from './steps/AssistantHomepagePublishStep'
-import { STEP_COPY, greeting, type AssistantActionId } from './copy'
+import { AssistantPagePublishStep } from './steps/AssistantPagePublishStep'
+import { AssistantCampaignCreateStep } from './steps/AssistantCampaignCreateStep'
+import { AssistantCampaignResumeStep } from './steps/AssistantCampaignResumeStep'
+import {
+  STEP_COPY,
+  greeting,
+  pagePublishCardSubtitle,
+  campaignCreateFlowHeadline,
+  type AssistantActionId,
+} from './copy'
 
-// V1's locked happy path (business info -> logo -> homepage -> publish) is a presentation layer
-// over GET /assistant/next-step and existing operations — it never derives completion itself and
-// never persists which screen it's on; reopening always resumes wherever the live resolver says
-// is next. See CLAUDE.md "Next Steps Assistant". Once that path is complete, Home hands off to
-// Calendar's own already-built next-best-action system (GoalIdea pool) rather than dead-ending —
-// same one-click-act-then-see-what's-next shape, a different (already real, already tested) data
-// source, no new engine.
-type Confirmation = { message: string; terminal?: boolean }
+// The assistant is a cross-product operator, not a linear onboarding wizard: it inspects real
+// state across Business -> Pages -> Advertising -> (unconditional fallback) Calendar and surfaces
+// the single most valuable next action, always resolving to *something* — there's no "done"
+// sentinel any more. Every action's actual write goes through the same real operation that
+// feature's own UI uses; this panel only decides what to ask and renders the result. See
+// GET /assistant/next-action (apps/server/src/services/AssistantService.ts /
+// apps/server/src/lib/assistantActions.ts) for the priority chain itself.
+type NextAction = NonNullable<ReturnType<typeof useNextAction>['data']>
+type Confirmation = { message: string }
 
 const NON_TERMINAL_CONFIRMATION_MS = 1100
 
-function ConfirmationView({
-  message,
-  terminal,
-  homepageUrl,
-  onWhatsNext,
-}: {
-  message: string
-  terminal?: boolean
-  homepageUrl?: string | null
-  onWhatsNext: () => void
-}) {
+function ConfirmationView({ message }: { message: string }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 py-10 text-center">
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
         <Check size={22} />
       </div>
       <p className="text-base font-medium text-foreground">{message}</p>
-      {terminal ? (
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          {homepageUrl ? (
-            <a href={homepageUrl} target="_blank" rel="noopener noreferrer">
-              <Button variant="outline">View homepage</Button>
-            </a>
-          ) : null}
-          <Button onClick={onWhatsNext}>What&apos;s next?</Button>
-        </div>
-      ) : null}
     </div>
   )
 }
 
-// Home's state once the locked V1 path is done. Reuses Calendar's board read as-is (already
-// prioritized/diversified server-side) — one idea at a time, one-click "Add to this week"
-// (the same schedule mutation Calendar's own UI uses), then the just-scheduled idea naturally
-// drops out of the pool and the next one takes its place on refetch.
-function AssistantContinueHome({ homepageUrl }: { homepageUrl: string | null }) {
+// Calendar is the unconditional fallback once Business/Pages/Advertising have nothing left —
+// reuses Calendar's own board read as-is (already prioritized/diversified server-side). Renders
+// directly on Home (no click-through into a Flow screen) since it's already just one card + one
+// button, matching its existing shipped behavior.
+function AssistantCalendarCard() {
   const navigate = useNavigate()
   const board = useCalendarBoard()
   const scheduleIdea = useScheduleGoalIdea()
@@ -76,149 +65,135 @@ function AssistantContinueHome({ homepageUrl }: { homepageUrl: string | null }) 
   async function handleAdd() {
     if (!idea) return
     await scheduleIdea.mutateAsync({ templateId: idea.templateId, when: 'THIS_WEEK' })
-    setConfirmationMessage('Added to your calendar')
+    setConfirmationMessage(STEP_COPY.calendar.successMessage)
     window.setTimeout(() => setConfirmationMessage(null), NON_TERMINAL_CONFIRMATION_MS)
   }
 
-  return (
-    <div className="flex flex-1 flex-col gap-4 py-4">
-      <div>
-        <p className="text-sm text-muted-foreground">{greeting()}.</p>
-        <h3 className="mt-1 text-lg font-semibold text-foreground">
-          Nice work — your homepage is live.
-        </h3>
-      </div>
-      {homepageUrl ? (
-        <a href={homepageUrl} target="_blank" rel="noopener noreferrer" className="self-start">
-          <Button variant="outline">View homepage</Button>
-        </a>
-      ) : null}
-
-      <div className="mt-2 border-t border-border pt-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Keep growing
-        </p>
-        {confirmationMessage ? (
-          <div className="mt-3 flex items-center gap-2 text-sm font-medium text-foreground">
-            <Check size={16} className="text-primary" />
-            {confirmationMessage}
-          </div>
-        ) : board.isLoading ? (
-          <div className="mt-3">
-            <Spinner size="sm" />
-          </div>
-        ) : idea ? (
-          <div className="mt-3 rounded-xl border border-border bg-surface p-4">
-            <p className="text-sm font-semibold text-foreground">{idea.title}</p>
-            {idea.detail ? (
-              <p className="mt-0.5 text-xs text-muted-foreground">{idea.detail}</p>
-            ) : null}
-            <Button onClick={handleAdd} loading={scheduleIdea.isPending} size="sm" className="mt-3">
-              Add to this week
-            </Button>
-          </div>
-        ) : (
-          <p className="mt-3 text-sm text-muted-foreground">
-            You&apos;re all caught up. Check{' '}
-            <button
-              type="button"
-              onClick={() => navigate('/calendar')}
-              className="font-medium text-foreground underline underline-offset-2"
-            >
-              Calendar
-            </button>{' '}
-            for more ways to grow.
-          </p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function HomeView({
-  actionId,
-  homepageUrl,
-  businessName,
-  onOpenFlow,
-}: {
-  actionId: AssistantActionId | null
-  homepageUrl: string | null
-  businessName?: string
-  onOpenFlow: () => void
-}) {
-  if (!actionId) {
-    return <AssistantContinueHome homepageUrl={homepageUrl} />
-  }
-
-  const copy = STEP_COPY[actionId]
-
-  return (
-    <div className="flex flex-1 flex-col gap-4 py-4">
-      <div>
-        <p className="text-sm text-muted-foreground">{greeting()}. What are we working on?</p>
-        {businessName ? (
-          <h3 className="mt-1 text-lg font-semibold text-foreground">{businessName}</h3>
-        ) : null}
-      </div>
-      <button
-        type="button"
-        onClick={onOpenFlow}
-        className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4 text-left transition-colors hover:border-foreground/20 hover:bg-accent"
-      >
-        <div>
-          <p className="text-sm font-semibold text-foreground">{copy.cardTitle}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">{copy.cardSubtitle}</p>
-        </div>
-        <ArrowRight size={18} className="shrink-0 text-muted-foreground" />
-      </button>
-    </div>
-  )
-}
-
-function FlowView({
-  actionId,
-  fields,
-  landingPageId,
-  confirmation,
-  homepageUrl,
-  onSuccess,
-  onWhatsNext,
-}: {
-  actionId: AssistantActionId | null
-  fields: { name: string; label: string; type: string; required: boolean }[]
-  landingPageId: string | null
-  confirmation: Confirmation | null
-  homepageUrl: string | null
-  onSuccess: (message: string, opts?: { terminal?: boolean }) => void
-  onWhatsNext: () => void
-}) {
-  if (confirmation) {
+  if (confirmationMessage) return <ConfirmationView message={confirmationMessage} />
+  if (board.isLoading) {
     return (
-      <ConfirmationView
-        message={confirmation.message}
-        terminal={confirmation.terminal}
-        homepageUrl={homepageUrl}
-        onWhatsNext={onWhatsNext}
-      />
-    )
-  }
-
-  if (!actionId) {
-    return (
-      <div className="flex flex-1 items-center justify-center py-10">
+      <div className="py-4">
         <Spinner size="sm" />
       </div>
     )
   }
 
+  if (!idea) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        You&apos;re all caught up. Check{' '}
+        <button
+          type="button"
+          onClick={() => navigate('/calendar')}
+          className="font-medium text-foreground underline underline-offset-2"
+        >
+          Calendar
+        </button>{' '}
+        for more ways to grow.
+      </p>
+    )
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-surface p-4">
+      <p className="text-sm font-semibold text-foreground">{idea.title}</p>
+      {idea.detail ? <p className="mt-0.5 text-xs text-muted-foreground">{idea.detail}</p> : null}
+      <Button onClick={handleAdd} loading={scheduleIdea.isPending} size="sm" className="mt-3">
+        {STEP_COPY.calendar.actionLabel}
+      </Button>
+    </div>
+  )
+}
+
+function HomeView({
+  action,
+  homepageUrl,
+  businessName,
+  onOpenFlow,
+}: {
+  action: NextAction
+  homepageUrl: string | null
+  businessName?: string
+  onOpenFlow: () => void
+}) {
+  const actionId = action.actionId as AssistantActionId
   const copy = STEP_COPY[actionId]
+  const cardSubtitle =
+    actionId === 'page_publish' && action.pageName
+      ? pagePublishCardSubtitle(action.pageName)
+      : copy.cardSubtitle
+
+  return (
+    <div className="flex flex-1 flex-col gap-4 py-4">
+      <div>
+        <p className="text-sm text-muted-foreground">
+          {greeting()}
+          {actionId === 'calendar' ? '.' : '. What are we working on?'}
+        </p>
+        {actionId === 'calendar' ? (
+          <h3 className="mt-1 text-lg font-semibold text-foreground">
+            Nice work — your homepage is live.
+          </h3>
+        ) : businessName ? (
+          <h3 className="mt-1 text-lg font-semibold text-foreground">{businessName}</h3>
+        ) : null}
+        {homepageUrl ? (
+          <a
+            href={homepageUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-block text-xs font-medium text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          >
+            View homepage
+          </a>
+        ) : null}
+      </div>
+      {actionId === 'calendar' ? (
+        <AssistantCalendarCard />
+      ) : (
+        <button
+          type="button"
+          onClick={onOpenFlow}
+          className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4 text-left transition-colors hover:border-foreground/20 hover:bg-accent"
+        >
+          <div>
+            <p className="text-sm font-semibold text-foreground">{copy.cardTitle}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{cardSubtitle}</p>
+          </div>
+          <ArrowRight size={18} className="shrink-0 text-muted-foreground" />
+        </button>
+      )}
+    </div>
+  )
+}
+
+function FlowView({
+  action,
+  confirmation,
+  onSuccess,
+  onClose,
+}: {
+  action: NextAction
+  confirmation: Confirmation | null
+  onSuccess: (message: string) => void
+  onClose: () => void
+}) {
+  if (confirmation) return <ConfirmationView message={confirmation.message} />
+
+  const actionId = action.actionId as AssistantActionId
+  const flowHeadline =
+    actionId === 'page_publish' && action.pageName
+      ? `You have an unpublished page: "${action.pageName}".`
+      : actionId === 'campaign_create' && action.pageName
+        ? campaignCreateFlowHeadline(action.pageName)
+        : STEP_COPY[actionId].flowHeadline
 
   return (
     <div className="flex-1 space-y-4 py-2">
-      <p className="text-base font-medium text-foreground">{copy.flowHeadline}</p>
+      <p className="text-base font-medium text-foreground">{flowHeadline}</p>
       {actionId === 'business_info' ? (
         <AssistantBusinessInfoStep
-          fields={fields}
+          fields={action.fields ?? []}
           onSuccess={() => onSuccess(STEP_COPY.business_info.successMessage)}
         />
       ) : null}
@@ -230,11 +205,31 @@ function FlowView({
           onSuccess={() => onSuccess(STEP_COPY.homepage_create.successMessage)}
         />
       ) : null}
-      {actionId === 'homepage_publish' && landingPageId ? (
-        <AssistantHomepagePublishStep
-          landingPageId={landingPageId}
-          onSuccess={() => onSuccess(STEP_COPY.homepage_publish.successMessage, { terminal: true })}
+      {(actionId === 'homepage_publish' || actionId === 'page_publish') && action.landingPageId ? (
+        <AssistantPagePublishStep
+          landingPageId={action.landingPageId}
+          pageName={actionId === 'page_publish' ? (action.pageName ?? undefined) : undefined}
+          onSuccess={() =>
+            onSuccess(
+              actionId === 'page_publish'
+                ? STEP_COPY.page_publish.successMessage
+                : STEP_COPY.homepage_publish.successMessage,
+            )
+          }
         />
+      ) : null}
+      {actionId === 'campaign_create' &&
+      action.landingPageId &&
+      action.pageName &&
+      action.pageUrl ? (
+        <AssistantCampaignCreateStep
+          pageName={action.pageName}
+          pageUrl={action.pageUrl}
+          onClose={onClose}
+        />
+      ) : null}
+      {actionId === 'campaign_resume' && action.campaignId ? (
+        <AssistantCampaignResumeStep campaignId={action.campaignId} onClose={onClose} />
       ) : null}
     </div>
   )
@@ -245,7 +240,7 @@ function FlowView({
 // slides via a transform, matching MobileNav.tsx's own persistent-DOM slide pattern, rather than
 // mounting/unmounting on every toggle.
 export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { data, isLoading, isError } = useNextStep()
+  const { data, isLoading, isError } = useNextAction()
   const business = useBusiness()
   const queryClient = useQueryClient()
   const [view, setView] = useState<'home' | 'flow'>('home')
@@ -265,24 +260,33 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
     if (open) panelRef.current?.focus()
   }, [open])
 
-  function advance() {
-    queryClient.invalidateQueries({ queryKey: nextStepQueryKey })
-  }
-
-  function handleStepSuccess(message: string, opts?: { terminal?: boolean }) {
-    advance()
-    setConfirmation({ message, terminal: opts?.terminal })
-    if (!opts?.terminal) {
-      window.setTimeout(() => setConfirmation(null), NON_TERMINAL_CONFIRMATION_MS)
+  // Every open starts at Home — predictable re-orientation rather than resuming wherever the
+  // user last drilled into (also matters after campaign_create/campaign_resume, which close the
+  // panel on navigating away; reopening it should show the fresh next action, not linger on the
+  // flow screen for the action that just completed). Adjusted during render (guarded by a
+  // previous-value comparison), not in an effect — this is React's own recommended pattern for
+  // "reset state when a prop changes" without an extra commit.
+  const [prevOpen, setPrevOpen] = useState(open)
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    if (open) {
+      setView('home')
+      setConfirmation(null)
     }
   }
 
-  function handleWhatsNext() {
-    setConfirmation(null)
+  // Calendar only ever renders on Home (see AssistantCalendarCard) — once an auto-advance lands
+  // on it while the user is still mid-flow, bounce back to Home so it's actually shown. Same
+  // during-render adjustment pattern as above.
+  if (data?.actionId === 'calendar' && view === 'flow' && !confirmation) {
     setView('home')
   }
 
-  const actionId = (data?.actionId ?? null) as AssistantActionId | null
+  function handleSuccess(message: string) {
+    queryClient.invalidateQueries({ queryKey: nextActionQueryKey })
+    setConfirmation({ message })
+    window.setTimeout(() => setConfirmation(null), NON_TERMINAL_CONFIRMATION_MS)
+  }
 
   return createPortal(
     <div
@@ -326,7 +330,7 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
           </button>
         ) : null}
 
-        {isLoading ? (
+        {isLoading || !data ? (
           <div className="flex flex-1 items-center justify-center py-10">
             <Spinner size="sm" />
           </div>
@@ -338,20 +342,17 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
           </div>
         ) : view === 'home' ? (
           <HomeView
-            actionId={actionId}
-            homepageUrl={data?.homepageUrl ?? null}
+            action={data}
+            homepageUrl={data.homepageUrl ?? null}
             businessName={business.data?.data?.name}
             onOpenFlow={() => setView('flow')}
           />
         ) : (
           <FlowView
-            actionId={actionId}
-            fields={data?.fields ?? []}
-            landingPageId={data?.landingPageId ?? null}
+            action={data}
             confirmation={confirmation}
-            homepageUrl={data?.homepageUrl ?? null}
-            onSuccess={handleStepSuccess}
-            onWhatsNext={handleWhatsNext}
+            onSuccess={handleSuccess}
+            onClose={onClose}
           />
         )}
       </div>

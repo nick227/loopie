@@ -1,11 +1,11 @@
 /**
- * Next Steps Assistant — verifies the V1 happy path (business info -> logo -> homepage ->
- * publish) end to end against a fresh account, entered through the Loopie Assistant icon in the
- * Shell header and driven entirely through the assistant panel. Each step calls a real existing
- * operation (updateBusiness, createLandingPage, publishLandingPage) — this proves the whole
- * chain, not just the resolver. Also verifies the panel is non-modal (background stays usable,
- * no backdrop) and that completion hands off to Calendar's real next-best-action content instead
- * of dead-ending.
+ * Loopie Assistant — verifies the cross-product priority chain (Business -> Pages ->
+ * Advertising -> Calendar fallback) end to end against a fresh account, entered through the
+ * Loopie Assistant icon in the Shell header and driven entirely through the assistant panel.
+ * Each action calls a real existing operation (updateBusiness, createLandingPage,
+ * publishLandingPage, createCampaign) — this proves the whole chain, not just the resolver. Also
+ * verifies the panel is non-modal (background stays usable, no backdrop) and that it hands off to
+ * a real ad-promotion action instead of dead-ending straight into Calendar.
  */
 import { test, expect } from '@playwright/test'
 import path from 'path'
@@ -58,6 +58,9 @@ test.describe('next steps assistant', () => {
     await expect(dialog.getByText("Let's get your business looking official.")).toBeVisible()
     await dialog.getByLabel('Industry').fill('Landscaping')
     await dialog.getByLabel('Location').fill('Austin, TX')
+    await dialog.getByLabel('Phone').fill('555-0100')
+    await dialog.getByLabel('Email').fill('hi@example.com')
+    await dialog.getByLabel('About your business').fill('We do landscaping.')
     await dialog.getByRole('button', { name: /continue/i }).click()
     await expect(dialog.getByText('Business details saved')).toBeVisible()
 
@@ -81,23 +84,91 @@ test.describe('next steps assistant', () => {
     await page.waitForURL(/\/landing-pages\/(?!new$)[^/]+$/)
     await expect(dialog.getByText('Homepage created')).toBeVisible({ timeout: 15000 })
 
-    // --- Step 4: publish — a "meaningful completion", so it waits for the user, offering
-    // real actions rather than auto-advancing away ---
+    // --- Step 4: publish homepage — no longer a dead end: it auto-advances into ADVERTISING,
+    // since the homepage is now published with no promotion. ---
     await expect(dialog.getByText('Your homepage is ready to go live.')).toBeVisible({
       timeout: 10000,
     })
     await dialog.getByRole('button', { name: /publish homepage/i }).click()
     await expect(dialog.getByText('Your homepage is live')).toBeVisible({ timeout: 15000 })
-    await expect(dialog.getByRole('link', { name: 'View homepage' })).toBeVisible({
+
+    // --- ADVERTISING: create the real promotion campaign, landing on the real campaign page ---
+    await expect(dialog.getByText(/is live, but nobody's being sent to it yet/i)).toBeVisible({
       timeout: 15000,
     })
-    await dialog.getByRole('button', { name: /what's next/i }).click()
+    await dialog.getByRole('button', { name: /create your first promotion/i }).click()
+    await page.waitForURL(/\/campaigns\/(?!new$)[^/]+$/)
+    // AssistantCampaignCreateStep closes the panel after navigating away.
+    await expect(dialog).toBeHidden({ timeout: 10000 })
+    const campaignId = page.url().split('/campaigns/')[1]!
 
-    // --- Back at Assistant Home: completion is derived live, no fake state, and the assistant
-    // hands off to Calendar's own real next-best-action content instead of dead-ending ---
-    await expect(dialog.getByText('Nice work — your homepage is live.')).toBeVisible()
+    // --- Reopening always starts at Home; the fresh campaign has zero creatives, so ADVERTISING
+    // now offers to resume it rather than create another one. ---
+    await assistantButton.click()
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByText('Finish setting up your campaign')).toBeVisible({
+      timeout: 15000,
+    })
+    await dialog.getByText('Finish setting up your campaign').click()
+    await dialog.getByRole('button', { name: /finish setting up your campaign/i }).click()
+    await page.waitForURL(new RegExp(`/campaigns/${campaignId}$`))
+    await expect(dialog).toBeHidden({ timeout: 10000 })
+
+    // --- Attach a creative to each campaign via the real API (not the ads UI — out of scope
+    // for this spec) so ADVERTISING stops finding anything to do, clearing the way to CALENDAR.
+    // Registration auto-provisions its own default published page (see
+    // AuthService.ts -> provisionDefaultPage), so there are genuinely two published pages
+    // needing promotion here, not just the one created through this flow — loop rather than
+    // hard-code a count. ---
+    const apiOrigin = process.env.PLAYWRIGHT_API_URL ?? 'http://localhost:3001'
+
+    async function attachCreativeTo(id: string) {
+      const assetRes = await page.request.post(`${apiOrigin}/assets`, {
+        data: {
+          type: 'IMAGE',
+          name: `e2e asset ${id}`,
+          url: 'https://picsum.photos/seed/assistant/800/600',
+        },
+      })
+      expect(assetRes.ok()).toBeTruthy()
+      const assetId = (await assetRes.json()).data.id
+      const creativeRes = await page.request.post(`${apiOrigin}/creatives`, {
+        data: { name: `e2e creative ${id}`, assetIds: [assetId] },
+      })
+      expect(creativeRes.ok()).toBeTruthy()
+      const creativeId = (await creativeRes.json()).data.id
+      const attachRes = await page.request.patch(`${apiOrigin}/campaigns/${id}`, {
+        data: { creativeIds: [creativeId] },
+      })
+      expect(attachRes.ok()).toBeTruthy()
+    }
+
+    await attachCreativeTo(campaignId)
+
+    for (let i = 0; i < 3; i++) {
+      const nextRes = await page.request.get(`${apiOrigin}/assistant/next-action`)
+      const next = (await nextRes.json()).data
+      if (next.type !== 'ADVERTISING' || next.actionId !== 'campaign_create') break
+      const campRes = await page.request.post(`${apiOrigin}/campaigns`, {
+        data: { name: `Promote ${next.pageName}`, destinationUrl: next.pageUrl },
+      })
+      expect(campRes.ok()).toBeTruthy()
+      await attachCreativeTo((await campRes.json()).data.id)
+    }
+
+    // These fixture calls went straight to the API, bypassing React Query entirely — reload so
+    // the already-mounted panel's cached next-action response isn't stale.
+    await page.reload()
+    await expect(assistantButton).toBeVisible({ timeout: 15000 })
+
+    // --- Back at Assistant Home: with Business/Pages/Advertising all clear, it hands off to
+    // Calendar's own real next-best-action content instead of dead-ending ---
+    await assistantButton.click()
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByText('Nice work — your homepage is live.')).toBeVisible({
+      timeout: 15000,
+    })
     await expect(dialog.getByRole('link', { name: 'View homepage' })).toBeVisible()
-    await expect(dialog.getByText('Keep growing')).toBeVisible()
     const ideaCard = dialog.getByRole('button', { name: /add to this week/i })
     const caughtUp = dialog.getByText(/all caught up/i)
     await expect(ideaCard.or(caughtUp)).toBeVisible({ timeout: 15000 })
@@ -109,7 +180,7 @@ test.describe('next steps assistant', () => {
     await page.keyboard.press('Escape')
     await expect(dialog).toBeHidden()
 
-    // Recompute is live, not cached: reloading and reopening still shows the completed state.
+    // Recompute is live, not cached: reloading and reopening still shows the same state.
     await page.reload()
     await expect(assistantButton).toBeVisible({ timeout: 15000 })
     await assistantButton.click()

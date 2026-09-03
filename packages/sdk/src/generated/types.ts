@@ -382,7 +382,7 @@ export interface paths {
     patch: operations['updateBusiness']
     trace?: never
   }
-  '/assistant/next-step': {
+  '/assistant/next-action': {
     parameters: {
       query?: never
       header?: never
@@ -390,10 +390,10 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get the next incomplete Next Steps Assistant step for the current business
-     * @description V1's locked happy path only: business info -> logo -> homepage -> publish. Read-only — every step's actual write goes through its own existing operationId (updateBusiness, createLandingPage, publishLandingPage); this endpoint only describes what to ask next.
+     * Get the single most valuable next action across the business
+     * @description Cross-product operator: inspects Business/Page/Advertising state (Calendar as an unconditional fallback) and returns the single highest-priority action. Read-only — every action's actual write goes through its own existing operationId (updateBusiness, createLandingPage, publishLandingPage, createCampaign); this endpoint only decides what to surface next.
      */
-    get: operations['getNextStep']
+    get: operations['getNextAction']
     put?: never
     post?: never
     delete?: never
@@ -3595,22 +3595,38 @@ export interface components {
       type: 'text' | 'textarea' | 'url' | 'email' | 'phone'
       required: boolean
     }
-    /** @description The Next Steps Assistant's single next incomplete setup step, recomputed live from Business/LandingPage state on every read — never persisted. actionId null means the locked V1 happy path (business info -> logo -> homepage -> publish) is complete. */
-    NextStepDTO: {
-      /** @enum {string|null} */
-      actionId: 'business_info' | 'business_logo' | 'homepage_create' | 'homepage_publish' | null
-      /** @description The existing operationId the client should invoke to complete this step. */
-      operationId?: string | null
-      question?: string | null
+    /** @description The single most valuable next action across the business, recomputed live on every read from Business/LandingPage/Campaign state — never persisted. Priority chain: an incomplete business profile, then an incomplete/unpublished page, then a published page with no ad promotion, then (unconditional fallback) Calendar's own next-best-action system. Each action's actual write goes through the same real operation that feature's own UI uses — this endpoint only decides which one to surface next. */
+    AssistantActionDTO: {
+      /** @enum {string} */
+      type: 'BUSINESS_PROFILE' | 'PAGE' | 'ADVERTISING' | 'CALENDAR'
+      /** @enum {string} */
+      actionId:
+        | 'business_info'
+        | 'business_logo'
+        | 'homepage_create'
+        | 'homepage_publish'
+        | 'page_publish'
+        | 'campaign_create'
+        | 'campaign_resume'
+        | 'calendar'
+      /**
+       * @description The existing operationId the client should invoke to complete this action; null for pure-navigation actions (campaign_resume, calendar).
+       * @enum {string|null}
+       */
+      operationId?:
+        'updateBusiness' | 'createLandingPage' | 'publishLandingPage' | 'createCampaign' | null
+      /** @description business_info only — which fields are actually still missing. */
       fields?: components['schemas']['AssistantFieldSpec'][] | null
-      /** @description Populated only for homepage_publish (the draft to publish); null otherwise. */
+      /** @description homepage_publish / page_publish / campaign_create — the page being acted on. */
       landingPageId?: string | null
-      /** @description The live hosted URL of the business's homepage, once published. Display-only (e.g. a "View homepage" link) — never used to derive actionId. Null until published. */
+      /** @description page_publish / campaign_create — display copy for the page being acted on. */
+      pageName?: string | null
+      /** @description campaign_create — the hosted URL of the page being promoted. */
+      pageUrl?: string | null
+      /** @description campaign_resume — the draft campaign to resume. */
+      campaignId?: string | null
+      /** @description The live hosted URL of the business's homepage, once published. Display-only (e.g. a "View homepage" link) — always present once published, independent of which action is currently on top. Null until published. */
       homepageUrl?: string | null
-      progress?: {
-        completed?: number
-        total?: number
-      } | null
     }
     Billing: {
       subscriptionStatus: string | null
@@ -6959,7 +6975,7 @@ export interface operations {
       }
     }
   }
-  getNextStep: {
+  getNextAction: {
     parameters: {
       query?: never
       header?: never
@@ -6968,14 +6984,14 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Next step, or actionId null if the happy path is complete */
+      /** @description The next action */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
           'application/json': {
-            data?: components['schemas']['NextStepDTO']
+            data?: components['schemas']['AssistantActionDTO']
           }
         }
       }

@@ -518,43 +518,64 @@ components:
         type: { type: string, enum: [text, textarea, url, email, phone] }
         required: { type: boolean }
 
-    NextStepDTO:
+    AssistantActionDTO:
       type: object
-      required: [actionId]
+      required: [type, actionId]
       description: >
-        The Next Steps Assistant's single next incomplete setup step, recomputed live from
-        Business/LandingPage state on every read — never persisted. actionId null means the
-        locked V1 happy path (business info -> logo -> homepage -> publish) is complete.
+        The single most valuable next action across the business, recomputed live on every read
+        from Business/LandingPage/Campaign state — never persisted. Priority chain: an incomplete
+        business profile, then an incomplete/unpublished page, then a published page with no ad
+        promotion, then (unconditional fallback) Calendar's own next-best-action system. Each
+        action's actual write goes through the same real operation that feature's own UI uses —
+        this endpoint only decides which one to surface next.
       properties:
+        type:
+          type: string
+          enum: [BUSINESS_PROFILE, PAGE, ADVERTISING, CALENDAR]
         actionId:
           type: string
-          nullable: true
-          enum: [business_info, business_logo, homepage_create, homepage_publish]
+          enum:
+            - business_info
+            - business_logo
+            - homepage_create
+            - homepage_publish
+            - page_publish
+            - campaign_create
+            - campaign_resume
+            - calendar
         operationId:
           type: string
           nullable: true
-          description: The existing operationId the client should invoke to complete this step.
-        question: { type: string, nullable: true }
+          enum: [updateBusiness, createLandingPage, publishLandingPage, createCampaign]
+          description: The existing operationId the client should invoke to complete this action; null for pure-navigation actions (campaign_resume, calendar).
         fields:
           type: array
           nullable: true
           items: { $ref: '#/components/schemas/AssistantFieldSpec' }
+          description: business_info only — which fields are actually still missing.
         landingPageId:
           type: string
           nullable: true
-          description: Populated only for homepage_publish (the draft to publish); null otherwise.
+          description: homepage_publish / page_publish / campaign_create — the page being acted on.
+        pageName:
+          type: string
+          nullable: true
+          description: page_publish / campaign_create — display copy for the page being acted on.
+        pageUrl:
+          type: string
+          nullable: true
+          description: campaign_create — the hosted URL of the page being promoted.
+        campaignId:
+          type: string
+          nullable: true
+          description: campaign_resume — the draft campaign to resume.
         homepageUrl:
           type: string
           nullable: true
           description: >
             The live hosted URL of the business's homepage, once published. Display-only (e.g. a
-            "View homepage" link) — never used to derive actionId. Null until published.
-        progress:
-          type: object
-          nullable: true
-          properties:
-            completed: { type: integer }
-            total: { type: integer }
+            "View homepage" link) — always present once published, independent of which action is
+            currently on top. Null until published.
 
     Billing:
       type: object
@@ -4840,25 +4861,27 @@ paths:
                 properties:
                   data: { $ref: '#/components/schemas/Business' }
 
-  # ---------- Next Steps Assistant ----------
-  /assistant/next-step:
+  # ---------- Loopie Assistant ----------
+  /assistant/next-action:
     get:
-      operationId: getNextStep
-      summary: Get the next incomplete Next Steps Assistant step for the current business
+      operationId: getNextAction
+      summary: Get the single most valuable next action across the business
       description: >
-        V1's locked happy path only: business info -> logo -> homepage -> publish. Read-only —
-        every step's actual write goes through its own existing operationId (updateBusiness,
-        createLandingPage, publishLandingPage); this endpoint only describes what to ask next.
+        Cross-product operator: inspects Business/Page/Advertising state (Calendar as an
+        unconditional fallback) and returns the single highest-priority action. Read-only — every
+        action's actual write goes through its own existing operationId (updateBusiness,
+        createLandingPage, publishLandingPage, createCampaign); this endpoint only decides what to
+        surface next.
       tags: [assistant]
       responses:
         '200':
-          description: Next step, or actionId null if the happy path is complete
+          description: The next action
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  data: { $ref: '#/components/schemas/NextStepDTO' }
+                  data: { $ref: '#/components/schemas/AssistantActionDTO' }
 
   # ---------- Contacts ----------
   /contacts:

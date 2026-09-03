@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useUpdateBusiness } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Textarea } from '@/components/ui/Textarea'
 import { STEP_COPY } from '../copy'
 
 type FieldSpec = { name: string; label: string; type: string; required: boolean }
@@ -34,12 +35,21 @@ export function AssistantBusinessInfoStep({
           >
             {field.label}
           </label>
-          <Input
-            id={`assistant-${field.name}`}
-            value={values[field.name] ?? ''}
-            onChange={(e) => setValues((prev) => ({ ...prev, [field.name]: e.target.value }))}
-            required={field.required}
-          />
+          {field.type === 'textarea' ? (
+            <Textarea
+              id={`assistant-${field.name}`}
+              value={values[field.name] ?? ''}
+              onChange={(e) => setValues((prev) => ({ ...prev, [field.name]: e.target.value }))}
+              required={field.required}
+            />
+          ) : (
+            <Input
+              id={`assistant-${field.name}`}
+              value={values[field.name] ?? ''}
+              onChange={(e) => setValues((prev) => ({ ...prev, [field.name]: e.target.value }))}
+              required={field.required}
+            />
+          )}
         </div>
       ))}
       <Button

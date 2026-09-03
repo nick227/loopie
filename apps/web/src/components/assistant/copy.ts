@@ -1,19 +1,25 @@
-// Client-owned conversational copy for the V1 happy path (business info -> logo -> homepage ->
-// publish). Deliberately kept separate from the server's actionId/operationId contract — this is
-// presentation only, so evolving the wording never touches the resolver.
+// Client-owned conversational copy for the assistant's cross-product action set. Deliberately
+// separate from the server's type/actionId/operationId contract — this is presentation only, so
+// evolving the wording never touches the resolver.
 export type AssistantActionId =
-  'business_info' | 'business_logo' | 'homepage_create' | 'homepage_publish'
+  | 'business_info'
+  | 'business_logo'
+  | 'homepage_create'
+  | 'homepage_publish'
+  | 'page_publish'
+  | 'campaign_create'
+  | 'campaign_resume'
+  | 'calendar'
 
-export const STEP_COPY: Record<
-  AssistantActionId,
-  {
-    cardTitle: string
-    cardSubtitle: string
-    flowHeadline: string
-    actionLabel: string
-    successMessage: string
-  }
-> = {
+type ActionCopy = {
+  cardTitle: string
+  cardSubtitle: string
+  flowHeadline: string
+  actionLabel: string
+  successMessage: string
+}
+
+export const STEP_COPY: Record<AssistantActionId, ActionCopy> = {
   business_info: {
     cardTitle: 'Finish your business profile',
     cardSubtitle: 'A couple quick details to get started',
@@ -42,6 +48,44 @@ export const STEP_COPY: Record<
     actionLabel: 'Publish homepage',
     successMessage: 'Your homepage is live',
   },
+  page_publish: {
+    cardTitle: 'Publish your other page',
+    cardSubtitle: 'You have a page ready to go live',
+    flowHeadline: 'You have an unpublished page.',
+    actionLabel: 'Publish it',
+    successMessage: 'Page published',
+  },
+  campaign_create: {
+    cardTitle: 'Promote your page',
+    cardSubtitle: 'Nobody is being sent to it yet',
+    flowHeadline: "Your page is live, but nobody's being sent to it yet.",
+    actionLabel: 'Create your first promotion',
+    successMessage: 'Promotion created',
+  },
+  campaign_resume: {
+    cardTitle: 'Finish setting up your campaign',
+    cardSubtitle: 'A draft campaign is waiting on creatives',
+    flowHeadline: 'You started a campaign but it still needs a creative.',
+    actionLabel: 'Finish setting up your campaign',
+    successMessage: '',
+  },
+  calendar: {
+    cardTitle: 'Keep growing',
+    cardSubtitle: 'A next move for your business',
+    flowHeadline: 'Keep growing your business.',
+    actionLabel: 'Add to this week',
+    successMessage: 'Added to your calendar',
+  },
+}
+
+// page_publish is the first actionId needing a real instance name interpolated into copy — kept
+// as one small function rather than growing a templating system.
+export function pagePublishCardSubtitle(pageName: string) {
+  return `"${pageName}" is ready to go live`
+}
+
+export function campaignCreateFlowHeadline(pageName: string) {
+  return `"${pageName}" is live, but nobody's being sent to it yet.`
 }
 
 export function greeting() {
