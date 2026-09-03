@@ -11,7 +11,7 @@ async function loginAs(page: Page) {
   await page.getByLabel(/email/i).fill(DEMO_EMAIL)
   await page.getByLabel(/password/i).fill(DEMO_PASSWORD)
   await page.getByRole('button', { name: /log in|sign in/i }).click()
-  await page.waitForURL(/\/home/)
+  await page.waitForURL(/\/calendar/)
 }
 
 test.describe('campaign leads outcomes', () => {

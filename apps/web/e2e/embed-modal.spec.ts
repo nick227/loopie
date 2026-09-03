@@ -11,7 +11,7 @@ async function registerAndOpenHome(page: Page) {
   // screen setup before Inbox
   await page.waitForURL(/\/business\/setup/)
   await page.getByRole('button', { name: /continue to inbox/i }).click()
-  await page.waitForURL(/\/home/)
+  await page.waitForURL(/\/calendar/)
   await page.goto('/landing-pages')
   // Collection rows are the entire clickable link (UniversalRow)
   await page.locator('a[href^="/landing-pages/"]').first().click()

@@ -66,7 +66,7 @@ export const webinarSignupSchema: TemplateSchema = {
 export const webinarSignupStarterContent: PageContent = {
   browser: {
     title: webinarSignupTitle,
-    faviconUrl: DEFAULT_PAGE_FAVICON_URL,
+    favicon: { url: DEFAULT_PAGE_FAVICON_URL },
   },
   hero: {
     eyebrow: 'Free Live Masterclass',

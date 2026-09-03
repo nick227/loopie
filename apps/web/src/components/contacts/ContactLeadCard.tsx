@@ -26,7 +26,7 @@ const ACTIVITY_OPTIONS: { key: keyof LeadActivity; label: string }[] = [
   { key: 'meeting', label: 'Meeting' },
   { key: 'webinar', label: 'Webinar' },
   { key: 'followUp', label: 'Follow-up' },
-  { key: 'proposalSent', label: 'Proposal sent' },
+  { key: 'proposalSent', label: 'Proposal' },
 ]
 
 const LOGGABLE_TYPES: {
@@ -151,7 +151,6 @@ function StatusSelect({ leadId, stage }: { leadId: string; stage: LeadStage }) {
 
   return (
     <label className="block space-y-1">
-      <span className="text-xs text-muted-foreground">Status</span>
       <select
         value={stage}
         disabled={update.isPending}
@@ -282,18 +281,6 @@ function NextAction({
     )
   }
 
-  if (!note) {
-    return (
-      <button
-        type="button"
-        onClick={() => setEditing(true)}
-        className="text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-      >
-        Schedule follow-up
-      </button>
-    )
-  }
-
   return (
     <button type="button" onClick={() => setEditing(true)} className="block w-full text-left">
       <p className="text-sm text-foreground">{note}</p>
@@ -329,28 +316,11 @@ export function ContactLeadCard({
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0">
-        <p className="text-sm font-medium text-foreground">Sales</p>
-        <LogActivityButton contactId={contactId} />
+        <p className="text-xs text-muted-foreground">Status</p>
       </CardHeader>
       <CardContent className="space-y-5">
         <StatusSelect leadId={currentLead.id} stage={currentLead.stage} />
         <ActivityCheckboxes leadId={currentLead.id} activity={currentLead.activity} />
-        <div className="border-t border-border pt-3">
-          <p className="mb-1 text-xs text-muted-foreground">Next</p>
-          <div className="space-y-1">
-            <NextAction
-              leadId={currentLead.id}
-              note={currentLead.nextActionNote ?? null}
-              at={currentLead.nextActionAt ?? null}
-            />
-            <a
-              href="#contact-notes"
-              className="block text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-            >
-              Add note
-            </a>
-          </div>
-        </div>
       </CardContent>
     </Card>
   )

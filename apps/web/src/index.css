@@ -7,7 +7,7 @@
     --background: 0 0% 100%;
     --foreground: 240 10% 4%;
 
-    --surface: 240 5% 96%;
+    --surface: 255 100% 100%;
     --surface-foreground: 240 6% 20%;
 
     /* Primary: violet. Does real structural work (buttons, active nav, selected states, focus,

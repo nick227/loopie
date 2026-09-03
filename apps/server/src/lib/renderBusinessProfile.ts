@@ -123,7 +123,7 @@ export async function renderBusinessProfile(
       ? `<section class="details"><div><span class="eyebrow">Business</span><h2>${escapeHtml(business.targetAudience ? `Built for ${business.targetAudience}` : business.name)}</h2></div>${facts ? `<dl class="facts">${facts}</dl>` : ''}</section>`
       : ''
   const work = portfolio.length
-    ? `<section class="work"><span class="eyebrow">Selected work</span><h2>The work</h2><div class="gallery-grid">${portfolio.map((url, index) => `<img src="${escapeHtml(url)}" alt="Work by ${escapeHtml(business.name)}, image ${index + 2}" loading="lazy" />`).join('')}</div></section>`
+    ? `<section class="work"><div class="gallery-grid">${portfolio.map((url, index) => `<img src="${escapeHtml(url)}" alt="Work by ${escapeHtml(business.name)}, image ${index + 2}" loading="lazy" />`).join('')}</div></section>`
     : ''
   const elsewhere = socialProfiles.length
     ? `<footer class="elsewhere"><span class="eyebrow">Elsewhere</span><div class="elsewhere-links">${socialProfiles.map((profile) => `<a href="${escapeHtml(profile.url)}" target="_blank" rel="noopener noreferrer nofollow">${escapeHtml(profile.platform)} ↗</a>`).join('')}</div></footer>`

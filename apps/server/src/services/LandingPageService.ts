@@ -188,7 +188,14 @@ export class LandingPageService {
       ...selectedContent,
       browser: {
         title: selectedContent.browser?.title ?? data.name,
-        faviconUrl: selectedContent.browser?.faviconUrl ?? DEFAULT_PAGE_FAVICON_URL,
+        favicon:
+          selectedContent.browser?.favicon ??
+          (selectedContent.browser?.faviconUrl
+            ? { url: selectedContent.browser.faviconUrl }
+            : { url: DEFAULT_PAGE_FAVICON_URL }),
+        ...(selectedContent.browser?.faviconUrl
+          ? { faviconUrl: selectedContent.browser.faviconUrl }
+          : {}),
       },
     }
     const page = await db.$transaction(async (tx) => {
@@ -408,6 +415,9 @@ export class LandingPageService {
     } catch (err) {
       console.error('Failed to project page publication', err)
     }
+
+    const { CalendarService } = await import('./CalendarService')
+    await new CalendarService().completePagePublishGoals(result.page.businessId)
 
     return toVersionDTO(result.version)
   }

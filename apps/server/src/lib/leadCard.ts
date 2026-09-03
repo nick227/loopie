@@ -41,13 +41,39 @@ async function findCurrentLead(businessId: string, contactId: string) {
   return db.lead.findFirst({ where: { businessId, contactId }, orderBy: { createdAt: 'desc' } })
 }
 
+// Status + Activity live on Lead. Manually created / imported contacts often have none — only
+// form/acquisition paths used to create leads. Lazy-ensure an open MANUAL lead so the Overview
+// CRM panel is always editable, without a second "start pipeline" step.
+async function ensureOpenLead(businessId: string, contactId: string) {
+  const existing = await findCurrentLead(businessId, contactId)
+  if (existing?.openSlot === 'OPEN') return existing
+  if (existing) return existing // closed pipeline still has a card; don't open a second lead here
+
+  try {
+    return await db.lead.create({
+      data: {
+        businessId,
+        contactId,
+        sourceType: 'MANUAL',
+        stage: 'NEW',
+        openSlot: 'OPEN',
+      },
+    })
+  } catch (err) {
+    // Concurrent GET /contacts/{id} can race the unique (contactId, openSlot) guard.
+    const raced = await findCurrentLead(businessId, contactId)
+    if (raced) return raced
+    throw err
+  }
+}
+
 // Interaction has no leadId (adding one is a bigger, separately-justified schema change — see
 // CLAUDE.md's CRM pipeline/activity slice), so a lead's own open window (openedAt through
 // closedAt, or now if still open) is the pragmatic scope for "activity on this lead" — a contact
 // with more than one lead over time (repeat purchases) won't have an old lead's effort double
 // counted onto a new one.
 export async function currentLeadCard(businessId: string, contactId: string) {
-  const lead = await findCurrentLead(businessId, contactId)
+  const lead = await ensureOpenLead(businessId, contactId)
   if (!lead) return null
 
   const window = {

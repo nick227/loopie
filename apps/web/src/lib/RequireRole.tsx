@@ -2,7 +2,6 @@ import type { ReactNode } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { ApiError, useCurrentUser } from '@project/sdk'
 import { PageSpinner } from '@/components/ui/Spinner'
-import { InboxSummaryPage } from '@/pages/core/InboxSummaryPage'
 
 export function RequireRole({ role, children }: { role: string | string[]; children: ReactNode }) {
   const me = useCurrentUser()
@@ -10,7 +9,7 @@ export function RequireRole({ role, children }: { role: string | string[]; child
   const current = me.data?.data?.role
   if (!current) return <Navigate to="/login" replace />
   const allowed = Array.isArray(role) ? role.includes(current) : current === role
-  if (!allowed) return <Navigate to={current === 'AFFILIATE' ? '/portal' : '/home'} replace />
+  if (!allowed) return <Navigate to={current === 'AFFILIATE' ? '/portal' : '/calendar'} replace />
   return children
 }
 
@@ -30,7 +29,7 @@ export function RequireNonAffiliate() {
   return <Outlet />
 }
 
-export function InboxRoute() {
+function useBusinessDestination(destination: '/calendar' | '/profile') {
   const me = useCurrentUser()
   if (me.isLoading) return <PageSpinner />
   if (me.data?.data?.role === 'AFFILIATE') return <Navigate to="/portal" replace />
@@ -39,5 +38,15 @@ export function InboxRoute() {
   // saved, businessIdentityCompletedAt never goes back to null, and nothing else in the app
   // re-checks this — a user who navigates elsewhere mid-setup isn't chased back here.
   if (!me.data?.data?.businessIdentityCompletedAt) return <Navigate to="/business/setup" replace />
-  return <InboxSummaryPage />
+  return <Navigate to={destination} replace />
+}
+
+export function BusinessDefaultRoute() {
+  return useBusinessDestination('/calendar')
+}
+
+// Keep old bookmarks and inbound links useful after removing the Home surface: its content now
+// begins the private profile page.
+export function LegacyHomeRoute() {
+  return useBusinessDestination('/profile')
 }

@@ -305,13 +305,7 @@ export function ContactPage() {
         </div>
       </section>
 
-      {/* Marketing/sales work surface — the lead card lives here on create too (as a quiet
-          placeholder), same position, same "container," per the unification this page is for. */}
-      {isCreate ? (
-        <PendingActivityPlaceholder />
-      ) : (
-        <ContactLeadCard contactId={contactId!} currentLead={contact?.currentLead ?? null} />
-      )}
+      {isCreate ? <PendingActivityPlaceholder /> : null}
 
       {!isCreate ? (
         <>
@@ -331,32 +325,16 @@ export function ContactPage() {
 
           {tab === 'overview' ? (
             <div className="space-y-4">
+              <ContactLeadCard contactId={contactId!} currentLead={contact?.currentLead ?? null} />
+
               <Card id="contact-notes">
                 <CardHeader>
-                  <p className="text-sm font-medium">Notes</p>
+                  <p className="text-xs text-muted-foreground">Notes</p>
                 </CardHeader>
                 <CardContent>
                   <ContactNotes contactId={contactId!} />
                 </CardContent>
               </Card>
-
-              {provenance.length > 0 ? (
-                <Card>
-                  <CardHeader>
-                    <p className="text-sm font-medium">Field sources</p>
-                  </CardHeader>
-                  <CardContent className="grid grid-cols-2 gap-3 text-sm">
-                    {provenance.map((row) => (
-                      <div key={row.field}>
-                        <p className="text-xs text-muted-foreground">{row.field}</p>
-                        <p>
-                          {row.value} <span className="text-muted-foreground">({row.source})</span>
-                        </p>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              ) : null}
 
               {records.length > 0 ? (
                 <Card>

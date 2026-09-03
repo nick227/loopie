@@ -16,6 +16,8 @@ export type MediaRef = {
   assetId?: string
   url?: string
   alt?: string
+  /** Render-time URL added by withResolvedMedia; never required in persisted content. */
+  src?: string
 }
 
 export type CtaRef = {
@@ -59,7 +61,9 @@ export const DEFAULT_PAGE_FAVICON_URL = '/favicon.png'
 export type PageBrowserSettings = {
   /** Visitor-facing browser-tab title. Independent from LandingPage.name, which is internal. */
   title?: string
-  /** Absolute or root-relative URL used by the rendered page's <link rel="icon"> tag. */
+  /** Site-media image used by the rendered page's <link rel="icon"> tag. */
+  favicon?: MediaRef
+  /** @deprecated Kept only so pages saved during the URL-field rollout continue to render. */
   faviconUrl?: string
 }
 

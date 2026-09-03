@@ -17,7 +17,7 @@ async function registerAndOpenHome(page: Page) {
   // this is the one spec that actually exercises a genuinely fresh signup.
   await page.waitForURL(/\/business\/setup/)
   await page.getByRole('button', { name: /continue to inbox/i }).click()
-  await page.waitForURL(/\/home/)
+  await page.waitForURL(/\/calendar/)
   await page.goto('/landing-pages')
   // Collection rows are the entire clickable link (UniversalRow) — there is no separate "Edit"
   // text link. A fresh business already has one default Home page (provisionDefaultPage).

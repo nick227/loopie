@@ -5,10 +5,8 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SearchFilterBar } from '@/components/ui/SearchFilterBar'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Button } from '@/components/ui/Button'
-import { LayoutTemplate, Plus } from 'lucide-react'
+import { LayoutTemplate } from 'lucide-react'
 import { useFlatPages } from '@/hooks/useFlatPages'
-import { useQuickCreatePage } from '@/hooks/useQuickCreatePage'
 import { VirtualInfiniteList } from '@/components/ui/VirtualInfiniteList'
 import { PageRow } from './components/PageRow'
 import { UniversalRowList } from '@/components/ui/UniversalRow'
@@ -61,7 +59,6 @@ export function LandingPagesPage() {
   }
   const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useLandingPages()
-  const quickCreate = useQuickCreatePage()
   const items = useFlatPages({ data })
 
   let visible = items
@@ -74,29 +71,11 @@ export function LandingPagesPage() {
 
   const statuses = ['DRAFT', 'PUBLISHED', 'ARCHIVED']
 
-  async function handleCreate() {
-    setCreateError(null)
-    const result = await quickCreate.create()
-    if (!result.ok) setCreateError(result.message)
-  }
-
   return (
     <div className="space-y-6">
       <PagesCollectionInsights pages={items} />
 
-      <PageHeader
-        variant="list"
-        title="Pages"
-        primaryAction={
-          <Button
-            onClick={handleCreate}
-            loading={quickCreate.isPending}
-            disabled={quickCreate.templatesLoading}
-          >
-            <Plus size={16} /> New page
-          </Button>
-        }
-      />
+      <PageHeader variant="list" title="Pages" />
 
       {createError && (
         <p
@@ -178,9 +157,8 @@ export function LandingPagesPage() {
           description={
             q
               ? 'Try adjusting your search.'
-              : 'Create a first-party destination, then add real Ads and a reusable form.'
+              : 'Pick a starting point above to create your first page.'
           }
-          action={q ? undefined : { label: 'New page', onClick: handleCreate }}
         />
       ) : (
         <UniversalRowList>

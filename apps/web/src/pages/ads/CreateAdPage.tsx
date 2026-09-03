@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ApiError,
   useCreateAdRun,
   useCreateAdvertisement,
   useCreateAsset,
+  useLandingPage,
   useResumeAdRun,
   useUpdateAdvertisement,
 } from '@project/sdk'
@@ -24,6 +25,20 @@ export function CreateAdPage() {
   const [ctaLabel, setCtaLabel] = useState('')
   const [destinationUrl, setDestinationUrl] = useState('')
   const [assetIds, setAssetIds] = useState<string[]>([])
+
+  // Set only when arriving from a Pages jump-off (AdsStartRow) — "promote this page" prefills the
+  // destination instead of leaving the user to paste a URL by hand. A page picked from the Pages
+  // list, not a raw route param, so this stays an optional convenience, not a required flow.
+  const [searchParams] = useSearchParams()
+  const promotedPageId = searchParams.get('pageId')
+  const promotedPage = useLandingPage(promotedPageId ?? '').data?.data
+  const appliedPromotedPageId = useRef<string | null>(null)
+  useEffect(() => {
+    if (!promotedPage || appliedPromotedPageId.current === promotedPage.id) return
+    appliedPromotedPageId.current = promotedPage.id
+    setName((curr) => curr || `Promote: ${promotedPage.name}`)
+    setDestinationUrl((curr) => curr || promotedPage.hostedUrl || '')
+  }, [promotedPage])
   const [error, setError] = useState<string | null>(null)
   // Set once the Advertisement itself is first persisted, so a retry after a failed run-send
   // (bad budget, bad dates, a connector rejection) updates that same draft instead of creating a
@@ -35,10 +50,18 @@ export function CreateAdPage() {
     createAsset.isPending ||
     createRun.isPending ||
     resumeRun.isPending
+
+  // Set by the "Text ad" / "Video ad" starting points (AdsStartRow) — a format commitment, not a
+  // stored field on Advertisement itself (there isn't one; format is just whatever media ends up
+  // attached), so it only ever steers this one creation session's starting UI.
+  const kind =
+    searchParams.get('kind') === 'video' || searchParams.get('kind') === 'text'
+      ? (searchParams.get('kind') as 'video' | 'text')
+      : null
   // /ads/new is excluded from Shell.tsx's ENTITY_ROUTES regex (the same `(?!new$)` guard every
   // other entity route uses, so a literal ":id" of "new" can never bind) — this is the one place
   // that has to name itself explicitly rather than inheriting a real entity's title.
-  usePageTitle('New ad')
+  usePageTitle(kind === 'video' ? 'New video ad' : kind === 'text' ? 'New text ad' : 'New ad')
 
   async function saveAd() {
     if (adId.current) {
@@ -85,6 +108,8 @@ export function CreateAdPage() {
         const id = result.data?.id
         if (id) setAssetIds([id])
       }}
+      initialMediaPickerType={kind === 'video' ? 'VIDEO' : undefined}
+      autoFocusPrimaryText={kind === 'text'}
       saveReady={name.trim().length > 0}
       onSave={async () => {
         setError(null)

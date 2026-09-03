@@ -45,15 +45,51 @@ export class InternalMessagingService {
       return { threadId: null, recipientThreadId: thread.id, sentAt: now.toISOString() }
     }
 
-    if (input.senderBusinessId === recipient.id) {
-      throw { statusCode: 400, message: 'You cannot message your own business' }
-    }
-
     const sender = await db.business.findUnique({
       where: { id: input.senderBusinessId },
       select: { id: true, name: true },
     })
     if (!sender) throw { statusCode: 401, message: 'Sender not found' }
+
+    // Owners use the public contact action to verify the customer experience. A self-message has
+    // one inbox owner, so it needs one thread and one inbound copy (the normal mirrored-pair path
+    // below would otherwise write the same message twice). Leaving lastReadAt untouched makes a
+    // new test message light the unread badge just like a real customer's message.
+    if (sender.id === recipient.id) {
+      return db.$transaction(async (tx) => {
+        const now = new Date()
+        const thread = await tx.inboxThread.upsert({
+          where: {
+            businessId_peerBusinessId: {
+              businessId: recipient.id,
+              peerBusinessId: recipient.id,
+            },
+          },
+          update: { subject: recipient.name, updatedAt: now },
+          create: {
+            businessId: recipient.id,
+            peerBusinessId: recipient.id,
+            type: 'BUSINESS',
+            subject: recipient.name,
+            updatedAt: now,
+          },
+        })
+        await tx.inboxMessage.create({
+          data: {
+            threadId: thread.id,
+            kind: 'SITE',
+            direction: 'INBOUND',
+            body,
+            createdAt: now,
+          },
+        })
+        return {
+          threadId: thread.id,
+          recipientThreadId: thread.id,
+          sentAt: now.toISOString(),
+        }
+      })
+    }
 
     return db.$transaction(async (tx) => {
       const now = new Date()

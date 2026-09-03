@@ -54,13 +54,19 @@ export async function resolveActiveBusinessId(
     where: { userId_businessId: { userId: user.id, businessId: preferred } },
   })
 
+  // Skip membership if it's suspended (per-company suspension).
+  if (membership?.suspendedAt) membership = null
+
   if (!membership) {
-    // Revoked or stale session — fall back to home, then any membership.
+    // Revoked, suspended, or stale session — fall back to home, then any active membership.
     membership = await tx.businessMembership.findUnique({
       where: { userId_businessId: { userId: user.id, businessId: user.businessId } },
     })
+    if (membership?.suspendedAt) membership = null
     if (!membership) {
-      membership = await tx.businessMembership.findFirst({ where: { userId: user.id } })
+      membership = await tx.businessMembership.findFirst({
+        where: { userId: user.id, suspendedAt: null },
+      })
     }
   }
 

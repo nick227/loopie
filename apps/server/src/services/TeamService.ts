@@ -22,8 +22,9 @@ function toMemberDTO(row: {
   role: BusinessMemberRole
   isFounder: boolean
   jobTitle: string | null
+  suspendedAt: Date | null
   createdAt: Date
-  user: { email: string; suspendedAt: Date | null }
+  user: { email: string }
 }) {
   return {
     userId: row.userId,
@@ -31,7 +32,7 @@ function toMemberDTO(row: {
     role: row.role,
     isFounder: row.isFounder,
     jobTitle: row.jobTitle,
-    suspendedAt: row.user.suspendedAt?.toISOString() ?? null,
+    suspendedAt: row.suspendedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
   }
 }
@@ -97,7 +98,7 @@ export class TeamService {
   async getTeam(actor: AuthUser) {
     const members = await db.businessMembership.findMany({
       where: { businessId: actor.businessId },
-      include: { user: { select: { email: true, suspendedAt: true } } },
+      include: { user: { select: { email: true } } },
       orderBy: [{ isFounder: 'desc' }, { createdAt: 'asc' }],
     })
     const invitations = await db.businessInvitation.findMany({
@@ -170,7 +171,7 @@ export class TeamService {
     requireOwner(actor)
     const membership = await db.businessMembership.findUnique({
       where: { userId_businessId: { userId, businessId: actor.businessId } },
-      include: { user: { select: { email: true, suspendedAt: true } } },
+      include: { user: { select: { email: true } } },
     })
     if (!membership) throw { statusCode: 404, message: 'Team member not found' }
 
@@ -192,23 +193,27 @@ export class TeamService {
       }
     }
 
+    const memberData: Record<string, unknown> = {}
+    if (input.role !== undefined) memberData.role = input.role
+    if (input.jobTitle !== undefined) memberData.jobTitle = input.jobTitle?.trim() || null
     if (input.suspended !== undefined) {
-      await db.user.update({
-        where: { id: userId },
-        data: { suspendedAt: input.suspended ? new Date() : null },
-      })
-      if (input.suspended) {
-        await db.session.deleteMany({ where: { userId } })
-      }
+      memberData.suspendedAt = input.suspended ? new Date() : null
     }
 
-    const updated = await db.businessMembership.update({
-      where: { id: membership.id },
-      data: {
-        ...(input.role !== undefined ? { role: input.role } : {}),
-        ...(input.jobTitle !== undefined ? { jobTitle: input.jobTitle?.trim() || null } : {}),
-      },
-      include: { user: { select: { email: true, suspendedAt: true } } },
+    const updated = await db.$transaction(async (tx) => {
+      const row = await tx.businessMembership.update({
+        where: { id: membership.id },
+        data: memberData,
+        include: { user: { select: { email: true, suspendedAt: true } } },
+      })
+      // Immediately invalidate sessions pointing at this company when suspending.
+      if (input.suspended) {
+        await tx.session.updateMany({
+          where: { userId, activeBusinessId: actor.businessId },
+          data: { activeBusinessId: null },
+        })
+      }
+      return row
     })
     return toMemberDTO(updated)
   }

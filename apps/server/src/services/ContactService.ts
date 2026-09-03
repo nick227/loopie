@@ -147,6 +147,15 @@ export class ContactService {
       })
       await syncPrimaryIdentifiers(tx, created, data.source ?? 'LOOPIE')
       if (data.tags !== undefined) await syncContactTags(tx, businessId, created.id, data.tags)
+      await tx.lead.create({
+        data: {
+          businessId,
+          contactId: created.id,
+          sourceType: 'MANUAL',
+          stage: 'NEW',
+          openSlot: 'OPEN',
+        },
+      })
       return tx.contact.findFirstOrThrow({ where: { id: created.id }, include: LIFECYCLE_INCLUDE })
     })
     return toContactDTO(contact)

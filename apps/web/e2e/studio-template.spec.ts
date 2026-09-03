@@ -14,7 +14,7 @@ async function registerAndOpenHome(page: Page) {
   await page.getByRole('button', { name: /create account/i }).click()
   await page.waitForURL(/\/business\/setup/)
   await page.getByRole('button', { name: /continue to inbox/i }).click()
-  await page.waitForURL(/\/home/)
+  await page.waitForURL(/\/calendar/)
   await page.goto('/landing-pages')
   await page.locator('a[href^="/landing-pages/"]').first().click()
   await page.waitForURL(/\/landing-pages\/(?!new$)[^/]+$/)
