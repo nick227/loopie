@@ -19,6 +19,7 @@ import { AssistantHomepageCreateStep } from './steps/AssistantHomepageCreateStep
 import { AssistantPagePublishStep } from './steps/AssistantPagePublishStep'
 import { AssistantCampaignCreateStep } from './steps/AssistantCampaignCreateStep'
 import { AssistantCampaignResumeStep } from './steps/AssistantCampaignResumeStep'
+import { AssistantEducationDetail } from './AssistantEducationDetail'
 import {
   STEP_COPY,
   greeting,
@@ -26,6 +27,7 @@ import {
   campaignCreateFlowHeadline,
   type AssistantActionId,
 } from './copy'
+import { EDUCATION_TOPICS, type EducationTopicId } from './education'
 
 // The assistant is a cross-product operator, not a linear onboarding wizard: it inspects real
 // state across Business -> Pages -> Advertising -> (unconditional fallback) Calendar and surfaces
@@ -110,11 +112,13 @@ function HomeView({
   homepageUrl,
   businessName,
   onOpenFlow,
+  onSelectEducationTopic,
 }: {
   action: NextAction
   homepageUrl: string | null
   businessName?: string
   onOpenFlow: () => void
+  onSelectEducationTopic: (id: EducationTopicId) => void
 }) {
   const actionId = action.actionId as AssistantActionId
   const copy = STEP_COPY[actionId]
@@ -163,6 +167,23 @@ function HomeView({
           <ArrowRight size={18} className="shrink-0 text-muted-foreground" />
         </button>
       )}
+      <div className="mt-2 border-t border-border pt-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Learn about Loopie
+        </p>
+        <div className="mt-2 space-y-1">
+          {EDUCATION_TOPICS.map((topic) => (
+            <button
+              key={topic.id}
+              type="button"
+              onClick={() => onSelectEducationTopic(topic.id)}
+              className="block w-full rounded-lg px-2 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
+            >
+              {topic.question}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
@@ -243,8 +264,9 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
   const { data, isLoading, isError } = useNextAction()
   const business = useBusiness()
   const queryClient = useQueryClient()
-  const [view, setView] = useState<'home' | 'flow'>('home')
+  const [view, setView] = useState<'home' | 'flow' | 'education'>('home')
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
+  const [educationTopicId, setEducationTopicId] = useState<EducationTopicId | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -272,6 +294,7 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
     if (open) {
       setView('home')
       setConfirmation(null)
+      setEducationTopicId(null)
     }
   }
 
@@ -320,7 +343,7 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-2 sm:px-6">
-        {view === 'flow' && !confirmation ? (
+        {(view === 'flow' || view === 'education') && !confirmation ? (
           <button
             type="button"
             onClick={() => setView('home')}
@@ -346,6 +369,16 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
             homepageUrl={data.homepageUrl ?? null}
             businessName={business.data?.data?.name}
             onOpenFlow={() => setView('flow')}
+            onSelectEducationTopic={(id) => {
+              setEducationTopicId(id)
+              setView('education')
+            }}
+          />
+        ) : view === 'education' && educationTopicId ? (
+          <AssistantEducationDetail
+            topicId={educationTopicId}
+            onOpenFlow={() => setView('flow')}
+            onSelectTopic={(id) => setEducationTopicId(id)}
           />
         ) : (
           <FlowView
