@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EntityTabs } from '@/components/ui/EntityTabs'
 import { usePageTitle } from '@/lib/headerContext'
-import { Check, Eye, Loader2, Rocket } from 'lucide-react'
+import { Eye, Rocket } from 'lucide-react'
 import { PageCanvas } from './components/PageCanvas'
 import { PageToolbar } from './components/PageToolbar'
 import { LandingPageShareMenu } from './components/LandingPageShareMenu'
@@ -13,6 +13,7 @@ import { RICH_TEMPLATE_IDS, type TemplateSection } from './components/types'
 import { useLandingPageEditor } from './hooks/useLandingPageEditor'
 import { AdvancedTemplateRenderer } from './components/AdvancedTemplateRenderer'
 import { ContentView } from './components/ContentView'
+import { FormCaptureSettings } from './components/FormCaptureSettings'
 
 type Tab = 'editor' | 'content' | 'activity'
 
@@ -83,10 +84,12 @@ export function LandingPage() {
     fields,
     setFields,
     submitLabel,
+    setSubmitLabel,
+    successMessage,
+    setSuccessMessage,
     slots,
     setSlots,
     dirty,
-    savedAt,
     publishPending,
     setDirty,
     saveError,
@@ -140,20 +143,6 @@ export function LandingPage() {
               maxLength={150}
               className="min-w-0 flex-1 truncate rounded-md border border-transparent bg-transparent px-1.5 py-1 text-sm font-semibold text-foreground hover:border-input-border focus:border-input-border focus:outline-none focus:ring-2 focus:ring-ring"
             />
-            {dirty || savedAt ? (
-              <span
-                aria-live="polite"
-                title={dirty ? 'Saving changes' : 'Changes saved'}
-                className="inline-flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground"
-              >
-                {dirty ? (
-                  <Loader2 size={12} aria-hidden="true" className="animate-spin" />
-                ) : (
-                  <Check size={12} aria-hidden="true" className="text-success" />
-                )}
-                <span className="sr-only xl:not-sr-only">{dirty ? 'Saving…' : 'Saved'}</span>
-              </span>
-            ) : null}
           </div>
 
           <EntityTabs<Tab>
@@ -281,7 +270,21 @@ export function LandingPage() {
           </div>
         </div>
       ) : tab === 'content' ? (
-        <div className="mx-auto w-full max-w-[900px]">
+        <div className="mx-auto w-full max-w-[900px] space-y-3">
+          {formId ? (
+            <FormCaptureSettings
+              submitLabel={submitLabel}
+              successMessage={successMessage}
+              onSubmitLabel={(value) => {
+                setSubmitLabel(value)
+                setDirty(true)
+              }}
+              onSuccessMessage={(value) => {
+                setSuccessMessage(value)
+                setDirty(true)
+              }}
+            />
+          ) : null}
           <ContentView
             content={content}
             sections={sections}

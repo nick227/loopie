@@ -90,6 +90,7 @@ export function useLandingPageEditor() {
   const [formId, setFormId] = useState('')
   const [fields, setFields] = useState<FormFieldDraft[]>([])
   const [submitLabel, setSubmitLabel] = useState('Get in touch')
+  const [successMessage, setSuccessMessage] = useState("Thanks — we'll be in touch.")
   const [slots, setSlots] = useState<AdSlotDraft[]>([])
   const [dirty, setDirty] = useState(false)
   const [publishPending, setPublishPending] = useState(false)
@@ -112,7 +113,14 @@ export function useLandingPageEditor() {
       ...normalizedContent,
       browser: {
         title: normalizedContent.browser?.title ?? page.name,
-        faviconUrl: normalizedContent.browser?.faviconUrl ?? DEFAULT_PAGE_FAVICON_URL,
+        favicon:
+          normalizedContent.browser?.favicon ??
+          (normalizedContent.browser?.faviconUrl
+            ? { url: normalizedContent.browser.faviconUrl }
+            : { url: DEFAULT_PAGE_FAVICON_URL }),
+        ...(normalizedContent.browser?.faviconUrl
+          ? { faviconUrl: normalizedContent.browser.faviconUrl }
+          : {}),
       },
     })
     setLayoutConfig((page.layoutConfig as LayoutConfig | null) ?? {})
@@ -133,6 +141,7 @@ export function useLandingPageEditor() {
     hydratedFormId.current = form.id
     setFields(toDrafts(form.fields ?? []))
     setSubmitLabel(form.submitLabel)
+    setSuccessMessage(form.successMessage ?? "Thanks — we'll be in touch.")
   }, [formQuery.data?.data])
 
   // A template switch never touches content — content is canonical and shared across every
@@ -180,6 +189,7 @@ export function useLandingPageEditor() {
         await saveForm({
           formId,
           submitLabel,
+          successMessage: successMessage.trim() || null,
           fields: toApiFields(fields),
         })
       }
@@ -209,6 +219,7 @@ export function useLandingPageEditor() {
     formId,
     slots,
     submitLabel,
+    successMessage,
     fields,
     updatePage,
     saveSlots,
@@ -264,6 +275,9 @@ export function useLandingPageEditor() {
     fields,
     setFields,
     submitLabel,
+    setSubmitLabel,
+    successMessage,
+    setSuccessMessage,
     formId,
     setFormId,
     slots,

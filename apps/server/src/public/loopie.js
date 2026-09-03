@@ -122,6 +122,18 @@
       form.addEventListener('focusin', function onStart() {
         track('FORM_START')
         form.removeEventListener('focusin', onStart)
+        // Hosted LOOPIE forms already POST form-start from their own inline script
+        // (renderLandingPage.ts). Skip those so formStartCount is not double-incremented.
+        if (form.classList && form.classList.contains('lp-form-el')) return
+        var submitUrl = form.getAttribute('data-submit-url')
+        if (!submitUrl) return
+        var formStartUrl = submitUrl.replace(/\/submissions\/?$/, '/form-start')
+        if (formStartUrl === submitUrl) return
+        fetch(formStartUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+        }).catch(function () {})
       })
     }
   }

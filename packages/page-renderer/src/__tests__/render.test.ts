@@ -70,7 +70,7 @@ describe('renderLandingPageHtml', () => {
       content: {
         browser: {
           title: 'Customer-facing title & offer',
-          faviconUrl: 'https://cdn.example.com/icon.png?size=32&theme=dark',
+          favicon: { src: 'https://cdn.example.com/icon.png?size=32&theme=dark' },
         },
       },
       theme: {},
@@ -97,5 +97,29 @@ describe('renderLandingPageHtml', () => {
 
     expect(html).toContain('<title>Existing page</title>')
     expect(html).toContain('<link rel="icon" href="/favicon.png" />')
+  })
+
+  it('bakes success feedback and posts form-start on first focus', () => {
+    const html = renderLandingPageHtml({
+      pageName: 'Capture',
+      templateSchema: {
+        sections: [{ key: 'form', type: 'form-embed', order: 0 }],
+      },
+      content: {},
+      theme: {},
+      form: {
+        id: 'form-1',
+        submitLabel: 'Book now',
+        successMessage: 'Got it — talk soon.',
+        fields: [{ label: 'Email', fieldKey: 'email', type: 'EMAIL', required: true, order: 0 }],
+      },
+      submitActionUrl: 'https://app.example/landing-pages/page-1/submissions',
+    })
+
+    expect(html).toContain('class="lp-form-el"')
+    expect(html).toContain('Book now')
+    expect(html).toContain('Got it — talk soon.')
+    expect(html).toContain("replace(/\\/submissions\\/?$/, '/form-start')")
+    expect(html).toContain("addEventListener('focusin'")
   })
 })

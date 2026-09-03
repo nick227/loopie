@@ -44,6 +44,10 @@ export function landingPageSubmitUrl(landingPageId: string) {
   return `${PUBLIC_BASE_URL}/landing-pages/${landingPageId}/submissions`
 }
 
+export function landingPageFormStartUrl(landingPageId: string) {
+  return `${PUBLIC_BASE_URL}/landing-pages/${landingPageId}/form-start`
+}
+
 export function riverPostUrl(riverPostId: string) {
   return `${PUBLIC_BASE_URL}/river/posts/${riverPostId}`
 }

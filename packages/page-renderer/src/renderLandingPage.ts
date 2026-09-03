@@ -92,6 +92,10 @@ ${fieldsHtml}
   var formEl = document.currentScript.previousElementSibling;
   var errorEl = formEl.querySelector('.lp-error');
   var checkboxKeys = ${checkboxKeysJson};
+  var submitUrl = formEl.getAttribute('data-submit-url') || '';
+  // /landing-pages/{id}/submissions → /landing-pages/{id}/form-start — same origin as the
+  // submit action so formStartCount tracks real visitor focus (see LandingPage.formStartCount).
+  var formStartUrl = submitUrl.replace(/\\/submissions\\/?$/, '/form-start');
   // Generated once per page load (not per submit attempt) so a retry after a transient failure
   // reuses the same key and dedupes server-side instead of creating a second submission — see
   // SubmitLandingPageFormInput's required idempotencyKey.
@@ -104,6 +108,11 @@ ${fieldsHtml}
   }
   var idempotencyKey =
     window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : uuidFallback();
+  formEl.addEventListener('focusin', function onFormStart() {
+    formEl.removeEventListener('focusin', onFormStart);
+    if (!formStartUrl || formStartUrl === submitUrl) return;
+    fetch(formStartUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(function () {});
+  });
   formEl.addEventListener('submit', function (event) {
     event.preventDefault();
     errorEl.hidden = true;
