@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Bot } from 'lucide-react'
 import { useNextStep } from '@project/sdk'
-import { AssistantModal } from './AssistantModal'
+import { AssistantPanel } from './AssistantPanel'
 
 // The Header's entry point into Loopie Assistant — always visible (unlike the neighboring
 // Messages/River icons, which hide below `sm`), since this is meant to become the app's
-// recognizable command-center entry point, not a secondary utility.
+// recognizable command-center entry point, not a secondary utility. AssistantPanel is always
+// mounted (not conditionally rendered) so its own slide transition can run both ways — see its
+// own comment.
 export function AssistantLauncher() {
   const { data } = useNextStep()
   const [open, setOpen] = useState(false)
@@ -27,7 +29,7 @@ export function AssistantLauncher() {
           />
         ) : null}
       </button>
-      {open ? <AssistantModal onClose={() => setOpen(false)} /> : null}
+      <AssistantPanel open={open} onClose={() => setOpen(false)} />
     </>
   )
 }

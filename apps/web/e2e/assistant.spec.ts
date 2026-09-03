@@ -1,9 +1,11 @@
 /**
  * Next Steps Assistant — verifies the V1 happy path (business info -> logo -> homepage ->
  * publish) end to end against a fresh account, entered through the Loopie Assistant icon in the
- * Shell header and driven entirely through the assistant modal. Each step calls a real existing
+ * Shell header and driven entirely through the assistant panel. Each step calls a real existing
  * operation (updateBusiness, createLandingPage, publishLandingPage) — this proves the whole
- * chain, not just the resolver.
+ * chain, not just the resolver. Also verifies the panel is non-modal (background stays usable,
+ * no backdrop) and that completion hands off to Calendar's real next-best-action content instead
+ * of dead-ending.
  */
 import { test, expect } from '@playwright/test'
 import path from 'path'
@@ -32,7 +34,7 @@ test.describe('next steps assistant', () => {
     const assistantButton = page.getByRole('button', { name: /loopie assistant/i })
     await expect(assistantButton).toBeVisible({ timeout: 15000 })
 
-    // --- Modal opens/closes correctly, Escape closes it ---
+    // --- Panel opens/closes correctly, Escape closes it ---
     await assistantButton.click()
     const dialog = page.getByTestId('assistant-modal')
     await expect(dialog).toBeVisible()
@@ -40,9 +42,14 @@ test.describe('next steps assistant', () => {
     await page.keyboard.press('Escape')
     await expect(dialog).toBeHidden()
 
-    // --- Assistant Home: state-aware greeting + the next real action, not "Step 1 of 4" ---
+    // --- Non-modal: no backdrop, background stays usable while the panel is open ---
     await assistantButton.click()
     await expect(dialog).toBeVisible()
+    await page.getByRole('link', { name: 'Pages' }).click()
+    await expect(page).toHaveURL(/\/landing-pages/)
+    await expect(dialog).toBeVisible()
+
+    // --- Assistant Home: state-aware greeting + the next real action, not "Step 1 of 4" ---
     await expect(dialog.getByText(/what are we working on/i)).toBeVisible()
     await expect(dialog.getByText('Finish your business profile')).toBeVisible()
 
@@ -86,9 +93,19 @@ test.describe('next steps assistant', () => {
     })
     await dialog.getByRole('button', { name: /what's next/i }).click()
 
-    // --- Back at Assistant Home: completion is derived live, no fake state ---
+    // --- Back at Assistant Home: completion is derived live, no fake state, and the assistant
+    // hands off to Calendar's own real next-best-action content instead of dead-ending ---
     await expect(dialog.getByText('Nice work — your homepage is live.')).toBeVisible()
     await expect(dialog.getByRole('link', { name: 'View homepage' })).toBeVisible()
+    await expect(dialog.getByText('Keep growing')).toBeVisible()
+    const ideaCard = dialog.getByRole('button', { name: /add to this week/i })
+    const caughtUp = dialog.getByText(/all caught up/i)
+    await expect(ideaCard.or(caughtUp)).toBeVisible({ timeout: 15000 })
+    if (await ideaCard.isVisible()) {
+      await ideaCard.click()
+      await expect(dialog.getByText('Added to your calendar')).toBeVisible({ timeout: 10000 })
+    }
+
     await page.keyboard.press('Escape')
     await expect(dialog).toBeHidden()
 

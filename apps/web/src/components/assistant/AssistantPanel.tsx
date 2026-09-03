@@ -1,20 +1,31 @@
-import { useState } from 'react'
-import { ArrowLeft, ArrowRight, Check } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useNavigate } from 'react-router-dom'
+import { ArrowLeft, ArrowRight, Check, X } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useBusiness, useNextStep, nextStepQueryKey } from '@project/sdk'
-import { Modal } from '@/components/ui/Modal'
+import {
+  useBusiness,
+  useNextStep,
+  nextStepQueryKey,
+  useCalendarBoard,
+  useScheduleGoalIdea,
+} from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
+import { cn } from '@/lib/utils'
 import { AssistantBusinessInfoStep } from './steps/AssistantBusinessInfoStep'
 import { AssistantLogoStep } from './steps/AssistantLogoStep'
 import { AssistantHomepageCreateStep } from './steps/AssistantHomepageCreateStep'
 import { AssistantHomepagePublishStep } from './steps/AssistantHomepagePublishStep'
 import { STEP_COPY, greeting, type AssistantActionId } from './copy'
 
-// V1's locked happy path only (business info -> logo -> homepage -> publish). This modal is a
-// presentation/orchestration layer over GET /assistant/next-step and existing operations — it
-// never derives completion itself and never persists which screen it's on; reopening always
-// resumes wherever the live resolver says is next. See CLAUDE.md "Next Steps Assistant".
+// V1's locked happy path (business info -> logo -> homepage -> publish) is a presentation layer
+// over GET /assistant/next-step and existing operations — it never derives completion itself and
+// never persists which screen it's on; reopening always resumes wherever the live resolver says
+// is next. See CLAUDE.md "Next Steps Assistant". Once that path is complete, Home hands off to
+// Calendar's own already-built next-best-action system (GoalIdea pool) rather than dead-ending —
+// same one-click-act-then-see-what's-next shape, a different (already real, already tested) data
+// source, no new engine.
 type Confirmation = { message: string; terminal?: boolean }
 
 const NON_TERMINAL_CONFIRMATION_MS = 1100
@@ -50,6 +61,80 @@ function ConfirmationView({
   )
 }
 
+// Home's state once the locked V1 path is done. Reuses Calendar's board read as-is (already
+// prioritized/diversified server-side) — one idea at a time, one-click "Add to this week"
+// (the same schedule mutation Calendar's own UI uses), then the just-scheduled idea naturally
+// drops out of the pool and the next one takes its place on refetch.
+function AssistantContinueHome({ homepageUrl }: { homepageUrl: string | null }) {
+  const navigate = useNavigate()
+  const board = useCalendarBoard()
+  const scheduleIdea = useScheduleGoalIdea()
+  const [confirmationMessage, setConfirmationMessage] = useState<string | null>(null)
+
+  const idea = board.data?.data?.ideas?.[0] ?? null
+
+  async function handleAdd() {
+    if (!idea) return
+    await scheduleIdea.mutateAsync({ templateId: idea.templateId, when: 'THIS_WEEK' })
+    setConfirmationMessage('Added to your calendar')
+    window.setTimeout(() => setConfirmationMessage(null), NON_TERMINAL_CONFIRMATION_MS)
+  }
+
+  return (
+    <div className="flex flex-1 flex-col gap-4 py-4">
+      <div>
+        <p className="text-sm text-muted-foreground">{greeting()}.</p>
+        <h3 className="mt-1 text-lg font-semibold text-foreground">
+          Nice work — your homepage is live.
+        </h3>
+      </div>
+      {homepageUrl ? (
+        <a href={homepageUrl} target="_blank" rel="noopener noreferrer" className="self-start">
+          <Button variant="outline">View homepage</Button>
+        </a>
+      ) : null}
+
+      <div className="mt-2 border-t border-border pt-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Keep growing
+        </p>
+        {confirmationMessage ? (
+          <div className="mt-3 flex items-center gap-2 text-sm font-medium text-foreground">
+            <Check size={16} className="text-primary" />
+            {confirmationMessage}
+          </div>
+        ) : board.isLoading ? (
+          <div className="mt-3">
+            <Spinner size="sm" />
+          </div>
+        ) : idea ? (
+          <div className="mt-3 rounded-xl border border-border bg-surface p-4">
+            <p className="text-sm font-semibold text-foreground">{idea.title}</p>
+            {idea.detail ? (
+              <p className="mt-0.5 text-xs text-muted-foreground">{idea.detail}</p>
+            ) : null}
+            <Button onClick={handleAdd} loading={scheduleIdea.isPending} size="sm" className="mt-3">
+              Add to this week
+            </Button>
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-muted-foreground">
+            You&apos;re all caught up. Check{' '}
+            <button
+              type="button"
+              onClick={() => navigate('/calendar')}
+              className="font-medium text-foreground underline underline-offset-2"
+            >
+              Calendar
+            </button>{' '}
+            for more ways to grow.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function HomeView({
   actionId,
   homepageUrl,
@@ -62,19 +147,7 @@ function HomeView({
   onOpenFlow: () => void
 }) {
   if (!actionId) {
-    return (
-      <div className="flex flex-1 flex-col justify-center gap-2 py-8">
-        <p className="text-sm text-muted-foreground">{greeting()}.</p>
-        <h3 className="text-lg font-semibold text-foreground">
-          Nice work — your homepage is live.
-        </h3>
-        {homepageUrl ? (
-          <a href={homepageUrl} target="_blank" rel="noopener noreferrer" className="mt-2">
-            <Button variant="outline">View homepage</Button>
-          </a>
-        ) : null}
-      </div>
-    )
+    return <AssistantContinueHome homepageUrl={homepageUrl} />
   }
 
   const copy = STEP_COPY[actionId]
@@ -167,12 +240,30 @@ function FlowView({
   )
 }
 
-export function AssistantModal({ onClose }: { onClose: () => void }) {
+// Non-modal by design: no backdrop, no focus trap, no body-scroll lock — the whole point is that
+// the rest of the app stays usable while this is open. Always mounted (see AssistantLauncher) and
+// slides via a transform, matching MobileNav.tsx's own persistent-DOM slide pattern, rather than
+// mounting/unmounting on every toggle.
+export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { data, isLoading, isError } = useNextStep()
   const business = useBusiness()
   const queryClient = useQueryClient()
   const [view, setView] = useState<'home' | 'flow'>('home')
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+
+  useEffect(() => {
+    if (open) panelRef.current?.focus()
+  }, [open])
 
   function advance() {
     queryClient.invalidateQueries({ queryKey: nextStepQueryKey })
@@ -193,12 +284,38 @@ export function AssistantModal({ onClose }: { onClose: () => void }) {
 
   const actionId = (data?.actionId ?? null) as AssistantActionId | null
 
-  return (
-    <Modal title="Loopie Assistant" onClose={onClose} size="full">
-      <div
-        data-testid="assistant-modal"
-        className="mx-auto flex h-full w-full max-w-xl flex-1 flex-col px-4 py-2 sm:px-6"
-      >
+  return createPortal(
+    <div
+      ref={panelRef}
+      data-testid="assistant-modal"
+      role="dialog"
+      aria-modal="false"
+      aria-label="Loopie Assistant"
+      aria-hidden={!open}
+      tabIndex={-1}
+      className={cn(
+        'fixed inset-y-0 right-0 z-40 flex w-full flex-col border-l border-border bg-background shadow-2xl transition-[transform,visibility] duration-300 ease-out sm:w-[420px]',
+        // `visibility` only actually flips to hidden once the slide-out transition finishes
+        // (browsers hold the prior value for `hidden`-bound transitions, unlike `visible`-bound
+        // ones, which apply immediately) — so closing still slides out instead of vanishing.
+        open ? 'visible translate-x-0' : 'invisible translate-x-full',
+      )}
+    >
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 sm:px-6">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground">
+          Loopie Assistant
+        </h2>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-2 sm:px-6">
         {view === 'flow' && !confirmation ? (
           <button
             type="button"
@@ -238,6 +355,7 @@ export function AssistantModal({ onClose }: { onClose: () => void }) {
           />
         )}
       </div>
-    </Modal>
+    </div>,
+    document.body,
   )
 }
