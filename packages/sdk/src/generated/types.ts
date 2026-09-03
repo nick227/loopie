@@ -234,6 +234,26 @@ export interface paths {
     patch: operations['updateBusiness']
     trace?: never
   }
+  '/assistant/next-step': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get the next incomplete Next Steps Assistant step for the current business
+     * @description V1's locked happy path only: business info -> logo -> homepage -> publish. Read-only — every step's actual write goes through its own existing operationId (updateBusiness, createLandingPage, publishLandingPage); this endpoint only describes what to ask next.
+     */
+    get: operations['getNextStep']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/contacts': {
     parameters: {
       query?: never
@@ -3328,6 +3348,29 @@ export interface components {
       website?: string | null
       tagline?: string | null
       address?: string | null
+    }
+    AssistantFieldSpec: {
+      /** @description Maps to a field on the target operationId request body. */
+      name: string
+      label: string
+      /** @enum {string} */
+      type: 'text' | 'textarea' | 'url' | 'email' | 'phone'
+      required: boolean
+    }
+    /** @description The Next Steps Assistant's single next incomplete setup step, recomputed live from Business/LandingPage state on every read — never persisted. actionId null means the locked V1 happy path (business info -> logo -> homepage -> publish) is complete. */
+    NextStepDTO: {
+      /** @enum {string|null} */
+      actionId: 'business_info' | 'business_logo' | 'homepage_create' | 'homepage_publish' | null
+      /** @description The existing operationId the client should invoke to complete this step. */
+      operationId?: string | null
+      question?: string | null
+      fields?: components['schemas']['AssistantFieldSpec'][] | null
+      /** @description Populated only for homepage_publish (the draft to publish); null otherwise. */
+      landingPageId?: string | null
+      progress?: {
+        completed?: number
+        total?: number
+      } | null
     }
     Billing: {
       subscriptionStatus: string | null
@@ -6459,6 +6502,28 @@ export interface operations {
         content: {
           'application/json': {
             data?: components['schemas']['Business']
+          }
+        }
+      }
+    }
+  }
+  getNextStep: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Next step, or actionId null if the happy path is complete */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['NextStepDTO']
           }
         }
       }

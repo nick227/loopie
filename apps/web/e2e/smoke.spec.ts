@@ -22,14 +22,16 @@ test.describe('auth flow', () => {
     await page.getByLabel(/password/i).fill(DEMO_PASSWORD)
     await page.getByRole('button', { name: /log in|sign in/i }).click()
 
-    // Should redirect to Home (docs/strategy/03-product-principles.md's 2026-08-30 nav revision —
-    // a persistent top nav with Home as the first tab, not a standalone Inbox root)
+    // Calendar is the default authenticated destination; the former Home overview lives in the
+    // private profile.
     await expect(page).not.toHaveURL(/\/login/)
-    await expect(page).toHaveURL(/\/home/)
+    await expect(page).toHaveURL(/\/calendar/)
 
-    // Log out (Shell.tsx's persistent header — no sidebar; Log out lives in the account launcher)
-    await page.getByRole('button', { name: 'Menu' }).click()
-    await page.getByRole('button', { name: /log out|sign out/i }).click()
+    // Log out (Shell.tsx's persistent header — no sidebar/menu button; the Profile avatar link
+    // opens the private profile page, which is where Sign out actually lives)
+    await page.getByRole('link', { name: 'Profile' }).click()
+    await expect(page).toHaveURL(/\/profile/)
+    await page.getByRole('button', { name: /sign out/i }).click()
     await expect(page).toHaveURL(/\/login/)
   })
 
@@ -74,5 +76,5 @@ async function loginAs(page: import('@playwright/test').Page, email: string, pas
   await page.getByLabel(/email/i).fill(email)
   await page.getByLabel(/password/i).fill(password)
   await page.getByRole('button', { name: /log in|sign in/i }).click()
-  await page.waitForURL(/\/home/)
+  await page.waitForURL(/\/calendar/)
 }

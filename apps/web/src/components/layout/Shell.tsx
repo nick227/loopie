@@ -1,12 +1,13 @@
 import { Suspense, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useMatch, useNavigate } from 'react-router-dom'
 import { Inbox as InboxIcon, Mail, LogOut, Handshake, Bell, Waves, Command } from 'lucide-react'
-import { useCurrentUser, useLogout } from '@project/sdk'
+import { useCurrentUser, useInboxThreads, useLogout } from '@project/sdk'
 import { cn } from '@/lib/utils'
 import { CreateMenu, CreateButtonTrigger } from '@/components/layout/CreateMenu'
 import { SetHeaderTitleContext } from '@/lib/headerContext'
 import { ErrorBoundary } from '@/components/layout/ErrorBoundary'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { AssistantPanel } from '@/components/assistant/AssistantPanel'
 
 // Keyed by pathname so a page that crashed mid-render gets a clean slate on the next navigation,
 // without forcing Shell itself (header/nav) to remount — scoped to just the routed content, not
@@ -25,11 +26,10 @@ function RouteContent() {
 // Persistent top nav (2026-08-30 revision) — replaces the "Inbox is the root" model
 // (docs/strategy/03-product-principles.md's original 2026-08-29 thesis). That thesis didn't hold
 // up in practice; reverted to real peer tabs, directly requested and inspired by a reference
-// screenshot. See the dated revision note at the top of that doc. Home, Pages, Advertising,
-// Contacts, and Messages are all real, equally-weighted root destinations now — no more "root +
-// compact launcher for everything else."
+// screenshot. Calendar is the default workspace; the former Home overview now lives inside the
+// private profile, so it no longer occupies a peer tab.
 const NAV_TABS: { to: string; label: string; end?: boolean }[] = [
-  { to: '/home', label: 'Home', end: true },
+  { to: '/calendar', label: 'Calendar', end: true },
   { to: '/landing-pages', label: 'Pages' },
   { to: '/ads', label: 'Advertising' },
   { to: '/contacts', label: 'CRM' },
@@ -43,6 +43,28 @@ const AFFILIATE_NAV = [
   { to: '/portal/team', label: 'Team', icon: Handshake },
   { to: '/portal/payouts', label: 'Payouts', icon: Mail },
 ]
+
+function MessagesButton() {
+  const inbox = useInboxThreads({ filter: 'unread' })
+  const unreadCount = inbox.data?.data?.length ?? 0
+  const navigate = useNavigate()
+
+  return (
+    <button
+      type="button"
+      aria-label={unreadCount ? `Messages, ${unreadCount} unread` : 'Messages'}
+      onClick={() => navigate('/messages')}
+      className="relative hidden h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:flex"
+    >
+      <Bell size={17} />
+      {unreadCount ? (
+        <span className="absolute -right-0.5 -top-0.5 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-primary-foreground ring-2 ring-background">
+          {unreadCount > 99 ? '99+' : unreadCount}
+        </span>
+      ) : null}
+    </button>
+  )
+}
 
 function Header({
   pageTitle,
@@ -62,23 +84,19 @@ function Header({
   isAuthenticated: boolean
 }) {
   const location = useLocation()
-  const navigate = useNavigate()
   const pathname = location.pathname
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-14 w-full max-w-[900px] items-center gap-2">
-        <Link to="/home" className="flex shrink-0 items-center gap-2 rounded-lg py-1.5 pr-1">
+        <Link to="/calendar" className="flex shrink-0 items-center gap-2 rounded-lg py-1.5 pr-1">
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Command size={16} />
           </span>
         </Link>
-        {/* No fake business switcher — there's no multi-business membership model in this app
-            (User.businessId is a required scalar, one business per account). The business's own
-            editable identity now lives inline on Home (WelcomeSection → BusinessIdentityHeader),
-            not a separate page, so this just goes there. */}
+        {/* Active company — switch companies from Profile → Your team. */}
         <Link
-          to="/home"
+          to="/profile"
           className="hidden shrink-0 truncate rounded-lg px-1.5 py-1.5 text-sm font-semibold tracking-tight text-foreground transition-colors hover:bg-accent sm:inline"
         >
           {businessName ?? 'Loopie'}
@@ -112,18 +130,7 @@ function Header({
             <CreateMenu trigger={({ onClick }) => <CreateButtonTrigger onClick={onClick} />} />
           ) : null}
 
-          {isAuthenticated ? (
-            <button
-              type="button"
-              aria-label="Notifications"
-              onClick={() => {
-                navigate('/messages')
-              }}
-              className="hidden h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:flex"
-            >
-              <Bell size={17} />
-            </button>
-          ) : null}
+          {isAuthenticated ? <MessagesButton /> : null}
 
           {/* The one route Shell renders for an anonymous visitor too (River, outside
               <AuthGuard/> — see App.tsx) — always visible, not gated on isAuthenticated. */}
@@ -293,6 +300,7 @@ export function Shell() {
           </SetHeaderTitleContext.Provider>
         </div>
       </main>
+      {isAuthenticated ? <AssistantPanel /> : null}
     </div>
   )
 }
