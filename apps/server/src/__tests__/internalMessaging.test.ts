@@ -24,6 +24,47 @@ async function registerBusiness(email: string, businessName: string) {
 }
 
 describe('Internal site messaging', () => {
+  it('delivers an owner self-test as one unread message in their own inbox', async () => {
+    const owner = await registerBusiness('site-self@test.local', 'Self Test Studio')
+
+    const sent = await app.inject({
+      method: 'POST',
+      url: `/b/${owner.slug}/messages`,
+      headers: { cookie: owner.cookie },
+      payload: { body: 'Testing the contact button on my public page.' },
+    })
+    expect(sent.statusCode).toBe(201)
+    expect(sent.json().data.threadId).toBeTruthy()
+
+    const list = await app.inject({
+      method: 'GET',
+      url: '/inbox/threads?filter=unread',
+      headers: asAuth(owner.userId),
+    })
+    const thread = list.json().data.find((row: any) => row.id === sent.json().data.threadId)
+    expect(thread).toMatchObject({
+      subject: 'Self Test Studio',
+      peerBusinessId: owner.businessId,
+      canReply: true,
+      unread: true,
+      previewKind: 'SITE',
+      previewBody: 'Testing the contact button on my public page.',
+    })
+
+    const detail = await app.inject({
+      method: 'GET',
+      url: `/inbox/threads/${thread.id}`,
+      headers: asAuth(owner.userId),
+    })
+    expect(detail.json().data.messages).toMatchObject([
+      {
+        direction: 'INBOUND',
+        kind: 'SITE',
+        body: 'Testing the contact button on my public page.',
+      },
+    ])
+  })
+
   it('delivers an authenticated profile message into both inboxes and supports replies', async () => {
     const sender = await registerBusiness('site-sender@test.local', 'Sender Studio')
     const recipient = await registerBusiness('site-recipient@test.local', 'Recipient Works')

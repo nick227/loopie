@@ -29,7 +29,8 @@ async function loginAs(page: Page) {
   await page.getByLabel(/email/i).fill(DEMO_EMAIL)
   await page.getByLabel(/password/i).fill(DEMO_PASSWORD)
   await page.getByRole('button', { name: /log in|sign in/i }).click()
-  await page.waitForURL(/\/home/)
+  await page.waitForURL(/\/calendar/)
+  await page.goto('/profile')
 }
 
 test.describe('Advertising — Singleton/Collection/Entity reference implementation', () => {
@@ -145,8 +146,8 @@ test.describe('Advertising — Singleton/Collection/Entity reference implementat
     await expect(page.getByPlaceholder('Search ads by name...')).toHaveValue(marker)
 
     // --- Home tab -> same Home position ---
-    await page.getByRole('link', { name: 'Home', exact: true }).click()
-    await page.waitForURL(/\/home/)
+    await page.getByRole('link', { name: 'Profile', exact: true }).click()
+    await page.waitForURL(/\/profile/)
     await expect(page.getByRole('heading', { name: 'Live presence', exact: true })).toBeVisible()
     await page.waitForTimeout(800) // let the best-effort scroll-restore retries settle
     // Proves the restore pathway actually engaged (moved us away from a fresh top-of-page load),

@@ -36,7 +36,7 @@ export function EntityTabs<K extends string>({
           aria-selected={active === tab.key}
           onClick={() => onChange(tab.key)}
           className={cn(
-            'font-medium transition-colors',
+            'font-medium transition-colors min-w-[110px]',
             compact ? 'rounded-md px-2.5 py-1.5 text-xs' : 'rounded-full px-3.5 py-1.5 text-sm',
             active === tab.key
               ? compact

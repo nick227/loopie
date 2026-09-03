@@ -7,7 +7,7 @@ async function loginAs(page: Page) {
   await page.getByLabel(/email/i).fill('demo@loopie.app')
   await page.getByLabel(/password/i).fill('password123')
   await page.getByRole('button', { name: /log in|sign in/i }).click()
-  await page.waitForURL(/\/home/)
+  await page.waitForURL(/\/calendar/)
 }
 
 test.describe('billing, automations, payout queue', () => {

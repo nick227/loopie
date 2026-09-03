@@ -83,7 +83,7 @@ export const studioSchema: TemplateSchema = {
 export const studioStarterContent: PageContent = {
   browser: {
     title: studioTitle,
-    faviconUrl: DEFAULT_PAGE_FAVICON_URL,
+    favicon: { url: DEFAULT_PAGE_FAVICON_URL },
   },
   nav: {
     brand: 'Fieldnote',

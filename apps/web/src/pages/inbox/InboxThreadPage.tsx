@@ -165,12 +165,12 @@ export function InboxThreadPage() {
       <PageHeader
         variant="detail"
         title={thread.subject}
-        breadcrumb={{ to: '/home', label: 'Home' }}
+        breadcrumb={{ to: '/profile', label: 'Profile' }}
         secondaryActions={
           sourceLink ? (
             <Link
               to={sourceLink.to}
-              state={{ from: 'Home', fromTo: '/home' }}
+              state={{ from: 'Profile', fromTo: '/profile' }}
               className="text-sm text-muted-foreground underline-offset-4 hover:underline"
             >
               {sourceLink.label}

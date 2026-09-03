@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { Button } from '@/components/ui/Button'
 import { GalleryAddButton } from './editable/GalleryAddButton'
+import { BrowserFaviconField } from './BrowserFaviconField'
 import { mediaSrc } from '@/lib/media'
 import {
   KNOWN_SLOT_GROUPS,
@@ -494,11 +495,11 @@ export function ContentView({
             disabled={false}
             onChange={(title) => onBrowserSettings({ ...content.browser, title })}
           />
-          <TextField
-            label="Favicon URL"
-            value={content.browser?.faviconUrl ?? ''}
-            disabled={false}
-            onChange={(faviconUrl) => onBrowserSettings({ ...content.browser, faviconUrl })}
+          <BrowserFaviconField
+            favicon={content.browser?.favicon}
+            onChange={(favicon) =>
+              onBrowserSettings({ ...content.browser, favicon, faviconUrl: undefined })
+            }
           />
         </div>
       </div>

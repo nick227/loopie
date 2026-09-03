@@ -15,7 +15,8 @@ async function loginAs(page: import('@playwright/test').Page) {
   await page.getByLabel(/email/i).fill(DEMO_EMAIL)
   await page.getByLabel(/password/i).fill(DEMO_PASSWORD)
   await page.getByRole('button', { name: /log in|sign in/i }).click()
-  await page.waitForURL(/\/home/)
+  await page.waitForURL(/\/calendar/)
+  await page.goto('/profile')
 }
 
 test('Home shows the shared WelcomeSection: identity, Live presence, Recent response, Results, Add something', async ({

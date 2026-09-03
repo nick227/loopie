@@ -188,4 +188,66 @@ test.describe('next steps assistant', () => {
       timeout: 15000,
     })
   })
+
+  test('Site Education: answers questions and exposes the same real action, without mutating anything', async ({
+    page,
+  }) => {
+    test.setTimeout(60_000)
+
+    const unique = Date.now()
+    await page.goto('/register')
+    await page.getByLabel(/email/i).fill(`assistant-education-e2e+${unique}@example.com`)
+    await page.getByLabel(/^password/i).fill('password123')
+    await page.getByLabel(/business name/i).fill(`Assistant Education E2E ${unique}`)
+    await page.getByRole('button', { name: /create account/i }).click()
+    await expect(page).not.toHaveURL(/\/register/)
+    await page.getByRole('button', { name: /continue to calendar/i }).click()
+    await page.waitForURL(/\/calendar/)
+
+    const assistantButton = page.getByRole('button', { name: /loopie assistant/i })
+    await expect(assistantButton).toBeVisible({ timeout: 15000 })
+    await assistantButton.click()
+    const dialog = page.getByTestId('assistant-modal')
+    await expect(dialog).toBeVisible()
+
+    // --- The section is visible on Home alongside the real next action ---
+    await expect(dialog.getByText('Learn about Loopie')).toBeVisible()
+    await expect(dialog.getByText('Finish your business profile')).toBeVisible()
+
+    // --- "What is this site?" — a plain static answer, Back returns to Home ---
+    await dialog.getByRole('button', { name: 'What is this site?' }).click()
+    await expect(dialog.getByText(/Loopie is one platform/)).toBeVisible()
+    await dialog.getByRole('button', { name: /assistant home/i }).click()
+    await expect(dialog.getByText('Learn about Loopie')).toBeVisible()
+
+    // --- "How do I get started?" — state-aware note + the fixed path, with a link into
+    // "What should I do next?" ---
+    await dialog.getByRole('button', { name: 'How do I get started?' }).click()
+    await expect(
+      dialog.getByText("You're just getting started — here's the path ahead."),
+    ).toBeVisible()
+    await expect(
+      dialog.getByText(/complete your business profile, publish a useful page/),
+    ).toBeVisible()
+    await dialog.getByRole('button', { name: 'What should I do next?' }).click()
+
+    // --- "What should I do next?" reuses the resolver and exposes the SAME real action button
+    // as the Home card (same label as STEP_COPY.business_info.actionLabel: "Continue") — clicking
+    // it hands off into the real Flow, it doesn't mutate anything itself. ---
+    await expect(dialog.getByText(/the most useful thing you can do is/i)).toBeVisible()
+    await expect(
+      dialog.getByText('A complete profile makes every page and message you send look credible'),
+    ).toBeVisible()
+    const doItButton = dialog.getByRole('button', { name: /^continue$/i })
+    await expect(doItButton).toBeVisible()
+
+    // Nothing was mutated by reading these answers: the business is still incomplete.
+    const apiOrigin = process.env.PLAYWRIGHT_API_URL ?? 'http://localhost:3001'
+    const beforeClick = await page.request.get(`${apiOrigin}/business`)
+    expect((await beforeClick.json()).data.industry).toBeNull()
+
+    await doItButton.click()
+    await expect(dialog.getByText("Let's get your business looking official.")).toBeVisible()
+    await expect(dialog.getByLabel('Industry')).toBeVisible()
+  })
 })

@@ -77,6 +77,8 @@ export function AdEditor({
   riverPending,
   onDelete,
   deletePending,
+  initialMediaPickerType,
+  autoFocusPrimaryText,
 }: {
   name: string
   primaryText: string
@@ -133,8 +135,15 @@ export function AdEditor({
   riverPending?: boolean
   onDelete?: () => void
   deletePending?: boolean
+  // Set by the "Video ad" starting point (AdsStartRow → CreateAdPage) so a video ad opens straight
+  // into the media picker, locked to video, instead of landing on an empty stage the user still
+  // has to know to click into.
+  initialMediaPickerType?: 'IMAGE' | 'VIDEO'
+  // Set by the "Text ad" starting point — a text ad has no media step at all, so the useful first
+  // action is typing, not clicking past an empty media stage first.
+  autoFocusPrimaryText?: boolean
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(Boolean(initialMediaPickerType))
   const [embedModalOpen, setEmbedModalOpen] = useState(false)
   const [selected, setSelected] = useState<string[]>([])
   const [reviewKey, setReviewKey] = useState<string | null>(null)
@@ -244,6 +253,7 @@ export function AdEditor({
               placeholder="What shows above the media in the Feed post…"
               rows={3}
               voice
+              autoFocus={autoFocusPrimaryText}
             />
           </div>
 
@@ -390,6 +400,7 @@ export function AdEditor({
           selectedIds={assetIds}
           adding={pending}
           single
+          type={initialMediaPickerType}
           onToggle={(id) => onAssetIds(assetIds[0] === id ? [] : [id])}
           onAdd={onAddAsset}
           onConfirm={() => setOpen(false)}

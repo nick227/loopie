@@ -6,8 +6,8 @@ import { PageSpinner } from '@/components/ui/Spinner'
 import { BusinessIdentityForm } from '@/components/business/BusinessIdentityForm'
 
 // First-login step 0 (docs/strategy/03-product-principles.md) — one calm screen, no Shell chrome
-// (no Inbox/Create/More nav visible mid-setup), landing directly in Inbox on save. Reached only
-// when InboxRoute (lib/RequireRole.tsx) sees businessIdentityCompletedAt is still null; also
+// (no app navigation visible mid-setup), landing directly in Calendar on save. Reached only
+// when the default-route guard sees businessIdentityCompletedAt is still null; also
 // reachable directly by URL for a user who backs out before saving.
 export function BusinessSetupPage() {
   const navigate = useNavigate()
@@ -50,8 +50,8 @@ export function BusinessSetupPage() {
                 tagline: data?.tagline ?? null,
                 address: data?.address ?? null,
               }}
-              submitLabel="Continue to Inbox"
-              onSaved={() => navigate('/home', { replace: true })}
+              submitLabel="Continue to Calendar"
+              onSaved={() => navigate('/calendar', { replace: true })}
             />
           </CardContent>
         </Card>

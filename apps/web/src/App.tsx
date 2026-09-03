@@ -265,6 +265,9 @@ const LeadPage = lazy(() => import('@/pages/leads/LeadPage').then((m) => ({ defa
 const UpdateLeadPage = lazy(() =>
   import('@/pages/leads/UpdateLeadPage').then((m) => ({ default: m.UpdateLeadPage })),
 )
+const CalendarPage = lazy(() =>
+  import('@/pages/calendar/CalendarPage').then((m) => ({ default: m.CalendarPage })),
+)
 const SalesPage = lazy(() =>
   import('@/pages/sales/SalesPage').then((m) => ({ default: m.SalesPage })),
 )
@@ -303,7 +306,12 @@ const RiverPostPage = lazy(() =>
 import { AuthGuard } from '@/lib/AuthGuard'
 import { ActivityPage } from './pages/activity/ActivityPage'
 import { ErrorBoundary } from '@/components/layout/ErrorBoundary'
-import { RequireRole, RequireNonAffiliate, InboxRoute } from '@/lib/RequireRole'
+import {
+  RequireRole,
+  RequireNonAffiliate,
+  BusinessDefaultRoute,
+  LegacyHomeRoute,
+} from '@/lib/RequireRole'
 import { Shell } from '@/components/layout/Shell'
 
 const PlatformsPage = lazy(() =>
@@ -349,14 +357,12 @@ const AffiliatePortalPayoutsPage = lazy(() =>
 )
 
 // Plain BrowserRouter/Routes (not a data router) does no scroll management on its own — a normal
-// SPA navigation otherwise leaves window.scrollY wherever it was. Every route starts at the top
-// except /home, which restores its own saved position instead (see InboxSummaryPage's
-// useRestoreHomeScroll / docs/strategy/03-product-principles.md's state-continuity requirement)
-// — this runs first on remount, then Home's own effect repositions it, so the two never fight.
+// SPA navigation otherwise leaves window.scrollY wherever it was. Start each destination at the
+// top; collection pages that preserve their own position restore it after this effect.
 function ScrollToTop() {
   const location = useLocation()
   useEffect(() => {
-    if (location.pathname !== '/home') window.scrollTo(0, 0)
+    window.scrollTo(0, 0)
   }, [location.pathname])
   return null
 }
@@ -406,7 +412,7 @@ export function App() {
                 <Route path="/team/members/:userId" element={<TeamMemberPage />} />
                 <Route path="/activity" element={<ActivityPage />} />
                 <Route element={<RequireNonAffiliate />}>
-                  <Route index element={<Navigate to="/home" replace />} />
+                  <Route index element={<BusinessDefaultRoute />} />
                   <Route path="/contacts" element={<ContactsPage />} />
                   <Route path="/contacts/insights" element={<ContactsInsightsPage />} />
                   {/* /contacts/new and /contacts/:contactId render the same unified profile
@@ -558,14 +564,15 @@ export function App() {
                   <Route path="/ad-units/new" element={<CreateAdUnitPage />} />
                   <Route path="/ad-units/:adUnitId" element={<AdUnitPage />} />
                   <Route path="/ad-units/:adUnitId/edit" element={<UpdateAdUnitPage />} />
+                  <Route path="/calendar" element={<CalendarPage />} />
                   <Route path="/leads" element={<LeadsPage />} />
                   <Route path="/leads/:leadId" element={<LeadPage />} />
                   <Route path="/leads/:leadId/edit" element={<UpdateLeadPage />} />
                   <Route path="/sales" element={<SalesPage />} />
                   <Route path="/sales/new" element={<CreateSalePage />} />
                   <Route path="/sales/:saleId" element={<SalePage />} />
-                  <Route path="/home" element={<InboxRoute />} />
-                  <Route path="/inbox" element={<Navigate to="/home" replace />} />
+                  <Route path="/home" element={<LegacyHomeRoute />} />
+                  <Route path="/inbox" element={<Navigate to="/profile" replace />} />
                   <Route path="/results" element={<ResultsSummaryPage />} />
                   <Route path="/platforms" element={<PlatformsPage />} />
                   <Route
@@ -644,7 +651,7 @@ export function App() {
               </Route>
             </Route>
 
-            <Route path="*" element={<Navigate to="/home" replace />} />
+            <Route path="*" element={<Navigate to="/calendar" replace />} />
           </Routes>
         </Suspense>
       </ErrorBoundary>

@@ -12,6 +12,7 @@ import {
   useLandingPageTemplates,
   useLandingPages,
   useLogout,
+  useInboxThreads,
 } from '@project/sdk'
 import { Shell } from './Shell'
 
@@ -32,6 +33,7 @@ vi.mock('@project/sdk', async (importOriginal) => ({
   useAssets: vi.fn(),
   useCreateAsset: vi.fn(),
   useBusiness: vi.fn(),
+  useInboxThreads: vi.fn(),
 }))
 
 describe('Shell profile navigation', () => {
@@ -74,6 +76,9 @@ describe('Shell profile navigation', () => {
     vi.mocked(useBusiness).mockReturnValue({
       data: { data: { name: 'Owner Business', logoUrl: null } },
     } as unknown as ReturnType<typeof useBusiness>)
+    vi.mocked(useInboxThreads).mockReturnValue({
+      data: { data: [] },
+    } as unknown as ReturnType<typeof useInboxThreads>)
   })
 
   it('links the header avatar to the private profile', async () => {
@@ -93,9 +98,27 @@ describe('Shell profile navigation', () => {
     expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '/profile')
   })
 
+  it('shows the unread inbox count on the messages icon', async () => {
+    vi.mocked(useInboxThreads).mockReturnValue({
+      data: { data: [{ id: 'thread-1' }, { id: 'thread-2' }] },
+    } as unknown as ReturnType<typeof useInboxThreads>)
+
+    render(
+      <MemoryRouter initialEntries={['/inbox']}>
+        <Routes>
+          <Route element={<Shell />}>
+            <Route path="/inbox" element={<p>Inbox</p>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('button', { name: 'Messages, 2 unread' })).toHaveTextContent('2')
+  })
+
   it('renders a business profile (/b/:slug) inside the persistent Shell nav, not standalone chrome', async () => {
     // Regression guard: /b/:slug used to be a top-level route outside <Shell/> entirely, giving
-    // it its own bespoke header instead of the app's Home/Pages/Advertising/CRM nav. See the
+    // it its own bespoke header instead of the app's Calendar/Pages/Advertising/CRM nav. See the
     // "Business profiles: redesign + fold into the app shell" plan doc — Business Profile is the
     // business's identity *inside* Loopie, not a separate published website product.
     render(
@@ -108,11 +131,11 @@ describe('Shell profile navigation', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('link', { name: 'Home' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Home' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Calendar' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Pages' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Advertising' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'CRM' })).toBeInTheDocument()
-    // Not a tab root, so it gets the back-subheader — ENTITY_ROUTES falls back to River.
-    expect(screen.getByRole('button', { name: /river/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'River' })).toBeInTheDocument()
   })
 })

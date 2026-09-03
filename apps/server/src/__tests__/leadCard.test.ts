@@ -213,14 +213,19 @@ describe('lead card (Contact.currentLead)', () => {
     })
   })
 
-  it('is null for a contact with no lead at all', async () => {
+  it('lazy-creates an open MANUAL lead when the contact has none', async () => {
     const contact = await seedContact()
     const res = await app.inject({
       method: 'GET',
       url: `/contacts/${contact.id}`,
       headers: asAuth(testUserId),
     })
-    expect(res.json().data.currentLead).toBeNull()
+    const currentLead = res.json().data.currentLead
+    expect(currentLead).not.toBeNull()
+    expect(currentLead.stage).toBe('NEW')
+    expect(currentLead.sourceType).toBe('MANUAL')
+    const row = await db.lead.findFirst({ where: { contactId: contact.id, openSlot: 'OPEN' } })
+    expect(row?.id).toBe(currentLead.id)
   })
 
   it("scopes activity to the current lead's own open window — an older, closed lead's effort does not bleed onto a new one", async () => {

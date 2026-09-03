@@ -80,11 +80,9 @@ export function BusinessMessageDrawer({
             </div>
             <div>
               <h2 id="business-message-title" className="font-semibold text-foreground">
-                Message {businessName}
+                Contact {businessName}
               </h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Delivered to their Loopie inbox
-              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Delivered to the Loopie inbox</p>
             </div>
           </div>
           <Button

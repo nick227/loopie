@@ -20,7 +20,7 @@ test.describe('Activity Command Center', () => {
     await page.getByLabel(/email/i).fill(DEMO_EMAIL)
     await page.getByLabel(/password/i).fill(DEMO_PASSWORD)
     await page.getByRole('button', { name: /log in|sign in/i }).click()
-    await page.waitForURL(/\/home/)
+    await page.waitForURL(/\/calendar/)
 
     const user = await db.user.findUnique({ where: { email: DEMO_EMAIL } })
     businessId = user!.businessId

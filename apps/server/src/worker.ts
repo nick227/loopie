@@ -4,6 +4,7 @@ import { runDuePayouts } from './services/AffiliatePayoutService'
 import { runDueAdRunSyncs } from './services/AdRunSyncService'
 import { db, cleanupExpiredRateLimitBuckets } from '@project/db'
 import { processEmbedOutbox } from './services/activity/EmbedProjectionWorker'
+import { runDueGoalReminders } from './services/CalendarReminderService'
 
 async function main() {
   console.log('Worker started. Initializing pollers...')
@@ -48,6 +49,15 @@ async function main() {
         console.error('[Worker] Error processing embed outbox:', err),
       )
     }, embedProjectionIntervalMs)
+
+    const calendarReminderIntervalMs = Number(
+      process.env.CALENDAR_REMINDER_POLL_INTERVAL_MS ?? 60_000,
+    )
+    setInterval(() => {
+      runDueGoalReminders().catch((err) =>
+        console.error('[Worker] Error running due Calendar reminders:', err),
+      )
+    }, calendarReminderIntervalMs)
   }
 
   const shutdown = async () => {

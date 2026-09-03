@@ -5,6 +5,9 @@ import { requireAudience, requireAutomation, requireTemplate } from '../lib/owne
 import { scheduleAutomationRuns } from '../lib/automationScheduling'
 import { ACTIVE_SALE_WHERE } from '../lib/salePredicates'
 import { markOpenLeadActivityFromInteraction } from '../lib/leadActivity'
+import { CalendarService } from './CalendarService'
+
+const calendarService = new CalendarService()
 
 function toMessageDTO(message: any, recipientCount = 0) {
   return {
@@ -235,6 +238,13 @@ export class MessageService {
             triggerEventAt: sent.sentAt ?? new Date(),
           }),
         ),
+      )
+      // A real send is exactly the kind of CRM event Calendar work should react to, not just a
+      // manually-logged interaction — see ContactService.logActivity's identical call for the
+      // manual path. completeCrmWorkOnActivity is per-contact and best-effort (never throws), so
+      // this is safe to fan out across a whole audience send.
+      await Promise.all(
+        recipients.map((r) => calendarService.completeCrmWorkOnActivity(businessId, r.id)),
       )
     }
 

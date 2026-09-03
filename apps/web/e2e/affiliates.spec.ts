@@ -10,11 +10,13 @@ async function loginAs(page: Page, email: string, password: string) {
 }
 
 test.describe('affiliate portal', () => {
-  test('admin creates affiliate login, sale pays frozen net, manager assigns a cheaper deal', async ({ page }) => {
+  test('admin creates affiliate login, sale pays frozen net, manager assigns a cheaper deal', async ({
+    page,
+  }) => {
     page.on('dialog', (dialog) => dialog.accept())
     const stamp = Date.now()
     await loginAs(page, 'demo@loopie.app', 'password123')
-    await page.waitForURL(/\/home/)
+    await page.waitForURL(/\/calendar/)
     await expect(page.getByRole('link', { name: 'Affiliates' })).toBeVisible()
     await page.getByRole('link', { name: 'Affiliates' }).click()
     await page.waitForURL(/\/affiliates/)
@@ -35,7 +37,9 @@ test.describe('affiliate portal', () => {
     })
     expect(dealRes.status()).toBe(201)
     const dealId = (await dealRes.json()).data.id as string
-    await page.request.patch(`${API}/affiliate-classes/${classId}`, { data: { defaultDealId: dealId } })
+    await page.request.patch(`${API}/affiliate-classes/${classId}`, {
+      data: { defaultDealId: dealId },
+    })
 
     const cheapRes = await page.request.post(`${API}/affiliate-deals`, {
       data: { name: `E2E 5 ${stamp}`, classId, affiliateRateBps: 500, managerShareBps: 0 },
@@ -64,7 +68,13 @@ test.describe('affiliate portal', () => {
     const rep = (await repRes.json()).data
 
     const managerRes = await page.request.post(`${API}/affiliates`, {
-      data: { name: `E2E Manager ${stamp}`, classId, dealId, email: managerEmail, createLogin: true },
+      data: {
+        name: `E2E Manager ${stamp}`,
+        classId,
+        dealId,
+        email: managerEmail,
+        createLogin: true,
+      },
     })
     expect(managerRes.status()).toBe(201)
     const manager = (await managerRes.json()).data
@@ -82,18 +92,28 @@ test.describe('affiliate portal', () => {
     expect(sid).toBeTruthy()
 
     const submit = await page.request.post(`${API}/landing-pages/${published.id}/submissions`, {
-      data: { sessionId: sid, data: { name: `E2E Buyer ${stamp}`, email: `buyer-${stamp}@example.com` } },
+      data: {
+        sessionId: sid,
+        data: { name: `E2E Buyer ${stamp}`, email: `buyer-${stamp}@example.com` },
+      },
     })
     expect(submit.status()).toBe(201)
     const submitted = (await submit.json()).data
 
     const sale = await page.request.post(`${API}/sales`, {
-      data: { contactId: submitted.contactId, leadId: submitted.leadId, amount: 500, date: new Date().toISOString() },
+      data: {
+        contactId: submitted.contactId,
+        leadId: submitted.leadId,
+        amount: 500,
+        date: new Date().toISOString(),
+      },
     })
     expect(sale.status()).toBe(201)
 
     await page.goto('/affiliates/payouts')
-    const owed = page.getByRole('link', { name: `E2E Rep ${stamp}` }).locator('xpath=following-sibling::p')
+    const owed = page
+      .getByRole('link', { name: `E2E Rep ${stamp}` })
+      .locator('xpath=following-sibling::p')
     await expect(owed).toHaveText(/\$50\.00 pending/)
 
     await page.getByRole('button', { name: /log out/i }).click()

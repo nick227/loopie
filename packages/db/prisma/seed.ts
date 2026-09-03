@@ -5,6 +5,7 @@ import { seedRiversideDemo } from './seed/riverside'
 import { seedAffiliates } from './seed/affiliates'
 import { seedShowcase } from './seed/showcase'
 import { seedRiverAndProfiles } from './seed/river'
+import { seedCalendarDemo } from './seed/calendar'
 
 async function main() {
   console.log('Seeding...')
@@ -30,6 +31,8 @@ async function main() {
   // Depends on seedRiversideDemo's published landing page and seedShowcase's Advertisement — must
   // run after both.
   await seedRiverAndProfiles()
+  // Depends on seedRiversideDemo's Jane Smith lead (demo-lead-jane, a fixed seed id).
+  await seedCalendarDemo({ riversideId: riverside.id, oakId: oak.id, janeLeadId: 'demo-lead-jane' })
 
   console.log(
     `Seeded "${riverside.name}" + "${oak.name}". Password for every login: ${SEED_PASSWORD}`,

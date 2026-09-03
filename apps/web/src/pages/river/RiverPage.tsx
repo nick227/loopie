@@ -129,7 +129,7 @@ export function RiverPage() {
   const showSkeletons = feed.isPending
 
   return (
-    <div className="mx-auto max-w-[900px]">
+    <div className="mx-auto max-w-[590px]">
       {/* This whole header block (title/tabs/compose bar/banner) is its own snap point at the
           top of the document — without it, scroll position 0 has no snap point of its own (the
           first one belongs to the first stage post further down), so `proximity` snapping pulls

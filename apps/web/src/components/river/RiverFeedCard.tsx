@@ -154,11 +154,13 @@ function CtaRow({ item }: { item: RiverFeedItem }) {
     item.cta?.label ?? (item.type === 'AD' || item.type === 'SPONSORED' ? 'Learn more' : null)
   if (!label) return null
   return (
-    <a href={item.clickUrl} target="_blank" rel="noopener noreferrer" className="mt-4 block">
-      <Button variant="outline" size="sm" className="w-full sm:w-auto">
-        {label}
-      </Button>
-    </a>
+    <div className="w-full flex justify-end p-2">
+      <a href={item.clickUrl} target="_blank" rel="noopener noreferrer" className="block">
+        <Button variant="outline" size="sm" className="w-full sm:w-auto">
+          {label}
+        </Button>
+      </a>
+    </div>
   )
 }
 
@@ -534,7 +536,7 @@ function AuthorRow({
         </span>
       }
       trailing={
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5 pr-2">
           {showFollow ? (
             <Button
               type="button"
@@ -728,11 +730,11 @@ export function RiverFeedCard({
       <article
         ref={stageRef}
         style={stageStyle}
-        className="flex min-h-[55vh] mb-24 flex-col border-b border-border/60 px-6 py-6 snap-start"
+        className="flex min-h-[50vh] my-4 flex-col border-b border-border/90 shadow-lg rounded-lg px-6 py-6 snap-start"
       >
-        <div className="shrink-0">{authorRow}</div>
+        <div className="shrink-0 px-2">{authorRow}</div>
 
-        <div className="flex w-full flex-1 min-h-0 flex-col items-center justify-center gap-4 overflow-y-auto py-4 pt-16">
+        <div className="river-card-content gap-2 flex flex-col pt-2">
           {isTextOnly ? (
             <StageTextFrame body={item.body ?? ''} />
           ) : (
@@ -745,7 +747,7 @@ export function RiverFeedCard({
           {/* Icons, then caption, then comments — the reference's "text at the bottom" order,
             pinned in the footer alongside the engagement row rather than floating above the
             frame the way a centered pre-media paragraph used to. */}
-          <div className="shrink-0 border-t border-border/50 pt-3">
+          <div className="shrink-0 p-2">
             {caption ? <div className="mt-2 w-full">{caption}</div> : null}
             {commentsExpanded ? (
               <div className="mt-3 max-h-[24vh] overflow-y-auto border-t border-border/70 pt-3">

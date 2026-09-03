@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import {
   ArrowUpRight,
   BriefcaseBusiness,
@@ -108,7 +108,7 @@ export function BusinessProfilePage() {
     )
   }
 
-  const { business, isOwnProfile } = profile
+  const { business } = profile
   const artwork = business.galleryImageUrls ?? []
   const heroArtwork = mediaSrc(artwork[0])
   const logo = mediaSrc(business.logoUrl)
@@ -208,17 +208,6 @@ export function BusinessProfilePage() {
 
           {portfolio.length ? (
             <section aria-labelledby="portfolio-title">
-              <div className="mb-4 flex items-end justify-between gap-4">
-                <div>
-                  <Eyebrow>Selected work</Eyebrow>
-                  <h2 id="portfolio-title" className="mt-1 text-xl font-bold tracking-tight">
-                    The work
-                  </h2>
-                </div>
-                <span className="font-mono text-xs text-muted-foreground">
-                  {String(portfolio.length).padStart(2, '0')}
-                </span>
-              </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {portfolio.map((url, index) => (
                   <figure key={`${url}-${index}`} className="overflow-hidden rounded-xl bg-muted">
@@ -238,53 +227,35 @@ export function BusinessProfilePage() {
         <div className="order-1 lg:order-2 lg:sticky lg:top-6">
           <Card className="border border-border bg-surface shadow-sm">
             <CardContent className="space-y-5 p-5">
-              {!isOwnProfile ? (
-                <>
-                  <div>
-                    <h2 className="text-sm font-semibold text-foreground">Get in touch</h2>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      Sent straight to their Loopie inbox.
-                    </p>
-                  </div>
-                  <Button className="w-full" onClick={() => setMessageOpen(true)}>
-                    <MessageCircle size={16} />
-                    Message {business.name}
-                  </Button>
-                  {business.phone || business.email || business.website ? (
-                    <div className="space-y-2">
-                      {business.phone ? (
-                        <ContactRow href={`tel:${business.phone}`} icon={Phone}>
-                          {business.phone}
-                        </ContactRow>
-                      ) : null}
-                      {business.email ? (
-                        <ContactRow href={`mailto:${business.email}`} icon={Mail}>
-                          {business.email}
-                        </ContactRow>
-                      ) : null}
-                      {business.website ? (
-                        <ContactRow href={business.website} icon={Globe}>
-                          {business.website}
-                        </ContactRow>
-                      ) : null}
-                    </div>
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">Get in touch</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Sent straight to the Loopie inbox.
+                </p>
+              </div>
+              <Button className="w-full" onClick={() => setMessageOpen(true)}>
+                <MessageCircle size={16} />
+                Contact us now
+              </Button>
+              {business.phone || business.email || business.website ? (
+                <div className="space-y-2">
+                  {business.phone ? (
+                    <ContactRow href={`tel:${business.phone}`} icon={Phone}>
+                      {business.phone}
+                    </ContactRow>
                   ) : null}
-                </>
-              ) : (
-                <div className="rounded-lg border border-dashed border-border bg-background p-4 text-center">
-                  <p className="text-sm font-medium text-foreground">This is your public page</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Customers see this when they look you up.
-                  </p>
-                  <Link
-                    to="/home"
-                    className="mt-3 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                  >
-                    Edit business details
-                    <ArrowUpRight size={14} />
-                  </Link>
+                  {business.email ? (
+                    <ContactRow href={`mailto:${business.email}`} icon={Mail}>
+                      {business.email}
+                    </ContactRow>
+                  ) : null}
+                  {business.website ? (
+                    <ContactRow href={business.website} icon={Globe}>
+                      {business.website}
+                    </ContactRow>
+                  ) : null}
                 </div>
-              )}
+              ) : null}
 
               {hasFacts ? (
                 <dl className="divide-y divide-border border-t border-border pt-1">

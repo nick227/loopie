@@ -178,9 +178,13 @@ model BusinessMembership {
   jobTitle   String?
   // True for the user who originally created this Business. At most one founder per business
   // (enforced in TeamService). Founders cannot be suspended or removed by other members.
-  isFounder  Boolean            @default(false)
-  createdAt  DateTime           @default(now())
-  updatedAt  DateTime           @updatedAt
+  isFounder   Boolean            @default(false)
+  // Per-company suspension: blocks access to THIS business only. Distinct from User.suspendedAt
+  // (global, blocks all logins). An owner suspending a teammate from Company A should not lock
+  // them out of Company B. When set, resolveActiveBusinessId skips this membership.
+  suspendedAt DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
 
   user     User     @relation(fields: [userId], references: [id])
   business Business @relation(fields: [businessId], references: [id])

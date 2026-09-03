@@ -77,4 +77,48 @@ describe('BusinessProfilePage', () => {
     expect(screen.queryByText(/latest from/i)).not.toBeInTheDocument()
     expect(screen.queryByText('Featured')).not.toBeInTheDocument()
   })
+
+  it("shows the same contact action on the owner's public profile", () => {
+    vi.mocked(useCurrentUser).mockReturnValue({
+      isPending: false,
+      data: { data: { businessName: 'Northline Studio' } },
+    } as unknown as ReturnType<typeof useCurrentUser>)
+    vi.mocked(useSendBusinessProfileMessage).mockReturnValue({
+      isPending: false,
+      mutateAsync: vi.fn(),
+    } as unknown as ReturnType<typeof useSendBusinessProfileMessage>)
+    vi.mocked(useBusinessProfile).mockReturnValue({
+      isPending: false,
+      isError: false,
+      data: {
+        data: {
+          business: {
+            id: 'business-1',
+            name: 'Northline Studio',
+            galleryImageUrls: [],
+            socialProfiles: [],
+            identityCompletedAt: null,
+            slug: 'northline-studio',
+            publicProfileUrl: null,
+          },
+          followerCount: 0,
+          viewerIsFollowing: false,
+          isOwnProfile: true,
+          featured: null,
+        },
+      },
+    } as unknown as ReturnType<typeof useBusinessProfile>)
+
+    render(
+      <MemoryRouter initialEntries={['/b/northline-studio']}>
+        <Routes>
+          <Route path="/b/:slug" element={<BusinessProfilePage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('button', { name: 'Contact us now' })).toBeInTheDocument()
+    expect(screen.queryByText('This is your public page')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /edit business details/i })).not.toBeInTheDocument()
+  })
 })
