@@ -100,6 +100,33 @@ async function seedTestUsers() {
     ],
     skipDuplicates: true,
   })
+  // Teams backfill — alice/bob are founders of their home businesses; shop is a member.
+  await db.businessMembership.createMany({
+    data: [
+      {
+        userId: testUserId,
+        businessId: testBusinessId,
+        role: 'OWNER',
+        isFounder: true,
+        jobTitle: 'Founder',
+      },
+      {
+        userId: testOtherUserId,
+        businessId: testOtherBusinessId,
+        role: 'OWNER',
+        isFounder: true,
+        jobTitle: 'Founder',
+      },
+      {
+        userId: testShopUserId,
+        businessId: testBusinessId,
+        role: 'MEMBER',
+        isFounder: false,
+        jobTitle: 'Staff',
+      },
+    ],
+    skipDuplicates: true,
+  })
 }
 
 export function buildTestApp() {
@@ -133,10 +160,8 @@ export function buildTestApp() {
         async bearerAuth(request: any) {
           const id = request.headers.authorization?.replace('Bearer ', '')
           if (!id) throw { statusCode: 401, message: 'Unauthorized' }
-          request.user = await db.user.findUniqueOrThrow({
-            where: { id },
-            include: { business: true },
-          })
+          const { loadAuthUser } = await import('../../lib/membership')
+          request.user = await loadAuthUser(id)
         },
       },
       noAdditional: true,

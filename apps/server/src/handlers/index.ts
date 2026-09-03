@@ -1,5 +1,6 @@
 export * from './auth'
 export * from './business'
+export * from './team'
 export * from './contacts'
 export * from './audiences'
 export * from './assets'

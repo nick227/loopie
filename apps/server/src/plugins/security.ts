@@ -1,4 +1,5 @@
 import { db, hashSessionToken } from '@project/db'
+import { loadAuthUser } from '../lib/membership'
 
 // Shared lookup, never throws — just "a live session's user, or null." bearerAuth below is the
 // hard-auth wrapper every normal route uses (it keeps its own distinct 401 vs 403 messages, not
@@ -10,13 +11,16 @@ export async function resolveSessionUser(token: string | undefined) {
 
   const session = await db.session.findUnique({
     where: { token: hashSessionToken(token) },
-    include: { user: { include: { business: true } } },
+    include: { user: true },
   })
 
   if (!session || session.expiresAt < new Date() || session.user.deletedAt) return null
   if (session.user.suspendedAt) return null
 
-  return session.user
+  return loadAuthUser(session.userId, {
+    id: session.id,
+    activeBusinessId: session.activeBusinessId,
+  })
 }
 
 // No adminAuth variant — V1 has no admin routes (see CLAUDE.md Parking lot).
@@ -28,7 +32,7 @@ export async function bearerAuth(request: any, _reply: any, _params: any) {
 
   const session = await db.session.findUnique({
     where: { token: hashSessionToken(token) },
-    include: { user: { include: { business: true } } },
+    include: { user: true },
   })
 
   if (!session || session.expiresAt < new Date() || session.user.deletedAt) {
@@ -39,5 +43,8 @@ export async function bearerAuth(request: any, _reply: any, _params: any) {
     throw { statusCode: 403, message: 'Account suspended' }
   }
 
-  request.user = session.user
+  request.user = await loadAuthUser(session.userId, {
+    id: session.id,
+    activeBusinessId: session.activeBusinessId,
+  })
 }

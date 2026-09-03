@@ -4,12 +4,16 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import {
   useBilling,
+  useBusinessTeam,
   useCurrentUser,
   useDisconnectIntegration,
   useDisconnectPlatformConnection,
+  useHomeSummary,
   useIntegrations,
   useLogout,
+  useMyBusinesses,
   usePlatformConnection,
+  useSetActiveBusiness,
 } from '@project/sdk'
 import { ProfilePage } from './ProfilePage'
 
@@ -19,9 +23,13 @@ vi.mock('@project/sdk', async (importOriginal) => ({
   useCurrentUser: vi.fn(),
   useDisconnectIntegration: vi.fn(),
   useDisconnectPlatformConnection: vi.fn(),
+  useHomeSummary: vi.fn(),
   useIntegrations: vi.fn(),
   useLogout: vi.fn(),
   usePlatformConnection: vi.fn(),
+  useMyBusinesses: vi.fn(),
+  useBusinessTeam: vi.fn(),
+  useSetActiveBusiness: vi.fn(),
 }))
 
 describe('ProfilePage', () => {
@@ -35,11 +43,56 @@ describe('ProfilePage', () => {
           businessId: 'business-1',
           businessName: 'Midnight Creative',
           role: 'ADMIN',
+          membershipRole: 'OWNER',
+          isFounder: true,
+          jobTitle: 'Founder',
           subscriptionStatus: 'active',
           createdAt: '2026-01-01T00:00:00.000Z',
         },
       },
     } as unknown as ReturnType<typeof useCurrentUser>)
+    vi.mocked(useMyBusinesses).mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        data: [
+          {
+            id: 'business-1',
+            name: 'Midnight Creative',
+            logoUrl: null,
+            role: 'OWNER',
+            isFounder: true,
+            jobTitle: 'Founder',
+            active: true,
+          },
+        ],
+      },
+    } as unknown as ReturnType<typeof useMyBusinesses>)
+    vi.mocked(useBusinessTeam).mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        data: {
+          members: [
+            {
+              userId: 'user-1',
+              email: 'owner@example.com',
+              role: 'OWNER',
+              isFounder: true,
+              jobTitle: 'Founder',
+              suspendedAt: null,
+              createdAt: '2026-01-01T00:00:00.000Z',
+            },
+          ],
+          invitations: [],
+          canManage: true,
+        },
+      },
+    } as unknown as ReturnType<typeof useBusinessTeam>)
+    vi.mocked(useSetActiveBusiness).mockReturnValue({
+      isPending: false,
+      mutate: vi.fn(),
+    } as unknown as ReturnType<typeof useSetActiveBusiness>)
     vi.mocked(useBilling).mockReturnValue({
       isLoading: false,
       isError: false,
@@ -86,6 +139,12 @@ describe('ProfilePage', () => {
       isPending: false,
       mutateAsync: vi.fn(),
     } as unknown as ReturnType<typeof useLogout>)
+    vi.mocked(useHomeSummary).mockReturnValue({
+      isLoading: true,
+      isError: false,
+      data: undefined,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useHomeSummary>)
 
     render(
       <MemoryRouter>
@@ -93,7 +152,8 @@ describe('ProfilePage', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('Access currently in use')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Permissions' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Your team' })).toBeInTheDocument()
     expect(screen.getByText('Ad account act-42')).toBeInTheDocument()
 
     const user = userEvent.setup()

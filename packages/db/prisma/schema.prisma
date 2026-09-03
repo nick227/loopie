@@ -150,6 +150,10 @@ model Business {
   goalIdeaTemplates GoalIdeaTemplate[]
   goalIdeaStates    GoalIdeaState[]
   scheduledGoals    ScheduledGoal[]
+
+  // Teams / multi-company (2026-09-03) — Business remains the tenant; membership grants access.
+  memberships BusinessMembership[]
+  invitations BusinessInvitation[]
 }
 
 enum UserRole {
@@ -158,10 +162,58 @@ enum UserRole {
   AFFILIATE
 }
 
+// Company-access role on a BusinessMembership (not User.role). OWNER administers the team;
+// MEMBER has normal product access. Job title is display-only — see BusinessMembership.jobTitle.
+enum BusinessMemberRole {
+  OWNER
+  MEMBER
+}
+
+model BusinessMembership {
+  id         String             @id @default(cuid())
+  userId     String
+  businessId String
+  role       BusinessMemberRole @default(MEMBER)
+  // Display label only (e.g. "Marketing Manager") — not a permission matrix.
+  jobTitle   String?
+  // True for the user who originally created this Business. At most one founder per business
+  // (enforced in TeamService). Founders cannot be suspended or removed by other members.
+  isFounder  Boolean            @default(false)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id])
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@unique([userId, businessId])
+  @@index([userId])
+  @@index([businessId])
+}
+
+model BusinessInvitation {
+  id              String             @id @default(cuid())
+  businessId      String
+  email           String
+  role            BusinessMemberRole @default(MEMBER)
+  jobTitle        String?
+  token           String             @unique
+  invitedByUserId String
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  createdAt       DateTime           @default(now())
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@index([businessId])
+  @@index([email])
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
   passwordHash String
+  // Legacy home-business FK — still written on register; authorization prefers
+  // Session.activeBusinessId + BusinessMembership. Kept until every reader migrates.
   businessId   String
   role         UserRole  @default(USER)
   isVerified   Boolean   @default(false)
@@ -170,19 +222,23 @@ model User {
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
-  business  Business   @relation(fields: [businessId], references: [id])
-  sessions  Session[]
-  affiliate Affiliate?
+  business    Business             @relation(fields: [businessId], references: [id])
+  memberships BusinessMembership[]
+  sessions    Session[]
+  affiliate   Affiliate?
 
   @@index([businessId])
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  userId    String
-  token     String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id               String   @id @default(cuid())
+  userId           String
+  token            String   @unique
+  // Active company for this session. Null on pre-Teams rows — bearerAuth falls back to
+  // User.businessId then validates/creates membership.
+  activeBusinessId String?
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
 
@@ -3003,6 +3059,14 @@ model GoalIdeaTemplate {
   // first. Evaluated in lib/coachRules.ts, not a stage-order blanket lock — `stage` is display/
   // narrative grouping, this field is the actual gate.
   requiresTemplateIds Json?
+  // The reserve-library recurrence rule (2026-09-02 "never run out of ideas" pass): only meaningful
+  // for a *static* template (metricKey null) — a dynamic template's own live condition is already
+  // its natural recurrence rule, so this is never consulted for one. false (the default) means
+  // "one-time" — once a DONE ScheduledGoal exists from this template, it never resurfaces. true
+  // means it can come back `cooldownDays` after its most recent completion (e.g. "ask for
+  // reviews" every 30 days) — see lib/coachRules.ts's cooldown gate in listIdeas.
+  repeatable   Boolean @default(false)
+  cooldownDays Int?
   // Calendar as command center, not just a list: an idea can carry a real destination inside
   // Loopie so acting on it is one click, not a hunt through nav. NAVIGATE is the only type this
   // pass implements (a plain in-app path); OPEN_MODAL/START_FLOW are declared now so a future

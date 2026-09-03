@@ -210,6 +210,154 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/me/businesses': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List companies the current user belongs to */
+    get: operations['listMyBusinesses']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/me/active-business': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Switch the active company for this session */
+    post: operations['setActiveBusiness']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/business/team': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List team members and pending invitations for the active company */
+    get: operations['getBusinessTeam']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/business/team/invitations': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Invite a teammate by email
+     * @description OWNER-only. Creates a pending invitation bound to the email. If that email already has a Loopie account they can accept while logged in; otherwise they register first then accept. Access role is OWNER or MEMBER; jobTitle is a display label only.
+     */
+    post: operations['inviteTeamMember']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/business/team/members/{userId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        userId: string
+      }
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Remove a teammate from the active company
+     * @description OWNER-only. Cannot remove the founder or the last OWNER.
+     */
+    delete: operations['removeTeamMember']
+    options?: never
+    head?: never
+    /**
+     * Update a teammate's job title, access role, or suspension
+     * @description OWNER-only. Cannot suspend, remove, or demote the company founder. Cannot leave the company without at least one OWNER.
+     */
+    patch: operations['updateTeamMember']
+    trace?: never
+  }
+  '/business/team/members/{userId}/metrics': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Activity metrics for a teammate in the active company */
+    get: operations['getTeamMemberMetrics']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/invitations/{token}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Preview a team invitation */
+    get: operations['getInvitation']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/invitations/{token}/accept': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Accept a team invitation for the logged-in user */
+    post: operations['acceptInvitation']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/business': {
     parameters: {
       query?: never
@@ -3277,6 +3425,14 @@ export interface components {
       businessName?: string
       /** @enum {string} */
       role: 'USER' | 'ADMIN' | 'AFFILIATE'
+      /**
+       * @description Active-company access role from BusinessMembership (OWNER administers team; MEMBER has normal product access).
+       * @enum {string}
+       */
+      membershipRole: 'OWNER' | 'MEMBER'
+      /** @description True when this user is the founding creator of the active company. Founders cannot be suspended or removed by other members. */
+      isFounder: boolean
+      jobTitle?: string | null
       subscriptionStatus?: string | null
       /**
        * Format: date-time
@@ -3299,6 +3455,88 @@ export interface components {
     }
     AuthResponse: {
       data: components['schemas']['User']
+    }
+    /** @enum {string} */
+    BusinessMemberRole: 'OWNER' | 'MEMBER'
+    MyBusiness: {
+      id: string
+      name: string
+      logoUrl?: string | null
+      role: components['schemas']['BusinessMemberRole']
+      isFounder: boolean
+      jobTitle?: string | null
+      active: boolean
+    }
+    MyBusinessesResponse: {
+      data: components['schemas']['MyBusiness'][]
+    }
+    SetActiveBusinessInput: {
+      businessId: string
+    }
+    TeamMember: {
+      userId: string
+      email: string
+      role: components['schemas']['BusinessMemberRole']
+      isFounder: boolean
+      jobTitle?: string | null
+      /** Format: date-time */
+      suspendedAt?: string | null
+      /** Format: date-time */
+      createdAt: string
+    }
+    TeamInvitation: {
+      id: string
+      email: string
+      role: components['schemas']['BusinessMemberRole']
+      jobTitle?: string | null
+      /** Format: date-time */
+      expiresAt: string
+      /** Format: date-time */
+      createdAt: string
+      acceptUrl?: string
+    }
+    TeamResponse: {
+      data: {
+        members: components['schemas']['TeamMember'][]
+        invitations: components['schemas']['TeamInvitation'][]
+        canManage: boolean
+      }
+    }
+    InviteTeamMemberInput: {
+      /** Format: email */
+      email: string
+      /** @default MEMBER */
+      role: components['schemas']['BusinessMemberRole']
+      jobTitle?: string
+    }
+    UpdateTeamMemberInput: {
+      role?: components['schemas']['BusinessMemberRole']
+      jobTitle?: string | null
+      suspended?: boolean
+    }
+    TeamMemberMetrics: {
+      userId: string
+      email: string
+      role: components['schemas']['BusinessMemberRole']
+      isFounder: boolean
+      jobTitle?: string | null
+      /** Format: date-time */
+      suspendedAt?: string | null
+      /** Format: date-time */
+      memberSince: string
+      metrics: {
+        notesWritten: number
+        pagesPublished: number
+        adRevisionsCreated: number
+      }
+    }
+    InvitationPreview: {
+      email: string
+      businessName: string
+      role: components['schemas']['BusinessMemberRole']
+      jobTitle?: string | null
+      /** Format: date-time */
+      expiresAt: string
     }
     SocialProfileLink: {
       platform: string
@@ -6449,6 +6687,218 @@ export interface operations {
     requestBody?: never
     responses: {
       /** @description Current user */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AuthResponse']
+        }
+      }
+    }
+  }
+  listMyBusinesses: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Memberships with active-company flag */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['MyBusinessesResponse']
+        }
+      }
+    }
+  }
+  setActiveBusiness: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SetActiveBusinessInput']
+      }
+    }
+    responses: {
+      /** @description Active company switched — returns the updated user context */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AuthResponse']
+        }
+      }
+    }
+  }
+  getBusinessTeam: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Team roster */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['TeamResponse']
+        }
+      }
+    }
+  }
+  inviteTeamMember: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['InviteTeamMemberInput']
+      }
+    }
+    responses: {
+      /** @description Invitation created */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['TeamInvitation']
+          }
+        }
+      }
+    }
+  }
+  removeTeamMember: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        userId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Member removed */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: Record<string, never> | null
+          }
+        }
+      }
+    }
+  }
+  updateTeamMember: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        userId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateTeamMemberInput']
+      }
+    }
+    responses: {
+      /** @description Updated member */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['TeamMember']
+          }
+        }
+      }
+    }
+  }
+  getTeamMemberMetrics: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        userId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Member metrics */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['TeamMemberMetrics']
+          }
+        }
+      }
+    }
+  }
+  getInvitation: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        token: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Invitation preview */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['InvitationPreview']
+          }
+        }
+      }
+    }
+  }
+  acceptInvitation: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        token: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Membership created — returns updated user context */
       200: {
         headers: {
           [name: string]: unknown

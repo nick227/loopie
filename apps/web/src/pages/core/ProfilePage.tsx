@@ -24,6 +24,9 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { subscriptionStatusLabel, toBillingSnapshot } from '@/lib/billingCopy'
+import { WelcomeSection } from '@/components/welcome/WelcomeSection'
+import { useRestoreOverviewScroll } from '@/hooks/useOverviewScroll'
+import { ProfileTeamsSection } from '@/pages/team/ProfileTeamsSection'
 
 const PLATFORMS = [
   { id: 'META', label: 'Meta' },
@@ -39,7 +42,10 @@ type Permission = {
   access: string[]
 }
 
-function roleLabel(role: string | undefined) {
+function roleLabel(role: string | undefined, isFounder?: boolean, membershipRole?: string) {
+  if (isFounder) return 'Founder'
+  if (membershipRole === 'OWNER') return 'Owner'
+  if (membershipRole === 'MEMBER') return 'Team member'
   if (role === 'ADMIN') return 'Account owner'
   if (role === 'AFFILIATE') return 'Affiliate'
   return 'Team member'
@@ -272,6 +278,7 @@ function PermissionsLedger() {
 }
 
 export function ProfilePage() {
+  useRestoreOverviewScroll()
   const me = useCurrentUser()
   const logout = useLogout()
   const navigate = useNavigate()
@@ -287,6 +294,14 @@ export function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
+      {!isAffiliate ? <ProfileTeamsSection /> : null}
+
+      {!isAffiliate ? (
+        <section aria-labelledby="business-overview-heading" className="space-y-4">
+          <WelcomeSection />
+        </section>
+      ) : null}
+
       <section className="p-2">
         <div aria-hidden="true" className="absolute right-0 top-0 h-full w-1 bg-foreground" />
         <div className="mt-7 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
@@ -297,11 +312,11 @@ export function ProfilePage() {
               className="h-16 w-16 border border-border bg-background text-lg"
             />
             <div className="min-w-0">
-              <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">
+              <h2 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">
                 {user.email}
-              </h1>
+              </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                {roleLabel(user.role)} · Member since{' '}
+                {roleLabel(user.role, user.isFounder, user.membershipRole)} · Member since{' '}
                 {new Date(user.createdAt).toLocaleDateString(undefined, {
                   month: 'short',
                   year: 'numeric',

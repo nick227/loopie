@@ -265,13 +265,25 @@ components:
     # ---------- Auth ----------
     User:
       type: object
-      required: [id, email, businessId, role, createdAt]
+      required: [id, email, businessId, role, createdAt, membershipRole, isFounder]
       properties:
         id: { type: string }
         email: { type: string }
         businessId: { type: string }
         businessName: { type: string }
         role: { type: string, enum: [USER, ADMIN, AFFILIATE] }
+        membershipRole:
+          {
+            type: string,
+            enum: [OWNER, MEMBER],
+            description: 'Active-company access role from BusinessMembership (OWNER administers team; MEMBER has normal product access).',
+          }
+        isFounder:
+          {
+            type: boolean,
+            description: 'True when this user is the founding creator of the active company. Founders cannot be suspended or removed by other members.',
+          }
+        jobTitle: { type: string, nullable: true }
         subscriptionStatus: { type: string, nullable: true }
         businessIdentityCompletedAt:
           {
@@ -302,6 +314,122 @@ components:
       required: [data]
       properties:
         data: { $ref: '#/components/schemas/User' }
+
+    BusinessMemberRole:
+      type: string
+      enum: [OWNER, MEMBER]
+
+    MyBusiness:
+      type: object
+      required: [id, name, role, isFounder, active]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        logoUrl: { type: string, nullable: true }
+        role: { $ref: '#/components/schemas/BusinessMemberRole' }
+        isFounder: { type: boolean }
+        jobTitle: { type: string, nullable: true }
+        active: { type: boolean }
+
+    MyBusinessesResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/MyBusiness' }
+
+    SetActiveBusinessInput:
+      type: object
+      required: [businessId]
+      properties:
+        businessId: { type: string }
+
+    TeamMember:
+      type: object
+      required: [userId, email, role, isFounder, createdAt]
+      properties:
+        userId: { type: string }
+        email: { type: string }
+        role: { $ref: '#/components/schemas/BusinessMemberRole' }
+        isFounder: { type: boolean }
+        jobTitle: { type: string, nullable: true }
+        suspendedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    TeamInvitation:
+      type: object
+      required: [id, email, role, expiresAt, createdAt]
+      properties:
+        id: { type: string }
+        email: { type: string }
+        role: { $ref: '#/components/schemas/BusinessMemberRole' }
+        jobTitle: { type: string, nullable: true }
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        acceptUrl: { type: string }
+
+    TeamResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [members, invitations, canManage]
+          properties:
+            members:
+              type: array
+              items: { $ref: '#/components/schemas/TeamMember' }
+            invitations:
+              type: array
+              items: { $ref: '#/components/schemas/TeamInvitation' }
+            canManage: { type: boolean }
+
+    InviteTeamMemberInput:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email }
+        role:
+          allOf: [{ $ref: '#/components/schemas/BusinessMemberRole' }]
+          default: MEMBER
+        jobTitle: { type: string, maxLength: 80 }
+
+    UpdateTeamMemberInput:
+      type: object
+      properties:
+        role: { $ref: '#/components/schemas/BusinessMemberRole' }
+        jobTitle: { type: string, nullable: true, maxLength: 80 }
+        suspended: { type: boolean }
+
+    TeamMemberMetrics:
+      type: object
+      required: [userId, email, role, isFounder, memberSince, metrics]
+      properties:
+        userId: { type: string }
+        email: { type: string }
+        role: { $ref: '#/components/schemas/BusinessMemberRole' }
+        isFounder: { type: boolean }
+        jobTitle: { type: string, nullable: true }
+        suspendedAt: { type: string, format: date-time, nullable: true }
+        memberSince: { type: string, format: date-time }
+        metrics:
+          type: object
+          required: [notesWritten, pagesPublished, adRevisionsCreated]
+          properties:
+            notesWritten: { type: integer }
+            pagesPublished: { type: integer }
+            adRevisionsCreated: { type: integer }
+
+    InvitationPreview:
+      type: object
+      required: [email, businessName, role, expiresAt]
+      properties:
+        email: { type: string }
+        businessName: { type: string }
+        role: { $ref: '#/components/schemas/BusinessMemberRole' }
+        jobTitle: { type: string, nullable: true }
+        expiresAt: { type: string, format: date-time }
 
     SocialProfileLink:
       type: object
@@ -4497,6 +4625,175 @@ paths:
       responses:
         '200':
           description: Current user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+
+  /me/businesses:
+    get:
+      operationId: listMyBusinesses
+      summary: List companies the current user belongs to
+      tags: [auth, team]
+      responses:
+        '200':
+          description: Memberships with active-company flag
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyBusinessesResponse' }
+
+  /me/active-business:
+    post:
+      operationId: setActiveBusiness
+      summary: Switch the active company for this session
+      tags: [auth, team]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetActiveBusinessInput' }
+      responses:
+        '200':
+          description: Active company switched — returns the updated user context
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+
+  /business/team:
+    get:
+      operationId: getBusinessTeam
+      summary: List team members and pending invitations for the active company
+      tags: [team]
+      responses:
+        '200':
+          description: Team roster
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamResponse' }
+
+  /business/team/invitations:
+    post:
+      operationId: inviteTeamMember
+      summary: Invite a teammate by email
+      description: >
+        OWNER-only. Creates a pending invitation bound to the email. If that email already
+        has a Loopie account they can accept while logged in; otherwise they register first
+        then accept. Access role is OWNER or MEMBER; jobTitle is a display label only.
+      tags: [team]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InviteTeamMemberInput' }
+      responses:
+        '201':
+          description: Invitation created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/TeamInvitation' }
+
+  /business/team/members/{userId}:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema: { type: string }
+    patch:
+      operationId: updateTeamMember
+      summary: Update a teammate's job title, access role, or suspension
+      description: >
+        OWNER-only. Cannot suspend, remove, or demote the company founder. Cannot leave the
+        company without at least one OWNER.
+      tags: [team]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateTeamMemberInput' }
+      responses:
+        '200':
+          description: Updated member
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/TeamMember' }
+    delete:
+      operationId: removeTeamMember
+      summary: Remove a teammate from the active company
+      description: OWNER-only. Cannot remove the founder or the last OWNER.
+      tags: [team]
+      responses:
+        '200':
+          description: Member removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, nullable: true }
+
+  /business/team/members/{userId}/metrics:
+    get:
+      operationId: getTeamMemberMetrics
+      summary: Activity metrics for a teammate in the active company
+      tags: [team]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Member metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/TeamMemberMetrics' }
+
+  /invitations/{token}:
+    get:
+      operationId: getInvitation
+      summary: Preview a team invitation
+      security: []
+      tags: [team]
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Invitation preview
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/InvitationPreview' }
+
+  /invitations/{token}/accept:
+    post:
+      operationId: acceptInvitation
+      summary: Accept a team invitation for the logged-in user
+      tags: [team]
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Membership created — returns updated user context
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AuthResponse' }

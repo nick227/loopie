@@ -281,6 +281,13 @@ const BillingPage = lazy(() =>
 const ProfilePage = lazy(() =>
   import('@/pages/core/ProfilePage').then((m) => ({ default: m.ProfilePage })),
 )
+const TeamPage = lazy(() => import('@/pages/team/TeamPage').then((m) => ({ default: m.TeamPage })))
+const TeamMemberPage = lazy(() =>
+  import('@/pages/team/TeamMemberPage').then((m) => ({ default: m.TeamMemberPage })),
+)
+const AcceptInvitationPage = lazy(() =>
+  import('@/pages/team/AcceptInvitationPage').then((m) => ({ default: m.AcceptInvitationPage })),
+)
 const BusinessSetupPage = lazy(() =>
   import('@/pages/core/BusinessSetupPage').then((m) => ({ default: m.BusinessSetupPage })),
 )
@@ -392,8 +399,11 @@ export function App() {
               {/* No Shell chrome — the first-login "one calm screen," not a page reached through
                   navigation. See docs/strategy/03-product-principles.md's First-Login step 0. */}
               <Route path="/business/setup" element={<BusinessSetupPage />} />
+              <Route path="/invitations/:token" element={<AcceptInvitationPage />} />
               <Route element={<Shell />}>
                 <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/team" element={<TeamPage />} />
+                <Route path="/team/members/:userId" element={<TeamMemberPage />} />
                 <Route path="/activity" element={<ActivityPage />} />
                 <Route element={<RequireNonAffiliate />}>
                   <Route index element={<Navigate to="/home" replace />} />

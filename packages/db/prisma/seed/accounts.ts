@@ -12,6 +12,10 @@ export type SeedAccount = {
   businessId: string
   label: string
   suspended?: boolean
+  /** Company access role. Defaults: ADMIN → OWNER+founder, USER → MEMBER, AFFILIATE → OWNER. */
+  memberRole?: 'OWNER' | 'MEMBER'
+  jobTitle?: string
+  isFounder?: boolean
 }
 
 export const SEED_ACCOUNTS: SeedAccount[] = [
@@ -20,18 +24,25 @@ export const SEED_ACCOUNTS: SeedAccount[] = [
     role: 'ADMIN',
     businessId: RIVERSIDE_ID,
     label: 'owner — campaigns, affiliates, billing',
+    memberRole: 'OWNER',
+    jobTitle: 'Founder',
+    isFounder: true,
   },
   {
     email: 'shop@loopie.app',
     role: 'USER',
     businessId: RIVERSIDE_ID,
     label: 'staff — campaigns/messages only',
+    memberRole: 'MEMBER',
+    jobTitle: 'Shop manager',
   },
   {
     email: 'marketer@loopie.app',
     role: 'USER',
     businessId: RIVERSIDE_ID,
     label: 'second staff login',
+    memberRole: 'MEMBER',
+    jobTitle: 'Marketer',
   },
   {
     email: 'suspended@loopie.app',
@@ -39,38 +50,65 @@ export const SEED_ACCOUNTS: SeedAccount[] = [
     businessId: RIVERSIDE_ID,
     label: 'login returns 403',
     suspended: true,
+    memberRole: 'MEMBER',
+    jobTitle: 'Suspended staff',
   },
   {
     email: 'affiliate@loopie.app',
     role: 'AFFILIATE',
     businessId: RIVERSIDE_ID,
     label: 'Jordan — independent field rep',
+    memberRole: 'MEMBER',
+    jobTitle: 'Affiliate',
   },
   {
     email: 'manager@loopie.app',
     role: 'AFFILIATE',
     businessId: RIVERSIDE_ID,
     label: 'Casey — manager with a downline',
+    memberRole: 'MEMBER',
+    jobTitle: 'Affiliate manager',
   },
   {
     email: 'downline@loopie.app',
     role: 'AFFILIATE',
     businessId: RIVERSIDE_ID,
     label: 'Riley — reports to Casey',
+    memberRole: 'MEMBER',
+    jobTitle: 'Affiliate',
   },
   {
     email: 'paused-affiliate@loopie.app',
     role: 'AFFILIATE',
     businessId: RIVERSIDE_ID,
     label: 'Taylor — paused, cannot earn',
+    memberRole: 'MEMBER',
+    jobTitle: 'Affiliate',
   },
-  { email: 'oak@loopie.app', role: 'ADMIN', businessId: OAK_ID, label: 'second-tenant owner' },
-  { email: 'oak-shop@loopie.app', role: 'USER', businessId: OAK_ID, label: 'second-tenant staff' },
+  {
+    email: 'oak@loopie.app',
+    role: 'ADMIN',
+    businessId: OAK_ID,
+    label: 'second-tenant owner',
+    memberRole: 'OWNER',
+    jobTitle: 'Founder',
+    isFounder: true,
+  },
+  {
+    email: 'oak-shop@loopie.app',
+    role: 'USER',
+    businessId: OAK_ID,
+    label: 'second-tenant staff',
+    memberRole: 'MEMBER',
+    jobTitle: 'Staff',
+  },
   {
     email: 'oak-affiliate@loopie.app',
     role: 'AFFILIATE',
     businessId: OAK_ID,
     label: 'Sam — other-tenant affiliate',
+    memberRole: 'MEMBER',
+    jobTitle: 'Affiliate',
   },
 ]
 
@@ -125,7 +163,7 @@ export async function seedBusinessesAndUsers(passwordHash: string) {
 
 async function upsertUser(spec: SeedAccount, passwordHash: string) {
   const suspendedAt = spec.suspended ? new Date('2026-01-01T00:00:00.000Z') : null
-  return db.user.upsert({
+  const user = await db.user.upsert({
     where: { email: spec.email },
     update: {
       role: spec.role,
@@ -144,6 +182,26 @@ async function upsertUser(spec: SeedAccount, passwordHash: string) {
       suspendedAt,
     },
   })
+
+  const memberRole = spec.memberRole ?? (spec.role === 'USER' ? 'MEMBER' : 'OWNER')
+  const isFounder = spec.isFounder ?? false
+  await db.businessMembership.upsert({
+    where: { userId_businessId: { userId: user.id, businessId: spec.businessId } },
+    update: {
+      role: memberRole,
+      jobTitle: spec.jobTitle ?? null,
+      isFounder,
+    },
+    create: {
+      userId: user.id,
+      businessId: spec.businessId,
+      role: memberRole,
+      jobTitle: spec.jobTitle ?? null,
+      isFounder,
+    },
+  })
+
+  return user
 }
 
 function mustUser(users: Record<string, User>, email: string): User {
