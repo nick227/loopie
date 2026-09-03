@@ -111,7 +111,9 @@ describe('renderLandingPageHtml', () => {
         id: 'form-1',
         submitLabel: 'Book now',
         successMessage: 'Got it — talk soon.',
-        fields: [{ label: 'Email', fieldKey: 'email', type: 'EMAIL', required: true, order: 0 }],
+        fields: [
+          { label: 'Email', fieldKey: 'email', type: 'EMAIL', required: true, options: null },
+        ],
       },
       submitActionUrl: 'https://app.example/landing-pages/page-1/submissions',
     })
@@ -174,7 +176,9 @@ describe('renderLandingPageHtml', () => {
       form: {
         id: 'form-1',
         submitLabel: 'Send',
-        fields: [{ label: 'Email', fieldKey: 'email', type: 'EMAIL', required: true, order: 0 }],
+        fields: [
+          { label: 'Email', fieldKey: 'email', type: 'EMAIL', required: true, options: null },
+        ],
       },
       submitActionUrl: '/submit',
     })

@@ -65,6 +65,7 @@ export function renderBody(
   // — never polled/pushed. See "webinar-widget"'s case: this is the one place a section render
   // needs a number that isn't part of authored content.
   submissionCount = 0,
+  renderer = 'standard',
 ) {
   const chunks: string[] = []
   for (const section of sections) {
@@ -72,13 +73,18 @@ export function renderBody(
     if (section.type === 'form-embed') chunks.push(slotsAt(adSlots, 'BEFORE_FORM', sessionToken))
     const slotGroup = SECTION_TYPE_TO_SLOT_GROUP[section.type]
     const slotContent = slotGroup ? ((content as Record<string, unknown>)[slotGroup] ?? {}) : {}
-    chunks.push(renderSection(section, slotContent, formHtml, submissionCount))
+    chunks.push(renderSection(section, slotContent, formHtml, submissionCount, renderer))
     if (section.type === 'hero') chunks.push(slotsAt(adSlots, 'AFTER_HERO', sessionToken))
     if (section.type === 'form-embed' || section.type === 'split-capture') {
       chunks.push(slotsAt(adSlots, 'AFTER_FORM', sessionToken))
     }
   }
   chunks.push(slotsAt(adSlots, 'BOTTOM', sessionToken))
+  if (renderer === 'email-outreach') {
+    chunks.push(
+      `<p class="lp-email-foot">Sent with care · Reply only if useful · Same-day response on business days</p>`,
+    )
+  }
   return chunks.filter(Boolean).join('\n')
 }
 
@@ -118,6 +124,7 @@ export function renderSection(
   content: unknown,
   formHtml: string,
   submissionCount = 0,
+  renderer = 'standard',
 ): string {
   const c = (content && typeof content === 'object' ? content : {}) as Record<string, unknown>
   const idAttr = sectionIdAttr(section)
@@ -126,6 +133,9 @@ export function renderSection(
     case 'nav': {
       const brand = typeof c.brand === 'string' ? c.brand : ''
       const links = Array.isArray(c.links) ? (c.links as { label?: string; url?: string }[]) : []
+      if (renderer === 'email-outreach') {
+        return `<nav class="lp-nav"><a class="lp-brand" href="#">${escapeHtml(brand)}</a><span class="lp-email-chip">First note</span></nav>`
+      }
       const askIndex = links.findIndex((link) => isNavAskUrl(link.url))
       const ask = askIndex >= 0 ? links[askIndex] : null
       const menuLinks = askIndex >= 0 ? links.filter((_, index) => index !== askIndex) : links
@@ -195,7 +205,8 @@ export function renderSection(
     case 'studio-contact': {
       const headline = c.headline ? `<h2>${escapeHtml(c.headline)}</h2>` : ''
       const body = c.body ? `<p>${escapeHtml(c.body)}</p>` : ''
-      return `<section class="lp-section lp-studio-contact"${idAttr}><div>${headline}${body}</div><div class="lp-form-card">${formHtml}</div></section>`
+      const cta = renderCta(c.cta)
+      return `<section class="lp-section lp-studio-contact"${idAttr}><div>${headline}${body}${cta}</div><div class="lp-form-card">${formHtml}</div></section>`
     }
     case 'media-image': {
       const src = safeHttpUrl(c.src) || safeHttpUrl(c.url)
@@ -220,7 +231,10 @@ export function renderSection(
       const logos = items
         .map((item) => `<span class="lp-logo">${escapeHtml(item.name)}</span>`)
         .join('')
-      return `<section class="lp-section lp-logos">${title}<div class="lp-logo-row">${logos}</div></section>`
+      if (renderer === 'studio' || renderer === 'store') {
+        return `<section class="lp-section lp-logos"${idAttr}>${title}<div class="lp-logo-marquee" data-lp-marquee><div class="lp-logo-marquee-track">${logos}${logos}</div></div></section>`
+      }
+      return `<section class="lp-section lp-logos"${idAttr}>${title}<div class="lp-logo-row">${logos}</div></section>`
     }
     case 'service-selector': {
       const items = Array.isArray(c.items)
@@ -235,13 +249,41 @@ export function renderSection(
       if (!items.length) return ''
       const title = c.title ? `<h2>${escapeHtml(c.title)}</h2>` : ''
       const body = c.body ? `<p>${escapeHtml(c.body)}</p>` : ''
+
+      if (renderer === 'corporate-professional') {
+        const tabs = items
+          .map(
+            (item, index) =>
+              `<button type="button" class="lp-service-tab${index === 0 ? ' is-active' : ''}" role="tab" aria-selected="${index === 0 ? 'true' : 'false'}" data-lp-tab="${index}">${escapeHtml(item.label)}</button>`,
+          )
+          .join('')
+        const panels = items
+          .map((item, index) => {
+            const src = safeHttpUrl(item.media?.src) || safeHttpUrl(item.media?.url)
+            const media = src
+              ? `<img src="${escapeHtml(src)}" alt="${escapeHtml(item.media?.alt ?? '')}" />`
+              : ''
+            return `<div class="lp-service-panel${index === 0 ? ' is-active' : ''}" role="tabpanel" data-lp-panel="${index}"${index === 0 ? '' : ' hidden'}>${media}<div class="lp-service-copy">${item.headline ? `<h4>${escapeHtml(item.headline)}</h4>` : ''}<p>${escapeHtml(item.description ?? '')}</p>${renderCta(item.cta)}</div></div>`
+          })
+          .join('')
+        return `<section class="lp-section lp-services"${idAttr}><div class="lp-section-heading">${title}${body}</div><div class="lp-service-tabs" data-lp-service-tabs><div class="lp-service-tablist" role="tablist">${tabs}</div><div class="lp-service-panels">${panels}</div></div></section>`
+      }
+
       const rows = items
         .map((item, index) => {
           const src = safeHttpUrl(item.media?.src) || safeHttpUrl(item.media?.url)
           const media = src
             ? `<img src="${escapeHtml(src)}" alt="${escapeHtml(item.media?.alt ?? '')}" />`
             : ''
-          return `<article class="lp-service${index === 0 ? ' is-active' : ''}"><div class="lp-service-copy"><h3>${escapeHtml(item.label)}</h3>${item.headline ? `<h4>${escapeHtml(item.headline)}</h4>` : ''}<p>${escapeHtml(item.description ?? '')}</p>${renderCta(item.cta)}</div>${media}</article>`
+          const indexHtml =
+            renderer === 'studio'
+              ? `<span class="lp-service-index">${String(index + 1).padStart(2, '0')}</span>`
+              : ''
+          const kicker =
+            renderer === 'studio' || renderer === 'portfolio'
+              ? `<p class="lp-kicker">${escapeHtml(item.label)}</p>`
+              : `<h3>${escapeHtml(item.label)}</h3>`
+          return `<article class="lp-service">${media}<div class="lp-service-copy">${indexHtml}${kicker}${item.headline ? `<h3>${escapeHtml(item.headline)}</h3>` : ''}<p>${escapeHtml(item.description ?? '')}</p>${renderCta(item.cta)}</div></article>`
         })
         .join('')
       return `<section class="lp-section lp-services"${idAttr}><div class="lp-section-heading">${title}${body}</div><div class="lp-service-grid">${rows}</div></section>`
@@ -278,14 +320,35 @@ export function renderSection(
         ? (c.items as { quote: string; author: string; role?: string }[])
         : []
       if (!items.length) return ''
+      const headline = c.headline ? `<h2>${escapeHtml(c.headline)}</h2>` : ''
+      const body = c.body ? `<p class="lp-section-intro">${escapeHtml(c.body)}</p>` : ''
+      const useCarousel = renderer === 'studio' || renderer === 'portfolio'
+      if (useCarousel) {
+        const slides = items
+          .map(
+            (item, index) =>
+              `<blockquote class="lp-testimonial${index === 0 ? ' is-active' : ''}" data-lp-slide="${index}"${index === 0 ? '' : ' hidden'}><p>${escapeHtml(item.quote)}</p><cite>${escapeHtml(item.author)}${item.role ? `, ${escapeHtml(item.role)}` : ''}</cite></blockquote>`,
+          )
+          .join('')
+        const controls =
+          items.length > 1
+            ? `<div class="lp-carousel-controls"><button type="button" data-lp-carousel-prev aria-label="Previous testimonial">‹</button><div class="lp-carousel-dots">${items
+                .map(
+                  (_, index) =>
+                    `<button type="button" class="lp-carousel-dot${index === 0 ? ' is-active' : ''}" data-lp-carousel-dot="${index}" aria-label="Show testimonial ${index + 1}"></button>`,
+                )
+                .join(
+                  '',
+                )}</div><button type="button" data-lp-carousel-next aria-label="Next testimonial">›</button></div>`
+            : ''
+        return `<section class="lp-section lp-testimonials"${idAttr} data-lp-carousel><div class="lp-section-heading">${headline}${body}</div><div class="lp-carousel-viewport">${slides}</div>${controls}</section>`
+      }
       const rows = items
         .map(
           (item) =>
             `<blockquote class="lp-testimonial"><p>${escapeHtml(item.quote)}</p><cite>${escapeHtml(item.author)}${item.role ? `, ${escapeHtml(item.role)}` : ''}</cite></blockquote>`,
         )
         .join('')
-      const headline = c.headline ? `<h2>${escapeHtml(c.headline)}</h2>` : ''
-      const body = c.body ? `<p class="lp-section-intro">${escapeHtml(c.body)}</p>` : ''
       return `<section class="lp-section lp-testimonials"${idAttr}><div class="lp-section-heading">${headline}${body}</div><div class="lp-testimonial-grid">${rows}</div></section>`
     }
     case 'webinar-widget': {
@@ -327,7 +390,7 @@ export function renderSection(
           ${seatsHtml}
           ${hostHtml}
         </div>
-        <div class="lp-webinar-form"><div class="lp-form-card"><p class="lp-form-title">Reserve your seat</p>${formHtml}</div></div>
+        <div class="lp-webinar-form"><div class="lp-form-card"><p class="lp-form-title">Reserve your seat</p><p class="lp-form-reassure">Free to attend — we'll email your link and a reminder.</p>${formHtml}</div></div>
       </section>`
     }
     case 'photo-gallery': {

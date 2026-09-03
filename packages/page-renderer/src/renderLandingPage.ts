@@ -12,6 +12,7 @@ import {
   type LayoutConfig,
 } from '@project/db'
 import { escapeHtml, renderBody, type RenderForm } from './renderLandingPageSections'
+import { carouselScript, serviceTabsScript } from './publishedScripts'
 
 type TemplateSection = {
   key?: string
@@ -195,6 +196,7 @@ export function renderLandingPageHtml(input: {
     content.browser?.faviconUrl?.trim() ||
     DEFAULT_PAGE_FAVICON_URL
   const faviconHtml = faviconUrl ? `<link rel="icon" href="${escapeHtml(faviconUrl)}" />\n` : ''
+  const renderer = input.templateSchema.renderer ?? 'standard'
   const bodyHtml = renderBody(
     sections,
     content,
@@ -203,8 +205,8 @@ export function renderLandingPageHtml(input: {
     input.adSlots ?? [],
     input.sessionToken,
     input.submissionCount ?? 0,
+    renderer,
   )
-  const renderer = input.templateSchema.renderer ?? 'standard'
 
   const theme = input.theme ?? {}
   const primaryColor = theme.primaryColor ?? '#0B3D91'
@@ -353,6 +355,32 @@ button[type="submit"] { padding: 0.8rem 1.4rem; background: var(--lp-primary); c
 .lp-service h3, .lp-service h4 { margin: 0 0 0.6rem; }
 .lp-service p { color: color-mix(in srgb, var(--lp-ink) 70%, var(--lp-bg)); line-height: 1.55; }
 .lp-service img { width: 100%; aspect-ratio: 4 / 3; display: block; object-fit: cover; }
+.lp-service-tabs { display: grid; gap: 2rem; grid-template-columns: minmax(0, .42fr) minmax(0, .58fr); align-items: start; }
+.lp-service-tablist { display: flex; flex-direction: column; gap: .75rem; }
+.lp-service-tab { text-align: left; padding: 1.1rem 1.25rem; border: 1px solid transparent; border-radius: calc(var(--lp-radius) * 2); background: transparent; color: color-mix(in srgb, var(--lp-ink) 65%, var(--lp-bg)); font: inherit; font-size: 1.1rem; font-weight: 700; cursor: pointer; }
+.lp-service-tab.is-active { background: var(--lp-card); border-color: color-mix(in srgb, var(--lp-ink) 15%, var(--lp-bg)); color: var(--lp-ink); box-shadow: 0 20px 40px -20px rgba(0,0,0,.15); }
+.lp-service-panel { display: none; overflow: hidden; border-radius: calc(var(--lp-radius) * 3); border: 1px solid color-mix(in srgb, var(--lp-ink) 10%, var(--lp-bg)); background: var(--lp-card); }
+.lp-service-panel.is-active { display: block; }
+.lp-service-panel img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
+.lp-service-panel .lp-service-copy { padding: 1.75rem; }
+.lp-service-index { display: block; font-family: var(--lp-heading); font-size: 1.75rem; font-weight: 700; color: color-mix(in srgb, var(--lp-ink) 28%, var(--lp-bg)); margin-bottom: .75rem; }
+.lp-logo-marquee { overflow: hidden; mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent); }
+.lp-logo-marquee-track { display: flex; width: max-content; align-items: center; gap: 4rem; animation: lp-marquee 28s linear infinite; }
+.lp-logo-marquee-track .lp-logo { flex-shrink: 0; font-size: 1.2rem; font-weight: 600; opacity: .6; }
+@keyframes lp-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) {
+  .lp-logo-marquee-track { animation: none; flex-wrap: wrap; width: auto; justify-content: center; }
+}
+.lp-carousel-viewport { position: relative; }
+.lp-carousel-controls { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1.75rem; }
+.lp-carousel-controls button { border: 0; background: transparent; color: color-mix(in srgb, var(--lp-ink) 55%, var(--lp-bg)); font-size: 1.5rem; line-height: 1; cursor: pointer; padding: .35rem .55rem; }
+.lp-carousel-dots { display: flex; gap: .4rem; }
+.lp-carousel-dot { width: 1.5rem; height: 1.5rem; padding: 0; border: 0; background: transparent; cursor: pointer; position: relative; }
+.lp-carousel-dot::after { content: ''; position: absolute; inset: .45rem; border-radius: 999px; background: color-mix(in srgb, var(--lp-ink) 25%, var(--lp-bg)); }
+.lp-carousel-dot.is-active::after { background: var(--lp-ink); }
+.lp-form-reassure { margin: -.35rem 0 1.1rem; font-size: .9rem; color: color-mix(in srgb, var(--lp-ink) 65%, var(--lp-bg)); }
+.lp-email-chip { font-size: 11px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: color-mix(in srgb, var(--lp-ink) 45%, var(--lp-card)); }
+.lp-email-foot { max-width: 560px; margin: 0 auto; padding: 1.1rem 1.75rem 1.4rem; text-align: center; font-size: 11px; line-height: 1.6; color: color-mix(in srgb, var(--lp-ink) 48%, var(--lp-bg)); border: 1px solid color-mix(in srgb, var(--lp-ink) 12%, var(--lp-bg)); border-top: 0; border-radius: 0 0 10px 10px; background: var(--lp-card); }
 .lp-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1.5rem; text-align: center; }
 .lp-metric-value { display: block; font-size: 2rem; font-weight: 700; }
 .lp-metric-label { display: block; font-size: 0.875rem; color: color-mix(in srgb, var(--lp-ink) 65%, var(--lp-bg)); }
@@ -426,10 +454,10 @@ button[type="submit"] { padding: 0.8rem 1.4rem; background: var(--lp-primary); c
 .lp-template-corporate-professional .lp-logo-row { max-width: 1180px; margin: 0 auto; justify-content: space-around; font-size: 1.15rem; font-weight: 800; opacity: .65; }
 .lp-template-corporate-professional .lp-services, .lp-template-corporate-professional .lp-features, .lp-template-corporate-professional .lp-comparison, .lp-template-corporate-professional .lp-testimonials, .lp-template-corporate-professional .lp-faq { max-width: 1180px; padding-block: 96px; }
 .lp-template-corporate-professional .lp-service-grid { grid-template-columns: repeat(3, 1fr); }
-.lp-template-corporate-professional .lp-metrics { max-width: none; padding: 72px max(28px, calc((100vw - 1120px) / 2)); background: var(--lp-primary); color: var(--lp-on-primary); }
+.lp-template-corporate-professional .lp-metrics { max-width: none; padding: 72px max(28px, calc((100vw - 1120px) / 2)); background: var(--lp-ink); color: var(--lp-bg); }
 .lp-template-corporate-professional .lp-metric-value { font-size: clamp(2.5rem, 5vw, 4rem); }
-.lp-template-corporate-professional .lp-metric-label { color: color-mix(in srgb, var(--lp-on-primary) 75%, var(--lp-primary)); }
-.lp-template-corporate-professional .lp-metric p { line-height: 1.5; color: color-mix(in srgb, var(--lp-on-primary) 70%, var(--lp-primary)); }
+.lp-template-corporate-professional .lp-metric-label { color: color-mix(in srgb, var(--lp-bg) 75%, var(--lp-ink)); }
+.lp-template-corporate-professional .lp-metric p { line-height: 1.5; color: color-mix(in srgb, var(--lp-bg) 70%, var(--lp-ink)); }
 .lp-template-corporate-professional .lp-feature-grid { gap: 1.5rem; border: 0; background: transparent; }
 .lp-template-corporate-professional .lp-feature { padding: 2rem; border: 1px solid color-mix(in srgb, var(--lp-ink) 12%, var(--lp-bg)); border-radius: calc(var(--lp-radius) * 2); }
 .lp-template-corporate-professional .lp-footer { max-width: none; padding-block: 100px; background: color-mix(in srgb, var(--lp-ink) 94%, var(--lp-bg)); color: var(--lp-bg); }
@@ -464,12 +492,21 @@ button[type="submit"] { padding: 0.8rem 1.4rem; background: var(--lp-primary); c
 .lp-template-studio .lp-section-heading { margin-left: 0; text-align: left; }
 .lp-template-studio .lp-feature-grid { display: block; border: 0; background: transparent; border-radius: 0; }
 .lp-template-studio .lp-feature { display: grid; grid-template-columns: .45fr 1fr; gap: 2rem; padding: 2rem 0; border-bottom: 1px solid color-mix(in srgb, var(--lp-ink) 12%, var(--lp-bg)); background: transparent; }
-.lp-template-studio .lp-service-grid { grid-template-columns: repeat(3, 1fr); }
-.lp-template-studio .lp-service { border-radius: 0; border: 0; background: transparent; }
-.lp-template-studio .lp-service-copy { padding: 1rem 0; }
-.lp-template-studio .lp-service img { border-radius: 0; }
+.lp-template-studio .lp-service-grid { display: flex; flex-direction: column; gap: 6rem; }
+.lp-template-studio .lp-service { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 2rem; align-items: center; border-radius: 0; border: 0; background: transparent; }
+.lp-template-studio .lp-service:nth-child(even) { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); }
+.lp-template-studio .lp-service:nth-child(even) img { order: 2; }
+.lp-template-studio .lp-service:nth-child(even) .lp-service-copy { order: 1; }
+.lp-template-studio .lp-service-copy { padding: 0; }
+.lp-template-studio .lp-service img { border-radius: 0; aspect-ratio: 4 / 3; }
 .lp-template-studio .lp-gallery-grid { columns: 3; }
-.lp-template-studio .lp-testimonial { padding: 0; background: transparent; border-radius: 0; font-family: var(--lp-heading); font-size: 1.4rem; }
+.lp-template-studio .lp-testimonials { max-width: none; padding: 112px max(28px, calc((100vw - 720px) / 2)); background: var(--lp-ink); color: var(--lp-bg); border-top: 0; text-align: center; }
+.lp-template-studio .lp-testimonials .lp-section-heading { margin: 0 auto 2.5rem; text-align: center; }
+.lp-template-studio .lp-testimonials .lp-section-heading h2, .lp-template-studio .lp-testimonials .lp-kicker { color: color-mix(in srgb, var(--lp-bg) 55%, var(--lp-ink)); font-size: 11px; letter-spacing: .28em; text-transform: uppercase; }
+.lp-template-studio .lp-testimonial { padding: 0; background: transparent; border-radius: 0; font-family: var(--lp-heading); font-size: clamp(1.5rem, 3vw, 2.1rem); font-style: italic; }
+.lp-template-studio .lp-testimonial cite { display: block; margin-top: 1.5rem; font-style: normal; font-size: .95rem; color: color-mix(in srgb, var(--lp-bg) 70%, var(--lp-ink)); }
+.lp-template-studio .lp-carousel-controls button, .lp-template-studio .lp-carousel-dot::after { color: color-mix(in srgb, var(--lp-bg) 60%, var(--lp-ink)); }
+.lp-template-studio .lp-carousel-dot.is-active::after { background: var(--lp-bg); }
 .lp-template-studio .lp-studio-contact { max-width: none; padding: 112px max(28px, calc((100vw - 1152px) / 2)); }
 .lp-template-studio .lp-team { max-width: 1152px; padding-block: 96px; border-top: 1px solid color-mix(in srgb, var(--lp-ink) 12%, var(--lp-bg)); }
 .lp-template-studio .lp-section-heading + .lp-team-grid { margin-top: 0; }
@@ -503,7 +540,7 @@ button[type="submit"] { padding: 0.8rem 1.4rem; background: var(--lp-primary); c
 .lp-template-portfolio .lp-team-grid { grid-template-columns: 1fr; }
 .lp-template-portfolio .lp-team-member img, .lp-template-portfolio .lp-team-photo-empty { width: 160px; height: 160px; }
 .lp-template-portfolio .lp-logos { max-width: none; border-block: 1px solid color-mix(in srgb, var(--lp-ink) 10%, var(--lp-bg)); text-align: center; }
-.lp-template-portfolio .lp-testimonials { max-width: 720px; padding-block: 100px; }
+.lp-template-portfolio .lp-testimonials { max-width: 720px; padding-block: 100px; text-align: center; }
 .lp-template-portfolio .lp-testimonial-grid { grid-template-columns: 1fr; }
 .lp-template-portfolio .lp-testimonial { background: transparent; padding: 0; text-align: center; font-family: var(--lp-heading); font-size: 1.35rem; font-style: italic; }
 .lp-template-portfolio .lp-studio-contact { max-width: 720px; grid-template-columns: 1fr; text-align: center; padding-block: 100px; background: transparent; color: var(--lp-ink); }
@@ -579,8 +616,10 @@ button[type="submit"] { padding: 0.8rem 1.4rem; background: var(--lp-primary); c
 }
 @media (max-width: 800px) {
   .lp-nav-links { display: none; }
-  .lp-split, .lp-webinar, .lp-studio-contact, .lp-story, .lp-template-corporate-professional .lp-hero, .lp-template-studio .lp-hero, .lp-template-store .lp-hero, .lp-template-store .lp-studio-contact { grid-template-columns: 1fr; min-height: auto; }
+  .lp-split, .lp-webinar, .lp-studio-contact, .lp-story, .lp-template-corporate-professional .lp-hero, .lp-template-studio .lp-hero, .lp-template-store .lp-hero, .lp-template-store .lp-studio-contact, .lp-service-tabs { grid-template-columns: 1fr; min-height: auto; }
   .lp-template-corporate-professional .lp-service-grid, .lp-template-studio .lp-service-grid { grid-template-columns: 1fr; }
+  .lp-template-studio .lp-service, .lp-template-studio .lp-service:nth-child(even) { grid-template-columns: 1fr; }
+  .lp-template-studio .lp-service:nth-child(even) img, .lp-template-studio .lp-service:nth-child(even) .lp-service-copy { order: unset; }
   .lp-template-studio .lp-hero h1 { font-size: clamp(3rem, 15vw, 5rem); }
   .lp-template-studio .lp-team-grid { grid-template-columns: repeat(2, 1fr); }
   .lp-template-portfolio .lp-hero-media img { height: 62vh; }
@@ -593,6 +632,8 @@ ${input.injectedHeadScripts ?? ''}
 ${bodyHtml}
 ${webinarScript}
 ${galleryScript}
+${serviceTabsScript}
+${carouselScript}
 ${runtime}
 </body>
 </html>`
