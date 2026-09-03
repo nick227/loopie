@@ -65,6 +65,15 @@ describe('Teams / multi-company membership', () => {
     })
     const companies = list.json().data as Array<{ id: string }>
     expect(companies.map((c) => c.id).sort()).toEqual([testBusinessId, testOtherBusinessId].sort())
+
+    // Idempotent re-accept: same token should still resolve cleanly.
+    const acceptAgain = await app.inject({
+      method: 'POST',
+      url: `/invitations/${token}/accept`,
+      headers: asAuth(testOtherUserId),
+    })
+    expect(acceptAgain.statusCode).toBe(200)
+    expect(acceptAgain.json().data.businessId).toBe(testBusinessId)
   })
 
   it('forbids members from inviting and protects the founder from suspend/remove', async () => {
@@ -158,5 +167,137 @@ describe('Teams / multi-company membership', () => {
       payload: { businessId: testOtherBusinessId },
     })
     expect(res.statusCode).toBe(403)
+  })
+
+  it('exposes invite status so reused links are intentional UX', async () => {
+    const invited = await app.inject({
+      method: 'POST',
+      url: '/business/team/invitations',
+      headers: asAuth(testUserId),
+      payload: { email: 'bob@test.local', role: 'MEMBER' },
+    })
+    const token = invited.json().data.acceptUrl.split('/').filter(Boolean)[1]
+
+    const pending = await app.inject({
+      method: 'GET',
+      url: `/invitations/${token}`,
+      headers: asAuth(testUserId),
+    })
+    expect(pending.statusCode).toBe(200)
+    expect(pending.json().data.status).toBe('PENDING')
+
+    await app.inject({
+      method: 'POST',
+      url: `/invitations/${token}/accept`,
+      headers: asAuth(testOtherUserId),
+    })
+
+    const accepted = await app.inject({
+      method: 'GET',
+      url: `/invitations/${token}`,
+      headers: asAuth(testUserId),
+    })
+    expect(accepted.statusCode).toBe(200)
+    expect(accepted.json().data.status).toBe('ACCEPTED')
+  })
+
+  it('keeps suspension company-scoped and falls back active company safely', async () => {
+    // Give bob membership in Alice's company and make it active.
+    await db.businessMembership.create({
+      data: {
+        userId: testOtherUserId,
+        businessId: testBusinessId,
+        role: 'MEMBER',
+      },
+    })
+    await db.user.update({
+      where: { id: testOtherUserId },
+      data: { businessId: testBusinessId },
+    })
+
+    // Owner suspends bob in Alice Co only.
+    const suspended = await app.inject({
+      method: 'PATCH',
+      url: `/business/team/members/${testOtherUserId}`,
+      headers: asAuth(testUserId),
+      payload: { suspended: true },
+    })
+    expect(suspended.statusCode).toBe(200)
+    expect(suspended.json().data.suspendedAt).toBeTruthy()
+
+    // Bob still has access through his other company and auth resolves there.
+    const me = await app.inject({
+      method: 'GET',
+      url: '/auth/me',
+      headers: asAuth(testOtherUserId),
+    })
+    expect(me.statusCode).toBe(200)
+    expect(me.json().data.businessId).toBe(testOtherBusinessId)
+
+    // Suspended company cannot be selected as active.
+    const switchDenied = await app.inject({
+      method: 'POST',
+      url: '/me/active-business',
+      headers: asAuth(testOtherUserId),
+      payload: { businessId: testBusinessId },
+    })
+    expect(switchDenied.statusCode).toBe(403)
+  })
+
+  it('isolates direct entity URLs by active company', async () => {
+    // Bob belongs to both companies.
+    await db.businessMembership.create({
+      data: {
+        userId: testOtherUserId,
+        businessId: testBusinessId,
+        role: 'MEMBER',
+      },
+    })
+
+    const contactA = await db.contact.create({
+      data: { businessId: testBusinessId, name: 'Alice Co Contact' },
+    })
+    const contactB = await db.contact.create({
+      data: { businessId: testOtherBusinessId, name: 'Bob Co Contact' },
+    })
+
+    await app.inject({
+      method: 'POST',
+      url: '/me/active-business',
+      headers: asAuth(testOtherUserId),
+      payload: { businessId: testBusinessId },
+    })
+
+    const listA = await app.inject({
+      method: 'GET',
+      url: '/contacts',
+      headers: asAuth(testOtherUserId),
+    })
+    expect(listA.statusCode).toBe(200)
+    expect(listA.json().data.some((c: { id: string }) => c.id === contactA.id)).toBe(true)
+    expect(listA.json().data.some((c: { id: string }) => c.id === contactB.id)).toBe(false)
+
+    const getBWhileA = await app.inject({
+      method: 'GET',
+      url: `/contacts/${contactB.id}`,
+      headers: asAuth(testOtherUserId),
+    })
+    expect(getBWhileA.statusCode).toBe(404)
+
+    await app.inject({
+      method: 'POST',
+      url: '/me/active-business',
+      headers: asAuth(testOtherUserId),
+      payload: { businessId: testOtherBusinessId },
+    })
+
+    const listB = await app.inject({
+      method: 'GET',
+      url: '/contacts',
+      headers: asAuth(testOtherUserId),
+    })
+    expect(listB.statusCode).toBe(200)
+    expect(listB.json().data.some((c: { id: string }) => c.id === contactB.id)).toBe(true)
+    expect(listB.json().data.some((c: { id: string }) => c.id === contactA.id)).toBe(false)
   })
 })

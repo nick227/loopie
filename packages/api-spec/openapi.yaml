@@ -359,7 +359,7 @@ components:
 
     TeamInvitation:
       type: object
-      required: [id, email, role, expiresAt, createdAt]
+      required: [id, email, role, expiresAt, createdAt, acceptUrl]
       properties:
         id: { type: string }
         email: { type: string }
@@ -423,13 +423,15 @@ components:
 
     InvitationPreview:
       type: object
-      required: [email, businessName, role, expiresAt]
+      required: [email, businessName, role, expiresAt, status]
       properties:
         email: { type: string }
         businessName: { type: string }
         role: { $ref: '#/components/schemas/BusinessMemberRole' }
         jobTitle: { type: string, nullable: true }
         expiresAt: { type: string, format: date-time }
+        acceptedAt: { type: string, format: date-time, nullable: true }
+        status: { type: string, enum: [PENDING, ACCEPTED, EXPIRED] }
 
     SocialProfileLink:
       type: object

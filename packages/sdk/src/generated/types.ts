@@ -3493,7 +3493,7 @@ export interface components {
       expiresAt: string
       /** Format: date-time */
       createdAt: string
-      acceptUrl?: string
+      acceptUrl: string
     }
     TeamResponse: {
       data: {
@@ -3537,6 +3537,10 @@ export interface components {
       jobTitle?: string | null
       /** Format: date-time */
       expiresAt: string
+      /** Format: date-time */
+      acceptedAt?: string | null
+      /** @enum {string} */
+      status: 'PENDING' | 'ACCEPTED' | 'EXPIRED'
     }
     SocialProfileLink: {
       platform: string

@@ -61,7 +61,7 @@ export class TeamService {
   async listMyBusinesses(actor: AuthUser) {
     await ensureHomeMembership(db, actor)
     const memberships = await db.businessMembership.findMany({
-      where: { userId: actor.id },
+      where: { userId: actor.id, suspendedAt: null },
       include: { business: true },
       orderBy: { createdAt: 'asc' },
     })
@@ -80,7 +80,9 @@ export class TeamService {
     const membership = await db.businessMembership.findUnique({
       where: { userId_businessId: { userId: actor.id, businessId } },
     })
-    if (!membership) throw { statusCode: 403, message: 'Not a member of that company' }
+    if (!membership || membership.suspendedAt) {
+      throw { statusCode: 403, message: 'Not a member of that company' }
+    }
 
     if (actor.sessionId) {
       await db.session.update({
@@ -204,7 +206,7 @@ export class TeamService {
       const row = await tx.businessMembership.update({
         where: { id: membership.id },
         data: memberData,
-        include: { user: { select: { email: true, suspendedAt: true } } },
+        include: { user: { select: { email: true } } },
       })
       // Immediately invalidate sessions pointing at this company when suspending.
       if (input.suspended) {
@@ -250,7 +252,7 @@ export class TeamService {
   async getMemberMetrics(actor: AuthUser, userId: string) {
     const membership = await db.businessMembership.findUnique({
       where: { userId_businessId: { userId, businessId: actor.businessId } },
-      include: { user: { select: { email: true, suspendedAt: true } } },
+      include: { user: { select: { email: true } } },
     })
     if (!membership) throw { statusCode: 404, message: 'Team member not found' }
 
@@ -273,7 +275,7 @@ export class TeamService {
       role: membership.role,
       isFounder: membership.isFounder,
       jobTitle: membership.jobTitle,
-      suspendedAt: membership.user.suspendedAt?.toISOString() ?? null,
+      suspendedAt: membership.suspendedAt?.toISOString() ?? null,
       memberSince: membership.createdAt.toISOString(),
       metrics: {
         notesWritten,
@@ -288,21 +290,23 @@ export class TeamService {
       where: { token },
       include: { business: { select: { name: true } } },
     })
-    if (!invite || invite.acceptedAt || invite.expiresAt < new Date()) {
-      throw { statusCode: 404, message: 'Invitation not found or expired' }
-    }
+    if (!invite) throw { statusCode: 404, message: 'Invitation not found' }
+    const now = new Date()
+    const status = invite.acceptedAt ? 'ACCEPTED' : invite.expiresAt < now ? 'EXPIRED' : 'PENDING'
     return {
       email: invite.email,
       businessName: invite.business.name,
       role: invite.role,
       jobTitle: invite.jobTitle,
       expiresAt: invite.expiresAt.toISOString(),
+      acceptedAt: invite.acceptedAt?.toISOString() ?? null,
+      status,
     }
   }
 
   async acceptInvitation(actor: AuthUser, token: string) {
     const invite = await db.businessInvitation.findUnique({ where: { token } })
-    if (!invite || invite.acceptedAt || invite.expiresAt < new Date()) {
+    if (!invite || invite.expiresAt < new Date()) {
       throw { statusCode: 404, message: 'Invitation not found or expired' }
     }
     if (normalizeEmail(actor.email) !== invite.email) {
@@ -312,7 +316,15 @@ export class TeamService {
     const existing = await db.businessMembership.findUnique({
       where: { userId_businessId: { userId: actor.id, businessId: invite.businessId } },
     })
-    if (existing) {
+
+    if (invite.acceptedAt) {
+      if (!existing) {
+        throw { statusCode: 409, message: 'Invitation already accepted' }
+      }
+      if (existing.suspendedAt) {
+        throw { statusCode: 403, message: 'Membership suspended for this company' }
+      }
+    } else if (existing) {
       await db.businessInvitation.update({
         where: { id: invite.id },
         data: { acceptedAt: new Date() },

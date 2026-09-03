@@ -119,7 +119,7 @@ export function TeamPage() {
           ) : null}
           {inviteToken ? (
             <p className="text-sm text-muted-foreground">
-              Invitation created. Share this link:{' '}
+              Invite created. Copy this link and send it to them (email or site message):{' '}
               <Link className="underline" to={`/invitations/${inviteToken}`}>
                 /invitations/{inviteToken}
               </Link>

@@ -34,6 +34,8 @@ export function AcceptInvitationPage() {
 
   const loggedIn = Boolean(me.data?.data)
   const emailMatch = me.data?.data?.email?.toLowerCase() === preview.email.toLowerCase()
+  const alreadyAccepted = preview.status === 'ACCEPTED'
+  const expired = preview.status === 'EXPIRED'
 
   return (
     <div className="mx-auto mt-16 max-w-lg space-y-6 p-6">
@@ -48,7 +50,11 @@ export function AcceptInvitationPage() {
         </p>
       </div>
 
-      {!loggedIn ? (
+      {expired ? (
+        <p className="text-sm text-muted-foreground">
+          This invite has expired. Ask an owner to create a new one.
+        </p>
+      ) : !loggedIn ? (
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
             Sign in with {preview.email} to accept this invitation.
@@ -64,6 +70,10 @@ export function AcceptInvitationPage() {
         <p className="text-sm text-destructive">
           You are signed in as {me.data?.data?.email}. This invite was sent to {preview.email}.
         </p>
+      ) : alreadyAccepted ? (
+        <Button loading={accept.isPending} onClick={onAccept}>
+          Open {preview.businessName}
+        </Button>
       ) : (
         <Button loading={accept.isPending} onClick={onAccept}>
           Join {preview.businessName}
