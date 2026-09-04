@@ -136,7 +136,7 @@ const FormEmbedBlock = ({ hasForm, formFields, onFormFields, submitLabel }: Canv
         }}
       >
         <p className="mb-4 text-xl font-semibold" style={{ fontFamily: 'var(--lp-heading)' }}>
-          Tell us about the job
+          Tell us what you need
         </p>
         <div
           className="[&_input]:!bg-[var(--lp-bg)] [&_input]:!text-[var(--lp-ink)] [&_select]:bg-[var(--lp-bg)] [&_select]:text-[var(--lp-ink)] [&_.text-muted-foreground]:!text-[color:color-mix(in_srgb,var(--lp-ink)_65%,var(--lp-bg))] [&_button]:!text-[var(--lp-ink)] [&_button]:!border-[color:color-mix(in_srgb,var(--lp-ink)_22%,var(--lp-bg))]"

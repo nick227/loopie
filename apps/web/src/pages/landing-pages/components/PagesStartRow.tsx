@@ -20,46 +20,45 @@ interface StartOption {
   icon: typeof Building2
 }
 
-// The handful of real system templates (see ensureSystemTemplates.ts), reframed by what a
-// business is actually trying to do rather than by their internal "lead-gen"/"advanced"
-// category. Deliberately not one tile per template — Email capture and Studio are variants of
-// Capture leads / Showcase your work, so they live behind "More starting points" instead of
-// competing for a primary slot.
+// The handful of real system templates (see ensureSystemTemplates.ts). Labels match the
+// catalog names so create UI and the Layout dropdown stay one vocabulary. Email capture and
+// Creative studio live behind "More starting points" as alternate layouts for Sales page /
+// Portfolio rather than competing for a primary slot.
 const PRIMARY_OPTIONS: StartOption[] = [
   {
     templateId: 'system-template-corporate-professional',
     label: 'Homepage',
-    description: 'Introduce yourself with a homepage.',
+    description: 'Company site with services, proof, and a contact form.',
     icon: Building2,
   },
   {
     templateId: 'system-template-lead-gen',
-    label: 'Capture leads',
+    label: 'Sales page',
     description: 'A focused pitch that turns visitors into leads.',
     icon: Target,
   },
   {
     templateId: 'system-template-webinar-signup',
-    label: 'Promote event',
-    description: 'Get signups for a webinar, workshop, or events.',
+    label: 'Event signup',
+    description: 'Countdown, host, and registration for a live event.',
     icon: CalendarDays,
   },
   {
     templateId: 'system-template-email-outreach',
-    label: 'Land your emails',
-    description: 'Create a first-contact email campaign.',
+    label: 'Outreach page',
+    description: 'Letter-style page for first-contact links.',
     icon: Mail,
   },
   {
     templateId: 'system-template-store',
-    label: 'Sell a product',
-    description: 'Showcase and sell what you make.',
+    label: 'Store',
+    description: 'Product grid and a path to buy or inquire.',
     icon: ShoppingBag,
   },
   {
     templateId: 'system-template-portfolio',
-    label: 'Showcase your work',
-    description: 'A visual portfolio of past work or projects.',
+    label: 'Portfolio',
+    description: 'Image-led showcase with a short inquiry form.',
     icon: Image,
   },
 ]
@@ -68,13 +67,13 @@ const MORE_OPTIONS: StartOption[] = [
   {
     templateId: 'system-template-lead-gen-media',
     label: 'Email capture',
-    description: 'A simple two-column layout.',
+    description: 'Split layout: image beside a short signup form.',
     icon: Inbox,
   },
   {
     templateId: 'system-template-studio',
     label: 'Creative studio',
-    description: 'A moodier showcase layout.',
+    description: 'Editorial studio site with selected work and a team.',
     icon: Palette,
   },
 ]

@@ -189,7 +189,7 @@ export function renderSection(
       return `<section class="lp-section lp-features"${idAttr}><div class="lp-section-heading">${headline}${body}</div><div class="lp-feature-grid">${itemsHtml}</div></section>`
     }
     case 'form-embed':
-      return `<section class="lp-section lp-form"${idAttr}><div class="lp-form-card"><p class="lp-form-title">Tell us about the job</p>${formHtml}</div></section>`
+      return `<section class="lp-section lp-form"${idAttr}><div class="lp-form-card"><p class="lp-form-title">Tell us what you need</p>${formHtml}</div></section>`
     case 'split-capture': {
       const media = (c.media && typeof c.media === 'object' ? c.media : {}) as Record<
         string,

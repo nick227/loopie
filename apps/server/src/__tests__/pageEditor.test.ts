@@ -151,7 +151,7 @@ describe('page editor', () => {
     })
     expect(created.statusCode).toBe(201)
     const page = created.json().data
-    expect(page.content.hero.headline).toContain('next opening')
+    expect(page.content.hero.headline).toContain('updates from')
 
     const exported = await app.inject({
       method: 'GET',

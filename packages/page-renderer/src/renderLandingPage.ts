@@ -461,13 +461,13 @@ button[type="submit"] { padding: 0.8rem 1.4rem; background: var(--lp-primary); c
 /* Rich-template parity. The editor and published document share the renderer identity stored in
    the template schema; these rules mirror the layout vocabulary of the editable React canvases. */
 .lp-template-corporate-professional .lp-nav { position: relative; z-index: 2; min-height: 88px; }
-.lp-template-corporate-professional .lp-hero { max-width: 1280px; padding-top: 96px; padding-bottom: 112px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 64px; }
+.lp-template-corporate-professional .lp-hero { max-width: 1152px; padding-top: 80px; padding-bottom: 80px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 48px; }
 .lp-template-corporate-professional .lp-hero h1 { font-size: clamp(3rem, 6vw, 4.5rem); font-weight: 800; }
 .lp-template-corporate-professional .lp-hero-media { margin: 0; }
 .lp-template-corporate-professional .lp-hero-media img { aspect-ratio: 4 / 3; box-shadow: 0 28px 60px -28px rgba(0,0,0,.4); }
 .lp-template-corporate-professional .lp-logos { max-width: none; border-block: 1px solid color-mix(in srgb, var(--lp-ink) 10%, var(--lp-bg)); text-align: center; }
 .lp-template-corporate-professional .lp-logo-row { max-width: 1180px; margin: 0 auto; justify-content: space-around; font-size: 1.15rem; font-weight: 800; opacity: .65; }
-.lp-template-corporate-professional .lp-services, .lp-template-corporate-professional .lp-features, .lp-template-corporate-professional .lp-comparison, .lp-template-corporate-professional .lp-testimonials, .lp-template-corporate-professional .lp-faq { max-width: 1180px; padding-block: 96px; }
+.lp-template-corporate-professional .lp-services, .lp-template-corporate-professional .lp-features, .lp-template-corporate-professional .lp-comparison, .lp-template-corporate-professional .lp-testimonials, .lp-template-corporate-professional .lp-faq { max-width: 1152px; padding-block: 96px; }
 .lp-template-corporate-professional .lp-service-grid { grid-template-columns: repeat(3, 1fr); }
 .lp-template-corporate-professional .lp-metrics { max-width: none; padding: 72px max(28px, calc((100vw - 1120px) / 2)); background: var(--lp-ink); color: var(--lp-bg); }
 .lp-template-corporate-professional .lp-metric-value { font-size: clamp(2.5rem, 5vw, 4rem); }
@@ -525,7 +525,7 @@ button[type="submit"] { padding: 0.8rem 1.4rem; background: var(--lp-primary); c
 .lp-template-studio .lp-studio-contact { max-width: none; padding: 112px max(28px, calc((100vw - 1152px) / 2)); }
 .lp-template-studio .lp-team { max-width: 1152px; padding-block: 96px; border-top: 1px solid color-mix(in srgb, var(--lp-ink) 12%, var(--lp-bg)); }
 .lp-template-studio .lp-section-heading + .lp-team-grid { margin-top: 0; }
-.lp-template-studio .lp-team-grid { grid-template-columns: repeat(4, 1fr); gap: 2.5rem 1.5rem; }
+.lp-template-studio .lp-team-grid { grid-template-columns: repeat(3, 1fr); gap: 2.5rem 1.5rem; }
 .lp-template-studio .lp-team-member { text-align: left; }
 .lp-template-studio .lp-team-member img, .lp-template-studio .lp-team-photo-empty { width: 100%; height: auto; aspect-ratio: 3 / 4; border-radius: 0; margin: 0 0 1rem; }
 .lp-template-studio .lp-team-member h3 { font-family: var(--lp-heading); font-size: 1.15rem; }

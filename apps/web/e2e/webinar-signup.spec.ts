@@ -27,9 +27,7 @@ test.describe('webinar signup template', () => {
     test.setTimeout(120_000)
     await registerAndOpenHome(page)
 
-    await page
-      .getByLabel('Layout')
-      .selectOption({ label: 'Scale Your Growth Engine — Free Live Masterclass' })
+    await page.getByLabel('Layout').selectOption({ label: 'Event signup' })
     await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 10000 })
 
     // Real count, not a fake baseline — zero registrations so far. Switching to this template

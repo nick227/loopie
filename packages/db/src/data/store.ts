@@ -12,9 +12,9 @@ export const SYSTEM_STORE_TEMPLATE_ID = 'system-template-store'
 // transacts (an external storefront) or to this page's own attached inquiry form via `#contact`,
 // same pattern as every other template's CTAs. See apps/web/.../templates/Store.tsx for the
 // visual language: rounder chrome and bolder CTAs than Portfolio/Studio, price-forward cards.
-export const storeTitle = 'Store — Product-First Catalog'
+export const storeTitle = 'Store'
 export const storeDescription =
-  'A product-first storefront for retail, apparel, makers, and small catalogs — featured products, categories, and a fast path to buying.'
+  'Product grid, categories, and a signup or inquiry strip for makers and shops.'
 
 export const storeSchema: TemplateSchema = {
   renderer: 'store',
@@ -73,8 +73,8 @@ export const storeSchema: TemplateSchema = {
 
 export const storeStarterContent: PageContent = {
   browser: {
-    title: storeTitle,
-    faviconUrl: DEFAULT_PAGE_FAVICON_URL,
+    title: 'Amble Coffee',
+    favicon: { url: DEFAULT_PAGE_FAVICON_URL },
   },
   nav: {
     brand: 'Amble Coffee',
@@ -102,7 +102,7 @@ export const storeStarterContent: PageContent = {
           url: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&q=80&w=900',
           alt: 'Bag of Cloudline light roast coffee',
         },
-        cta: { label: 'Shop now', url: '#contact' },
+        cta: { label: 'View product', url: '#products' },
       },
       {
         id: 'basin',
@@ -112,7 +112,7 @@ export const storeStarterContent: PageContent = {
           url: 'https://images.unsplash.com/photo-1521302080334-4bebac2763a6?auto=format&fit=crop&q=80&w=900',
           alt: 'Bag of Basin medium roast coffee',
         },
-        cta: { label: 'Shop now', url: '#contact' },
+        cta: { label: 'View product', url: '#products' },
       },
       {
         id: 'night-watch',
@@ -123,7 +123,7 @@ export const storeStarterContent: PageContent = {
           url: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&q=80&w=900',
           alt: 'Bag of Night Watch dark roast coffee',
         },
-        cta: { label: 'Shop now', url: '#contact' },
+        cta: { label: 'View product', url: '#products' },
       },
       {
         id: 'origin-trio',
@@ -133,7 +133,7 @@ export const storeStarterContent: PageContent = {
           url: 'https://images.unsplash.com/photo-1442550528053-c431ecb55509?auto=format&fit=crop&q=80&w=900',
           alt: 'Close-up of roasted coffee beans',
         },
-        cta: { label: 'Shop now', url: '#contact' },
+        cta: { label: 'View product', url: '#products' },
       },
     ],
   },
@@ -142,7 +142,7 @@ export const storeStarterContent: PageContent = {
     items: [
       {
         label: 'Whole bean',
-        url: '#contact',
+        url: '#products',
         media: {
           url: 'https://images.unsplash.com/photo-1442512595331-e89e73853f31?auto=format&fit=crop&q=80&w=800',
           alt: 'Whole coffee beans',
@@ -150,7 +150,7 @@ export const storeStarterContent: PageContent = {
       },
       {
         label: 'Ground',
-        url: '#contact',
+        url: '#products',
         media: {
           url: 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?auto=format&fit=crop&q=80&w=800',
           alt: 'Ground coffee and whole beans on a wooden board',
@@ -158,7 +158,7 @@ export const storeStarterContent: PageContent = {
       },
       {
         label: 'Subscriptions',
-        url: '#contact',
+        url: '#products',
         media: {
           url: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&q=80&w=800',
           alt: 'Coffee bags packed for shipping',
@@ -166,7 +166,7 @@ export const storeStarterContent: PageContent = {
       },
       {
         label: 'Merch',
-        url: '#contact',
+        url: '#products',
         media: {
           url: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&q=80&w=800',
           alt: 'Branded mug and tote bag',
@@ -203,6 +203,12 @@ export const storeStarterContent: PageContent = {
         quote: 'Origin Trio is how I finally figured out what roast I actually like.',
         author: 'Anh T.',
         role: 'Repeat customer',
+      },
+      {
+        quote:
+          'Restock alerts actually mean something — when Night Watch is back, I order the same day.',
+        author: 'Jordan K.',
+        role: 'Monthly order',
       },
     ],
   },

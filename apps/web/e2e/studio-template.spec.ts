@@ -27,7 +27,7 @@ test.describe('studio template', () => {
     test.setTimeout(120_000)
     await registerAndOpenHome(page)
 
-    await page.getByLabel('Layout').selectOption({ label: 'Studio — Bold, Editorial Portfolio' })
+    await page.getByLabel('Layout').selectOption({ label: 'Creative studio' })
     await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 10000 })
 
     // Inline-editable, same double-click model as every other template.

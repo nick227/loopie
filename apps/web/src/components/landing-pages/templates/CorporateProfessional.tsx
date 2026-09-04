@@ -110,10 +110,10 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
   const media = content?.media ?? {}
   return (
     <section
-      className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden"
+      className="relative pt-24 pb-16 lg:pt-32 lg:pb-24 overflow-hidden"
       style={{ backgroundColor: ink(4) }}
     >
-      <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8 flex flex-col lg:flex-row items-center gap-16">
+      <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
         <div className="flex-1 text-center lg:text-left">
           {badges.map((badge, i) => (
             <span
@@ -189,17 +189,19 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
         </div>
         <div className="flex-1 w-full relative group perspective-1000">
           {editable ? (
-            <MediaSlotField
-              kind="IMAGE"
-              urlMode
-              fallbackUrl={media.url}
-              onUrlChange={(url) => onChange({ media: { ...media, url } })}
-            />
+            <div className="aspect-[4/3] w-full overflow-hidden rounded-2xl">
+              <MediaSlotField
+                kind="IMAGE"
+                urlMode
+                fallbackUrl={media.url}
+                onUrlChange={(url) => onChange({ media: { ...media, url } })}
+              />
+            </div>
           ) : (
             <img
               src={media.url}
               alt={media.alt || 'Hero Image'}
-              className="w-full rounded-2xl shadow-2xl transform transition-transform duration-700 group-hover:scale-[1.02]"
+              className="aspect-[4/3] w-full rounded-2xl object-cover shadow-2xl transform transition-transform duration-700 group-hover:scale-[1.02]"
             />
           )}
         </div>
@@ -218,7 +220,7 @@ function LogoCloudSection({ content, editable, onChange }: SectionProps<'logos'>
       className="py-12 border-y"
       style={{ backgroundColor: 'var(--lp-bg)', borderColor: ink(10) }}
     >
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-6 lg:px-8">
         {editable ? (
           <CanvasText
             ariaLabel="Logos title"
@@ -289,7 +291,7 @@ function ServiceSelectorSection({ content, editable, onChange }: SectionProps<'s
 
   return (
     <section id="services" className="py-24" style={{ backgroundColor: ink(4) }}>
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-16">
           {editable ? (
             <CanvasText
@@ -502,7 +504,7 @@ function MetricsSection({ content, editable, onChange }: SectionProps<'metrics'>
   }
   return (
     <section className="py-24" style={{ backgroundColor: 'var(--lp-ink)', color: 'var(--lp-bg)' }}>
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-6 lg:px-8">
         <div
           className="grid md:grid-cols-3 gap-12 divide-y md:divide-y-0 md:divide-x"
           style={{ borderColor: inv(20) }}
@@ -568,7 +570,7 @@ function FeatureGridSection({ content, editable, onChange }: SectionProps<'featu
   }
   return (
     <section id="features" className="py-24" style={{ backgroundColor: 'var(--lp-bg)' }}>
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-20">
           {editable ? (
             <>
@@ -668,7 +670,7 @@ function ComparisonSection({ content, editable, onChange }: SectionProps<'compar
   }
   return (
     <section className="py-24 border-t" style={{ backgroundColor: ink(4), borderColor: ink(12) }}>
-      <div className="max-w-5xl mx-auto px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-6 lg:px-8">
         {editable ? (
           <CanvasText
             as="h2"
@@ -796,7 +798,7 @@ function TestimonialsSection({ content, editable, onChange }: SectionProps<'test
       className="py-24"
       style={{ backgroundColor: 'var(--lp-ink)', color: 'var(--lp-bg)' }}
     >
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-16">
           {editable ? (
             <>
@@ -1091,7 +1093,7 @@ function ContactSection({
                 {cta.label || 'Add a call to action'}
               </span>
             </EditableLinkTrigger>
-          ) : cta.label ? (
+          ) : cta.label && !hasForm ? (
             <a href={cta.url} className="text-sm font-semibold underline underline-offset-4">
               {cta.label}
             </a>
@@ -1152,13 +1154,13 @@ function NavBar({
 
   return (
     <nav
-      className="fixed w-full z-50 backdrop-blur-xl border-b transition-all duration-300"
+      className="w-full z-50 backdrop-blur-xl border-b transition-all duration-300"
       style={{
         backgroundColor: 'color-mix(in srgb, var(--lp-bg) 80%, transparent)',
         borderColor: ink(10),
       }}
     >
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           <div className="flex items-center gap-3">
             <div

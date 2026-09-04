@@ -34,7 +34,7 @@ test.describe('landing page content preservation', () => {
     // hero is a canonical slot group shared by every template's schema — editing it on Corporate
     // Professional and switching to the plain Sales page must carry the value straight across,
     // not just preserve-and-disable it (they render the *same* enabled field).
-    await layout.selectOption({ label: 'Nexus Consulting | Strategic Growth Solutions' })
+    await layout.selectOption({ label: 'Homepage' })
     await expect(page.getByLabel('Hero headline')).toBeVisible()
     await page.getByLabel('Hero headline').dblclick()
     await page.getByLabel('Hero headline').fill('Preserve Me Headline')
@@ -63,7 +63,7 @@ test.describe('landing page content preservation', () => {
 
     // Switch back to Corporate Professional: both edits are still there, now re-enabled.
     await page.getByRole('tab', { name: 'Editor' }).click()
-    await layout.selectOption({ label: 'Nexus Consulting | Strategic Growth Solutions' })
+    await layout.selectOption({ label: 'Homepage' })
     await expect(page.getByLabel('Hero headline')).toHaveText('Preserve Me Headline')
     await expect(page.getByLabel('Testimonials headline')).toHaveText('Preserve Me Too')
   })
@@ -75,7 +75,7 @@ test.describe('landing page content preservation', () => {
     await registerAndOpenHome(page)
 
     const layout = page.getByLabel('Layout')
-    await layout.selectOption({ label: 'Nexus Consulting | Strategic Growth Solutions' })
+    await layout.selectOption({ label: 'Homepage' })
     await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 10000 })
 
     const headline = page.getByLabel('Hero headline')
@@ -97,11 +97,11 @@ test.describe('landing page content preservation', () => {
     await expect(page.getByRole('tab', { name: 'Sections' })).toHaveCount(0)
 
     const layout = page.getByLabel('Layout')
-    await layout.selectOption({ label: 'Nexus Consulting | Strategic Growth Solutions' })
+    await layout.selectOption({ label: 'Homepage' })
     await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 10000 })
 
-    // Brand name is a real content hole now, not baked-in "Nexus" text — this page was switched
-    // to Corporate Professional from an existing Sales page, so it has no starter content yet
+    // Brand name is a real content hole now, not baked-in starter text — this page was switched
+    // to Homepage from an existing Sales page, so it has no starter content yet
     // (that only seeds at page-creation time), proven by the empty-state placeholder showing.
     const brand = page.getByLabel('Brand name')
     await expect(brand).toHaveText('Brand')

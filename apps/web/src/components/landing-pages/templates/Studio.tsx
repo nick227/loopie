@@ -200,23 +200,23 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
         </div>
       </div>
 
-      <div className="mt-16 grid lg:grid-cols-12">
-        <div className="lg:col-span-10 lg:col-start-3">
-          {editable ? (
+      <div className="mt-16 flex justify-end">
+        {editable ? (
+          <div className="aspect-[3/4] w-full max-w-lg overflow-hidden lg:max-w-xl">
             <MediaSlotField
               kind="IMAGE"
               urlMode
               fallbackUrl={media.url}
               onUrlChange={(url) => onChange({ media: { ...media, url } })}
             />
-          ) : media.url ? (
-            <img
-              src={media.url}
-              alt={media.alt || ''}
-              className="h-[52vh] w-full object-cover sm:h-[62vh]"
-            />
-          ) : null}
-        </div>
+          </div>
+        ) : media.url ? (
+          <img
+            src={media.url}
+            alt={media.alt || ''}
+            className="aspect-[3/4] w-full max-w-lg object-cover lg:max-w-xl"
+          />
+        ) : null}
       </div>
     </section>
   )
@@ -902,7 +902,7 @@ function TeamSection({ content, editable, onChange }: SectionProps<'team'>) {
             </>
           )}
         </div>
-        <div className="grid gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((member, i) => (
             <div key={i} className="group relative">
               {editable ? (

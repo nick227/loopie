@@ -8,9 +8,9 @@ export const SYSTEM_CORPORATE_PROFESSIONAL_TEMPLATE_ID = 'system-template-corpor
 // PageContent — see packages/db/src/content.ts. "Blocks-schema" as a distinct content shape no
 // longer exists; only the visual component that renders each slot type differs
 // (apps/web/src/components/landing-pages/templates/CorporateProfessional.tsx).
-export const corporateProfessionalTitle = 'Nexus Consulting | Strategic Growth Solutions'
+export const corporateProfessionalTitle = 'Homepage'
 export const corporateProfessionalDescription =
-  'We partner with enterprise leaders to drive digital transformation, scale operations, and accelerate revenue growth globally.'
+  'Multi-section company homepage with services, proof, FAQ, and a contact form.'
 
 export const corporateProfessionalSchema: TemplateSchema = {
   renderer: 'corporate-professional',
@@ -71,180 +71,179 @@ export const corporateProfessionalSchema: TemplateSchema = {
 
 export const corporateProfessionalStarterContent: PageContent = {
   browser: {
-    title: corporateProfessionalTitle,
+    title: 'Brightline',
     favicon: { url: DEFAULT_PAGE_FAVICON_URL },
   },
   nav: {
-    brand: 'Nexus',
+    brand: 'Brightline',
     links: [
       { label: 'Services', url: '#services' },
-      { label: 'Our Approach', url: '#features' },
-      { label: 'Testimonials', url: '#testimonials' },
-      { label: 'Get in Touch', url: '#contact' },
+      { label: 'How we work', url: '#features' },
+      { label: 'Clients', url: '#testimonials' },
+      { label: 'Contact', url: '#contact' },
     ],
   },
   hero: {
-    badges: ['Award-winning Consultancy 2026'],
-    headline: 'Transforming complexity into competitive advantage.',
-    body: 'We partner with ambitious leaders to redefine their industries. Leverage our deep expertise in strategy, operations, and digital innovation.',
+    badges: ['Taking on new clients'],
+    headline: 'Clear work. Reliable results.',
+    body: 'We help businesses plan, deliver, and improve the work that matters — with honest scopes, real timelines, and people you can reach.',
     media: {
       url: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=2000',
-      alt: 'Modern corporate office',
+      alt: 'Bright, open workspace',
     },
-    primaryCta: { label: 'Schedule a Consultation', url: '#contact' },
+    primaryCta: { label: 'Get in touch', url: '#contact' },
   },
   logos: {
-    title: 'Trusted by global industry leaders',
+    title: 'Trusted by teams we work with again',
     items: [
-      { name: 'Acme Corp', icon: 'Globe' },
-      { name: 'Stark Industries', icon: 'Briefcase' },
-      { name: 'Wayne Enterprises', icon: 'Building' },
-      { name: 'Massive Dynamic', icon: 'BarChart' },
-      { name: 'Globex', icon: 'PieChart' },
+      { name: 'Northbound', icon: 'Globe' },
+      { name: 'Halcyon', icon: 'Briefcase' },
+      { name: 'Ledger & Co.', icon: 'Building' },
+      { name: 'Meridian', icon: 'BarChart' },
+      { name: 'Alder', icon: 'PieChart' },
     ],
   },
   services: {
-    title: 'Our Core Practices',
-    body: 'Comprehensive solutions tailored to your unique business challenges.',
+    title: 'What we do',
+    body: 'Three ways in, depending on what you already have figured out.',
     items: [
       {
-        id: 'strategy',
-        label: 'Strategy & Operations',
-        headline: 'Navigate uncertainty with confidence',
+        id: 'plan',
+        label: 'Plan',
+        headline: 'Get the scope right before anyone starts.',
         description:
-          'We help executives align their vision with actionable operational models, ensuring sustainable growth and market dominance in an ever-shifting landscape.',
+          'We map the work, the owners, and the timeline — so you know the cost and the finish line before you commit.',
         icon: 'Compass',
         media: {
           url: 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&q=80&w=800',
-          alt: 'Strategy meeting',
+          alt: 'Planning session',
         },
-        cta: { label: 'Talk about strategy', url: '#contact' },
+        cta: { label: 'Talk about planning', url: '#contact' },
       },
       {
-        id: 'digital',
-        label: 'Digital Transformation',
-        headline: 'Modernize your technological core',
+        id: 'deliver',
+        label: 'Deliver',
+        headline: 'Build it with the same team that scoped it.',
         description:
-          'From migrating legacy systems to implementing AI-driven workflows, we future-proof your organization for the next decade of digital evolution.',
+          'No handoff to a junior bench. The people who write the plan are the people who ship the work.',
         icon: 'Cpu',
         media: {
           url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=800',
-          alt: 'Digital network',
+          alt: 'Team delivering work',
         },
-        cta: { label: 'Talk about digital', url: '#contact' },
+        cta: { label: 'Talk about delivery', url: '#contact' },
       },
       {
-        id: 'finance',
-        label: 'M&A Advisory',
-        headline: 'Maximize shareholder value',
+        id: 'improve',
+        label: 'Improve',
+        headline: 'Tighten what already works.',
         description:
-          'End-to-end guidance through complex mergers, acquisitions, and restructuring. We handle the due diligence so you can focus on integration.',
+          'Process, tools, and follow-through for teams that are busy — small changes that remove friction without a rebuild.',
         icon: 'TrendingUp',
         media: {
           url: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=800',
-          alt: 'Financial charts',
+          alt: 'Reviewing results',
         },
-        cta: { label: 'Talk about M&A', url: '#contact' },
+        cta: { label: 'Talk about improvements', url: '#contact' },
       },
     ],
   },
   metrics: {
     items: [
       {
-        value: '$2.4B+',
-        label: 'Value Created',
-        description: 'Measurable enterprise value added for our clients over the past decade.',
+        value: '12 yrs',
+        label: 'In practice',
+        description: 'Same ownership since day one — no revolving account managers.',
       },
       {
-        value: '450+',
-        label: 'Global Projects',
-        description: 'Successful engagements spanning across 30+ countries and major industries.',
+        value: '180+',
+        label: 'Projects shipped',
+        description: 'Scoped, delivered, and closed out with a clear handoff.',
       },
       {
-        value: '98%',
-        label: 'Client Retention',
-        description:
-          'Our commitment to excellence ensures lasting partnerships and recurring engagements.',
+        value: '94%',
+        label: 'Clients who return',
+        description: 'Most of our work comes from people we have already helped.',
       },
     ],
   },
   features: {
-    headline: 'The Nexus Advantage',
-    body: 'What sets us apart is not just what we do, but how we do it. Our methodologies guarantee results.',
+    headline: 'How we work',
+    body: 'Simple rules we follow on every engagement.',
     items: [
       {
-        title: 'Data-Driven Insights',
-        body: 'We don’t guess. Every recommendation is backed by rigorous quantitative analysis and market intelligence.',
+        title: 'Clear scopes',
+        body: 'You get a written plan with a price and a finish date before we start. No padding later.',
         icon: 'BarChart3',
       },
       {
-        title: 'Senior Expertise',
-        body: 'You get direct access to seasoned partners, not just junior analysts. Experience matters.',
+        title: 'Senior people',
+        body: 'You work with the people doing the work — not a relay of junior staff.',
         icon: 'Users',
       },
       {
-        title: 'Rapid Execution',
-        body: 'We move at the speed of modern business. We design strategies that can be implemented in weeks, not years.',
+        title: 'Real follow-through',
+        body: 'We stay reachable after launch. Questions get answered; fixes get scheduled.',
         icon: 'Zap',
       },
     ],
   },
   comparison: {
-    title: 'Our Approach vs Traditional Consulting',
+    title: 'Working with us vs. a typical agency',
     items: [
-      { feature: 'Implementation Support', us: 'End-to-end', them: 'Hand-off strategy only' },
-      { feature: 'Fee Structure', us: 'Value-based', them: 'Hourly billing' },
-      { feature: 'Team Composition', us: 'Specialized experts', them: 'Generalist pool' },
-      { feature: 'Technology Integration', us: true, them: false },
-      { feature: 'Knowledge Transfer', us: true, them: false },
+      { feature: 'Who you talk to', us: 'The team doing the work', them: 'Account manager relay' },
+      { feature: 'Pricing', us: 'Fixed scope, written up front', them: 'Hourly, open-ended' },
+      { feature: 'Timeline', us: 'Dated milestones', them: 'Best-effort estimates' },
+      { feature: 'After launch support', us: true, them: false },
+      { feature: 'Written handoff', us: true, them: false },
     ],
   },
   testimonials: {
-    headline: 'Client Success Stories',
-    body: 'Don’t just take our word for it. Hear from the leaders we’ve partnered with.',
+    headline: 'What clients say',
+    body: 'Short notes from people we have worked with more than once.',
     items: [
       {
         quote:
-          "Nexus didn't just give us a strategy; they walked with us through the entire implementation. Our revenue has grown 40% year-over-year since our engagement.",
+          'They gave us a clear plan, stuck to the date, and answered the phone when something broke. That alone put them ahead of the last three firms we tried.',
         author: 'Sarah Jenkins',
-        role: 'CEO, TechNova Solutions',
+        role: 'Owner, Northbound',
         avatarUrl:
           'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200',
       },
       {
         quote:
-          'The depth of their operational knowledge is unmatched. They identified efficiencies that saved us millions in the first quarter alone.',
+          'No buzzword deck. Just a scope, a price, and weekly updates we could show the rest of the team.',
         author: 'Marcus Chen',
-        role: 'COO, Global Logistics Inc.',
+        role: 'Ops lead, Halcyon',
         avatarUrl:
           'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200',
       },
     ],
   },
   faq: {
-    headline: 'Frequently Asked Questions',
-    body: 'Common questions about our consulting process and engagement models.',
+    headline: 'Common questions',
+    body: 'Straight answers before you reach out.',
     items: [
       {
-        question: 'How do you structure your engagements?',
+        question: 'How do projects usually start?',
         answer:
-          'We typically begin with a 2-4 week diagnostic phase, followed by a detailed implementation plan. Engagements range from 3 to 18 months depending on the scope of transformation.',
+          'A short kickoff call, then a written scope with price and timeline. We only start once you approve that document.',
       },
       {
-        question: 'Do you work with startups?',
+        question: 'Who is this a good fit for?',
         answer:
-          'We primarily partner with mid-market and enterprise organizations (Series C and beyond) where complex organizational and operational challenges exist.',
+          'Owner-led teams and growing companies that want clear delivery — not a long retainership with vague “strategy” hours.',
       },
       {
-        question: 'How is your fee structure determined?',
+        question: 'How do you price the work?',
         answer:
-          'We utilize a value-based pricing model, often tying a portion of our fees directly to the measurable financial impact we create for your business.',
+          'Fixed scopes for defined projects. If the work changes, we rewrite the scope before anything extra starts.',
       },
     ],
   },
   footer: {
-    headline: 'Ready to redefine your industry?',
-    body: 'Schedule a confidential consultation with one of our senior partners to discuss your strategic objectives.',
-    cta: { label: 'Get in Touch', url: '#contact' },
+    headline: 'Ready to talk?',
+    body: 'Tell us what you need. We reply within one business day with next steps — or a clear no if we are not the right fit.',
+    cta: { label: 'Get in touch', url: '#contact' },
   },
 }

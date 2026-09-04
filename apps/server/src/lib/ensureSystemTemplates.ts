@@ -41,14 +41,14 @@ export async function ensureSystemTemplates(tx: TemplateClient) {
     where: { id: SYSTEM_LEAD_GEN_TEMPLATE_ID },
     update: {
       name: 'Sales page',
-      description: 'Vertical sales landing page: hero, photograph, proof, form, footer.',
+      description: 'Simple vertical page: offer, proof points, photo, and a contact form.',
       schema: SYSTEM_LEAD_GEN_SCHEMA,
     },
     create: {
       id: SYSTEM_LEAD_GEN_TEMPLATE_ID,
       isSystem: true,
       name: 'Sales page',
-      description: 'Vertical sales landing page: hero, photograph, proof, form, footer.',
+      description: 'Simple vertical page: offer, proof points, photo, and a contact form.',
       category: 'lead-gen',
       formatVersion: '1.0',
       schema: SYSTEM_LEAD_GEN_SCHEMA,
@@ -59,14 +59,14 @@ export async function ensureSystemTemplates(tx: TemplateClient) {
     where: { id: SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID },
     update: {
       name: 'Email capture',
-      description: 'Two-column email capture: image on the left, pitch and email on the right.',
+      description: 'Full-height split: image beside a short pitch and signup form.',
       schema: SYSTEM_MEDIA_LEAD_GEN_SCHEMA,
     },
     create: {
       id: SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID,
       isSystem: true,
       name: 'Email capture',
-      description: 'Two-column email capture: image on the left, pitch and email on the right.',
+      description: 'Full-height split: image beside a short pitch and signup form.',
       category: 'lead-gen',
       formatVersion: '1.0',
       schema: SYSTEM_MEDIA_LEAD_GEN_SCHEMA,

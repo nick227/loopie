@@ -7,9 +7,9 @@ export const SYSTEM_EMAIL_OUTREACH_TEMPLATE_ID = 'system-template-email-outreach
 // letter-style hierarchy, single CTA path. Same canonical PageContent as every other template —
 // only the visual component differs (apps/web/.../templates/EmailOutreach.tsx). No nav bar; the
 // brand lives in a thin email header, matching content.ts's note that Sales/Email skip site nav.
-export const emailOutreachTitle = 'Email — First-contact sales note'
+export const emailOutreachTitle = 'Outreach page'
 export const emailOutreachDescription =
-  'A clean, email-shaped sales page for first outreach to small businesses — letter-style copy, one clear ask, and a real reply form.'
+  'Narrow, letter-style page for first-contact links — one offer, proof, and a reply form.'
 
 export const emailOutreachSchema: TemplateSchema = {
   renderer: 'email-outreach',
@@ -51,7 +51,7 @@ export const emailOutreachSchema: TemplateSchema = {
 
 export const emailOutreachStarterContent: PageContent = {
   browser: {
-    title: 'Northline — A short note for owners who want steadier demand',
+    title: 'A short note from Northline',
     favicon: { url: DEFAULT_PAGE_FAVICON_URL },
   },
   nav: {
@@ -61,7 +61,7 @@ export const emailOutreachStarterContent: PageContent = {
     eyebrow: 'A first note — not a pitch deck',
     headline:
       'Most small businesses don’t need more marketing. They need a clearer path to the next ten customers.',
-    body: 'I’m writing because your work is already good — what’s usually missing is a simple system that gets the right people to see it, reply, and buy. Northline builds that system: one page, one message, one follow-up. No retainers dressed up as strategy. No twelve-channel circus. Just the few moves that compound.',
+    body: 'Your work is already good. What’s usually missing is a simple system that gets the right people to see it, reply, and buy — one page, one message, one follow-up. No retainers dressed up as strategy.',
     media: {
       url: 'https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&q=80&w=1600',
       alt: 'Two people reviewing a plan at a quiet workspace',

@@ -214,7 +214,7 @@ export class LandingPageService {
           data: {
             businessId,
             name: emailCapture ? 'Email capture' : 'Contact',
-            submitLabel: emailCapture ? 'Get the next opening' : 'Get in touch',
+            submitLabel: emailCapture ? 'Get updates' : 'Get in touch',
             successMessage: "Thanks — we'll be in touch.",
             fields: { create: emailCapture ? EMAIL_CAPTURE_FIELDS : CONTACT_FORM_FIELDS },
           },

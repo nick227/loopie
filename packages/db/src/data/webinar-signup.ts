@@ -8,9 +8,9 @@ export const SYSTEM_WEBINAR_SIGNUP_TEMPLATE_ID = 'system-template-webinar-signup
 // (apps/web/src/components/landing-pages/templates/WebinarSignup.tsx). The event-details widget
 // (countdown, seats-filled, host, signup form) is one integrated visual block, not a separate
 // form-embed section — the form is threaded in as props, same as every other template.
-export const webinarSignupTitle = 'Scale Your Growth Engine — Free Live Masterclass'
+export const webinarSignupTitle = 'Event signup'
 export const webinarSignupDescription =
-  'A studio-quality live-webinar signup page: countdown, real seats-filled progress, host bio, and an inline signup form.'
+  'Live event page with countdown, seat progress, host bio, and a registration form.'
 
 export const webinarSignupSchema: TemplateSchema = {
   renderer: 'webinar-signup',
@@ -65,45 +65,45 @@ export const webinarSignupSchema: TemplateSchema = {
 
 export const webinarSignupStarterContent: PageContent = {
   browser: {
-    title: webinarSignupTitle,
+    title: 'How to get your next ten customers — live session',
     favicon: { url: DEFAULT_PAGE_FAVICON_URL },
   },
   hero: {
-    eyebrow: 'Free Live Masterclass',
-    headline: 'Scale Your Growth Engine Without Scaling Headcount',
-    body: 'Join a live, 60-minute session on the exact playbook fast-growing teams use to compound pipeline — no fluff, just the system, live Q&A, and a recording if you can’t make it.',
+    eyebrow: 'Free live session · 60 minutes',
+    headline: 'Join us live: how to get your next ten customers',
+    body: 'A practical hour on the page, message, and follow-up that bring in real replies — with live Q&A and a recording if you cannot attend.',
     media: {
       url: 'https://images.unsplash.com/photo-1591115765373-5207764f72e7?auto=format&fit=crop&q=80&w=1600',
-      alt: 'Presenter hosting a live virtual masterclass',
+      alt: 'Presenter hosting a live virtual session',
     },
-    primaryCta: { label: 'Save My Seat', url: '#signup' },
+    primaryCta: { label: 'Save my seat', url: '#signup' },
   },
   webinar: {
     eventDate: '2026-09-15T17:00:00.000Z',
     durationMinutes: 60,
     seatsTotal: 500,
     hostName: 'Dana Whitfield',
-    hostTitle: 'Head of Growth Strategy',
+    hostTitle: 'Operator and workshop host',
     hostAvatarUrl:
       'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=400',
     hostBio:
-      'Dana has run growth for three venture-backed startups through Series C and has taught this exact framework to over 4,000 marketers.',
+      'Dana has helped owner-led teams set up a simple customer system — one page, one message, one follow-up — and has run this session for thousands of attendees.',
   },
   features: {
     headline: 'What you’ll walk away with',
-    body: 'This isn’t a highlight reel — it’s the actual system, step by step.',
+    body: 'Concrete steps, not a highlight reel.',
     items: [
       {
-        title: 'The compounding-pipeline framework',
-        body: 'The exact three-stage model we use to turn one campaign into a repeatable growth loop.',
+        title: 'A simple three-step system',
+        body: 'Page, outreach, and follow-up — the minimum that actually produces replies.',
       },
       {
         title: 'A live teardown',
-        body: 'We’ll break down a real funnel live, mistakes and all, so you can see the thinking in action.',
+        body: 'We break down a real example, mistakes included, so you can see the thinking.',
       },
       {
         title: 'Templates you can reuse',
-        body: 'Leave with the worksheets and scoring rubric — usable the same afternoon.',
+        body: 'Worksheets and a short checklist you can use the same afternoon.',
       },
     ],
   },
@@ -113,13 +113,12 @@ export const webinarSignupStarterContent: PageContent = {
     items: [
       {
         quote:
-          'I’ve sat through a lot of webinars that were just a pitch in disguise. This one actually taught me something I used the next day.',
+          'I’ve sat through a lot of webinars that were just a pitch. This one taught me something I used the next day.',
         author: 'Priya Nair',
-        role: 'Marketing Lead, Fenwick & Co.',
+        role: 'Marketing lead, Fenwick & Co.',
       },
       {
-        quote:
-          'The live teardown alone was worth an hour of my time. Concrete, specific, no filler.',
+        quote: 'The live teardown alone was worth the hour. Concrete, specific, no filler.',
         author: 'Marcus Ude',
         role: 'Founder, Ude Studio',
       },
@@ -132,12 +131,12 @@ export const webinarSignupStarterContent: PageContent = {
       {
         question: 'Is this actually free?',
         answer:
-          'Yes — no credit card, no catch. We keep a short pitch for our own product to about 5 minutes at the end.',
+          'Yes — no credit card. We keep a short pitch for our own product to about five minutes at the end.',
       },
       {
         question: 'Will there be a recording?',
         answer:
-          'Yes, every registrant gets the replay and slides by email, whether or not you can attend live.',
+          'Yes. Every registrant gets the replay and slides by email, whether or not you attend live.',
       },
       {
         question: 'Is there time for questions?',
@@ -148,6 +147,6 @@ export const webinarSignupStarterContent: PageContent = {
   footer: {
     headline: 'Seats are limited — save yours now',
     body: 'Registration closes when the room fills or the event starts, whichever comes first.',
-    cta: { label: 'Reserve My Seat', url: '#signup' },
+    cta: { label: 'Save my seat', url: '#signup' },
   },
 }

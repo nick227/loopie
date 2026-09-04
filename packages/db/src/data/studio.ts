@@ -16,9 +16,9 @@ export const SYSTEM_STUDIO_TEMPLATE_ID = 'system-template-studio'
 // Testimonials -> FAQ -> Contact, matching the brief's "explain services clearly, feature selected
 // work as proof without making the whole page a portfolio, and make the team feel human and
 // credible."
-export const studioTitle = 'Studio — Bold, Editorial Portfolio'
+export const studioTitle = 'Creative studio'
 export const studioDescription =
-  'An editorial, trust-building landing page for creative and marketing studios — oversized typography, a selected-work grid, and a real project-inquiry form.'
+  'Editorial studio site: big type, selected work, team, and a project inquiry form.'
 
 export const studioSchema: TemplateSchema = {
   renderer: 'studio',
@@ -82,7 +82,7 @@ export const studioSchema: TemplateSchema = {
 
 export const studioStarterContent: PageContent = {
   browser: {
-    title: studioTitle,
+    title: 'Fieldnote',
     favicon: { url: DEFAULT_PAGE_FAVICON_URL },
   },
   nav: {
@@ -90,7 +90,7 @@ export const studioStarterContent: PageContent = {
     links: [{ label: 'Start a project', url: '#contact' }],
   },
   hero: {
-    headline: 'We build brands people actually remember.',
+    headline: 'We build work people actually remember.',
     body: 'Fieldnote is an independent studio for founders who want fewer, better decisions — strategy, identity, and digital design under one roof.',
     media: {
       url: 'https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&q=80&w=2400',
@@ -111,7 +111,7 @@ export const studioStarterContent: PageContent = {
   metrics: {
     items: [
       { value: '11', label: 'Years in practice' },
-      { value: '64', label: 'Brands launched' },
+      { value: '64', label: 'Projects shipped' },
       { value: '92%', label: 'Clients who return' },
     ],
   },

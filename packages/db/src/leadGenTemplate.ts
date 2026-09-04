@@ -21,7 +21,7 @@ export const MOCK_STARTER_IMAGE =
 
 export const MOCK_FEATURE_ITEMS = [
   {
-    title: 'Same-week openings',
+    title: 'Openings this week',
     body: 'A few slots stay clear every week so new work does not sit in a queue.',
   },
   {
@@ -123,10 +123,10 @@ export function starterContentForTemplate(
   if (slotGroups.has('hero')) {
     const isSplit = (schema.sections ?? []).some((s) => s.type === 'split-capture')
     content.hero = isSplit
-      ? { headline: `Get ${businessName}'s next opening`, media: { url: MOCK_STARTER_IMAGE } }
+      ? { headline: `Get updates from ${businessName}`, media: { url: MOCK_STARTER_IMAGE } }
       : {
           headline: `${businessName} is booking this week`,
-          body: 'Leave your name and the job. We call back the same day with a time that works and a price before we start.',
+          body: 'Leave your name and what you need. We call back the same day with a time that works and a price before we start.',
           primaryCta: { label: 'Request a callback', url: '#form' },
         }
   }
