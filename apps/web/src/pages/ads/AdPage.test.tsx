@@ -241,21 +241,23 @@ describe('AdPage', () => {
     renderAdPage()
 
     expect(screen.getByRole('checkbox', { name: 'Facebook' })).toBeTruthy()
-    expect(screen.getByText('Feed')).toBeTruthy()
+    expect(screen.getByText('Feed — reach your audience')).toBeTruthy()
     expect(screen.getByRole('checkbox', { name: 'Google' })).toBeTruthy()
-    expect(screen.getByText('Display')).toBeTruthy()
+    expect(screen.getByText('Across the web')).toBeTruthy()
     // The mocked asset is type IMAGE — YouTube (VIDEO-only) is filtered out of the paid list.
     expect(screen.queryByRole('checkbox', { name: 'YouTube' })).toBeNull()
     expect(screen.getByRole('checkbox', { name: 'Book a Detail' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Publish selected' })).toBeTruthy()
   })
 
-  it('opens the platform settings review when a paid destination checkbox is checked', async () => {
+  it('opens the platform settings review when a paid destination is selected and published', async () => {
     const user = userEvent.setup()
     mockAd([])
     mockConnection()
     renderAdPage()
 
     await user.click(screen.getByRole('checkbox', { name: 'Facebook' }))
+    await user.click(screen.getByRole('button', { name: 'Publish selected' }))
 
     expect(screen.getByRole('heading', { name: 'Facebook Settings' })).toBeTruthy()
     expect(screen.getByText('Facebook connected')).toBeTruthy()
@@ -269,13 +271,14 @@ describe('AdPage', () => {
     renderAdPage()
 
     await user.click(screen.getByRole('checkbox', { name: 'Facebook' }))
+    await user.click(screen.getByRole('button', { name: 'Publish selected' }))
 
     expect(screen.getByText('Facebook is not connected')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Confirm Settings' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Connect Facebook' })).toBeTruthy()
   })
 
-  it('checking a page destination sends immediately with no review step (pages are free)', async () => {
+  it('publishing a selected page destination sends immediately with no review step (pages are free)', async () => {
     const user = userEvent.setup()
     mockAd([])
     const createRun = vi.fn().mockResolvedValue({ data: { id: 'run_lp', status: 'PENDING' } })
@@ -294,6 +297,7 @@ describe('AdPage', () => {
     renderAdPage()
 
     await user.click(screen.getByRole('checkbox', { name: 'Book a Detail' }))
+    await user.click(screen.getByRole('button', { name: 'Publish selected' }))
 
     expect(createRun).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -879,7 +883,7 @@ describe('AdPage', () => {
     expect(screen.getByRole('button', { name: 'Manage' })).toBeTruthy()
   })
 
-  it('posts to River directly from its destination row and records prior publish times', async () => {
+  it('posts to River from Publish selected and records prior publish times', async () => {
     const user = userEvent.setup()
     const publish = vi.fn().mockResolvedValue({ data: { id: 'version_2' } })
     const post = vi.fn().mockResolvedValue({ data: { id: 'river_2' } })
@@ -910,10 +914,11 @@ describe('AdPage', () => {
     renderAdPage()
 
     const riverCheckbox = screen.getByRole('checkbox', { name: 'River' })
-    expect(riverCheckbox).toBeChecked()
-    const riverRow = riverCheckbox.parentElement!
+    expect(riverCheckbox).not.toBeChecked()
+    const riverRow = riverCheckbox.closest('label')!
     expect(within(riverRow).getByText(/Published 1 time/)).toBeTruthy()
-    await user.click(within(riverRow).getByRole('button', { name: 'Publish again' }))
+    await user.click(riverCheckbox)
+    await user.click(screen.getByRole('button', { name: 'Publish selected' }))
 
     expect(publish).toHaveBeenCalledWith({ id: 'ad_123' })
     expect(post).toHaveBeenCalledWith({ type: 'AD', advertisementId: 'ad_123' })

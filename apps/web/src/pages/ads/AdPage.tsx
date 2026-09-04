@@ -46,6 +46,7 @@ export function AdPage() {
       id={ad.id}
       name={ad.name}
       primaryText={ad.primaryText ?? ''}
+      headline={ad.headline ?? ''}
       ctaLabel={ad.ctaLabel ?? ''}
       destinationUrl={ad.destinationUrl ?? ''}
       assetIds={ad.assetIds}
@@ -60,6 +61,7 @@ function AdPageEditor({
   id,
   name: initialName,
   primaryText: initialPrimaryText,
+  headline: initialHeadline,
   ctaLabel: initialCtaLabel,
   destinationUrl: initialDestinationUrl,
   assetIds: initialIds,
@@ -70,6 +72,7 @@ function AdPageEditor({
   id: string
   name: string
   primaryText: string
+  headline: string
   ctaLabel: string
   destinationUrl: string
   assetIds: string[]
@@ -96,6 +99,7 @@ function AdPageEditor({
   const [name, setName] = useState(initialName)
   usePageTitle(name || 'Ad')
   const [primaryText, setPrimaryText] = useState(initialPrimaryText)
+  const [headline, setHeadline] = useState(initialHeadline)
   const [ctaLabel, setCtaLabel] = useState(initialCtaLabel)
   const [destinationUrl, setDestinationUrl] = useState(initialDestinationUrl)
   const [assetIds, setAssetIds] = useState(initialIds)
@@ -144,9 +148,17 @@ function AdPageEditor({
 
   const persist = useCallback(async () => {
     if (!dirty) return
-    await updateAd.mutateAsync({ id, name, primaryText, ctaLabel, destinationUrl, assetIds })
+    await updateAd.mutateAsync({
+      id,
+      name,
+      primaryText,
+      headline,
+      ctaLabel,
+      destinationUrl,
+      assetIds,
+    })
     setDirty(false)
-  }, [dirty, id, name, primaryText, ctaLabel, destinationUrl, assetIds, updateAd])
+  }, [dirty, id, name, primaryText, headline, ctaLabel, destinationUrl, assetIds, updateAd])
 
   useEffect(() => {
     if (!dirty) return
@@ -154,7 +166,7 @@ function AdPageEditor({
       persist().catch(() => {})
     }, 800)
     return () => window.clearTimeout(timer)
-  }, [dirty, name, primaryText, ctaLabel, destinationUrl, assetIds, persist])
+  }, [dirty, name, primaryText, headline, ctaLabel, destinationUrl, assetIds, persist])
 
   function markDirty(_dirty?: boolean) {
     generation.current += 1
@@ -293,12 +305,14 @@ function AdPageEditor({
     <AdEditor
       name={name}
       primaryText={primaryText}
+      headline={headline}
       ctaLabel={ctaLabel}
       destinationUrl={destinationUrl}
       assetIds={assetIds}
       runs={runs}
       updatedAt={updatedAt}
       pending={pending}
+      dirty={dirty}
       error={error}
       lastPublishedAt={lastPublishedAt}
       onPostToRiver={() => void handlePostToRiver()}
@@ -311,6 +325,10 @@ function AdPageEditor({
       }}
       onPrimaryText={(val) => {
         setPrimaryText(val)
+        markDirty()
+      }}
+      onHeadline={(val) => {
+        setHeadline(val)
         markDirty()
       }}
       onCtaLabel={(val) => {
@@ -334,6 +352,7 @@ function AdPageEditor({
         name.trim().length > 0 &&
         (name !== initialName ||
           primaryText !== initialPrimaryText ||
+          headline !== initialHeadline ||
           ctaLabel !== initialCtaLabel ||
           destinationUrl !== initialDestinationUrl ||
           assetIds.length !== initialIds.length ||
@@ -342,7 +361,15 @@ function AdPageEditor({
       onSave={async () => {
         setError(null)
         try {
-          await updateAd.mutateAsync({ id, name, primaryText, ctaLabel, destinationUrl, assetIds })
+          await updateAd.mutateAsync({
+            id,
+            name,
+            primaryText,
+            headline,
+            ctaLabel,
+            destinationUrl,
+            assetIds,
+          })
           setDirty(false)
         } catch (err) {
           setError(
@@ -353,7 +380,15 @@ function AdPageEditor({
       onSend={async (targets) => {
         setError(null)
         try {
-          await updateAd.mutateAsync({ id, name, primaryText, ctaLabel, destinationUrl, assetIds })
+          await updateAd.mutateAsync({
+            id,
+            name,
+            primaryText,
+            headline,
+            ctaLabel,
+            destinationUrl,
+            assetIds,
+          })
           await startAdRuns(id, targets, createRun.mutateAsync, resumeRun.mutateAsync)
         } catch (err) {
           setError(

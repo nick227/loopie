@@ -41,54 +41,48 @@ export function DestinationIntentRow({
   format,
   publishedAt = [],
   publicationRecords,
-  pending,
+  selected,
   disabled,
-  onPublish,
+  onToggle,
 }: {
   id: string
   label: string
   format?: string
   publishedAt?: string[]
   publicationRecords?: PublicationRecord[]
-  pending?: boolean
+  selected: boolean
   disabled?: boolean
-  onPublish: () => void
+  onToggle: () => void
 }) {
   const published = (publicationRecords?.length ?? publishedAt.length) > 0
   return (
-    <div
+    <label
+      htmlFor={id}
       className={cn(
-        'flex items-start gap-3 rounded-lg border px-3 py-3 transition-colors',
-        published ? 'border-border bg-accent' : 'border-border bg-transparent',
-        disabled ? 'opacity-50' : undefined,
+        'flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-3 transition-colors',
+        selected
+          ? 'border-primary/40 bg-accent'
+          : published
+            ? 'border-border bg-surface'
+            : 'border-border bg-transparent',
+        disabled ? 'cursor-not-allowed opacity-50' : undefined,
       )}
     >
       <input
         id={id}
         type="checkbox"
-        checked={published}
-        onChange={onPublish}
-        disabled={disabled || pending}
+        checked={selected}
+        onChange={onToggle}
+        disabled={disabled}
         aria-label={label}
-        className="h-4 w-4 shrink-0 accent-primary"
+        className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
       />
       <div className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium">{label}</span>
         {format ? <span className="block text-xs text-muted-foreground">{format}</span> : null}
         <PublicationHistory timestamps={publishedAt} records={publicationRecords} />
       </div>
-      <Button
-        type="button"
-        size="sm"
-        variant={published ? 'outline' : 'default'}
-        onClick={onPublish}
-        loading={pending}
-        disabled={disabled}
-      >
-        {!pending ? <Send size={13} /> : null}
-        {published ? 'Publish again' : 'Publish'}
-      </Button>
-    </div>
+    </label>
   )
 }
 

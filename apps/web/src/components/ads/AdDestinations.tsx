@@ -1,5 +1,6 @@
 import { useRiverPosts } from '@project/sdk'
 import type { components } from '@project/sdk'
+import { Button } from '@/components/ui/Button'
 import { DestinationIntentRow, PageRunRow, PaidRunRow } from '@/components/ads/AdDestinationRow'
 import type { AdOrder } from '@/lib/adOrder'
 import {
@@ -18,6 +19,8 @@ type LandingPage = {
   hostedUrl?: string | null
   slug?: string
 }
+
+export const RIVER_DESTINATION_KEY = 'river'
 
 export type PublishTarget = {
   platform: 'META' | 'GOOGLE' | 'LOOPIE'
@@ -39,11 +42,13 @@ export function AdDestinations({
   pages,
   runs,
   selected,
+  onSelectedChange,
+  onPublishSelected,
+  publishPending,
   advertisementUpdatedAt,
   advertisementId,
   onPostToRiver,
-  riverPending,
-  onToggle,
+  onRepublishPage,
   onPausePage,
   onRelaunch,
   onSync,
@@ -77,11 +82,13 @@ export function AdDestinations({
   pages: LandingPage[]
   runs: AdRun[]
   selected: string[]
+  onSelectedChange: (keys: string[]) => void
+  onPublishSelected: () => void
+  publishPending?: boolean
   advertisementUpdatedAt?: string
   advertisementId?: string
   onPostToRiver?: () => void
-  riverPending?: boolean
-  onToggle: (key: string, supersedesRunId?: string) => void
+  onRepublishPage?: (key: string, supersedesRunId: string) => void
   onPausePage?: (runId: string) => void
   onRelaunch?: (run: AdRun) => void
   onSync?: (run: AdRun) => void
@@ -131,13 +138,6 @@ export function AdDestinations({
     }
     if (run.status === 'ENDED') continue
     const existing = byKey.get(key)
-    // A replace-creative/replace-destination (or generic relaunch) attempt that fails leaves its
-    // own new row non-ENDED (VALIDATION_FAILED/PROVISIONING_FAILED) alongside the prior run,
-    // which explicitly stays live and running until a replacement actually succeeds — see
-    // AdRunService.createAndProvision. Two non-ENDED rows can briefly share one destination key;
-    // the still-delivering one must win the slot here, never the failed attempt silently hiding
-    // it. Equal-priority ties (the normal case — one live run per key) keep prior last-one-wins
-    // behavior.
     if (!existing || runFailoverPriority(run) >= runFailoverPriority(existing)) {
       byKey.set(key, run)
     }
@@ -150,129 +150,192 @@ export function AdDestinations({
     href: post.permalinkUrl,
   }))
 
-  return (
-    <div className="space-y-5">
-      <div>
-        <h2 className="text-sm font-medium p-2 bg-surface rounded-lg">Publish to:</h2>
-      </div>
+  const selectableKeys: string[] = []
+  if (advertisementId && onPostToRiver) selectableKeys.push(RIVER_DESTINATION_KEY)
+  for (const row of paid) {
+    if (!byKey.get(row.key)) selectableKeys.push(row.key)
+  }
+  for (const page of pages) {
+    const key = pageKey(page.id)
+    if (!byKey.get(key)) selectableKeys.push(key)
+  }
 
-      <div className="space-y-2">
-        {advertisementId ? (
+  const selectedCount = selected.length
+  const selectableCount = selectableKeys.length
+
+  function toggleKey(key: string) {
+    if (selected.includes(key)) {
+      onSelectedChange(selected.filter((k) => k !== key))
+    } else {
+      onSelectedChange([...selected, key])
+    }
+  }
+
+  const intentRows = (
+    <>
+      {advertisementId ? (
+        <DestinationIntentRow
+          id="destination-river"
+          label="River"
+          format="In-app placements"
+          publicationRecords={riverHistory}
+          selected={selected.includes(RIVER_DESTINATION_KEY)}
+          disabled={!onPostToRiver}
+          onToggle={() => toggleKey(RIVER_DESTINATION_KEY)}
+        />
+      ) : null}
+      {paid.map((row) => {
+        const run = byKey.get(row.key)
+        if (run) return null
+        return (
           <DestinationIntentRow
-            id="destination-river"
-            label="River"
-            format="Post organically to LOOPIE's B2B feed"
-            publicationRecords={riverHistory}
-            pending={riverPending}
-            disabled={!onPostToRiver}
-            onPublish={() => onPostToRiver?.()}
+            key={row.key}
+            id={row.key}
+            label={row.brand}
+            format={
+              row.key === 'META_FEED'
+                ? 'Feed — reach your audience'
+                : row.key === 'GOOGLE_DISPLAY'
+                  ? 'Across the web'
+                  : row.where
+            }
+            publishedAt={(historyByKey.get(row.key) ?? []).map((item) => item.createdAt)}
+            selected={selected.includes(row.key)}
+            onToggle={() => toggleKey(row.key)}
           />
-        ) : null}
-        {paid.map((row) => {
-          const run = byKey.get(row.key)
-          if (run)
-            return (
-              <PaidRunRow
-                key={row.key}
-                brand={row.brand}
-                run={run}
-                advertisementUpdatedAt={advertisementUpdatedAt}
-                onRelaunch={onRelaunch ? () => onRelaunch(run) : undefined}
-                onSync={onSync ? () => onSync(run) : undefined}
-                syncing={syncingRunId === run.id}
-                onPause={onPauseRun ? () => onPauseRun(run) : undefined}
-                onResume={onResumeRun ? () => onResumeRun(run) : undefined}
-                onEnd={onEndRun ? () => onEndRun(run) : undefined}
-                actionPending={actionPendingRunId === run.id}
-                onEditBudget={
-                  onEditBudget ? (dailyBudget) => onEditBudget(run, dailyBudget) : undefined
-                }
-                editBudgetPending={editBudgetPendingRunId === run.id}
-                editBudgetError={editBudgetErrorRunId === run.id ? editBudgetError : undefined}
-                onEditSchedule={
-                  onEditSchedule
-                    ? (startIso, endIso) => onEditSchedule(run, startIso, endIso)
-                    : undefined
-                }
-                editSchedulePending={editSchedulePendingRunId === run.id}
-                editScheduleError={
-                  editScheduleErrorRunId === run.id ? editScheduleError : undefined
-                }
-                onEditTargeting={
-                  onEditTargeting
-                    ? (country, locationNote, radiusMiles) =>
-                        onEditTargeting(run, country, locationNote, radiusMiles)
-                    : undefined
-                }
-                editTargetingPending={editTargetingPendingRunId === run.id}
-                editTargetingError={
-                  editTargetingErrorRunId === run.id ? editTargetingError : undefined
-                }
-                pages={pages}
-                onReplaceCreative={onReplaceCreative ? () => onReplaceCreative(run) : undefined}
-                replaceCreativePending={replaceCreativePendingRunId === run.id}
-                replaceCreativeError={
-                  replaceCreativeErrorRunId === run.id ? replaceCreativeError : undefined
-                }
-                onReplaceDestination={
-                  onReplaceDestination ? (pageId) => onReplaceDestination(run, pageId) : undefined
-                }
-                replaceDestinationPending={replaceDestinationPendingRunId === run.id}
-                replaceDestinationError={
-                  replaceDestinationErrorRunId === run.id ? replaceDestinationError : undefined
-                }
-                publicationHistory={(historyByKey.get(row.key) ?? []).map((item) => item.createdAt)}
-              />
-            )
-          return (
-            <DestinationIntentRow
-              key={row.key}
-              id={row.key}
-              label={row.brand}
-              format={row.format}
-              publishedAt={(historyByKey.get(row.key) ?? []).map((item) => item.createdAt)}
-              pending={selected.includes(row.key)}
-              onPublish={() => onToggle(row.key)}
-            />
-          )
-        })}
+        )
+      })}
+      {pages.map((page) => {
+        const key = pageKey(page.id)
+        const run = byKey.get(key)
+        if (run) return null
+        return (
+          <DestinationIntentRow
+            key={key}
+            id={key}
+            label={page.name}
+            format={page.status === 'PUBLISHED' ? 'Website / page placement' : 'Draft'}
+            publishedAt={(historyByKey.get(key) ?? []).map((item) => item.createdAt)}
+            selected={selected.includes(key)}
+            onToggle={() => toggleKey(key)}
+          />
+        )
+      })}
+    </>
+  )
+
+  const liveRuns = (
+    <>
+      {paid.map((row) => {
+        const run = byKey.get(row.key)
+        if (!run) return null
+        return (
+          <PaidRunRow
+            key={row.key}
+            brand={row.brand}
+            run={run}
+            advertisementUpdatedAt={advertisementUpdatedAt}
+            onRelaunch={onRelaunch ? () => onRelaunch(run) : undefined}
+            onSync={onSync ? () => onSync(run) : undefined}
+            syncing={syncingRunId === run.id}
+            onPause={onPauseRun ? () => onPauseRun(run) : undefined}
+            onResume={onResumeRun ? () => onResumeRun(run) : undefined}
+            onEnd={onEndRun ? () => onEndRun(run) : undefined}
+            actionPending={actionPendingRunId === run.id}
+            onEditBudget={
+              onEditBudget ? (dailyBudget) => onEditBudget(run, dailyBudget) : undefined
+            }
+            editBudgetPending={editBudgetPendingRunId === run.id}
+            editBudgetError={editBudgetErrorRunId === run.id ? editBudgetError : undefined}
+            onEditSchedule={
+              onEditSchedule
+                ? (startIso, endIso) => onEditSchedule(run, startIso, endIso)
+                : undefined
+            }
+            editSchedulePending={editSchedulePendingRunId === run.id}
+            editScheduleError={editScheduleErrorRunId === run.id ? editScheduleError : undefined}
+            onEditTargeting={
+              onEditTargeting
+                ? (country, locationNote, radiusMiles) =>
+                    onEditTargeting(run, country, locationNote, radiusMiles)
+                : undefined
+            }
+            editTargetingPending={editTargetingPendingRunId === run.id}
+            editTargetingError={editTargetingErrorRunId === run.id ? editTargetingError : undefined}
+            pages={pages}
+            onReplaceCreative={onReplaceCreative ? () => onReplaceCreative(run) : undefined}
+            replaceCreativePending={replaceCreativePendingRunId === run.id}
+            replaceCreativeError={
+              replaceCreativeErrorRunId === run.id ? replaceCreativeError : undefined
+            }
+            onReplaceDestination={
+              onReplaceDestination ? (pageId) => onReplaceDestination(run, pageId) : undefined
+            }
+            replaceDestinationPending={replaceDestinationPendingRunId === run.id}
+            replaceDestinationError={
+              replaceDestinationErrorRunId === run.id ? replaceDestinationError : undefined
+            }
+            publicationHistory={(historyByKey.get(row.key) ?? []).map((item) => item.createdAt)}
+          />
+        )
+      })}
+      {pages.map((page) => {
+        const key = pageKey(page.id)
+        const run = byKey.get(key)
+        if (!run) return null
+        return (
+          <PageRunRow
+            key={key}
+            label={page.name}
+            onPause={run.status === 'ACTIVE' && onPausePage ? () => onPausePage(run.id) : undefined}
+            publicationHistory={(historyByKey.get(key) ?? []).map((item) => item.createdAt)}
+            onPublish={onRepublishPage ? () => onRepublishPage(key, run.id) : undefined}
+          />
+        )
+      })}
+    </>
+  )
+
+  return (
+    <div className="space-y-5 rounded-xl border border-border bg-surface p-4 sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">Distribution</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Choose where to publish this advertisement.
+          </p>
+        </div>
+        <p className="text-xs text-muted-foreground tabular-nums">
+          {selectedCount} of {selectableCount} selected
+        </p>
       </div>
 
-      <div className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Pages</p>
-        {pages.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No pages yet.</p>
-        ) : (
-          pages.map((page) => {
-            const key = pageKey(page.id)
-            const run = byKey.get(key)
-            if (run) {
-              return (
-                <PageRunRow
-                  key={key}
-                  label={page.name}
-                  onPause={
-                    run.status === 'ACTIVE' && onPausePage ? () => onPausePage(run.id) : undefined
-                  }
-                  publicationHistory={(historyByKey.get(key) ?? []).map((item) => item.createdAt)}
-                  onPublish={() => onToggle(key, run.id)}
-                />
-              )
-            }
-            return (
-              <DestinationIntentRow
-                key={key}
-                id={key}
-                label={page.name}
-                format={page.status === 'PUBLISHED' ? undefined : 'Draft'}
-                publishedAt={(historyByKey.get(key) ?? []).map((item) => item.createdAt)}
-                pending={selected.includes(key)}
-                onPublish={() => onToggle(key)}
-              />
-            )
-          })
-        )}
+      <div className="grid gap-2 sm:grid-cols-2">{intentRows}</div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+        <p className="text-xs text-muted-foreground">
+          {selectedCount === 0
+            ? 'Select one or more destinations.'
+            : `Will publish to ${selectedCount} destination${selectedCount === 1 ? '' : 's'}.`}
+        </p>
+        <Button
+          type="button"
+          onClick={onPublishSelected}
+          disabled={selectedCount === 0 || publishPending}
+          loading={publishPending}
+        >
+          Publish selected
+        </Button>
       </div>
+
+      {runs.some((run) => run.status !== 'ENDED') || pages.some((p) => byKey.has(pageKey(p.id))) ? (
+        <div className="space-y-2 border-t border-border pt-4">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Active placements
+          </p>
+          <div className="space-y-2">{liveRuns}</div>
+        </div>
+      ) : null}
     </div>
   )
 }

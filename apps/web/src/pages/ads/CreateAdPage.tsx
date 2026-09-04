@@ -39,6 +39,7 @@ function CreateGenericAdPage() {
   const resumeRun = useResumeAdRun()
   const [name, setName] = useState('')
   const [primaryText, setPrimaryText] = useState('')
+  const [headline, setHeadline] = useState('')
   const [ctaLabel, setCtaLabel] = useState('')
   const [destinationUrl, setDestinationUrl] = useState('')
   const [assetIds, setAssetIds] = useState<string[]>([])
@@ -86,6 +87,7 @@ function CreateGenericAdPage() {
         id: adId.current,
         name,
         primaryText,
+        headline,
         ctaLabel,
         destinationUrl,
         assetIds,
@@ -95,6 +97,7 @@ function CreateGenericAdPage() {
     const result = await createAd.mutateAsync({
       name,
       primaryText,
+      headline,
       ctaLabel,
       destinationUrl,
       assetIds,
@@ -109,6 +112,7 @@ function CreateGenericAdPage() {
     <AdEditor
       name={name}
       primaryText={primaryText}
+      headline={headline}
       ctaLabel={ctaLabel}
       destinationUrl={destinationUrl}
       assetIds={assetIds}
@@ -117,6 +121,7 @@ function CreateGenericAdPage() {
       error={error}
       onName={setName}
       onPrimaryText={setPrimaryText}
+      onHeadline={setHeadline}
       onCtaLabel={setCtaLabel}
       onDestinationUrl={setDestinationUrl}
       onAssetIds={setAssetIds}
