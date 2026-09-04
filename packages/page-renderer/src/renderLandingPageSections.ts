@@ -168,9 +168,15 @@ function isNavAskUrl(url: string | undefined): boolean {
 }
 
 /** Scroll-linked solid color plane — mirrors studio ColorWash in the React canvas. */
-function colorWash(index: number): string {
-  const colors = ['ink', 'primary', 'bg', 'ink', 'primary'] as const
+function colorWash(index: number, tone: 'bg' | 'ink' | 'primary' | 'card' = 'bg'): string {
   const edges = ['bottom', 'left', 'top', 'right', 'bottom'] as const
+  const byTone: Record<typeof tone, ReadonlyArray<'ink' | 'primary' | 'bg' | 'card'>> = {
+    bg: ['primary', 'ink'],
+    card: ['primary', 'ink'],
+    ink: ['primary', 'bg'],
+    primary: ['ink', 'bg'],
+  }
+  const colors = byTone[tone]
   const color = colors[index % colors.length]!
   const edge = edges[index % edges.length]!
   return `<div class="lp-color-wash" data-lp-wash-color="${color}" data-lp-wash-edge="${edge}" aria-hidden="true"></div>`
@@ -247,7 +253,7 @@ export function renderSection(
       const headline = c.headline ? `<h2>${escapeHtml(c.headline)}</h2>` : ''
       const body = c.body ? `<p class="lp-section-intro">${escapeHtml(c.body)}</p>` : ''
       if (renderer === 'studio') {
-        return `<section class="lp-section lp-features lp-snap lp-snap--primary" data-lp-snap data-lp-fx="rise"${idAttr}>${colorWash(5)}<div class="lp-section-heading"><p class="lp-kicker">How we work</p>${headline}${body}</div><div class="lp-feature-grid">${itemsHtml}</div></section>`
+        return `<section class="lp-section lp-features lp-snap lp-snap--primary" data-lp-snap data-lp-tone="primary" data-lp-fx="rise"${idAttr}>${colorWash(5, 'primary')}<div class="lp-section-heading"><p class="lp-kicker">How we work</p>${headline}${body}</div><div class="lp-feature-grid">${itemsHtml}</div></section>`
       }
       return `<section class="lp-section lp-features"${idAttr}><div class="lp-section-heading">${headline}${body}</div><div class="lp-feature-grid">${itemsHtml}</div></section>`
     }
@@ -277,7 +283,7 @@ export function renderSection(
       const body = c.body ? `<p>${escapeHtml(c.body)}</p>` : ''
       const cta = renderCta(c.cta)
       if (renderer === 'studio') {
-        return `<section class="lp-section lp-studio-contact lp-snap lp-snap--primary" data-lp-snap data-lp-fx="fill-rise"${idAttr}>${colorWash(7)}<div>${headline}${body}${cta}</div><div class="lp-form-card">${formHtml}</div></section>`
+        return `<section class="lp-section lp-studio-contact lp-snap lp-snap--primary" data-lp-snap data-lp-tone="primary" data-lp-fx="fill-rise"${idAttr}>${colorWash(7, 'primary')}<div>${headline}${body}${cta}</div><div class="lp-form-card">${formHtml}</div></section>`
       }
       return `<section class="lp-section lp-studio-contact"${idAttr}><div>${headline}${body}${cta}</div><div class="lp-form-card">${formHtml}</div></section>`
     }
@@ -355,7 +361,7 @@ export function renderSection(
           if (renderer === 'studio') {
             const tones = ['bg', 'ink', 'primary'] as const
             const tone = tones[index % tones.length]
-            return `<article class="lp-service lp-snap lp-snap--${tone}" data-lp-snap data-lp-fx="service-slide">${colorWash(index + 1)}${media}<div class="lp-service-copy">${kicker}${item.headline ? `<h3>${escapeHtml(item.headline)}</h3>` : ''}<p>${escapeHtml(item.description ?? '')}</p>${renderCta(item.cta)}</div></article>`
+            return `<article class="lp-service lp-snap lp-snap--${tone}" data-lp-snap data-lp-tone="${tone}" data-lp-fx="service-slide">${colorWash(index + 1, tone)}${media}<div class="lp-service-copy">${kicker}${item.headline ? `<h3>${escapeHtml(item.headline)}</h3>` : ''}<p>${escapeHtml(item.description ?? '')}</p>${renderCta(item.cta)}</div></article>`
           }
           const articleClass = renderer === 'portfolio' ? 'lp-service lp-fade-in-row' : 'lp-service'
           return `<article class="${articleClass}">${media}<div class="lp-service-copy">${kicker}${item.headline ? `<h3>${escapeHtml(item.headline)}</h3>` : ''}<p>${escapeHtml(item.description ?? '')}</p>${renderCta(item.cta)}</div></article>`
@@ -364,7 +370,7 @@ export function renderSection(
       if (renderer === 'studio') {
         const intro =
           title || body
-            ? `<section class="lp-section lp-services-intro lp-snap" data-lp-snap>${colorWash(0)}<div class="lp-section-heading"><p class="lp-kicker">Capabilities</p>${title}${body}</div></section>`
+            ? `<section class="lp-section lp-services-intro lp-snap lp-snap--bg" data-lp-snap data-lp-tone="bg">${colorWash(0, 'bg')}<div class="lp-section-heading"><p class="lp-kicker">Capabilities</p>${title}${body}</div></section>`
             : ''
         return `${intro}${rows}`
       }
@@ -427,7 +433,7 @@ export function renderSection(
                 )}</div><button type="button" data-lp-carousel-next aria-label="Next testimonial">›</button></div>`
             : ''
         if (renderer === 'studio') {
-          return `<section class="lp-section lp-testimonials lp-snap lp-snap--ink" data-lp-snap data-lp-fx="track-tighten" data-lp-carousel${idAttr}>${colorWash(6)}<div class="lp-section-heading">${headline}${body}</div><div class="lp-carousel-viewport">${slides}</div>${controls}</section>`
+          return `<section class="lp-section lp-testimonials lp-snap lp-snap--ink" data-lp-snap data-lp-tone="ink" data-lp-fx="track-tighten" data-lp-carousel${idAttr}>${colorWash(6, 'ink')}<div class="lp-section-heading">${headline}${body}</div><div class="lp-carousel-viewport">${slides}</div>${controls}</section>`
         }
         return `<section class="lp-section lp-testimonials"${idAttr} data-lp-carousel><div class="lp-section-heading">${headline}${body}</div><div class="lp-carousel-viewport">${slides}</div>${controls}</section>`
       }
@@ -501,7 +507,7 @@ export function renderSection(
         })
         .join('')
       if (renderer === 'studio') {
-        return `<section class="lp-section lp-gallery lp-snap" data-lp-snap data-lp-fx="h-drift">${colorWash(4)}<div class="lp-section-heading"><p class="lp-kicker">Selected work</p>${title}${galleryBody}</div><div class="lp-gallery-grid">${tiles}</div></section>`
+        return `<section class="lp-section lp-gallery lp-snap lp-snap--bg" data-lp-snap data-lp-tone="bg" data-lp-fx="h-drift">${colorWash(4, 'bg')}<div class="lp-section-heading"><p class="lp-kicker">Selected work</p>${title}${galleryBody}</div><div class="lp-gallery-grid">${tiles}</div></section>`
       }
       return `<section class="lp-section lp-gallery">${title}<div class="lp-gallery-grid">${tiles}</div></section>`
     }

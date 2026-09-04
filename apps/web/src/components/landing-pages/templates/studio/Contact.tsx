@@ -26,12 +26,17 @@ export function ContactSection({
 }) {
   const cta = content?.cta ?? {}
   const { ref, progress } = useMotionPanel()
-  const wash = washForIndex(7)
+  const wash = washForIndex(7, 'primary')
 
   return (
     <SnapPanel ref={ref} id="contact" tone="primary" className="flex flex-col justify-center">
       <ColorWash progress={progress} color={wash.color} edge={wash.edge} rest="42%" />
-      <FrameInner className="grid gap-12 lg:grid-cols-2 lg:gap-16">
+      <FrameInner
+        progress={progress}
+        tone="primary"
+        wash={wash.color}
+        className="grid gap-12 lg:grid-cols-2 lg:gap-16"
+      >
         <div>
           {editable ? (
             <CanvasText
@@ -79,7 +84,7 @@ export function ContactSection({
             </p>
           ) : (
             <>
-              <div className="[&_label]:!text-[color:color-mix(in_srgb,var(--lp-on-primary)_75%,transparent)] [&_input]:!rounded-none [&_input]:!border-0 [&_input]:!border-b [&_input]:!border-[color:color-mix(in_srgb,var(--lp-on-primary)_35%,transparent)] [&_input]:!bg-transparent [&_input]:!px-0 [&_input]:!pb-2 [&_input]:!text-[color:var(--lp-on-primary)] [&_select]:!rounded-none [&_select]:!border-0 [&_select]:!border-b [&_select]:!border-[color:color-mix(in_srgb,var(--lp-on-primary)_35%,transparent)] [&_select]:!bg-transparent [&_select]:!px-0 [&_select]:!text-[color:var(--lp-on-primary)] [&_.text-muted-foreground]:!text-[color:color-mix(in_srgb,var(--lp-on-primary)_60%,transparent)] [&_button]:!text-[color:var(--lp-on-primary)] [&_button]:!border-[color:color-mix(in_srgb,var(--lp-on-primary)_35%,transparent)]">
+              <div className="[&_label]:!text-[color:color-mix(in_srgb,currentColor_75%,transparent)] [&_input]:!rounded-none [&_input]:!border-0 [&_input]:!border-b [&_input]:!border-[color:color-mix(in_srgb,currentColor_35%,transparent)] [&_input]:!bg-transparent [&_input]:!px-0 [&_input]:!pb-2 [&_input]:!text-[color:currentColor] [&_select]:!rounded-none [&_select]:!border-0 [&_select]:!border-b [&_select]:!border-[color:color-mix(in_srgb,currentColor_35%,transparent)] [&_select]:!bg-transparent [&_select]:!px-0 [&_select]:!text-[color:currentColor] [&_.text-muted-foreground]:!text-[color:color-mix(in_srgb,currentColor_60%,transparent)] [&_button]:!text-[color:currentColor] [&_button]:!border-[color:color-mix(in_srgb,currentColor_35%,transparent)]">
                 <FormFieldsEditor fields={formFields} onChange={onFormFields} protectEmail />
               </div>
               <div className="mt-6">

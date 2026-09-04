@@ -6,7 +6,6 @@ import type { TestimonialItem } from '../../../../pages/landing-pages/components
 import { Eyebrow, type SectionProps } from './shared'
 import { ColorWash, FrameInner, SnapPanel, useMotionPanel, washForIndex } from './SnapPanel'
 import { useStudioMotionDisabled } from './motion'
-import { inv } from './tokens'
 
 /**
  * Frame gesture: quote letter-spacing tightens from open tracking into readable
@@ -28,12 +27,17 @@ export function TestimonialsSection({ content, editable, onChange }: SectionProp
 
   if (!items.length && !editable) return null
 
-  const wash = washForIndex(6)
+  const wash = washForIndex(6, 'ink')
 
   return (
     <SnapPanel ref={ref} tone="ink" className="flex flex-col justify-center">
       <ColorWash progress={progress} color={wash.color} edge={wash.edge} />
-      <FrameInner className="max-w-4xl text-left lg:mx-auto">
+      <FrameInner
+        progress={progress}
+        tone="ink"
+        wash={wash.color}
+        className="max-w-4xl text-left lg:mx-auto"
+      >
         {editable ? (
           <CanvasText
             ariaLabel="Testimonials headline"
@@ -82,10 +86,12 @@ export function TestimonialsSection({ content, editable, onChange }: SectionProp
                   ariaLabel={`Testimonial ${index + 1} role`}
                   value={current.role ?? ''}
                   onChange={(role) => updateCurrent({ role })}
-                  style={{ color: inv(60) }}
+                  style={{ color: 'color-mix(in srgb, currentColor 60%, transparent)' }}
                 />
               ) : (
-                <span style={{ color: inv(60) }}>{current.role}</span>
+                <span style={{ color: 'color-mix(in srgb, currentColor 60%, transparent)' }}>
+                  {current.role}
+                </span>
               )}
             </div>
           </>
@@ -97,7 +103,7 @@ export function TestimonialsSection({ content, editable, onChange }: SectionProp
               type="button"
               aria-label="Previous testimonial"
               onClick={() => setIndex((index - 1 + items.length) % items.length)}
-              style={{ color: inv(55) }}
+              style={{ color: 'color-mix(in srgb, currentColor 55%, transparent)' }}
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
@@ -109,7 +115,12 @@ export function TestimonialsSection({ content, editable, onChange }: SectionProp
                   aria-label={`Show testimonial ${i + 1}`}
                   onClick={() => setIndex(i)}
                   className="h-1 w-6"
-                  style={{ backgroundColor: i === index ? 'var(--lp-bg)' : inv(25) }}
+                  style={{
+                    backgroundColor:
+                      i === index
+                        ? 'currentColor'
+                        : 'color-mix(in srgb, currentColor 25%, transparent)',
+                  }}
                 />
               ))}
             </div>
@@ -117,7 +128,7 @@ export function TestimonialsSection({ content, editable, onChange }: SectionProp
               type="button"
               aria-label="Next testimonial"
               onClick={() => setIndex((index + 1) % items.length)}
-              style={{ color: inv(55) }}
+              style={{ color: 'color-mix(in srgb, currentColor 55%, transparent)' }}
             >
               <ChevronRight className="h-5 w-5" />
             </button>
@@ -134,7 +145,7 @@ export function TestimonialsSection({ content, editable, onChange }: SectionProp
                   setIndex((i) => Math.max(0, i - 1))
                 }}
                 className="text-xs underline underline-offset-4"
-                style={{ color: inv(55) }}
+                style={{ color: 'color-mix(in srgb, currentColor 55%, transparent)' }}
               >
                 Remove this one
               </button>
@@ -146,7 +157,7 @@ export function TestimonialsSection({ content, editable, onChange }: SectionProp
                 setIndex(items.length)
               }}
               className="inline-flex items-center gap-1.5 text-xs underline underline-offset-4"
-              style={{ color: inv(55) }}
+              style={{ color: 'color-mix(in srgb, currentColor 55%, transparent)' }}
             >
               <Plus className="h-3 w-3" /> Add testimonial
             </button>

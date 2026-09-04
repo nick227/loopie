@@ -170,12 +170,12 @@ export function GallerySection({ content, editable, onChange }: SectionProps<'ga
 
   if (!items.length && !editable) return null
 
-  const wash = washForIndex(4)
+  const wash = washForIndex(4, 'bg')
 
   return (
     <SnapPanel ref={ref} tone="bg" className="flex flex-col justify-center">
       <ColorWash progress={progress} color={wash.color} edge={wash.edge} />
-      <FrameInner className="pb-8">
+      <FrameInner progress={progress} tone="bg" wash={wash.color} className="pb-8">
         <SectionHeader
           editable={editable}
           eyebrow="Selected work"

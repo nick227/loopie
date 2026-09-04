@@ -37,7 +37,7 @@ function FeatureRow({
     <motion.div
       className="group relative grid grid-cols-[4.5rem_1fr] gap-4 border-t py-8 sm:grid-cols-[6rem_1fr] sm:gap-8"
       style={{
-        borderColor: 'color-mix(in srgb, var(--lp-on-primary) 22%, transparent)',
+        borderColor: 'color-mix(in srgb, currentColor 22%, transparent)',
         ...(disabled ? {} : { y: rowY, opacity: rowOpacity }),
       }}
     >
@@ -93,12 +93,12 @@ export function FeaturesSection({ content, editable, onChange }: SectionProps<'f
   const items = content?.items ?? []
   const { ref, progress } = useMotionPanel()
 
-  const wash = washForIndex(5)
+  const wash = washForIndex(5, 'primary')
 
   return (
     <SnapPanel ref={ref} tone="primary" className="flex flex-col justify-center">
       <ColorWash progress={progress} color={wash.color} edge={wash.edge} />
-      <FrameInner>
+      <FrameInner progress={progress} tone="primary" wash={wash.color}>
         <SectionHeader
           editable={editable}
           eyebrow="How we work"

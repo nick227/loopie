@@ -45,19 +45,16 @@ function ServicePanel({
   const copyX = useTransform(progress, [0.2, 0.5], [fromRight ? 56 : -56, 0])
   const copyOpacity = useTransform(progress, [0.2, 0.45], [0, 1])
 
-  const muted =
-    tone === 'primary'
-      ? 'color-mix(in srgb, var(--lp-on-primary) 72%, transparent)'
-      : tone === 'ink'
-        ? 'color-mix(in srgb, var(--lp-bg) 68%, transparent)'
-        : 'color-mix(in srgb, var(--lp-ink) 65%, var(--lp-bg))'
-
-  const wash = washForIndex(index + 1)
+  const muted = 'color-mix(in srgb, currentColor 70%, transparent)'
+  const wash = washForIndex(index + 1, tone)
 
   return (
     <SnapPanel ref={ref} tone={tone} className="flex flex-col justify-center">
       <ColorWash progress={progress} color={wash.color} edge={wash.edge} />
       <FrameInner
+        progress={progress}
+        tone={tone}
+        wash={wash.color}
         className={`grid items-center gap-10 lg:grid-cols-12 lg:gap-14 ${fromRight ? 'lg:[&>*:first-child]:order-2' : ''}`}
       >
         <motion.div className="lg:col-span-6" style={disabled ? undefined : { scale: imgScale }}>
@@ -161,12 +158,17 @@ function ServicePanel({
 
 function ServicesIntro({ content, editable, onChange }: SectionProps<'services'>) {
   const { ref, progress } = useMotionPanel()
-  const wash = washForIndex(0)
+  const wash = washForIndex(0, 'bg')
 
   return (
     <SnapPanel ref={ref} tone="bg" className="flex flex-col justify-center">
       <ColorWash progress={progress} color={wash.color} edge={wash.edge} />
-      <FrameInner className="flex min-h-[calc(100svh-5rem)] flex-col justify-center">
+      <FrameInner
+        progress={progress}
+        tone="bg"
+        wash={wash.color}
+        className="flex min-h-[calc(100svh-5rem)] flex-col justify-center"
+      >
         <SectionHeader
           editable={editable}
           eyebrow="Capabilities"

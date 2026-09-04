@@ -22,6 +22,23 @@ const WASH_BG: Record<WashColor, string> = {
   card: 'var(--lp-card)',
 }
 
+/** CSS custom-property name for type sitting on a tone surface. */
+const TONE_FG_VAR: Record<Tone, string> = {
+  bg: '--lp-ink',
+  ink: '--lp-bg',
+  primary: '--lp-on-primary',
+  card: '--lp-ink',
+  clear: '--lp-ink',
+}
+
+/** CSS custom-property name for type sitting on a wash surface. */
+const WASH_FG_VAR: Record<WashColor, string> = {
+  ink: '--lp-bg',
+  primary: '--lp-on-primary',
+  bg: '--lp-ink',
+  card: '--lp-ink',
+}
+
 /**
  * Scroll-linked solid color plane — the Contact signature, reused on most frames.
  * Grows from an edge as the panel traverses the viewport.
@@ -68,14 +85,44 @@ export function ColorWash({
   )
 }
 
-/** Alternating wash recipe so consecutive frames feel related but not identical. */
-export function washForIndex(i: number): { color: WashColor; edge: WashEdge } {
-  const colors: WashColor[] = ['ink', 'primary', 'bg', 'ink', 'primary']
+/**
+ * Wash that differs from the panel surface. Text color is handled separately
+ * via FrameInner so type always tracks the surface under it (theme-safe even
+ * when primary ≈ ink, as in Shopfront / Workshop).
+ */
+export function washForIndex(i: number, tone: Tone = 'bg'): { color: WashColor; edge: WashEdge } {
   const edges: WashEdge[] = ['bottom', 'left', 'top', 'right', 'bottom']
+  const byTone: Record<Tone, WashColor[]> = {
+    bg: ['primary', 'ink'],
+    card: ['primary', 'ink'],
+    clear: ['primary', 'ink'],
+    ink: ['primary', 'bg'],
+    primary: ['ink', 'bg'],
+  }
+  const colors = byTone[tone]
   return {
     color: colors[i % colors.length]!,
     edge: edges[i % edges.length]!,
   }
+}
+
+function mixReadableColor(fromVar: string, toVar: string, t: number): string {
+  const pct = Math.max(0, Math.min(1, t))
+  return `color-mix(in srgb, var(${fromVar}) ${(1 - pct) * 100}%, var(${toVar}) ${pct * 100}%)`
+}
+
+/** Crossfade type from tone foreground → wash foreground as the wash fills. */
+export function useWashReadableColor(
+  progress: MotionValue<number>,
+  tone: Tone,
+  wash: WashColor,
+): MotionValue<string> {
+  const disabled = useStudioMotionDisabled()
+  const from = TONE_FG_VAR[tone]
+  const to = WASH_FG_VAR[wash]
+  return useTransform(progress, (p) =>
+    mixReadableColor(from, to, disabled ? 0.55 : (p - 0.18) / 0.34),
+  )
 }
 
 export const SnapPanel = forwardRef<
@@ -95,19 +142,54 @@ export const SnapPanel = forwardRef<
       id={id}
       className={`relative overflow-hidden ${fill ? 'min-h-[100svh]' : ''} ${snap && fill ? 'snap-start snap-always' : ''} ${className}`}
       style={TONE_STYLE[tone]}
+      data-lp-tone={tone}
     >
       {children}
     </section>
   )
 })
 
+function FrameInnerWash({
+  children,
+  className,
+  progress,
+  tone,
+  wash,
+}: {
+  children: ReactNode
+  className: string
+  progress: MotionValue<number>
+  tone: Tone
+  wash: WashColor
+}) {
+  const color = useWashReadableColor(progress, tone, wash)
+  return (
+    <motion.div className={`relative z-10 ${FRAME} ${className}`} style={{ color }}>
+      {children}
+    </motion.div>
+  )
+}
+
 export function FrameInner({
   children,
   className = '',
+  progress,
+  tone = 'bg',
+  wash,
 }: {
   children: ReactNode
   className?: string
+  progress?: MotionValue<number>
+  tone?: Tone
+  wash?: WashColor
 }) {
+  if (progress && wash) {
+    return (
+      <FrameInnerWash className={className} progress={progress} tone={tone} wash={wash}>
+        {children}
+      </FrameInnerWash>
+    )
+  }
   return <div className={`relative z-10 ${FRAME} ${className}`}>{children}</div>
 }
 

@@ -336,6 +336,15 @@ export function renderLandingPageHtml(input: {
         wash.style.height = amount;
         wash.style.width = '100%';
       }
+      // Crossfade type into the wash's readable foreground (theme-safe when primary ≈ ink).
+      var washColor = wash.getAttribute('data-lp-wash-color') || 'ink';
+      var tone = el.getAttribute('data-lp-tone') || 'bg';
+      var toneFg = { bg: '--lp-ink', card: '--lp-ink', clear: '--lp-ink', ink: '--lp-bg', primary: '--lp-on-primary' };
+      var washFg = { ink: '--lp-bg', primary: '--lp-on-primary', bg: '--lp-ink', card: '--lp-ink' };
+      var from = toneFg[tone] || '--lp-ink';
+      var to = washFg[washColor] || '--lp-bg';
+      var mixT = clamp01((p - 0.18) / 0.34);
+      el.style.color = 'color-mix(in srgb, var(' + from + ') ' + ((1 - mixT) * 100) + '%, var(' + to + ') ' + (mixT * 100) + '%)';
     }
 
     if (fx === 'hero-wipe') {
@@ -667,7 +676,7 @@ button[type="submit"] { padding: 0.85rem 1.5rem; background: var(--lp-primary); 
 .lp-template-studio .lp-gallery .lp-kicker,
 .lp-template-studio .lp-features .lp-kicker { margin: 0 0 1.25rem; font-size: 11px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: color-mix(in srgb, currentColor 55%, transparent); }
 .lp-template-studio .lp-gallery .lp-section-heading { margin: 0 0 2rem; max-width: 36rem; }
-.lp-template-studio .lp-gallery .lp-section-intro { margin: 0; color: color-mix(in srgb, var(--lp-ink) 70%, var(--lp-bg)); }
+.lp-template-studio .lp-gallery .lp-section-intro { margin: 0; color: color-mix(in srgb, currentColor 70%, transparent); }
 .lp-template-studio .lp-services-intro .lp-section-heading { margin: 0; max-width: 36rem; }
 .lp-template-studio .lp-features .lp-section-heading { margin: 0 0 2.5rem; max-width: 36rem; }
 .lp-template-studio .lp-services-intro h2, .lp-template-studio .lp-gallery > h2, .lp-template-studio .lp-section-heading h2, .lp-template-studio .lp-team .lp-section-heading h2 { font-size: clamp(1.75rem, 3.5vw, 2.75rem); font-weight: 700; line-height: 1.05; letter-spacing: -0.03em; text-align: left; margin: 0; text-transform: none; }
@@ -688,12 +697,12 @@ button[type="submit"] { padding: 0.85rem 1.5rem; background: var(--lp-primary); 
 .lp-template-studio .lp-gallery-tile img { height: auto; width: 100%; object-fit: cover; aspect-ratio: 4 / 5; border-radius: 0; }
 .lp-template-studio .lp-testimonials { text-align: left; background: var(--lp-ink); color: var(--lp-bg); }
 .lp-template-studio .lp-testimonials .lp-section-heading { margin: 0 0 2.5rem; text-align: left; }
-.lp-template-studio .lp-testimonials .lp-section-heading h2, .lp-template-studio .lp-testimonials .lp-kicker { color: color-mix(in srgb, var(--lp-bg) 55%, var(--lp-ink)); font-size: 11px; letter-spacing: .22em; text-transform: uppercase; font-weight: 600; }
+.lp-template-studio .lp-testimonials .lp-section-heading h2, .lp-template-studio .lp-testimonials .lp-kicker { color: color-mix(in srgb, currentColor 55%, transparent); font-size: 11px; letter-spacing: .22em; text-transform: uppercase; font-weight: 600; }
 .lp-template-studio .lp-testimonial { padding: 0; background: transparent; border-radius: 0; font-family: var(--lp-heading); font-size: clamp(1.5rem, 3.5vw, 2.5rem); font-style: normal; font-weight: 600; text-transform: none; letter-spacing: -0.02em; line-height: 1.2; }
 .lp-template-studio .lp-testimonial p { will-change: letter-spacing, opacity; }
-.lp-template-studio .lp-testimonial cite { display: block; margin-top: 1.5rem; font-style: normal; font-size: .875rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: color-mix(in srgb, var(--lp-bg) 70%, var(--lp-ink)); }
-.lp-template-studio .lp-carousel-controls button, .lp-template-studio .lp-carousel-dot::after { color: color-mix(in srgb, var(--lp-bg) 60%, var(--lp-ink)); }
-.lp-template-studio .lp-carousel-dot.is-active::after { background: var(--lp-bg); }
+.lp-template-studio .lp-testimonial cite { display: block; margin-top: 1.5rem; font-style: normal; font-size: .875rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: color-mix(in srgb, currentColor 70%, transparent); }
+.lp-template-studio .lp-carousel-controls button, .lp-template-studio .lp-carousel-dot::after { color: color-mix(in srgb, currentColor 60%, transparent); }
+.lp-template-studio .lp-carousel-dot.is-active::after { background: currentColor; }
 .lp-template-studio .lp-studio-contact { position: relative; grid-template-columns: 1fr 1fr; gap: 3rem; background: var(--lp-primary); color: var(--lp-on-primary); }
 .lp-template-studio .lp-color-wash, .lp-template-studio .lp-contact-fill { position: absolute; pointer-events: none; z-index: 0; }
 .lp-template-studio .lp-color-wash[data-lp-wash-edge="bottom"], .lp-template-studio .lp-contact-fill { left: 0; right: 0; bottom: 0; height: 0; width: 100%; }
@@ -708,9 +717,9 @@ button[type="submit"] { padding: 0.85rem 1.5rem; background: var(--lp-primary); 
 .lp-template-studio .lp-service > *:not(.lp-color-wash),
 .lp-template-studio .lp-studio-contact > *:not(.lp-color-wash):not(.lp-contact-fill) { position: relative; z-index: 1; }
 .lp-template-studio .lp-studio-contact h2 { font-family: var(--lp-heading); font-size: clamp(1.75rem, 3.5vw, 2.75rem); font-weight: 700; line-height: 1.05; letter-spacing: -0.03em; text-transform: none; margin: 0 0 0.75rem; }
-.lp-template-studio .lp-studio-contact p { color: color-mix(in srgb, var(--lp-on-primary) 78%, transparent); margin: 0; }
+.lp-template-studio .lp-studio-contact p { color: color-mix(in srgb, currentColor 78%, transparent); margin: 0; }
 .lp-template-studio .lp-studio-contact .lp-form-card { background: transparent; border: none; padding: 0; }
-.lp-template-studio .lp-studio-contact input, .lp-template-studio .lp-studio-contact select { border: none; border-bottom: 1px solid color-mix(in srgb, var(--lp-on-primary) 35%, transparent); border-radius: 0; background: transparent; color: var(--lp-on-primary); padding-left: 0; }
+.lp-template-studio .lp-studio-contact input, .lp-template-studio .lp-studio-contact select { border: none; border-bottom: 1px solid color-mix(in srgb, currentColor 35%, transparent); border-radius: 0; background: transparent; color: currentColor; padding-left: 0; }
 .lp-template-studio .lp-studio-contact button[type="submit"] { background: var(--lp-bg); color: var(--lp-ink); border: 0; border-radius: 0; font-weight: 600; }
 .lp-template-studio .lp-team-grid { grid-template-columns: repeat(3, 1fr); gap: 2.5rem 1.5rem; }
 .lp-template-studio .lp-team-member { text-align: left; will-change: transform, opacity; }
