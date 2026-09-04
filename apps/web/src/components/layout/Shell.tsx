@@ -2,6 +2,7 @@ import { Suspense, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useMatch, useNavigate } from 'react-router-dom'
 import { Inbox as InboxIcon, Mail, LogOut, Handshake, Bell, Waves, Command } from 'lucide-react'
 import { useCurrentUser, useInboxThreads, useLogout } from '@project/sdk'
+import { AD_CREATIVE_STYLESHEET } from '@project/ad-renderer'
 import { cn } from '@/lib/utils'
 import { CreateMenu, CreateButtonTrigger } from '@/components/layout/CreateMenu'
 import { SetHeaderTitleContext } from '@/lib/headerContext'
@@ -288,6 +289,12 @@ export function Shell() {
 
   return (
     <div className="">
+      {/* Mounted once, app-wide — Ad Designer's live preview and River's AD post rendering both
+          inject the shared @project/ad-renderer fragment via dangerouslySetInnerHTML and rely on
+          this being present exactly once (see CLAUDE.md's Ad Designer "CRITICAL RENDERING
+          REQUIREMENT"). The embed/Page-iframe surfaces inline their own copy server-side instead —
+          this tag only covers in-SPA rendering. */}
+      <style dangerouslySetInnerHTML={{ __html: AD_CREATIVE_STYLESHEET }} />
       <Header
         pageTitle={pageTitle}
         businessName={me.data?.data?.businessName}

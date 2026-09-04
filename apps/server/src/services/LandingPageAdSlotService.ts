@@ -1,5 +1,5 @@
 import { db } from '@project/db'
-import { MAX_AD_SLOTS, asPlacement, toSlotDTO, type AdSlotInput } from '../lib/adSlots'
+import { MAX_AD_SLOTS, asPlacement, asContext, toSlotDTO, type AdSlotInput } from '../lib/adSlots'
 import { LandingPageService } from './LandingPageService'
 
 const pages = new LandingPageService()
@@ -23,6 +23,17 @@ export class LandingPageAdSlotService {
       }
     }
 
+    const advertisementIds = slots.flatMap((s) => s.advertisementIds || [])
+    if (advertisementIds.length) {
+      const found = await db.advertisement.findMany({
+        where: { id: { in: advertisementIds }, businessId, deletedAt: null },
+        select: { id: true },
+      })
+      if (found.length !== new Set(advertisementIds).size) {
+        throw { statusCode: 404, message: 'Advertisement not found or unauthorized' }
+      }
+    }
+
     await db.$transaction(async (tx) => {
       // Cascade delete on relations handles assignments automatically, but we can be explicit
       await tx.landingPageAdSlot.deleteMany({ where: { landingPageId } })
@@ -33,17 +44,26 @@ export class LandingPageAdSlotService {
             landingPageId,
             sortOrder,
             placement: asPlacement(slot.placement),
+            context: asContext(slot.context ?? 'CONTAINED'),
           },
         })
 
-        if (slot.adRunIds?.length) {
-          await tx.landingPageAdSlotAssignment.createMany({
-            data: slot.adRunIds.map((adRunId) => ({
-              slotId: createdSlot.id,
-              adRunId,
-              weight: 1,
-            })),
-          })
+        const assignments = [
+          ...(slot.adRunIds ?? []).map((adRunId) => ({
+            slotId: createdSlot.id,
+            adRunId,
+            advertisementId: null,
+            weight: 1,
+          })),
+          ...(slot.advertisementIds ?? []).map((advertisementId) => ({
+            slotId: createdSlot.id,
+            adRunId: null,
+            advertisementId,
+            weight: 1,
+          })),
+        ]
+        if (assignments.length) {
+          await tx.landingPageAdSlotAssignment.createMany({ data: assignments })
         }
       }
     })

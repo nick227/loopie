@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Heart, MessageCircle, FileText, MoreHorizontal, Pin, ArrowUpRight } from 'lucide-react'
 import type { components } from '@project/sdk'
 import {
@@ -21,8 +20,13 @@ import { cn } from '@/lib/utils'
 import {
   RiverPostMedia,
   RiverPostHeaderChrome,
+  AdCreativeVisual,
   useIsPortrait,
 } from '@/components/river/RiverPostPresentation'
+
+const CommentSheet = lazy(() =>
+  import('@/components/river/CommentSheet').then((m) => ({ default: m.CommentSheet })),
+)
 
 type RiverFeedItem = components['schemas']['RiverFeedItem']
 
@@ -49,6 +53,18 @@ function Media({ item }: { item: RiverFeedItem }) {
   // media and a linkUrl — LinkPreview already owns that click affordance, and wrapping the photo
   // too would just be two things pointing at the same place.
   const isAdCreative = item.type === 'AD' || item.type === 'SPONSORED'
+
+  // A real Ad Designer creative (format set) renders through the shared renderer, in its own
+  // format's shape — not flattened into the generic image treatment below. Pre-Ad-Designer AD
+  // posts (adCreative absent) keep rendering exactly as before.
+  if (item.adCreative) {
+    const badge = (
+      <span className="absolute left-2.5 top-2.5 rounded-full bg-background/85 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground backdrop-blur-sm">
+        Ad
+      </span>
+    )
+    return <AdCreativeVisual adCreative={item.adCreative} badge={badge} />
+  }
 
   if (!video && images.length === 0) return null
 
@@ -147,8 +163,10 @@ function PageCard({ item }: { item: RiverFeedItem }) {
 
 function CtaRow({ item }: { item: RiverFeedItem }) {
   // PAGE's click affordance is folded into the artifact chip above (PageCard) — one action, not
-  // a second button repeating it underneath.
+  // a second button repeating it underneath. A real Ad Designer creative already renders its own
+  // CTA per its ctaPlacement preset (see AdCreativeVisual/StageFrame above) — same reasoning.
   if (item.type === 'PAGE') return null
+  if (item.adCreative) return null
   if (!item.clickUrl) return null
   const label =
     item.cta?.label ?? (item.type === 'AD' || item.type === 'SPONSORED' ? 'Learn more' : null)
@@ -217,6 +235,23 @@ function StageFrame({ item }: { item: RiverFeedItem }) {
   const singleImage = images.length === 1 ? images[0] : undefined
   const portrait = useIsPortrait(singleImage)
   const isAdCreative = item.type === 'AD' || item.type === 'SPONSORED'
+
+  // Same shared-renderer branch as Media() above — a real creative gets its own natural shape,
+  // never squeezed into STAGE_FRAME_SIZE_CLASS's fixed box (see AdCreativeVisual's doc comment).
+  // Not wrapped in the clickable <a> below either — the fragment already carries its own href.
+  if (item.adCreative) {
+    return (
+      <AdCreativeVisual
+        adCreative={item.adCreative}
+        className="max-w-[420px]"
+        badge={
+          <span className="absolute left-3 top-3 rounded-full bg-primary px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
+            Ad
+          </span>
+        }
+      />
+    )
+  }
 
   let visual: React.ReactNode = null
   if (video) {
@@ -362,7 +397,7 @@ function useStageFocus<T extends HTMLElement>() {
 // both genuinely secondary to the primary engagement signal (reactions/comments) that stays in
 // the main row. Building a shared dropdown primitive for what lives here would be more machinery
 // than the payoff warrants at this size. Permalink is a real in-app route now (see the "River
-// comments" plan doc's RiverPostPage) — a plain <Link>, not an external hop to the standalone
+// comments" plan doc's RiverPostPage) — an in-app route, not an external hop to the standalone
 // HTML page the way it used to be.
 function MoreMenu({
   riverPostId,
@@ -459,6 +494,9 @@ function CommentsSection({ item }: { item: RiverFeedItem }) {
   const preview = useRiverComments(item.id, { limit: 2 })
   const createComment = useCreateRiverComment()
   const comments = [...(preview.data?.pages[0]?.data ?? [])].reverse()
+  const [sheetOpen, setSheetOpen] = useState(false)
+
+  const count = item.metrics.comments
 
   return (
     <div className="space-y-3">
@@ -473,12 +511,20 @@ function CommentsSection({ item }: { item: RiverFeedItem }) {
         pending={createComment.isPending}
         onSubmit={(body) => createComment.mutate({ riverPostId: item.id, body })}
       />
-      <Link
-        to={`/river/posts/${item.id}`}
-        className="block text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-      >
-        View all comments
-      </Link>
+      {count > 0 ? (
+        <button
+          type="button"
+          onClick={() => setSheetOpen(true)}
+          className="block text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          View all {count} {count === 1 ? 'comment' : 'comments'}
+        </button>
+      ) : null}
+      {sheetOpen ? (
+        <Suspense fallback={null}>
+          <CommentSheet riverPostId={item.id} onClose={() => setSheetOpen(false)} />
+        </Suspense>
+      ) : null}
     </div>
   )
 }

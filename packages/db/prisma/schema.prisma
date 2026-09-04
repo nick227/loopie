@@ -170,12 +170,12 @@ enum BusinessMemberRole {
 }
 
 model BusinessMembership {
-  id         String             @id @default(cuid())
-  userId     String
-  businessId String
-  role       BusinessMemberRole @default(MEMBER)
+  id          String             @id @default(cuid())
+  userId      String
+  businessId  String
+  role        BusinessMemberRole @default(MEMBER)
   // Display label only (e.g. "Marketing Manager") — not a permission matrix.
-  jobTitle   String?
+  jobTitle    String?
   // True for the user who originally created this Business. At most one founder per business
   // (enforced in TeamService). Founders cannot be suspended or removed by other members.
   isFounder   Boolean            @default(false)
@@ -789,17 +789,96 @@ model Advertisement {
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
 
-  business            Business                        @relation(fields: [businessId], references: [id])
-  assets              AdvertisementAsset[]
-  runs                AdRun[]
-  mediaOrderRevisions MediaOrderRevision[]
-  inboxThreads        InboxThread[]
-  publishedVersions   PublishedAdvertisementVersion[]
-  embedDeployments    EmbedDeployment[]
-  riverPosts          RiverPost[]
+  // ---- Ad Designer (2026-09-03) — see CLAUDE.md's "Ad Designer" entry ----
+  // Every field below is nullable so pre-existing generic ads (format = null) keep rendering
+  // exactly as they did before this pass. Once `format` is set, AdvertisementService applies
+  // per-format preset defaults for any of the design fields left unset — there is deliberately no
+  // "arbitrary" positioning value, only these closed vocabularies (see @project/ad-renderer).
+  format                   AdCreativeFormat?
+  headline                 String?
+  textPlacement            AdTextPlacement?
+  fontScale                AdFontScale?
+  textAlign                AdTextAlign?
+  overlay                  AdOverlayTreatment?
+  ctaPlacement             AdCtaPlacement?
+  mediaFocal               AdMediaFocal?
+  // CTA destination — a Loopie Page resolved live (never copied), or the existing raw
+  // `destinationUrl` above for EXTERNAL_URL / legacy ads with no destinationType set at all.
+  destinationType          AdDestinationType?
+  destinationLandingPageId String?
+
+  business               Business                        @relation(fields: [businessId], references: [id])
+  destinationLandingPage LandingPage?                    @relation(fields: [destinationLandingPageId], references: [id])
+  assets                 AdvertisementAsset[]
+  runs                   AdRun[]
+  mediaOrderRevisions    MediaOrderRevision[]
+  inboxThreads           InboxThread[]
+  publishedVersions      PublishedAdvertisementVersion[]
+  embedDeployments       EmbedDeployment[]
+  riverPosts             RiverPost[]
+  adSlotAssignments      LandingPageAdSlotAssignment[]
 
   @@index([businessId])
   @@index([businessId, deletedAt])
+  @@index([destinationLandingPageId])
+}
+
+// Closed preset vocabularies for the Ad Designer — "a limited Canva, not a blank canvas." Every
+// value here must have a matching CSS rule in @project/ad-renderer; there is no free-form x/y or
+// pixel escape hatch by design (see CLAUDE.md's Ad Designer spec).
+enum AdCreativeFormat {
+  POSTER
+  STORY
+  FEED_POST
+}
+
+enum AdTextPlacement {
+  TOP_LEFT
+  TOP_CENTER
+  TOP_RIGHT
+  CENTER
+  BOTTOM_LEFT
+  BOTTOM_CENTER
+  BOTTOM_RIGHT
+}
+
+enum AdFontScale {
+  COMPACT
+  STANDARD
+  OVERSIZED
+}
+
+enum AdTextAlign {
+  LEFT
+  CENTER
+  RIGHT
+}
+
+enum AdOverlayTreatment {
+  NONE
+  DARK_GRADIENT
+  LIGHT_GRADIENT
+  SOLID_SCRIM
+}
+
+enum AdCtaPlacement {
+  BENEATH_COPY
+  INLINE_WITH_COPY
+  FLOATING_BOTTOM
+  TOP_BANNER
+}
+
+enum AdMediaFocal {
+  CENTER
+  TOP
+  BOTTOM
+  LEFT
+  RIGHT
+}
+
+enum AdDestinationType {
+  LANDING_PAGE
+  EXTERNAL_URL
 }
 
 // Phase 1 (scoped down, see CLAUDE.md's Media Order Confirmation pass): a durable, immutable,
@@ -1631,16 +1710,17 @@ model LandingPage {
   riverPosts       RiverPost[]
   versions         PublishedPageVersion[] @relation("PageVersions")
 
-  deployments       Deployment[]
-  embedDeployments  EmbedDeployment[]
-  adRuns            AdRun[]
-  adUnits           AdUnit[]
-  affiliates        Affiliate[]
-  attributionEvents AttributionEvent[]
-  pageViews         PageView[]
-  formSubmissions   FormSubmission[]
-  adSlots           LandingPageAdSlot[]
-  inboxThreads      InboxThread[]
+  deployments               Deployment[]
+  embedDeployments          EmbedDeployment[]
+  adRuns                    AdRun[]
+  adUnits                   AdUnit[]
+  affiliates                Affiliate[]
+  attributionEvents         AttributionEvent[]
+  pageViews                 PageView[]
+  formSubmissions           FormSubmission[]
+  adSlots                   LandingPageAdSlot[]
+  inboxThreads              InboxThread[]
+  advertisementDestinations Advertisement[]
 
   @@index([businessId, status])
 }
@@ -1652,14 +1732,23 @@ enum AdSlotPlacement {
   BOTTOM
 }
 
+// Visual sizing context for a slot, independent of `placement` (which is *where* on the page).
+// Ad Designer (2026-09-03) — see CLAUDE.md.
+enum AdPlacementContext {
+  INLINE
+  CONTAINED
+  PROMOTIONAL
+}
+
 // A page is a publishing surface: N spaces, each holding at most one first-party AdUnit.
 // Draft slots live here; publish freezes them onto PublishedPageVersion.adSlotSnapshot.
 model LandingPageAdSlot {
-  id            String          @id @default(cuid())
+  id            String             @id @default(cuid())
   landingPageId String
   sortOrder     Int
   placement     AdSlotPlacement
-  createdAt     DateTime        @default(now())
+  context       AdPlacementContext @default(CONTAINED)
+  createdAt     DateTime           @default(now())
 
   landingPage LandingPage                   @relation(fields: [landingPageId], references: [id])
   assignments LandingPageAdSlotAssignment[]
@@ -1667,19 +1756,26 @@ model LandingPageAdSlot {
   @@index([landingPageId])
 }
 
+// A slot assignment is filled by exactly one of adRunId (a platform-run buy, rotating candidate)
+// or advertisementId (a saved Ad Designer creative placed by direct reference — Ad Designer,
+// 2026-09-03) — enforced in LandingPageAdSlotService, not the DB, matching the existing
+// dual-nullable pattern used by RiverPost.advertisementId/landingPageId elsewhere in this file.
 model LandingPageAdSlotAssignment {
-  id        String      @id @default(cuid())
-  slotId    String
-  adRunId   String
-  status    AdRunStatus @default(ACTIVE)
-  weight    Int         @default(1)
-  createdAt DateTime    @default(now())
+  id              String      @id @default(cuid())
+  slotId          String
+  adRunId         String?
+  advertisementId String?
+  status          AdRunStatus @default(ACTIVE)
+  weight          Int         @default(1)
+  createdAt       DateTime    @default(now())
 
-  slot  LandingPageAdSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
-  adRun AdRun             @relation(fields: [adRunId], references: [id], onDelete: Cascade)
+  slot          LandingPageAdSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  adRun         AdRun?            @relation(fields: [adRunId], references: [id], onDelete: Cascade)
+  advertisement Advertisement?    @relation(fields: [advertisementId], references: [id], onDelete: Cascade)
 
   @@index([slotId])
   @@index([adRunId])
+  @@index([advertisementId])
 }
 
 // Immutable snapshot written on every publish — content/theme/formId frozen at that moment,
@@ -1773,20 +1869,20 @@ enum FormFieldType {
 }
 
 model FormField {
-  id        String        @id @default(cuid())
-  formId    String
-  label     String
-  fieldKey  String // stable key used in submission payloads, e.g. "email"
-  type      FormFieldType
-  required  Boolean       @default(false)
-  options   Json? // string[] of choices, used when type = SELECT
+  id           String        @id @default(cuid())
+  formId       String
+  label        String
+  fieldKey     String // stable key used in submission payloads, e.g. "email"
+  type         FormFieldType
+  required     Boolean       @default(false)
+  options      Json? // string[] of choices, used when type = SELECT
   // The value source for type = HIDDEN — a fixed, business-configured value baked into the
   // rendered <input type="hidden">. Hidden fields have no human to fill them in, so this is their
   // only value contract; a required HIDDEN field with no defaultValue is rejected at publish time
   // (see LandingPageService.publish) rather than silently producing a form no one can submit.
   defaultValue String?
-  order     Int           @default(0)
-  createdAt DateTime      @default(now())
+  order        Int           @default(0)
+  createdAt    DateTime      @default(now())
 
   form Form @relation(fields: [formId], references: [id])
 
@@ -2655,18 +2751,23 @@ enum AdClickBehavior {
 }
 
 model PublishedAdvertisementVersion {
-  id               String          @id @default(cuid())
+  id               String            @id @default(cuid())
   advertisementId  String
   version          Int
   creativeSnapshot Json
   assetIds         Json
-  clickBehavior    AdClickBehavior @default(HOST)
+  clickBehavior    AdClickBehavior   @default(HOST)
   destinationUrl   String?
   dimensions       String? // e.g. "300x250"
   accessibleLabel  String?
-  formatVersion    String          @default("1.0")
+  // Ad Designer (2026-09-03) — folded onto the top level for cheap querying/branching, mirroring
+  // `dimensions` above; the full design (textPlacement/fontScale/etc) lives inside
+  // `creativeSnapshot` (see AdvertisementService.publish), same "one canonical hashed payload"
+  // discipline the rest of this model already follows. Null for pre-existing generic ads.
+  format           AdCreativeFormat?
+  formatVersion    String            @default("1.0")
   checksum         String?
-  publishedAt      DateTime        @default(now())
+  publishedAt      DateTime          @default(now())
   publishedBy      String?
   archivedAt       DateTime?
 
@@ -3042,35 +3143,35 @@ enum GoalEventType {
 }
 
 model GoalIdeaTemplate {
-  id         String  @id @default(cuid())
+  id                     String           @id @default(cuid())
   // Null = system-authored, offered to every business (subject to businessTypes targeting below).
   // Set = a business's own quickly-typed idea ("+ Add idea") — same model, same idea-pool/
   // schedule/dismiss plumbing, just not reusable across tenants. Mirrors
   // LandingPageTemplate.businessId's nullable-means-system convention.
-  businessId String?
-  isSystem   Boolean @default(true)
-  title      String
+  businessId             String?
+  isSystem               Boolean          @default(true)
+  title                  String
   // The "why this matters" copy shown in the detail view — never surfaced in the compact row,
   // matching the minimal-UI mandate; only shown once someone taps in for more.
-  detail     String? @db.Text
-  ideaType   GoalIdeaType    @default(ACTION)
-  subjectType GoalSubjectType @default(GENERAL)
-  stage       CoachStage      @default(FOUNDATION)
+  detail                 String?          @db.Text
+  ideaType               GoalIdeaType     @default(ACTION)
+  subjectType            GoalSubjectType  @default(GENERAL)
+  stage                  CoachStage       @default(FOUNDATION)
   // Template ids (this business's own ScheduledGoal history) that must have a DONE goal before
   // this idea is offered — the deterministic "completing work unlocks the next useful
   // suggestion" mechanism. Most ideas have none (universal, always on offer, like "Ask 3
   // customers for reviews"); a handful of Attract/Capture ideas require the Foundation homepage
   // first. Evaluated in lib/coachRules.ts, not a stage-order blanket lock — `stage` is display/
   // narrative grouping, this field is the actual gate.
-  requiresTemplateIds Json?
+  requiresTemplateIds    Json?
   // The reserve-library recurrence rule (2026-09-02 "never run out of ideas" pass): only meaningful
   // for a *static* template (metricKey null) — a dynamic template's own live condition is already
   // its natural recurrence rule, so this is never consulted for one. false (the default) means
   // "one-time" — once a DONE ScheduledGoal exists from this template, it never resurfaces. true
   // means it can come back `cooldownDays` after its most recent completion (e.g. "ask for
   // reviews" every 30 days) — see lib/coachRules.ts's cooldown gate in listIdeas.
-  repeatable   Boolean @default(false)
-  cooldownDays Int?
+  repeatable             Boolean          @default(false)
+  cooldownDays           Int?
   // Calendar as command center, not just a list: an idea can carry a real destination inside
   // Loopie so acting on it is one click, not a hunt through nav. NAVIGATE is the only type this
   // pass implements (a plain in-app path); OPEN_MODAL/START_FLOW are declared now so a future
@@ -3078,38 +3179,38 @@ model GoalIdeaTemplate {
   // handful of templates resolve this live instead of from this static field — see
   // lib/coachRules.ts's resolveAction (e.g. "finish your ad draft" points at whichever draft
   // Advertisement actually exists, not a fixed path).
-  actionType   String?
-  actionTarget String?
+  actionType             String?
+  actionTarget           String?
   // Human label for the action button (e.g. "Open profile", "Import contacts") — kept separate
   // from actionTarget so the frontend never has to derive button copy from a URL path.
-  actionLabel  String?
+  actionLabel            String?
   // Freeform string[] of industry keywords (e.g. ["auto", "detailing"]), loosely matched
   // case-insensitively against Business.industry — that field is itself freeform (see its own
   // schema comment), so a controlled vocabulary here would be enforcing a taxonomy that doesn't
   // exist yet. Null/empty = universal, offered to every business regardless of industry.
-  businessTypes Json?
+  businessTypes          Json?
   defaultHorizon         String? // "TODAY" | "THIS_WEEK" | "NEXT_WEEK" — only ever prefills the schedule popover, never persisted as-is on the resulting ScheduledGoal (see that model's own comment on why horizon isn't stored)
   defaultEstimateMinutes Int?
-  trackingType GoalTrackingType @default(MANUAL)
+  trackingType           GoalTrackingType @default(MANUAL)
   // Interpreted by CalendarService's fixed switch (e.g. "PAGE_PUBLISHED", "QUALIFIED_LEAD_FOLLOWUPS")
   // — a plain string catalog key, not a formula language, matching this schema's existing
   // discipline of small interpreted-string fields (Interaction.metadata, AutomationLog outcome).
-  metricKey      String?
-  targetValue    Int?
-  priorityWeight Int     @default(0)
+  metricKey              String?
+  targetValue            Int?
+  priorityWeight         Int              @default(0)
   // Freeform, e.g. "Q4", "SPRING" — advisory only; nothing enforces or filters on it yet, kept so
   // a future seasonal-campaign publishing pass can populate it without a migration.
-  seasonality    String?
+  seasonality            String?
   // Bumped when a system template's copy/behavior changes materially, so ensureSystemGoalIdeaTemplates
   // can tell "content updated" apart from "business edited their own idea" — mirrors
   // LandingPageTemplate.formatVersion's role.
-  contentVersion Int      @default(1)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  contentVersion         Int              @default(1)
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
 
-  business  Business?                @relation(fields: [businessId], references: [id])
-  states    GoalIdeaState[]
-  goals     ScheduledGoal[]
+  business Business?       @relation(fields: [businessId], references: [id])
+  states   GoalIdeaState[]
+  goals    ScheduledGoal[]
 
   @@index([businessId])
 }
@@ -3155,36 +3256,36 @@ model ScheduledGoal {
   // LeadService upsert the Calendar-visible mirror of Lead.nextActionAt without a lookup race, the
   // same nullable-unique-with-MySQL-null-distinctness trick already used on Sale.idempotencyKey
   // and InboxThread's compound uniques. Rows created any other way leave this null.
-  externalKey   String?
-  subjectType   GoalSubjectType  @default(GENERAL)
-  subjectId     String?
-  trackingType  GoalTrackingType @default(MANUAL)
-  metricKey     String?
-  targetValue   Int?
+  externalKey      String?
+  subjectType      GoalSubjectType     @default(GENERAL)
+  subjectId        String?
+  trackingType     GoalTrackingType    @default(MANUAL)
+  metricKey        String?
+  targetValue      Int?
   // Only meaningful (and hand-updated) for trackingType=MANUAL; ENTITY_STATE/COUNT progress is
   // always computed live from real data at read time (see CalendarService), never trusted from a
   // stored column that could drift.
-  currentValue    Int?
-  estimateMinutes Int?
+  currentValue     Int?
+  estimateMinutes  Int?
   // Deliberately no stored `horizon` enum: "Today"/"This week"/"Next week" are resolved to a
   // concrete scheduledFor at schedule time and re-bucketed against `now` on every read, so an item
   // scheduled for "next week" correctly slides into "this week" as the calendar actually turns
   // over — a static label would need its own rollover job to do the same thing correctly.
-  scheduledFor DateTime?
+  scheduledFor     DateTime?
   // Whether scheduledFor carries a meaningful time-of-day (true) or is just a bucket day at local
   // midnight (false, the quick-schedule default). Deliberately not a formatted "HH:mm" string:
   // the frontend renders the time itself from scheduledFor using the viewer's own timezone
   // (Date.toLocaleTimeString), which a server-baked string could never localize correctly for
   // every viewer. Only hasTime=true goals get a time-precise reminder from the poller — see
   // CalendarReminderService.
-  hasTime        Boolean             @default(false)
-  completedAt    DateTime?
-  dismissedAt    DateTime?
-  status         ScheduledGoalStatus @default(SCHEDULED)
+  hasTime          Boolean             @default(false)
+  completedAt      DateTime?
+  dismissedAt      DateTime?
+  status           ScheduledGoalStatus @default(SCHEDULED)
   // Set once the due-time reminder has fired so the poller never sends it twice.
-  reminderSentAt DateTime?
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  reminderSentAt   DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
 
   business Business          @relation(fields: [businessId], references: [id])
   template GoalIdeaTemplate? @relation(fields: [sourceTemplateId], references: [id])

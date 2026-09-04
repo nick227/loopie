@@ -1,8 +1,9 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Avatar } from '@/components/ui/Avatar'
 import { mediaSrc } from '@/lib/media'
 import { cn } from '@/lib/utils'
+import { renderAdCreativeFragment, type AdCreativeInput } from '@project/ad-renderer'
 
 // Pure presentational River-post pieces — no dependency on RiverFeedItem or any server shape,
 // just plain props. This is the one place the card's visual geometry is defined; RiverFeedCard's
@@ -78,6 +79,32 @@ export function RiverPostMedia({
           ))}
         </div>
       )}
+      {badge}
+    </div>
+  )
+}
+
+// A saved Ad Designer creative (Poster/Story/Feed Post) — renders through
+// renderAdCreativeFragment, the exact same function the Designer's own live preview, a Page's
+// ad-creative slot, and the embed document all call (see CLAUDE.md's Ad Designer "CRITICAL
+// RENDERING REQUIREMENT"). Deliberately NOT wrapped in an outer <a> by any caller — the fragment
+// is itself an <a> with its own click-through already built in; nesting anchors is invalid HTML.
+// Sized by max-width only, never a forced height/aspect-ratio from the caller — a Poster must stay
+// a poster's own shape everywhere, so the caller's box (feed card vs. stage viewer) adapts to the
+// creative, not the other way around.
+export function AdCreativeVisual({
+  adCreative,
+  className,
+  badge,
+}: {
+  adCreative: AdCreativeInput
+  className?: string
+  badge?: ReactNode
+}) {
+  const html = useMemo(() => renderAdCreativeFragment(adCreative), [adCreative])
+  return (
+    <div className={cn('relative mx-auto w-full max-w-[420px]', className)}>
+      <div dangerouslySetInnerHTML={{ __html: html }} />
       {badge}
     </div>
   )

@@ -1,11 +1,40 @@
 import { db } from '@project/db'
 import type { Prisma } from '@prisma/client'
 import { canonicalJson } from '@project/embed-contract'
+import {
+  resolveAdCreativeDesign,
+  type AdCreativeDesign,
+  type AdCreativeFormat,
+} from '@project/ad-renderer'
 import crypto from 'crypto'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { requireAssets } from '../lib/ownership'
 import { aspectRatio, matchPlacements } from '../lib/assetSpecs'
 import { advertisementSummary } from '../lib/advertisementSummary'
+import { hostedPageUrl } from '../lib/urls'
+
+// Ad Designer (2026-09-03) — the design fields on a row are always either "all null" (a
+// pre-existing generic ad, or a new ad that hasn't picked a format yet) or "all resolved" (every
+// field a concrete enum value, defaulted from FORMAT_DEFAULTS via resolveAdCreativeDesign) — never
+// a sparse in-between. This keeps every reader (this service's own DTO/publish, RiverPostService,
+// the ad-server embed routes) simple: either branch on `format === null` once, or trust every
+// design field is populated.
+type DesignPatch = Partial<Omit<AdCreativeDesign, 'format'>>
+
+function designFieldsFrom(design: AdCreativeDesign | null) {
+  if (!design) {
+    return {
+      textPlacement: null,
+      fontScale: null,
+      textAlign: null,
+      overlay: null,
+      ctaPlacement: null,
+      mediaFocal: null,
+    }
+  }
+  const { format: _format, ...rest } = design
+  return rest
+}
 
 // Advertisement is the "Media" layer's grouping entity in the Media -> Advertisement -> AdRun
 // model (see CLAUDE.md's Media/Advertisement/AdRun migration audit) — its content comes directly
@@ -53,11 +82,52 @@ function toAdvertisementDTO(row: AdvertisementRow) {
     destinationUrl: row.destinationUrl,
     assetIds: row.assets.map((a) => a.assetId),
     assets: row.assets.map((a) => toNestedAsset(a.asset)),
+    format: row.format,
+    headline: row.headline,
+    textPlacement: row.textPlacement,
+    fontScale: row.fontScale,
+    textAlign: row.textAlign,
+    overlay: row.overlay,
+    ctaPlacement: row.ctaPlacement,
+    mediaFocal: row.mediaFocal,
+    destinationType: row.destinationType,
+    destinationLandingPageId: row.destinationLandingPageId,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     lastPublishedAt: row.publishedVersions?.[0]?.publishedAt.toISOString() ?? null,
     ...advertisementSummary(row.runs),
   }
+}
+
+// destinationType=LANDING_PAGE is a live reference (see CLAUDE.md's Ad Designer "reference, never
+// copy" rule) — resolved to a real hosted URL only when actually needed (publish, click), never
+// stored as a stale copy on the Advertisement row itself.
+async function resolveClickUrl(
+  businessId: string,
+  advertisement: {
+    destinationType: string | null
+    destinationLandingPageId: string | null
+    destinationUrl: string | null
+  },
+  overrideDestinationUrl: string | undefined,
+): Promise<string | null> {
+  if (overrideDestinationUrl !== undefined) return overrideDestinationUrl || null
+  if (advertisement.destinationType === 'LANDING_PAGE' && advertisement.destinationLandingPageId) {
+    const page = await db.landingPage.findFirst({
+      where: { id: advertisement.destinationLandingPageId, businessId, deletedAt: null },
+      select: { slug: true },
+    })
+    return page ? hostedPageUrl(page.slug) : null
+  }
+  return advertisement.destinationUrl ?? null
+}
+
+async function assertDestinationLandingPage(businessId: string, landingPageId: string) {
+  const page = await db.landingPage.findFirst({
+    where: { id: landingPageId, businessId, deletedAt: null },
+    select: { id: true },
+  })
+  if (!page) throw { statusCode: 404, message: 'Destination landing page not found' }
 }
 
 export class AdvertisementService {
@@ -97,10 +167,24 @@ export class AdvertisementService {
       ctaLabel?: string
       destinationUrl?: string
       assetIds?: string[]
-    },
+      format?: AdCreativeFormat
+      headline?: string
+      destinationType?: 'LANDING_PAGE' | 'EXTERNAL_URL'
+      destinationLandingPageId?: string
+    } & DesignPatch,
   ) {
     const assetIds = data.assetIds ?? []
     await requireAssets(businessId, assetIds)
+    if (data.destinationType === 'LANDING_PAGE') {
+      if (!data.destinationLandingPageId) {
+        throw {
+          statusCode: 400,
+          message: 'destinationLandingPageId is required for destinationType LANDING_PAGE',
+        }
+      }
+      await assertDestinationLandingPage(businessId, data.destinationLandingPageId)
+    }
+    const design = data.format ? resolveAdCreativeDesign(data.format, data) : null
     const row = await db.advertisement.create({
       data: {
         businessId,
@@ -108,6 +192,11 @@ export class AdvertisementService {
         primaryText: data.primaryText ?? null,
         ctaLabel: data.ctaLabel ?? null,
         destinationUrl: data.destinationUrl ?? null,
+        format: data.format ?? null,
+        headline: data.headline ?? null,
+        destinationType: data.destinationType ?? null,
+        destinationLandingPageId: data.destinationLandingPageId ?? null,
+        ...designFieldsFrom(design),
         assets: { create: assetIds.map((assetId) => ({ assetId })) },
       },
       include: INCLUDE,
@@ -137,10 +226,57 @@ export class AdvertisementService {
       ctaLabel?: string | null
       destinationUrl?: string | null
       assetIds?: string[]
-    },
+      format?: AdCreativeFormat | null
+      headline?: string | null
+      destinationType?: 'LANDING_PAGE' | 'EXTERNAL_URL' | null
+      destinationLandingPageId?: string | null
+    } & DesignPatch,
   ) {
-    await this._find(businessId, advertisementId)
+    const current = await this._find(businessId, advertisementId)
     if (data.assetIds !== undefined) await requireAssets(businessId, data.assetIds)
+    const nextDestinationType =
+      data.destinationType !== undefined ? data.destinationType : current.destinationType
+    const nextDestinationLandingPageId =
+      data.destinationLandingPageId !== undefined
+        ? data.destinationLandingPageId
+        : current.destinationLandingPageId
+    if (nextDestinationType === 'LANDING_PAGE') {
+      if (!nextDestinationLandingPageId) {
+        throw {
+          statusCode: 400,
+          message: 'destinationLandingPageId is required for destinationType LANDING_PAGE',
+        }
+      }
+      await assertDestinationLandingPage(businessId, nextDestinationLandingPageId)
+    }
+
+    // The format a row ends up with, and the design merged onto that format's current resolved
+    // values (or its defaults, if this is the call that first sets a format) — never a sparse
+    // partial write. `format: null` explicitly clears back to a generic ad (all design fields null).
+    const nextFormat =
+      data.format !== undefined ? data.format : (current.format as AdCreativeFormat | null)
+    const currentDesign: DesignPatch = {
+      textPlacement: (current.textPlacement as AdCreativeDesign['textPlacement']) ?? undefined,
+      fontScale: (current.fontScale as AdCreativeDesign['fontScale']) ?? undefined,
+      textAlign: (current.textAlign as AdCreativeDesign['textAlign']) ?? undefined,
+      overlay: (current.overlay as AdCreativeDesign['overlay']) ?? undefined,
+      ctaPlacement: (current.ctaPlacement as AdCreativeDesign['ctaPlacement']) ?? undefined,
+      mediaFocal: (current.mediaFocal as AdCreativeDesign['mediaFocal']) ?? undefined,
+    }
+    const designOverride: DesignPatch = {
+      ...(data.textPlacement !== undefined
+        ? { textPlacement: data.textPlacement ?? undefined }
+        : {}),
+      ...(data.fontScale !== undefined ? { fontScale: data.fontScale ?? undefined } : {}),
+      ...(data.textAlign !== undefined ? { textAlign: data.textAlign ?? undefined } : {}),
+      ...(data.overlay !== undefined ? { overlay: data.overlay ?? undefined } : {}),
+      ...(data.ctaPlacement !== undefined ? { ctaPlacement: data.ctaPlacement ?? undefined } : {}),
+      ...(data.mediaFocal !== undefined ? { mediaFocal: data.mediaFocal ?? undefined } : {}),
+    }
+    const design = nextFormat
+      ? resolveAdCreativeDesign(nextFormat, { ...currentDesign, ...designOverride })
+      : null
+
     const row = await db.$transaction(async (tx) => {
       if (data.assetIds !== undefined) {
         await tx.advertisementAsset.deleteMany({ where: { advertisementId } })
@@ -157,6 +293,13 @@ export class AdvertisementService {
           ...(data.primaryText !== undefined ? { primaryText: data.primaryText } : {}),
           ...(data.ctaLabel !== undefined ? { ctaLabel: data.ctaLabel } : {}),
           ...(data.destinationUrl !== undefined ? { destinationUrl: data.destinationUrl } : {}),
+          ...(data.headline !== undefined ? { headline: data.headline } : {}),
+          ...(data.format !== undefined ? { format: data.format } : {}),
+          ...(data.destinationType !== undefined ? { destinationType: data.destinationType } : {}),
+          ...(data.destinationLandingPageId !== undefined
+            ? { destinationLandingPageId: data.destinationLandingPageId }
+            : {}),
+          ...designFieldsFrom(design),
         },
         include: INCLUDE,
       })
@@ -201,7 +344,7 @@ export class AdvertisementService {
       destinationUrl?: string
       dimensions?: string
       accessibleLabel?: string
-    },
+    } = {},
     publishedBy?: string,
   ) {
     const advertisement = await db.advertisement.findFirst({
@@ -212,11 +355,12 @@ export class AdvertisementService {
 
     // Feed Ad POC: destinationUrl/clickBehavior default from the Advertisement's own draft
     // creative fields (set in the editor, alongside primaryText/ctaLabel) rather than requiring a
-    // separate publish-time form — an explicit override in `data` still wins.
-    const destinationUrl =
-      data.destinationUrl !== undefined
-        ? data.destinationUrl
-        : (advertisement.destinationUrl ?? undefined)
+    // separate publish-time form — an explicit override in `data` still wins. Ad Designer
+    // (2026-09-03): when destinationType=LANDING_PAGE, the resolved URL comes from the referenced
+    // page's live hosted URL, not a copy — this is the one moment that reference gets turned into
+    // a concrete URL and frozen onto this version (see CLAUDE.md's "reference, never copy" rule;
+    // republishing the Advertisement is what picks up a since-changed page slug).
+    const destinationUrl = await resolveClickUrl(businessId, advertisement, data.destinationUrl)
     const clickBehavior = data.clickBehavior ?? (destinationUrl ? 'URL' : 'HOST')
 
     return db.$transaction(async (tx) => {
@@ -241,6 +385,14 @@ export class AdvertisementService {
               height: parseInt(data.dimensions.split('x')[1] || '0', 10),
             }
           : null,
+        format: advertisement.format,
+        headline: advertisement.headline,
+        textPlacement: advertisement.textPlacement,
+        fontScale: advertisement.fontScale,
+        textAlign: advertisement.textAlign,
+        overlay: advertisement.overlay,
+        ctaPlacement: advertisement.ctaPlacement,
+        mediaFocal: advertisement.mediaFocal,
       }
 
       const canonicalString = canonicalJson({
@@ -259,6 +411,7 @@ export class AdvertisementService {
           destinationUrl: destinationUrl ?? null,
           dimensions: data.dimensions,
           accessibleLabel: data.accessibleLabel,
+          format: advertisement.format,
           checksum,
           publishedBy,
         },

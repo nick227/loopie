@@ -21,6 +21,7 @@
     "@fastify/swagger": "^8.0.0",
     "@fastify/swagger-ui": "^3.0.0",
     "@prisma/client": "^5.0.0",
+    "@project/ad-renderer": "workspace:*",
     "@project/db": "workspace:*",
     "@project/embed-contract": "workspace:*",
     "@project/page-renderer": "workspace:*",

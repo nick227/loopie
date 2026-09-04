@@ -240,13 +240,24 @@ export function useReplaceLandingPageAdSlots(landingPageId: string) {
     mutationFn: async (
       slots: {
         placement: 'AFTER_HERO' | 'BEFORE_FORM' | 'AFTER_FORM' | 'BOTTOM'
-        adUnitId: string | null
+        adRunId: string | null
+        advertisementId: string | null
       }[],
     ) => {
       const client = getApiClient()
+      // One LandingPageAdSlot per draft — each carries at most one candidate id, sent as a
+      // single-item array (or empty) since the API groups by array, not by object shape. See
+      // CLAUDE.md's Ad Designer entry / LandingPageAdSlotService.replace.
+      const body = {
+        slots: slots.map(({ placement, adRunId, advertisementId }) => ({
+          placement,
+          adRunIds: adRunId ? [adRunId] : [],
+          advertisementIds: advertisementId ? [advertisementId] : [],
+        })),
+      }
       const result = await client.PUT('/landing-pages/{landingPageId}/ad-slots', {
         params: { path: { landingPageId } },
-        body: { slots },
+        body,
       })
       const err = result.error
       const status = result.response.status

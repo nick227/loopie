@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.0.0",
+    "@project/ad-renderer": "workspace:*",
     "@project/sdk": "workspace:*",
     "@tanstack/react-query": "^5.0.0",
     "class-variance-authority": "^0.7.0",

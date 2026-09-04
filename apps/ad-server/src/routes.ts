@@ -42,6 +42,14 @@ export function registerRoutes(server: FastifyInstance) {
     reply.header('Cache-Control', 'no-store').redirect(302, redirectUrl)
   })
 
+  // Direct internal embed for a Loopie Page's own ad-slot iframe (Ad Designer, 2026-09-03) — see
+  // EmbedServingService.renderAdvertisementEmbed.
+  server.get('/ads/:advertisementId/embed', async (request, reply) => {
+    const { advertisementId } = request.params as { advertisementId: string }
+    const html = await embedServingService.renderAdvertisementEmbed(advertisementId)
+    reply.header('Cache-Control', 'no-store').type('text/html').send(html)
+  })
+
   // --- V1 Embed Endpoints ---
 
   // Serve the v1.js loader

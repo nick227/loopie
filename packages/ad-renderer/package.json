@@ -1,5 +1,5 @@
 {
-  "name": "@project/page-renderer",
+  "name": "@project/ad-renderer",
   "version": "0.0.1",
   "private": true,
   "main": "./src/index.ts",
@@ -9,13 +9,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "lint": "echo 'no lint configured for @project/page-renderer'"
+    "lint": "echo 'no lint configured for @project/ad-renderer'"
   },
-  "dependencies": {
-    "@project/ad-renderer": "workspace:*",
-    "@project/db": "workspace:*",
-    "@prisma/client": "^5.0.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/node": "^20.0.0",
     "typescript": "^5.0.0",

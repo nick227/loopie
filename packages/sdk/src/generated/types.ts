@@ -4669,6 +4669,38 @@ export interface components {
       destinationUrl?: string | null
       assetIds: string[]
       assets?: components['schemas']['Asset'][]
+      /**
+       * @description Ad Designer creative format. Null for a pre-existing generic ad (see CLAUDE.md).
+       * @enum {string|null}
+       */
+      format?: 'POSTER' | 'STORY' | 'FEED_POST' | null
+      headline?: string | null
+      /** @enum {string|null} */
+      textPlacement?:
+        | 'TOP_LEFT'
+        | 'TOP_CENTER'
+        | 'TOP_RIGHT'
+        | 'CENTER'
+        | 'BOTTOM_LEFT'
+        | 'BOTTOM_CENTER'
+        | 'BOTTOM_RIGHT'
+        | null
+      /** @enum {string|null} */
+      fontScale?: 'COMPACT' | 'STANDARD' | 'OVERSIZED' | null
+      /** @enum {string|null} */
+      textAlign?: 'LEFT' | 'CENTER' | 'RIGHT' | null
+      /** @enum {string|null} */
+      overlay?: 'NONE' | 'DARK_GRADIENT' | 'LIGHT_GRADIENT' | 'SOLID_SCRIM' | null
+      /** @enum {string|null} */
+      ctaPlacement?: 'BENEATH_COPY' | 'INLINE_WITH_COPY' | 'FLOATING_BOTTOM' | 'TOP_BANNER' | null
+      /** @enum {string|null} */
+      mediaFocal?: 'CENTER' | 'TOP' | 'BOTTOM' | 'LEFT' | 'RIGHT' | null
+      /**
+       * @description When LANDING_PAGE, destinationLandingPageId is the source of truth and destinationUrl is resolved live from it, never copied.
+       * @enum {string|null}
+       */
+      destinationType?: 'LANDING_PAGE' | 'EXTERNAL_URL' | null
+      destinationLandingPageId?: string | null
       /** Format: date-time */
       createdAt: string
       /** Format: date-time */
@@ -4695,6 +4727,31 @@ export interface components {
       ctaLabel?: string
       destinationUrl?: string
       assetIds?: string[]
+      /** @enum {string} */
+      format?: 'POSTER' | 'STORY' | 'FEED_POST'
+      headline?: string
+      /** @enum {string} */
+      textPlacement?:
+        | 'TOP_LEFT'
+        | 'TOP_CENTER'
+        | 'TOP_RIGHT'
+        | 'CENTER'
+        | 'BOTTOM_LEFT'
+        | 'BOTTOM_CENTER'
+        | 'BOTTOM_RIGHT'
+      /** @enum {string} */
+      fontScale?: 'COMPACT' | 'STANDARD' | 'OVERSIZED'
+      /** @enum {string} */
+      textAlign?: 'LEFT' | 'CENTER' | 'RIGHT'
+      /** @enum {string} */
+      overlay?: 'NONE' | 'DARK_GRADIENT' | 'LIGHT_GRADIENT' | 'SOLID_SCRIM'
+      /** @enum {string} */
+      ctaPlacement?: 'BENEATH_COPY' | 'INLINE_WITH_COPY' | 'FLOATING_BOTTOM' | 'TOP_BANNER'
+      /** @enum {string} */
+      mediaFocal?: 'CENTER' | 'TOP' | 'BOTTOM' | 'LEFT' | 'RIGHT'
+      /** @enum {string} */
+      destinationType?: 'LANDING_PAGE' | 'EXTERNAL_URL'
+      destinationLandingPageId?: string
     }
     UpdateAdvertisementInput: {
       name?: string
@@ -4703,6 +4760,32 @@ export interface components {
       destinationUrl?: string | null
       /** @description Wholesale replace, same convention as Campaign.creativeIds — omit to leave media unchanged. */
       assetIds?: string[]
+      /** @enum {string|null} */
+      format?: 'POSTER' | 'STORY' | 'FEED_POST' | null
+      headline?: string | null
+      /** @enum {string|null} */
+      textPlacement?:
+        | 'TOP_LEFT'
+        | 'TOP_CENTER'
+        | 'TOP_RIGHT'
+        | 'CENTER'
+        | 'BOTTOM_LEFT'
+        | 'BOTTOM_CENTER'
+        | 'BOTTOM_RIGHT'
+        | null
+      /** @enum {string|null} */
+      fontScale?: 'COMPACT' | 'STANDARD' | 'OVERSIZED' | null
+      /** @enum {string|null} */
+      textAlign?: 'LEFT' | 'CENTER' | 'RIGHT' | null
+      /** @enum {string|null} */
+      overlay?: 'NONE' | 'DARK_GRADIENT' | 'LIGHT_GRADIENT' | 'SOLID_SCRIM' | null
+      /** @enum {string|null} */
+      ctaPlacement?: 'BENEATH_COPY' | 'INLINE_WITH_COPY' | 'FLOATING_BOTTOM' | 'TOP_BANNER' | null
+      /** @enum {string|null} */
+      mediaFocal?: 'CENTER' | 'TOP' | 'BOTTOM' | 'LEFT' | 'RIGHT' | null
+      /** @enum {string|null} */
+      destinationType?: 'LANDING_PAGE' | 'EXTERNAL_URL' | null
+      destinationLandingPageId?: string | null
     }
     /** @description A native River post — the literal single-provider content entity (see the River proposal pack in apps/web/public/river-b2b-social-proposal). Immutable once created: type=AD/PAGE posts pin the Advertisement/LandingPage's published version at creation time and never follow a later republish. Slice 6 adds native composer richness (imageAssetIds/ videoAssetId — TEXT-only — plus linkUrl/CTA, available on any type). */
     RiverPost: {
@@ -4790,6 +4873,36 @@ export interface components {
         name: string
         slug: string
       }
+      /** @description Present only for type=AD when the underlying Advertisement was made with Ad Designer (format set) — the real Poster/Story/Feed-Post render input, resolved server-side from the pinned PublishedAdvertisementVersion. RiverFeedCard renders this through @project/ad-renderer's renderAdCreativeFragment, the same function every other surface uses — see CLAUDE.md's Ad Designer entry. Null for a pre-Ad-Designer AD post, which keeps rendering through the generic media/cta fields above. */
+      adCreative?: {
+        /** @enum {string} */
+        format: 'POSTER' | 'STORY' | 'FEED_POST'
+        headline?: string | null
+        primaryText?: string | null
+        ctaLabel?: string | null
+        mediaUrl?: string | null
+        mediaAlt?: string | null
+        clickUrl?: string | null
+        /** @enum {string} */
+        textPlacement?:
+          | 'TOP_LEFT'
+          | 'TOP_CENTER'
+          | 'TOP_RIGHT'
+          | 'CENTER'
+          | 'BOTTOM_LEFT'
+          | 'BOTTOM_CENTER'
+          | 'BOTTOM_RIGHT'
+        /** @enum {string} */
+        fontScale?: 'COMPACT' | 'STANDARD' | 'OVERSIZED'
+        /** @enum {string} */
+        textAlign?: 'LEFT' | 'CENTER' | 'RIGHT'
+        /** @enum {string} */
+        overlay?: 'NONE' | 'DARK_GRADIENT' | 'LIGHT_GRADIENT' | 'SOLID_SCRIM'
+        /** @enum {string} */
+        ctaPlacement?: 'BENEATH_COPY' | 'INLINE_WITH_COPY' | 'FLOATING_BOTTOM' | 'TOP_BANNER'
+        /** @enum {string} */
+        mediaFocal?: 'CENTER' | 'TOP' | 'BOTTOM' | 'LEFT' | 'RIGHT'
+      } | null
       metrics: {
         reactions: number
         /** @description Top-level comments only — see GET /river/posts/{riverPostId}/comments. */
@@ -5203,12 +5316,19 @@ export interface components {
       sortOrder: number
       /** @enum {string} */
       placement: 'AFTER_HERO' | 'BEFORE_FORM' | 'AFTER_FORM' | 'BOTTOM'
+      /**
+       * @description Visual sizing/prominence for this space — see Ad Designer in CLAUDE.md. Independent of placement, which is where on the page.
+       * @enum {string}
+       */
+      context: 'INLINE' | 'CONTAINED' | 'PROMOTIONAL'
       assignments?: components['schemas']['LandingPageAdSlotAssignment'][]
     }
+    /** @description Filled by exactly one of adRunId (a platform-run buy) or advertisementId (a saved Ad Designer creative placed by direct reference) — see CLAUDE.md's Ad Designer entry. */
     LandingPageAdSlotAssignment: {
       id: string
       slotId: string
-      adRunId: string
+      adRunId: string | null
+      advertisementId: string | null
       /** @enum {string} */
       status:
         | 'PENDING'
@@ -5224,7 +5344,11 @@ export interface components {
       slots: {
         /** @enum {string} */
         placement: 'AFTER_HERO' | 'BEFORE_FORM' | 'AFTER_FORM' | 'BOTTOM'
+        /** @enum {string} */
+        context?: 'INLINE' | 'CONTAINED' | 'PROMOTIONAL'
         adRunIds?: string[]
+        /** @description Saved Ad Designer creatives to place in this space, by id. */
+        advertisementIds?: string[]
       }[]
     }
     CreateLandingPageInput: {

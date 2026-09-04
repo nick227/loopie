@@ -11,7 +11,13 @@ import {
   type PageContent,
   type LayoutConfig,
 } from '@project/db'
-import { escapeHtml, renderBody, type RenderForm } from './renderLandingPageSections'
+import {
+  escapeHtml,
+  renderBody,
+  type RenderForm,
+  type AdSlotEmbedItem,
+} from './renderLandingPageSections'
+import { FORMAT_ASPECT_RATIO } from '@project/ad-renderer'
 import { carouselScript, serviceTabsScript } from './publishedScripts'
 
 type TemplateSection = {
@@ -172,7 +178,7 @@ export function renderLandingPageHtml(input: {
   // that's still in flight against this exact render. Omitted for draft preview/export, which has
   // no PublishedPageVersion; the submit endpoint falls back to the page's current version then.
   publishedVersionId?: string
-  adSlots?: { placement: string; embedUrls: string[] }[]
+  adSlots?: { placement: string; context?: string; items: AdSlotEmbedItem[] }[]
   runtimeScriptUrl?: string
   businessId?: string
   // Real count of this page's own FormSubmission rows — computed fresh by the caller on every
@@ -337,6 +343,15 @@ button[type="submit"] { padding: 0.8rem 1.4rem; background: var(--lp-primary); c
 .lp-footer { text-align: center; color: color-mix(in srgb, var(--lp-ink) 65%, var(--lp-bg)); font-size: 0.875rem; }
 .lp-ad { padding: 16px 28px; max-width: 1040px; margin: 0 auto; }
 .lp-ad iframe { width: 100%; min-height: 90px; max-height: 120px; border: 0; display: block; background: color-mix(in srgb, var(--lp-ink) 6%, var(--lp-bg)); }
+/* Ad Designer placement contexts (2026-09-03) — width caps the ad's prominence on the page;
+   height/shape always comes from the creative's own format, never the context, so a Poster never
+   gets stretched or cropped to fit an unrelated box. */
+.lp-ad--inline { max-width: 360px; }
+.lp-ad--contained { max-width: 560px; }
+.lp-ad--promotional { max-width: 900px; }
+.lp-ad--format-poster iframe { aspect-ratio: ${FORMAT_ASPECT_RATIO.POSTER}; min-height: 0; max-height: none; }
+.lp-ad--format-story iframe { aspect-ratio: ${FORMAT_ASPECT_RATIO.STORY}; min-height: 0; max-height: none; }
+.lp-ad--format-feed_post iframe { aspect-ratio: ${FORMAT_ASPECT_RATIO.FEED_POST}; min-height: 0; max-height: none; }
 .lp-media img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; display: block; }
 .lp-media audio { width: 100%; }
 .lp-media iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 4px; display: block; }

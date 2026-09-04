@@ -2016,6 +2016,43 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Asset'
+        format:
+          {
+            type: string,
+            enum: [POSTER, STORY, FEED_POST],
+            nullable: true,
+            description: 'Ad Designer creative format. Null for a pre-existing generic ad (see CLAUDE.md).',
+          }
+        headline: { type: string, nullable: true }
+        textPlacement:
+          {
+            type: string,
+            enum: [TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT],
+            nullable: true,
+          }
+        fontScale: { type: string, enum: [COMPACT, STANDARD, OVERSIZED], nullable: true }
+        textAlign: { type: string, enum: [LEFT, CENTER, RIGHT], nullable: true }
+        overlay:
+          {
+            type: string,
+            enum: [NONE, DARK_GRADIENT, LIGHT_GRADIENT, SOLID_SCRIM],
+            nullable: true,
+          }
+        ctaPlacement:
+          {
+            type: string,
+            enum: [BENEATH_COPY, INLINE_WITH_COPY, FLOATING_BOTTOM, TOP_BANNER],
+            nullable: true,
+          }
+        mediaFocal: { type: string, enum: [CENTER, TOP, BOTTOM, LEFT, RIGHT], nullable: true }
+        destinationType:
+          {
+            type: string,
+            enum: [LANDING_PAGE, EXTERNAL_URL],
+            nullable: true,
+            description: 'When LANDING_PAGE, destinationLandingPageId is the source of truth and destinationUrl is resolved live from it, never copied.',
+          }
+        destinationLandingPageId: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         lastPublishedAt: { type: string, format: date-time, nullable: true }
@@ -2049,6 +2086,21 @@ components:
         assetIds:
           type: array
           items: { type: string }
+        format: { type: string, enum: [POSTER, STORY, FEED_POST] }
+        headline: { type: string }
+        textPlacement:
+          {
+            type: string,
+            enum: [TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT],
+          }
+        fontScale: { type: string, enum: [COMPACT, STANDARD, OVERSIZED] }
+        textAlign: { type: string, enum: [LEFT, CENTER, RIGHT] }
+        overlay: { type: string, enum: [NONE, DARK_GRADIENT, LIGHT_GRADIENT, SOLID_SCRIM] }
+        ctaPlacement:
+          { type: string, enum: [BENEATH_COPY, INLINE_WITH_COPY, FLOATING_BOTTOM, TOP_BANNER] }
+        mediaFocal: { type: string, enum: [CENTER, TOP, BOTTOM, LEFT, RIGHT] }
+        destinationType: { type: string, enum: [LANDING_PAGE, EXTERNAL_URL] }
+        destinationLandingPageId: { type: string }
 
     UpdateAdvertisementInput:
       type: object
@@ -2061,6 +2113,27 @@ components:
           type: array
           items: { type: string }
           description: Wholesale replace, same convention as Campaign.creativeIds — omit to leave media unchanged.
+        format: { type: string, enum: [POSTER, STORY, FEED_POST], nullable: true }
+        headline: { type: string, nullable: true }
+        textPlacement:
+          {
+            type: string,
+            enum: [TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT],
+            nullable: true,
+          }
+        fontScale: { type: string, enum: [COMPACT, STANDARD, OVERSIZED], nullable: true }
+        textAlign: { type: string, enum: [LEFT, CENTER, RIGHT], nullable: true }
+        overlay:
+          { type: string, enum: [NONE, DARK_GRADIENT, LIGHT_GRADIENT, SOLID_SCRIM], nullable: true }
+        ctaPlacement:
+          {
+            type: string,
+            enum: [BENEATH_COPY, INLINE_WITH_COPY, FLOATING_BOTTOM, TOP_BANNER],
+            nullable: true,
+          }
+        mediaFocal: { type: string, enum: [CENTER, TOP, BOTTOM, LEFT, RIGHT], nullable: true }
+        destinationType: { type: string, enum: [LANDING_PAGE, EXTERNAL_URL], nullable: true }
+        destinationLandingPageId: { type: string, nullable: true }
 
     RiverPost:
       type: object
@@ -2183,6 +2256,36 @@ components:
           properties:
             name: { type: string }
             slug: { type: string }
+        adCreative:
+          type: object
+          nullable: true
+          description: >
+            Present only for type=AD when the underlying Advertisement was made with Ad Designer
+            (format set) — the real Poster/Story/Feed-Post render input, resolved server-side from
+            the pinned PublishedAdvertisementVersion. RiverFeedCard renders this through
+            @project/ad-renderer's renderAdCreativeFragment, the same function every other surface
+            uses — see CLAUDE.md's Ad Designer entry. Null for a pre-Ad-Designer AD post, which
+            keeps rendering through the generic media/cta fields above.
+          required: [format]
+          properties:
+            format: { type: string, enum: [POSTER, STORY, FEED_POST] }
+            headline: { type: string, nullable: true }
+            primaryText: { type: string, nullable: true }
+            ctaLabel: { type: string, nullable: true }
+            mediaUrl: { type: string, nullable: true }
+            mediaAlt: { type: string, nullable: true }
+            clickUrl: { type: string, nullable: true }
+            textPlacement:
+              {
+                type: string,
+                enum: [TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT],
+              }
+            fontScale: { type: string, enum: [COMPACT, STANDARD, OVERSIZED] }
+            textAlign: { type: string, enum: [LEFT, CENTER, RIGHT] }
+            overlay: { type: string, enum: [NONE, DARK_GRADIENT, LIGHT_GRADIENT, SOLID_SCRIM] }
+            ctaPlacement:
+              { type: string, enum: [BENEATH_COPY, INLINE_WITH_COPY, FLOATING_BOTTOM, TOP_BANNER] }
+            mediaFocal: { type: string, enum: [CENTER, TOP, BOTTOM, LEFT, RIGHT] }
         metrics:
           type: object
           required: [reactions, comments]
@@ -2812,22 +2915,32 @@ components:
 
     LandingPageAdSlot:
       type: object
-      required: [id, sortOrder, placement]
+      required: [id, sortOrder, placement, context]
       properties:
         id: { type: string }
         sortOrder: { type: integer }
         placement: { type: string, enum: [AFTER_HERO, BEFORE_FORM, AFTER_FORM, BOTTOM] }
+        context:
+          {
+            type: string,
+            enum: [INLINE, CONTAINED, PROMOTIONAL],
+            description: 'Visual sizing/prominence for this space — see Ad Designer in CLAUDE.md. Independent of placement, which is where on the page.',
+          }
         assignments:
           type: array
           items: { $ref: '#/components/schemas/LandingPageAdSlotAssignment' }
 
     LandingPageAdSlotAssignment:
       type: object
-      required: [id, slotId, adRunId, status, weight]
+      required: [id, slotId, adRunId, advertisementId, status, weight]
+      description: >
+        Filled by exactly one of adRunId (a platform-run buy) or advertisementId (a saved Ad
+        Designer creative placed by direct reference) — see CLAUDE.md's Ad Designer entry.
       properties:
         id: { type: string }
         slotId: { type: string }
-        adRunId: { type: string }
+        adRunId: { type: string, nullable: true }
+        advertisementId: { type: string, nullable: true }
         status:
           {
             type: string,
@@ -2847,9 +2960,14 @@ components:
             required: [placement]
             properties:
               placement: { type: string, enum: [AFTER_HERO, BEFORE_FORM, AFTER_FORM, BOTTOM] }
+              context: { type: string, enum: [INLINE, CONTAINED, PROMOTIONAL] }
               adRunIds:
                 type: array
                 items: { type: string }
+              advertisementIds:
+                type: array
+                items: { type: string }
+                description: Saved Ad Designer creatives to place in this space, by id.
 
     CreateLandingPageInput:
       type: object

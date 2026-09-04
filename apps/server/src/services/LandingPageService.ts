@@ -47,7 +47,15 @@ function toLandingPageDTO(
       id: string
       sortOrder: number
       placement: string
-      assignments: { id: string; slotId: string; adRunId: string; status: string; weight: number }[]
+      context?: string | null
+      assignments: {
+        id: string
+        slotId: string
+        adRunId: string | null
+        advertisementId: string | null
+        status: string
+        weight: number
+      }[]
     }[]
   },
   submissionCount = 0,
@@ -364,7 +372,7 @@ export class LandingPageService {
         orderBy: { sortOrder: 'asc' },
       })
 
-      const adSlotSnapshot = snapshotSlots(slots)
+      const adSlotSnapshot = await snapshotSlots(slots)
       const schemaSnapshot = current.template.schema
 
       const canonicalPayload = JSON.stringify({
@@ -478,7 +486,7 @@ export class LandingPageService {
       layoutConfig: page.layoutConfig as any,
       form,
       submitActionUrl: landingPageSubmitUrl(page.id),
-      adSlots: snapshotSlots(slots),
+      adSlots: await snapshotSlots(slots),
       runtimeScriptUrl: `${PUBLIC_SERVER_URL}/loopie.js`,
       businessId: page.businessId,
       submissionCount,

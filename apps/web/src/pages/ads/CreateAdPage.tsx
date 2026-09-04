@@ -9,11 +9,28 @@ import {
   useResumeAdRun,
   useUpdateAdvertisement,
 } from '@project/sdk'
+import type { AdCreativeFormat } from '@project/ad-renderer'
 import { AdEditor } from '@/components/ads/AdEditor'
+import { CreateAdDesignerPage } from '@/pages/ads/CreateAdDesignerPage'
 import { startAdRuns } from '@/lib/startAdRuns'
 import { usePageTitle } from '@/lib/headerContext'
 
+const AD_CREATIVE_FORMATS: AdCreativeFormat[] = ['POSTER', 'STORY', 'FEED_POST']
+
+// Ad Designer (2026-09-03) — a thin dispatcher: `?format=` routes to the new Poster/Story/Feed
+// Post designer (CreateAdDesignerPage); everything else keeps the pre-existing generic ad flow
+// below unchanged, per CLAUDE.md's "preserve existing generic ads where practical."
 export function CreateAdPage() {
+  const [searchParams] = useSearchParams()
+  const format = searchParams.get('format')
+  const pageId = searchParams.get('pageId')
+  if (format && (AD_CREATIVE_FORMATS as string[]).includes(format)) {
+    return <CreateAdDesignerPage format={format as AdCreativeFormat} pageId={pageId ?? undefined} />
+  }
+  return <CreateGenericAdPage />
+}
+
+function CreateGenericAdPage() {
   const navigate = useNavigate()
   const createAsset = useCreateAsset()
   const createAd = useCreateAdvertisement()

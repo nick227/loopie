@@ -1,5 +1,6 @@
 import { db, absoluteMediaUrl } from '@project/db'
 import type { Prisma } from '@prisma/client'
+import type { AdCreativeInput } from '@project/ad-renderer'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { riverPostUrl, PUBLIC_SERVER_URL, hostedPageUrl } from '../lib/urls'
 import { requireAssets } from '../lib/ownership'
@@ -64,6 +65,12 @@ export type RiverFeedCard = {
   // type=PAGE only — the shared page's own name/description text (no fabricated thumbnail, see
   // the slice-6 plan doc's confirmed decision).
   pageInfo: { name: string; slug: string } | null
+  // Ad Designer (2026-09-03) — present only for type=AD when the pinned PublishedAdvertisementVersion
+  // has a format (was made with Ad Designer, not a pre-existing generic ad). RiverFeedCard.tsx
+  // renders this through @project/ad-renderer's renderAdCreativeFragment, the same function every
+  // other surface calls — see CLAUDE.md's Ad Designer entry. Null falls back to the generic
+  // imageUrls/cta rendering above, unchanged.
+  adCreative: AdCreativeInput | null
   // True when trackRiverClick has *any* destination to resolve for this post (cta > AD
   // destination > PAGE hosted url > linkUrl) — see handlers/river.ts#trackRiverClick.
   hasClickThrough: boolean
@@ -169,6 +176,14 @@ export async function toFeedCards(
       primaryText?: string | null
       ctaLabel?: string | null
       destinationUrl?: string | null
+      headline?: string | null
+      accessibleLabel?: string | null
+      textPlacement?: AdCreativeInput['textPlacement']
+      fontScale?: AdCreativeInput['fontScale']
+      textAlign?: AdCreativeInput['textAlign']
+      overlay?: AdCreativeInput['overlay']
+      ctaPlacement?: AdCreativeInput['ctaPlacement']
+      mediaFocal?: AdCreativeInput['mediaFocal']
     } | null
     const postCta = row.ctaLabel && row.ctaUrl ? { label: row.ctaLabel, url: row.ctaUrl } : null
     const advertisementCta =
@@ -188,6 +203,26 @@ export async function toFeedCards(
       row.type === 'PAGE' ||
       row.linkUrl,
     )
+
+    const adCreative: AdCreativeInput | null =
+      row.type === 'AD' && version?.format
+        ? {
+            format: version.format as AdCreativeInput['format'],
+            headline: versionSnapshot?.headline ?? null,
+            primaryText: versionSnapshot?.primaryText ?? null,
+            ctaLabel: versionSnapshot?.ctaLabel ?? null,
+            mediaUrl: adImageUrl,
+            mediaAlt: versionSnapshot?.headline ?? null,
+            clickUrl: version.destinationUrl ?? null,
+            accessibleLabel: versionSnapshot?.accessibleLabel ?? null,
+            textPlacement: versionSnapshot?.textPlacement,
+            fontScale: versionSnapshot?.fontScale,
+            textAlign: versionSnapshot?.textAlign,
+            overlay: versionSnapshot?.overlay,
+            ctaPlacement: versionSnapshot?.ctaPlacement,
+            mediaFocal: versionSnapshot?.mediaFocal,
+          }
+        : null
 
     return {
       id: row.id,
@@ -210,6 +245,7 @@ export async function toFeedCards(
       linkPreview,
       cta,
       pageInfo,
+      adCreative,
       hasClickThrough,
       reactionCount: row._count.reactions,
       commentCount: row._count.comments,

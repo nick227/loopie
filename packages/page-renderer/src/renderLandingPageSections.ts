@@ -37,20 +37,27 @@ export function escapeHtml(value: unknown): string {
     .replace(/"/g, '&quot;')
 }
 
-function renderAdSlot(embedUrl: string, sessionToken?: string): string {
-  const src = sessionToken ? `${embedUrl}?sid=${encodeURIComponent(sessionToken)}` : embedUrl
-  return `<section class="lp-section lp-ad"><iframe src="${escapeHtml(src)}" title="Ad" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></section>`
+export type AdSlotEmbedItem = { embedUrl: string; format?: string | null }
+
+function renderAdSlot(item: AdSlotEmbedItem, context: string, sessionToken?: string): string {
+  const src = sessionToken
+    ? `${item.embedUrl}?sid=${encodeURIComponent(sessionToken)}`
+    : item.embedUrl
+  const contextClass = `lp-ad--${context.toLowerCase()}`
+  const formatClass = item.format ? `lp-ad--format-${item.format.toLowerCase()}` : ''
+  return `<section class="lp-section lp-ad ${contextClass} ${formatClass}"><iframe src="${escapeHtml(src)}" title="Ad" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></section>`
 }
 
 function slotsAt(
-  slots: { placement: string; embedUrls: string[] }[],
+  slots: { placement: string; context?: string; items: AdSlotEmbedItem[] }[],
   placement: string,
   sessionToken?: string,
 ) {
   return slots
     .filter((slot) => slot.placement === placement)
-    .flatMap((slot) => slot.embedUrls)
-    .map((embedUrl) => renderAdSlot(embedUrl, sessionToken))
+    .flatMap((slot) =>
+      slot.items.map((item) => renderAdSlot(item, slot.context ?? 'CONTAINED', sessionToken)),
+    )
     .join('\n')
 }
 
@@ -59,7 +66,7 @@ export function renderBody(
   content: PageContent,
   layoutConfig: LayoutConfig | null | undefined,
   formHtml: string,
-  adSlots: { placement: string; embedUrls: string[] }[],
+  adSlots: { placement: string; context?: string; items: AdSlotEmbedItem[] }[],
   sessionToken?: string,
   // Real count of this page's own FormSubmission rows, computed fresh per request by the caller
   // — never polled/pushed. See "webinar-widget"'s case: this is the one place a section render

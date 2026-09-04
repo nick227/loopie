@@ -1,4 +1,5 @@
 import { db } from '@project/db'
+import type { AdCreativeInput } from '@project/ad-renderer'
 import {
   RiverPostService,
   toFeedCards,
@@ -44,6 +45,8 @@ export type RiverFeedItem = {
   // shared PAGE's hosted url, or a plain link) — see handlers/river.ts#resolveClickDestination.
   clickUrl?: string
   pageInfo?: { name: string; slug: string }
+  // Ad Designer (2026-09-03) — see RiverPostService.RiverFeedCard's own doc comment.
+  adCreative?: AdCreativeInput
   metrics: { reactions: number; comments: number }
   viewer?: { reacted: boolean; following: boolean }
 }
@@ -74,6 +77,11 @@ export function toRiverFeedItem(card: RiverFeedCard): RiverFeedItem {
     cta: card.cta ?? undefined,
     clickUrl: card.hasClickThrough ? riverPostClickUrl(card.id) : undefined,
     pageInfo: card.pageInfo ?? undefined,
+    // The creative's own fragment renders its own <a href> (see RiverFeedCard.tsx) — point it at
+    // River's tracked click redirect, same as every other River click, not the raw destination.
+    adCreative: card.adCreative
+      ? { ...card.adCreative, clickUrl: card.hasClickThrough ? riverPostClickUrl(card.id) : null }
+      : undefined,
     metrics: { reactions: card.reactionCount, comments: card.commentCount },
     viewer:
       card.viewerHasReacted !== null

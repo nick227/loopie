@@ -1,6 +1,8 @@
 import { db, trackBaseClick, withSid, clickRedirectUrl } from '@project/db'
 import crypto from 'crypto'
 import { renderLandingPageHtml, type FormSnapshot } from '@project/page-renderer'
+import { renderAdCreativeDocument } from '@project/ad-renderer'
+import { buildAdCreativeInput } from '../lib/adCreativeInput'
 
 export class EmbedServingService {
   async getBootstrapMetadata(publicId: string, origin: string) {
@@ -156,46 +158,53 @@ export class EmbedServingService {
       })
     }
 
-    const payload = deployment.activeAdvertisementVersion!.creativeSnapshot as any
-    const destination = payload.destination
-    const image = payload.assets && payload.assets.length > 0 ? payload.assets[0] : null
+    // Same @project/ad-renderer function every other surface calls (Ad Designer live preview, a
+    // Loopie Page's ad-creative slot, a River AD post) — see CLAUDE.md's Ad Designer "CRITICAL
+    // RENDERING REQUIREMENT". The click href is this route's own tracked-click endpoint, not the
+    // real destination directly, so impression/click accounting stays exactly as it was for the
+    // PAGE branch above.
+    const version = deployment.activeAdvertisementVersion!
+    const input = await buildAdCreativeInput({
+      creativeSnapshot: version.creativeSnapshot,
+      format: version.format,
+      destinationUrl: `/v1/embed/${publicId}/click?instanceId=${instance.id}`,
+    })
 
-    // In a real app we'd fetch the asset URLs.
-    // For this first slice, we'll construct a simple iframe using the instance ID
-
-    return `<!doctype html>
-<html><head><meta charset="utf-8" />
-<style>body{margin:0}a{display:block;text-decoration:none;color:inherit}img{max-width:100%;display:block}</style>
-<script>
+    const injectedHeadScripts = `<script>
   const instanceId = "${instance.id}";
-  
-  // Minimal smart iframe contract
   window.addEventListener("message", (event) => {
-    // Only accept messages from parent
     if (event.source !== window.parent) return;
-    
     if (event.data?.type === 'loopie:visible' && event.data?.instanceId === instanceId) {
-       // Fire impression
        fetch('/v1/embed/${publicId}/impression', {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify({ instanceId })
-       });
+       }).catch(() => {});
     }
   });
-
-  // Announce ready
   window.parent.postMessage({ type: 'loopie:ready', protocolVersion: 1, instanceId }, "*");
-</script>
-</head>
-<body>
-<a href="/v1/embed/${publicId}/click?instanceId=${instance.id}" target="_top">
-  <!-- Asset rendering would go here in full implementation -->
-  <div style="width: 100%; height: 100%; background: #eee; text-align: center; line-height: 250px;">
-    AD CONTENT
-  </div>
-</a>
-</body></html>`
+</script>`
+
+    return renderAdCreativeDocument(input, { injectedHeadScripts })
+  }
+
+  // Direct, trusted route — a Loopie Page placing a saved Ad Designer creative into one of its own
+  // ad slots (see LandingPageAdSlotAssignment.advertisementId / lib/adSlots.ts's
+  // embedUrlForAdvertisement). No publicId/domain-policy/nonce dance, since there's no external
+  // trust boundary to police here — same renderAdCreativeDocument call as the public embed path
+  // above, just resolved straight off the advertisementId instead of an EmbedDeployment.
+  async renderAdvertisementEmbed(advertisementId: string) {
+    const version = await db.publishedAdvertisementVersion.findFirst({
+      where: { advertisementId, archivedAt: null },
+      orderBy: { version: 'desc' },
+    })
+    if (!version) throw { statusCode: 404, message: 'No published version for this advertisement' }
+    const input = await buildAdCreativeInput({
+      creativeSnapshot: version.creativeSnapshot,
+      format: version.format,
+      destinationUrl: version.destinationUrl,
+    })
+    return renderAdCreativeDocument(input)
   }
 
   async recordImpression(publicId: string, instanceId: string) {

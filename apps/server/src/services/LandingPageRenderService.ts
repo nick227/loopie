@@ -53,13 +53,13 @@ export class LandingPageRenderService {
     const storedSlots = page.publishedVersion.adSlotSnapshot as AdSlotSnapshotItem[] | null
     const adSlots =
       storedSlots ??
-      snapshotSlots(
+      (await snapshotSlots(
         await db.landingPageAdSlot.findMany({
           where: { landingPageId: page.id },
           include: { assignments: true },
           orderBy: { sortOrder: 'asc' },
         }),
-      )
+      ))
     const content = await withResolvedMedia(
       page.businessId,
       normalizeLegacyPageContent(page.publishedVersion.content),

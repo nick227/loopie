@@ -165,4 +165,44 @@ describe('EmbedServingService', () => {
     })
     expect(outboxClick).toBeDefined()
   })
+
+  it('renders a real Ad Designer creative through the shared renderer, not the old stub', async () => {
+    const ad = await advertisementService.create(businessId, {
+      name: 'Poster Ad',
+      assetIds: [assetId],
+      format: 'POSTER',
+      headline: 'Big Sale',
+      primaryText: '20% off',
+      ctaLabel: 'Shop now',
+    })
+    const version = await advertisementService.publish(businessId, ad.id, {
+      destinationUrl: 'https://example.com/sale',
+    })
+    const dep = await deploymentService.createAdDeployment(businessId, ad.id, version.id, 'ANY', [])
+    const meta = await embedService.getBootstrapMetadata(dep.publicId, 'https://test.com')
+
+    const html = await embedService.renderIframe(dep.publicId, meta.nonce)
+    expect(html).not.toContain('AD CONTENT')
+    expect(html).toContain('adc--poster')
+    expect(html).toContain('Big Sale')
+    expect(html).toContain('Shop now')
+    expect(html).toContain('https://example.com/img.jpg')
+  })
+
+  it('renders the direct internal /ads/:advertisementId/embed route with the same renderer', async () => {
+    const ad = await advertisementService.create(businessId, {
+      name: 'Story Ad',
+      assetIds: [assetId],
+      format: 'STORY',
+      headline: 'New Arrivals',
+    })
+    await advertisementService.publish(businessId, ad.id, {
+      destinationUrl: 'https://example.com/new',
+    })
+
+    const html = await embedService.renderAdvertisementEmbed(ad.id)
+    expect(html).toContain('adc--story')
+    expect(html).toContain('New Arrivals')
+    expect(html).toContain('href="https://example.com/new"')
+  })
 })

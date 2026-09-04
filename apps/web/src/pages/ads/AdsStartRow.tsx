@@ -1,29 +1,43 @@
 import { useNavigate } from 'react-router-dom'
 import { useLandingPages } from '@project/sdk'
-import { LayoutTemplate, Link2, Type, Video } from 'lucide-react'
+import { Image, Rows3, Square, LayoutTemplate, Link2, Type, Video } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useFlatPages } from '@/hooks/useFlatPages'
 
-// Three format-based starters (what the ad itself is) fill fixed slots; the rest go to the
-// business's own published pages (what it's promoting) — capped so the row never exceeds six
-// tiles total, the same "minimal jump-offs" ceiling PagesStartRow holds itself to.
+// Ad Designer (2026-09-03) — the primary "what do you want to create?" choice, first and most
+// prominent per CLAUDE.md's Ad Designer spec ("Replace the current form-first experience with a
+// type picker"). Page-promotion and the older generic Video/Text/Link starters still follow —
+// generic ads are preserved, not removed, but no longer the default entry point.
 const MAX_TILES = 6
 const FORMAT_TILE_COUNT = 3
 const MAX_PAGE_TILES = MAX_TILES - FORMAT_TILE_COUNT
 
-/**
- * Ads' equivalent of Pages' "Start a new page" row (PagesStartRow.tsx) — the same product bet
- * that jump-offs expressing purpose beat one generic "New ad" button. An ad's purpose splits two
- * ways: what it's driving traffic to (the business's own published pages, one-click destination
- * prefill via CreateAdPage's `pageId` param) and what format it is (a text-only post or a video,
- * via CreateAdPage's `kind` param — see AdEditor's initialMediaPickerType/autoFocusPrimaryText).
- */
 export function AdsStartRow() {
   const navigate = useNavigate()
   const pages = useFlatPages(useLandingPages({ status: 'PUBLISHED', limit: MAX_PAGE_TILES }))
 
   return (
     <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <StartTile
+          icon={Image}
+          label="Poster"
+          description="Bold, portrait — a printable-feeling promo"
+          onClick={() => navigate('/ads/new?format=POSTER')}
+        />
+        <StartTile
+          icon={Rows3}
+          label="Story"
+          description="Tall and full-bleed, built for a vertical feed"
+          onClick={() => navigate('/ads/new?format=STORY')}
+        />
+        <StartTile
+          icon={Square}
+          label="Feed Post"
+          description="Square, native to a scrolling feed"
+          onClick={() => navigate('/ads/new?format=FEED_POST')}
+        />
+      </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {pages.map((page) => (
           <StartTile

@@ -23,6 +23,7 @@ import {
 } from '@project/sdk'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { AdEditor } from '@/components/ads/AdEditor'
+import { EditAdDesignerPage } from '@/pages/ads/EditAdDesignerPage'
 import { startAdRuns } from '@/lib/startAdRuns'
 import { usePageTitle } from '@/lib/headerContext'
 
@@ -34,6 +35,11 @@ export function AdPage() {
   if (adQuery.isLoading) return <Skeleton className="mx-auto h-48 w-full max-w-2xl" />
   const ad = adQuery.data?.data
   if (!ad) return <p className="text-center text-muted-foreground">Ad not found.</p>
+
+  // Ad Designer (2026-09-03) — a saved Poster/Story/Feed Post reopens in its own designer, "with
+  // the same appearance," instead of the generic AdEditor/AdRun-management flow below (which
+  // still fully applies to every pre-existing generic ad — format stays null for those).
+  if (ad.format) return <EditAdDesignerPage ad={ad} />
 
   return (
     <AdPageEditor
