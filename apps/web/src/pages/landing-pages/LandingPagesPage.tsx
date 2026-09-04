@@ -46,7 +46,6 @@ export function LandingPagesPage() {
   useRestorePagesScroll()
   const [q, setQState] = useState(getPagesSearch)
   const [status, setStatusState] = useState(getPagesStatusFilter)
-  const [createError, setCreateError] = useState<string | null>(null)
   // Persisted through pagesNavState so Back from a Page entity restores search/filter, same
   // continuity contract as Inbox's own filter (inboxNavState.ts).
   function setQ(next: string) {
@@ -76,15 +75,6 @@ export function LandingPagesPage() {
       <PagesCollectionInsights pages={items} />
 
       <PageHeader variant="list" title="Pages" />
-
-      {createError && (
-        <p
-          role="alert"
-          className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
-        >
-          {createError}
-        </p>
-      )}
 
       <SearchFilterBar
         search={{

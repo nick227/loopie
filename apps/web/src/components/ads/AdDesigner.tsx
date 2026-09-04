@@ -23,7 +23,6 @@ import { Card } from '@/components/ui/Card'
 import { PresetChipRow } from './PresetChipRow'
 import { AdCreativeVisual } from '@/components/river/RiverPostPresentation'
 import { mediaFileError } from '@/lib/media'
-import { probeFile, fileToDataUrl } from '@/lib/probeMedia'
 
 export type AdDesignerDraft = {
   name: string

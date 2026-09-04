@@ -21,7 +21,6 @@ import { useFlatPages } from '@/hooks/useFlatPages'
 import type { AdOrder } from '@/lib/adOrder'
 import { parseOrderSnapshot } from '@/lib/adOrder'
 import { pageIdFromKey, paidTargetByKey, runDestinationKey } from '@/lib/adPreview'
-import { evaluatePlacementReadiness } from '@/lib/placementCapabilities'
 import { EmbedModal } from '@/components/shared/EmbedModal'
 
 type AdRun = components['schemas']['AdRun']
@@ -153,13 +152,6 @@ export function AdEditor({
   const onDeck = useAsset(onDeckId ?? '').data?.data
   const activeReviewKey = relaunch?.key ?? reviewKey
   const reviewTarget = activeReviewKey ? paidTargetByKey(activeReviewKey) : undefined
-  const readiness = evaluatePlacementReadiness({
-    mediaType: onDeck?.type,
-    placements: onDeck?.placements ?? [],
-    primaryText,
-    ctaLabel,
-    destinationUrl,
-  })
 
   async function toggleDestination(key: string, supersedesRunId?: string) {
     if (key.startsWith('page:')) {

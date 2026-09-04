@@ -1,15 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import {
-  ArrowUpRight,
-  Building2,
-  CreditCard,
-  Database,
-  KeyRound,
-  LockKeyhole,
-  LogOut,
-  ShieldCheck,
-} from 'lucide-react'
+import { ArrowUpRight, Building2, CreditCard, Database, LogOut, ShieldCheck } from 'lucide-react'
 import {
   useBilling,
   useCurrentUser,

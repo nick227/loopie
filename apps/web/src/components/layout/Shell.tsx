@@ -1,4 +1,4 @@
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useMatch, useNavigate } from 'react-router-dom'
 import { Inbox as InboxIcon, Mail, LogOut, Handshake, Bell, Waves, Command } from 'lucide-react'
 import { useCurrentUser, useInboxThreads, useLogout } from '@project/sdk'
@@ -84,8 +84,12 @@ function Header({
   isLoading: boolean
   isAuthenticated: boolean
 }) {
-  const location = useLocation()
-  const pathname = location.pathname
+  // The browser tab title — the one real consumer of usePageTitle's "report an entity's name
+  // upward" contract (see headerContext.tsx); the persistent nav's own header chrome has no
+  // separate title slot to render this into.
+  useEffect(() => {
+    document.title = pageTitle ? `${pageTitle} · Loopie` : 'Loopie'
+  }, [pageTitle])
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-md">

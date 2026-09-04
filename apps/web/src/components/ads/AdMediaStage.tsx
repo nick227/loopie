@@ -78,6 +78,9 @@ export function AdFeedPreview({
         <div className="aspect-square w-full overflow-hidden bg-muted">
           <Media asset={asset} />
         </div>
+        {primaryText ? (
+          <p className="px-4 pt-3 text-sm leading-relaxed text-foreground">{primaryText}</p>
+        ) : null}
         {ctaLabel || host ? (
           <div className="flex items-center justify-between gap-3 border-t border-border bg-muted/40 px-4 py-3">
             <span className="min-w-0 truncate text-xs uppercase tracking-wider text-muted-foreground">

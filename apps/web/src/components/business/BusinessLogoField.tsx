@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useAsset, useCreateAsset } from '@project/sdk'
 import { Avatar } from '@/components/ui/Avatar'
-import { Button } from '@/components/ui/Button'
 import { MediaPicker } from '@/components/media/MediaPicker'
 import { mediaSrc } from '@/lib/media'
 

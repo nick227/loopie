@@ -317,10 +317,19 @@ export function ContactLeadCard({
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0">
         <p className="text-xs text-muted-foreground">Status</p>
+        <LogActivityButton contactId={contactId} />
       </CardHeader>
       <CardContent className="space-y-5">
         <StatusSelect leadId={currentLead.id} stage={currentLead.stage} />
         <ActivityCheckboxes leadId={currentLead.id} activity={currentLead.activity} />
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">Next</p>
+          <NextAction
+            leadId={currentLead.id}
+            note={currentLead.nextActionNote ?? null}
+            at={currentLead.nextActionAt ?? null}
+          />
+        </div>
       </CardContent>
     </Card>
   )

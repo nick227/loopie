@@ -41,27 +41,27 @@ async function createTextPost(userId: string, body: string) {
 }
 
 describe('Business profile v2 (slice 4)', () => {
-  it('hero shows Follow for a recognized non-owner, no Follow control for the owner, and a real follower count', async () => {
+  // The public HTML page (renderBusinessProfile) was later redesigned into a plain "business
+  // front" — artwork, name, contact, practical details — with Follow/Featured dropped from the
+  // server-rendered markup entirely (see renderBusinessProfile.ts's own comment and
+  // BusinessProfilePage.test.tsx's "...without rendering River activity"). Follow state and the
+  // featured post still exist and are exercised below via the DB/JSON API; this test now checks
+  // that content-negotiated JSON (getBusinessProfileJson), not the HTML branch, for those fields.
+  it('the JSON profile reports Follow state and a real follower count for a recognized non-owner', async () => {
     const owner = await registerBusiness('profilev2-owner@river.local', 'Profile V2 Owner')
     const other = await registerBusiness('profilev2-other@river.local', 'Profile V2 Other')
     const slug = await getSlug(owner.businessId)
 
-    const asOwner = await app.inject({
-      method: 'GET',
-      url: `/b/${slug}`,
-      headers: { cookie: owner.cookie },
-    })
-    expect(asOwner.statusCode).toBe(200)
-    expect(asOwner.body).not.toContain('class="follow-cta')
-
     const asOther = await app.inject({
       method: 'GET',
       url: `/b/${slug}`,
-      headers: { cookie: other.cookie },
+      headers: { cookie: other.cookie, accept: 'application/json' },
     })
     expect(asOther.statusCode).toBe(200)
-    expect(asOther.body).toContain('>Follow<')
-    expect(asOther.body).toContain('0 followers')
+    const before = asOther.json().data
+    expect(before.isOwnProfile).toBe(false)
+    expect(before.viewerIsFollowing).toBe(false)
+    expect(before.followerCount).toBe(0)
 
     const follow = await app.inject({
       method: 'POST',
@@ -73,10 +73,11 @@ describe('Business profile v2 (slice 4)', () => {
     const afterFollow = await app.inject({
       method: 'GET',
       url: `/b/${slug}`,
-      headers: { cookie: other.cookie },
+      headers: { cookie: other.cookie, accept: 'application/json' },
     })
-    expect(afterFollow.body).toContain('1 follower<')
-    expect(afterFollow.body).toContain('>Following<')
+    const after = afterFollow.json().data
+    expect(after.followerCount).toBe(1)
+    expect(after.viewerIsFollowing).toBe(true)
   })
 
   it('pin replaces any previous pin, unpin clears it, and acting on another business post 404s', async () => {
@@ -121,7 +122,7 @@ describe('Business profile v2 (slice 4)', () => {
     expect(pinStranger.statusCode).toBe(404)
   })
 
-  it('the pinned post renders exactly once, in Featured, and is excluded from the regular list below it', async () => {
+  it('the JSON profile reports the pinned post as featured, independent of the regular feed', async () => {
     const owner = await registerBusiness('profilev2-featured@river.local', 'Profile V2 Featured')
     const slug = await getSlug(owner.businessId)
     const pinnedId = await createTextPost(owner.userId, 'The featured post body')
@@ -133,12 +134,22 @@ describe('Business profile v2 (slice 4)', () => {
       headers: asAuth(owner.userId),
     })
 
-    const res = await app.inject({ method: 'GET', url: `/b/${slug}` })
+    const res = await app.inject({
+      method: 'GET',
+      url: `/b/${slug}`,
+      headers: { accept: 'application/json' },
+    })
     expect(res.statusCode).toBe(200)
-    expect(res.body).toContain('class="featured-label"')
-    const occurrences = res.body.split('The featured post body').length - 1
-    expect(occurrences).toBe(1)
-    expect(res.body).toContain('A regular later post')
+    const data = res.json().data
+    expect(data.featured.id).toBe(pinnedId)
+    expect(data.featured.body).toBe('The featured post body')
+
+    const feed = await app.inject({
+      method: 'GET',
+      url: `/river/feed?business=${owner.businessId}&limit=20`,
+    })
+    const bodies = (feed.json().items as { body: string }[]).map((item) => item.body)
+    expect(bodies).toContain('A regular later post')
   })
 
   it("GET /river/feed?business= returns only that business's posts with no SPONSORED items", async () => {

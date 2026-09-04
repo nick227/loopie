@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Loader2, AlertCircle, ExternalLink } from 'lucide-react'
+import { Loader2, AlertCircle } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { useCreateRiverPost } from '@project/sdk'

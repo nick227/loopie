@@ -2,7 +2,7 @@ import { db, absoluteMediaUrl } from '@project/db'
 import type { Prisma } from '@prisma/client'
 import type { AdCreativeInput } from '@project/ad-renderer'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
-import { riverPostUrl, PUBLIC_SERVER_URL, hostedPageUrl } from '../lib/urls'
+import { riverPostUrl, riverPostClickUrl, PUBLIC_SERVER_URL, hostedPageUrl } from '../lib/urls'
 import { requireAssets } from '../lib/ownership'
 import { fetchLinkPreview } from '../lib/linkPreview'
 
@@ -185,10 +185,15 @@ export async function toFeedCards(
       ctaPlacement?: AdCreativeInput['ctaPlacement']
       mediaFocal?: AdCreativeInput['mediaFocal']
     } | null
-    const postCta = row.ctaLabel && row.ctaUrl ? { label: row.ctaLabel, url: row.ctaUrl } : null
+    // The CTA's url always points through the /click tracking redirect (resolveClickDestination
+    // in handlers/river.ts resolves the same postCta > AD destination priority to the real target
+    // and records engagement) rather than the raw destination — otherwise a click from the feed
+    // bypasses attribution entirely.
+    const postCta =
+      row.ctaLabel && row.ctaUrl ? { label: row.ctaLabel, url: riverPostClickUrl(row.id) } : null
     const advertisementCta =
       row.type === 'AD' && versionSnapshot?.ctaLabel && version?.destinationUrl
-        ? { label: versionSnapshot.ctaLabel, url: version.destinationUrl }
+        ? { label: versionSnapshot.ctaLabel, url: riverPostClickUrl(row.id) }
         : null
     const cta = postCta ?? advertisementCta
     const body = row.body || (row.type === 'AD' ? (versionSnapshot?.primaryText ?? '') : row.body)

@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Heart, MessageCircle, FileText, MoreHorizontal, Pin, ArrowUpRight } from 'lucide-react'
 import type { components } from '@project/sdk'
 import {
@@ -423,11 +424,38 @@ function MoreMenu({
       <button
         type="button"
         aria-label="More"
+        aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
       >
         <MoreHorizontal size={16} />
       </button>
+      {open ? (
+        <div className="absolute right-0 top-full z-20 mt-1 w-44 space-y-0.5 rounded-lg border border-border bg-popover p-1 shadow-lg">
+          <Link
+            to={`/river/posts/${riverPostId}`}
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-foreground hover:bg-accent"
+          >
+            <ArrowUpRight size={14} className="text-muted-foreground" />
+            View post
+          </Link>
+          {pin ? (
+            <button
+              type="button"
+              disabled={pin.pending}
+              onClick={() => {
+                pin.onToggle()
+                setOpen(false)
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm text-foreground hover:bg-accent disabled:opacity-50"
+            >
+              <Pin size={14} className="text-muted-foreground" />
+              {pin.isPinned ? 'Unpin from profile' : 'Pin to profile'}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -594,6 +622,14 @@ function AuthorRow({
               {following ? 'Following' : 'Follow'}
             </Button>
           ) : null}
+          <MoreMenu
+            riverPostId={item.id}
+            pin={
+              pin
+                ? { isPinned: pin.isPinned, pending: pinPending, onToggle: onTogglePin }
+                : undefined
+            }
+          />
         </div>
       }
     />

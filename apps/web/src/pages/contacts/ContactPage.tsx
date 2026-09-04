@@ -191,7 +191,6 @@ export function ContactPage() {
 
   const lifecycleStatus = contact?.lifecycleStatus ?? 'NONE'
   const interactions = interactionsQuery.data?.data ?? []
-  const provenance = contact?.provenance ?? []
   const records = contact?.records ?? []
 
   return (

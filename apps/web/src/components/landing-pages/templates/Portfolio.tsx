@@ -28,7 +28,6 @@ const TOKEN_DEFAULTS = {
 }
 
 const ink = (mix: number) => `color-mix(in srgb, var(--lp-ink) ${mix}%, var(--lp-bg))`
-const inv = (mix: number) => `color-mix(in srgb, var(--lp-bg) ${mix}%, var(--lp-ink))`
 
 type SectionProps<K extends keyof PageContent> = {
   content: PageContent[K]

@@ -1,8 +1,5 @@
-import { Briefcase, MapPin, ArrowUpRight } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import { useBusiness } from '@project/sdk'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { mediaSrc } from '@/lib/media'
 import { BusinessIdentityForm } from '@/components/business/BusinessIdentityForm'
 
 export function BusinessIdentityHeader() {
@@ -14,16 +11,6 @@ export function BusinessIdentityHeader() {
 
   const data = business.data?.data
   if (!data) return null
-
-  const src = mediaSrc(data.logoUrl)
-
-  const initials = data.name
-    .split(' ')
-    .filter(Boolean)
-    .map((word) => word[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
 
   return (
     <section className="overflow-hidden rounded-2xl border border-border">

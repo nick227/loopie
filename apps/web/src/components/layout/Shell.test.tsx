@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as reactQuery from '@tanstack/react-query'
 import {
   useAdvertisements,
   useAssets,
@@ -13,6 +14,7 @@ import {
   useLandingPages,
   useLogout,
   useInboxThreads,
+  useNextAction,
 } from '@project/sdk'
 import { Shell } from './Shell'
 
@@ -34,6 +36,14 @@ vi.mock('@project/sdk', async (importOriginal) => ({
   useCreateAsset: vi.fn(),
   useBusiness: vi.fn(),
   useInboxThreads: vi.fn(),
+  useNextAction: vi.fn(),
+}))
+
+// AssistantPanel (always mounted alongside AssistantLauncher — see its own comment) calls
+// useQueryClient directly rather than through an SDK hook, so it needs its own mock the same way.
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
+  useQueryClient: vi.fn(),
 }))
 
 describe('Shell profile navigation', () => {
@@ -79,6 +89,12 @@ describe('Shell profile navigation', () => {
     vi.mocked(useInboxThreads).mockReturnValue({
       data: { data: [] },
     } as unknown as ReturnType<typeof useInboxThreads>)
+    vi.mocked(useNextAction).mockReturnValue({
+      data: undefined,
+    } as unknown as ReturnType<typeof useNextAction>)
+    vi.mocked(reactQuery.useQueryClient).mockReturnValue({
+      invalidateQueries: vi.fn(),
+    } as unknown as ReturnType<typeof reactQuery.useQueryClient>)
   })
 
   it('links the header avatar to the private profile', async () => {

@@ -37,11 +37,11 @@ export function PageToolbar({
   const templates = useFlatPages(useLandingPageTemplates())
   const presets = presetsFromSchema(templateSchema)
   const selected = matchThemePreset(theme, presets)
-  const swatch = theme.primaryColor ?? '#0B3D91'
 
   return (
     <div className="flex shrink-0 items-center gap-1.5">
-      <label className="relative inline-flex h-8 min-w-0 items-center rounded-lg border border-input-border bg-transparent pl-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:border-foreground/20 focus-within:ring-2 focus-within:ring-ring">
+      <label className="relative inline-flex h-8 min-w-0 items-center gap-1 rounded-lg border border-input-border bg-transparent pl-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:border-foreground/20 focus-within:ring-2 focus-within:ring-ring">
+        <span className="shrink-0">Layout</span>
         <select
           aria-label="Layout"
           value={templateId}
@@ -60,7 +60,8 @@ export function PageToolbar({
         <SelectChevron />
       </label>
 
-      <label className="relative inline-flex h-8 min-w-0 items-center rounded-lg border border-input-border bg-transparent pl-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:border-foreground/20 focus-within:ring-2 focus-within:ring-ring">
+      <label className="relative inline-flex h-8 min-w-0 items-center gap-1 rounded-lg border border-input-border bg-transparent pl-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:border-foreground/20 focus-within:ring-2 focus-within:ring-ring">
+        <span className="shrink-0">Theme</span>
         <select
           aria-label="Theme"
           value={selected.id}

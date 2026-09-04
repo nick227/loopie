@@ -45,7 +45,7 @@ export function BusinessIdentityForm({
   const [name, setName] = useState(initial.name)
   const [location, setLocation] = useState(initial.location ?? '')
   const [industry, setIndustry] = useState(initial.industry ?? '')
-  const [slug, setSlug] = useState(initial.slug ?? '')
+  const slug = initial.slug ?? ''
   const [targetAudience, setTargetAudience] = useState(initial.targetAudience ?? '')
   const [logoUrl, setLogoUrl] = useState<string | null>(initial.logoUrl)
   const [socialProfiles, setSocialProfiles] = useState<SocialProfileLink[]>(initial.socialProfiles)
