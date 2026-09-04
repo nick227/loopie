@@ -1,3 +1,4 @@
+import userEvent from '@testing-library/user-event'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -129,7 +130,10 @@ describe('Shell profile navigation', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('button', { name: 'Messages, 2 unread' })).toHaveTextContent('2')
+    // The badge is a subtle dot indicator, not a numeric count — the accessible name carries the
+    // actual count for assistive tech.
+    const messagesButton = screen.getByRole('button', { name: 'Messages, 2 unread' })
+    expect(messagesButton.querySelector('[aria-hidden="true"]')).toBeInTheDocument()
   })
 
   it('renders a business profile (/b/:slug) inside the persistent Shell nav, not standalone chrome', async () => {
@@ -153,5 +157,26 @@ describe('Shell profile navigation', () => {
     expect(screen.getByRole('link', { name: 'Advertising' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'CRM' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'River' })).toBeInTheDocument()
+  })
+
+  it('opens a mobile nav drawer with Messages and River', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <MemoryRouter initialEntries={['/calendar']}>
+        <Routes>
+          <Route element={<Shell />}>
+            <Route path="/calendar" element={<p>Calendar</p>} />
+            <Route path="/messages" element={<p>Messages</p>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Open menu' }))
+    expect(screen.getByRole('dialog', { name: 'Menu' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Messages' })).toBeInTheDocument()
+    // Drawer + desktop icon both render River; at least one must be present.
+    expect(screen.getAllByRole('link', { name: 'River' }).length).toBeGreaterThan(0)
   })
 })

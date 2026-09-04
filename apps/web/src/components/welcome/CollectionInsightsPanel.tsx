@@ -13,13 +13,15 @@ const GRID_COLS: Record<number, string> = {
 
 function StatTile({ icon: Icon, value, label }: InsightStat) {
   return (
-    <div className="flex items-start gap-3">
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
-        <Icon size={18} />
+    <div className="flex min-w-0 items-start gap-2 sm:gap-3">
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-primary sm:h-10 sm:w-10">
+        <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
       </span>
-      <div>
-        <p className="text-2xl font-bold tabular-nums text-foreground">{value}</p>
-        <p className="text-xs text-muted-foreground">{label}</p>
+      <div className="min-w-0">
+        <p className="text-lg font-bold tabular-nums leading-tight text-foreground sm:text-2xl">
+          {value}
+        </p>
+        <p className="truncate text-[11px] text-muted-foreground sm:text-xs">{label}</p>
       </div>
     </div>
   )
@@ -40,8 +42,13 @@ export function CollectionInsightsPanel({
 }) {
   if (stats.length === 0) return null
   return (
-    <div className="rounded-2xl border border-border bg-surface p-5">
-      <div className={cn('grid gap-4', GRID_COLS[stats.length] ?? 'sm:grid-cols-4')}>
+    <div className="min-w-0 overflow-hidden rounded-xl border border-border bg-surface p-3 sm:rounded-2xl sm:p-5">
+      <div
+        className={cn(
+          'grid grid-cols-2 gap-3 sm:gap-4',
+          GRID_COLS[stats.length] ?? 'sm:grid-cols-4',
+        )}
+      >
         {stats.map((stat, i) => (
           <StatTile key={i} {...stat} />
         ))}
@@ -49,7 +56,7 @@ export function CollectionInsightsPanel({
       {highlight ? (
         <Link
           to={highlight.href}
-          className="mt-4 flex items-center gap-2 border-t border-border pt-3 text-sm text-muted-foreground hover:text-foreground"
+          className="mt-3 flex items-center gap-2 border-t border-border pt-2.5 text-xs text-muted-foreground hover:text-foreground sm:mt-4 sm:pt-3 sm:text-sm"
         >
           <highlight.icon size={14} className="shrink-0 text-primary" />
           <span className="truncate">{highlight.children}</span>

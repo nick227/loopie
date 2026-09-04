@@ -1,10 +1,24 @@
 import { Suspense, useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useMatch, useNavigate } from 'react-router-dom'
-import { Inbox as InboxIcon, Mail, LogOut, Handshake, Bell, Waves, Command } from 'lucide-react'
+import {
+  Inbox as InboxIcon,
+  Mail,
+  LogOut,
+  Handshake,
+  Bell,
+  Waves,
+  Command,
+  Menu,
+  CalendarDays,
+  LayoutTemplate,
+  Megaphone,
+  Users,
+} from 'lucide-react'
 import { useCurrentUser, useInboxThreads, useLogout } from '@project/sdk'
 import { AD_CREATIVE_STYLESHEET } from '@project/ad-renderer'
 import { cn } from '@/lib/utils'
 import { CreateMenu, CreateButtonTrigger } from '@/components/layout/CreateMenu'
+import { MobileNavDrawer, type MobileNavItem } from '@/components/layout/MobileNavDrawer'
 import { SetHeaderTitleContext } from '@/lib/headerContext'
 import { ErrorBoundary } from '@/components/layout/ErrorBoundary'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -29,15 +43,25 @@ function RouteContent() {
 // up in practice; reverted to real peer tabs, directly requested and inspired by a reference
 // screenshot. Calendar is the default workspace; the former Home overview now lives inside the
 // private profile, so it no longer occupies a peer tab.
+//
+// Desktop (`md+`) shows the four text tabs inline. Narrow viewports use MobileNavDrawer instead —
+// Messages + River join that drawer (they're icon-only in the desktop trailing cluster and were
+// previously hidden below `sm`, leaving no way to reach them on a phone).
 const NAV_TABS: { to: string; label: string; end?: boolean }[] = [
   { to: '/calendar', label: 'Calendar', end: true },
   { to: '/landing-pages', label: 'Pages' },
   { to: '/ads', label: 'Advertising' },
   { to: '/contacts', label: 'CRM' },
 ]
-// River isn't one of the visible text tabs above (it lives in the trailing icon cluster, see
-// Header below) but it's a primary destination in its own right now, not a page reached *from*
-// one of these — so it gets the same "no back-subheader" treatment as the text tabs do.
+
+const MOBILE_NAV_ITEMS: MobileNavItem[] = [
+  { to: '/calendar', label: 'Calendar', icon: CalendarDays, end: true },
+  { to: '/landing-pages', label: 'Pages', icon: LayoutTemplate },
+  { to: '/ads', label: 'Advertising', icon: Megaphone },
+  { to: '/contacts', label: 'CRM', icon: Users },
+  { to: '/messages', label: 'Messages', icon: Bell },
+  { to: '/river', label: 'River', icon: Waves },
+]
 
 const AFFILIATE_NAV = [
   { to: '/portal', label: 'Home', icon: InboxIcon, end: true },
@@ -55,13 +79,14 @@ function MessagesButton() {
       type="button"
       aria-label={unreadCount ? `Messages, ${unreadCount} unread` : 'Messages'}
       onClick={() => navigate('/messages')}
-      className="relative hidden h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:flex"
+      className="relative hidden h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:flex"
     >
       <Bell size={17} />
       {unreadCount ? (
-        <span className="absolute -right-0.5 -top-0.5 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-primary-foreground ring-2 ring-background">
-          {unreadCount > 99 ? '99+' : unreadCount}
-        </span>
+        <span
+          aria-hidden="true"
+          className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-background"
+        />
       ) : null}
     </button>
   )
@@ -84,6 +109,8 @@ function Header({
   isLoading: boolean
   isAuthenticated: boolean
 }) {
+  const [navOpen, setNavOpen] = useState(false)
+
   // The browser tab title — the one real consumer of usePageTitle's "report an entity's name
   // upward" contract (see headerContext.tsx); the persistent nav's own header chrome has no
   // separate title slot to render this into.
@@ -93,7 +120,17 @@ function Header({
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex h-14 w-full max-w-[900px] items-center gap-2">
+      <div className="mx-auto flex h-14 w-full max-w-[900px] min-w-0 items-center gap-1.5 px-3 sm:gap-2 sm:px-4">
+        <button
+          type="button"
+          aria-label="Open menu"
+          aria-expanded={navOpen}
+          onClick={() => setNavOpen(true)}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
+        >
+          <Menu size={20} />
+        </button>
+
         <Link to="/calendar" className="flex shrink-0 items-center gap-2 rounded-lg py-1.5 pr-1">
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Command size={16} />
@@ -102,14 +139,14 @@ function Header({
         {/* Active company — switch companies from Profile → Your team. */}
         <Link
           to="/profile"
-          className="hidden shrink-0 truncate rounded-lg px-1.5 py-1.5 text-sm font-semibold tracking-tight text-foreground transition-colors hover:bg-accent sm:inline"
+          className="hidden min-w-0 max-w-[10rem] truncate rounded-lg px-1.5 py-1.5 text-sm font-semibold tracking-tight text-foreground transition-colors hover:bg-accent md:inline"
         >
           {businessName ?? 'Loopie'}
         </Link>
 
         <nav
           aria-label="Primary"
-          className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-1 sm:justify-center"
+          className="hidden min-w-0 flex-1 items-center justify-center gap-1 px-1 md:flex"
         >
           {NAV_TABS.map((tab) => (
             <NavLink
@@ -118,7 +155,7 @@ function Header({
               end={tab.end}
               className={({ isActive }) =>
                 cn(
-                  'shrink-0 justify-center flex whitespace-nowrap border-b-2 px-auto py-2 text-sm font-medium transition-colors min-w-[90px] align-center',
+                  'shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition-colors',
                   isActive
                     ? 'border-primary text-foreground'
                     : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -130,7 +167,10 @@ function Header({
           ))}
         </nav>
 
-        <div className="flex shrink-0 items-center gap-1">
+        {/* Spacer so the trailing cluster stays right-aligned when the desktop tab strip is hidden. */}
+        <div className="min-w-0 flex-1 md:hidden" aria-hidden="true" />
+
+        <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
           {isAuthenticated ? (
             <CreateMenu trigger={({ onClick }) => <CreateButtonTrigger onClick={onClick} />} />
           ) : null}
@@ -140,13 +180,14 @@ function Header({
           {isAuthenticated ? <AssistantLauncher /> : null}
 
           {/* The one route Shell renders for an anonymous visitor too (River, outside
-              <AuthGuard/> — see App.tsx) — always visible, not gated on isAuthenticated. */}
+              <AuthGuard/> — see App.tsx) — always visible on desktop; mobile reaches it via
+              the drawer. */}
           <NavLink
             to="/river"
             aria-label="River"
             className={({ isActive }) =>
               cn(
-                'hidden h-9 w-9 items-center justify-center rounded-full transition-colors sm:flex',
+                'relative hidden h-9 w-9 items-center justify-center rounded-full transition-colors md:flex',
                 isActive
                   ? 'bg-accent text-foreground'
                   : 'text-muted-foreground hover:bg-accent hover:text-foreground',
@@ -181,6 +222,13 @@ function Header({
           ) : null}
         </div>
       </div>
+
+      <MobileNavDrawer
+        open={navOpen}
+        onClose={() => setNavOpen(false)}
+        businessName={businessName}
+        items={MOBILE_NAV_ITEMS}
+      />
     </header>
   )
 }
@@ -292,7 +340,7 @@ export function Shell() {
   }
 
   return (
-    <div className="">
+    <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
       {/* Mounted once, app-wide — Ad Designer's live preview and River's AD post rendering both
           inject the shared @project/ad-renderer fragment via dangerouslySetInnerHTML and rely on
           this being present exactly once (see CLAUDE.md's Ad Designer "CRITICAL RENDERING
@@ -306,8 +354,13 @@ export function Shell() {
         isLoading={me.isLoading}
         isAuthenticated={isAuthenticated}
       />
-      <main className="flex-1 pb-10 pt-6">
-        <div className={cn('mx-auto w-full', isLandingPageEditor ? 'max-w-none' : 'max-w-[900px]')}>
+      <main className="min-w-0 flex-1 pb-10 pt-4 sm:pt-6">
+        <div
+          className={cn(
+            'mx-auto w-full min-w-0 px-3 sm:px-4',
+            isLandingPageEditor ? 'max-w-none' : 'max-w-[900px]',
+          )}
+        >
           <SetHeaderTitleContext.Provider value={setPageTitle}>
             <RouteContent />
           </SetHeaderTitleContext.Provider>
