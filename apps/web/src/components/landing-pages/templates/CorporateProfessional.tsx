@@ -56,13 +56,14 @@ const IconMap: Record<string, React.ElementType> = {
 // layout" means structurally: any renderer that sets these same --lp-* custom properties on its
 // own wrapper picks up theme changes for free, without needing to know about this template.
 const TOKEN_DEFAULTS = {
-  primaryColor: '#0B3D91',
+  primaryColor: '#FF2D6A',
   onPrimaryColor: '#FFFFFF',
-  backgroundColor: '#E8EEF4',
-  inkColor: '#122033',
-  cardColor: '#FFFFFF',
-  fontFamily: '"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif',
-  headingFont: '"IBM Plex Serif", Georgia, serif',
+  backgroundColor: '#FFFFFF',
+  inkColor: '#0A0A0A',
+  cardColor: '#F5F5F5',
+  fontFamily: '"DM Sans", ui-sans-serif, system-ui, sans-serif',
+  headingFont: 'Syne, ui-sans-serif, system-ui, sans-serif',
+  radius: '9999px',
 }
 
 const ink = (mix: number) => `color-mix(in srgb, var(--lp-ink) ${mix}%, var(--lp-bg))`
@@ -109,17 +110,18 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
   const cta = content?.primaryCta ?? {}
   const media = content?.media ?? {}
   return (
-    <section
-      className="relative pt-24 pb-16 lg:pt-32 lg:pb-24 overflow-hidden"
-      style={{ backgroundColor: ink(4) }}
-    >
-      <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
-        <div className="flex-1 text-center lg:text-left">
+    <section className="relative overflow-hidden pt-16 pb-20 lg:pt-24 lg:pb-28">
+      <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-12 px-6 lg:grid-cols-12 lg:gap-10 lg:px-8">
+        <div className="text-center lg:col-span-7 lg:text-left">
           {badges.map((badge, i) => (
             <span
               key={i}
-              className="inline-block py-1.5 px-4 mb-6 rounded-full text-sm font-medium tracking-wide"
-              style={{ backgroundColor: ink(10), color: ink(85) }}
+              className="mb-6 inline-block px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em]"
+              style={{
+                backgroundColor: ink(8),
+                color: ink(80),
+                borderRadius: 'var(--lp-radius)',
+              }}
             >
               {badge}
             </span>
@@ -132,11 +134,11 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
               onChange={(headline) => onChange({ headline })}
               placeholder="Headline"
               style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-              className="text-5xl lg:text-7xl font-extrabold tracking-tight leading-[1.1] mb-8"
+              className="mb-8 text-5xl font-extrabold uppercase leading-[0.95] tracking-tight lg:text-7xl"
             />
           ) : (
             <h1
-              className="text-5xl lg:text-7xl font-extrabold tracking-tight leading-[1.1] mb-8"
+              className="mb-8 text-5xl font-extrabold uppercase leading-[0.95] tracking-tight lg:text-7xl"
               style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
             >
               {content?.headline}
@@ -150,17 +152,17 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
               multiline
               placeholder="Subheadline"
               style={{ color: ink(72) }}
-              className="text-xl mb-10 max-w-2xl mx-auto lg:mx-0 leading-relaxed"
+              className="mx-auto mb-10 max-w-xl text-lg leading-relaxed lg:mx-0"
             />
           ) : (
             <p
-              className="text-xl mb-10 max-w-2xl mx-auto lg:mx-0 leading-relaxed"
+              className="mx-auto mb-10 max-w-xl text-lg leading-relaxed lg:mx-0"
               style={{ color: ink(72) }}
             >
               {content?.body}
             </p>
           )}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+          <div className="flex flex-col justify-center gap-4 sm:flex-row lg:justify-start">
             {editable ? (
               <EditableLinkTrigger
                 label={cta.label ?? ''}
@@ -168,28 +170,39 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
                 onChange={(next) => onChange({ primaryCta: next })}
               >
                 <span
-                  className="inline-flex items-center justify-center px-8 py-4 text-base font-semibold rounded-lg"
-                  style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+                  className="inline-flex items-center justify-center px-8 py-4 text-base font-bold"
+                  style={{
+                    backgroundColor: 'var(--lp-primary)',
+                    color: 'var(--lp-on-primary)',
+                    borderRadius: 'var(--lp-radius)',
+                  }}
                 >
                   {cta.label || 'Add a call to action'}
-                  <ArrowRight className="ml-2 w-5 h-5" />
+                  <ArrowRight className="ml-2 h-5 w-5" />
                 </span>
               </EditableLinkTrigger>
             ) : cta.label ? (
               <a
                 href={cta.url}
-                className="inline-flex items-center justify-center px-8 py-4 text-base font-semibold rounded-lg transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
-                style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+                className="inline-flex items-center justify-center px-8 py-4 text-base font-bold transition-opacity hover:opacity-90"
+                style={{
+                  backgroundColor: 'var(--lp-primary)',
+                  color: 'var(--lp-on-primary)',
+                  borderRadius: 'var(--lp-radius)',
+                }}
               >
                 {cta.label}
-                <ArrowRight className="ml-2 w-5 h-5" />
+                <ArrowRight className="ml-2 h-5 w-5" />
               </a>
             ) : null}
           </div>
         </div>
-        <div className="flex-1 w-full relative group perspective-1000">
+        <div className="relative w-full lg:col-span-5">
           {editable ? (
-            <div className="aspect-[4/3] w-full overflow-hidden rounded-2xl">
+            <div
+              className="aspect-[4/3] w-full overflow-hidden"
+              style={{ borderRadius: 'var(--lp-radius)' }}
+            >
               <MediaSlotField
                 kind="IMAGE"
                 urlMode
@@ -201,7 +214,8 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
             <img
               src={media.url}
               alt={media.alt || 'Hero Image'}
-              className="aspect-[4/3] w-full rounded-2xl object-cover shadow-2xl transform transition-transform duration-700 group-hover:scale-[1.02]"
+              className="aspect-[4/3] w-full object-cover"
+              style={{ borderRadius: 'var(--lp-radius)' }}
             />
           )}
         </div>
@@ -520,7 +534,7 @@ function MetricsSection({ content, editable, onChange }: SectionProps<'metrics'>
                     ariaLabel={`Metric ${i + 1} value`}
                     value={metric.value}
                     onChange={(value) => updateItem(i, { value })}
-                    className="text-5xl md:text-6xl font-extrabold mb-4 tracking-tight text-center"
+                    className="mb-4 text-center text-6xl font-extrabold tracking-tight md:text-7xl"
                   />
                   <CanvasText
                     ariaLabel={`Metric ${i + 1} label`}
@@ -542,7 +556,7 @@ function MetricsSection({ content, editable, onChange }: SectionProps<'metrics'>
                 </>
               ) : (
                 <>
-                  <div className="text-5xl md:text-6xl font-extrabold mb-4 tracking-tight">
+                  <div className="mb-4 text-6xl font-extrabold tracking-tight md:text-7xl">
                     {metric.value}
                   </div>
                   <div className="text-xl font-semibold mb-3">{metric.label}</div>
@@ -571,7 +585,7 @@ function FeatureGridSection({ content, editable, onChange }: SectionProps<'featu
   return (
     <section id="features" className="py-24" style={{ backgroundColor: 'var(--lp-bg)' }}>
       <div className="max-w-6xl mx-auto px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-20">
+        <div className="mb-16 max-w-3xl text-left">
           {editable ? (
             <>
               <CanvasText
@@ -580,7 +594,7 @@ function FeatureGridSection({ content, editable, onChange }: SectionProps<'featu
                 value={content?.headline ?? ''}
                 onChange={(headline) => onChange({ headline })}
                 style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-                className="text-3xl md:text-5xl font-bold mb-6 tracking-tight"
+                className="mb-4 text-3xl font-extrabold tracking-tight md:text-5xl"
               />
               <CanvasText
                 ariaLabel="Features body"
@@ -594,7 +608,7 @@ function FeatureGridSection({ content, editable, onChange }: SectionProps<'featu
           ) : (
             <>
               <h2
-                className="text-3xl md:text-5xl font-bold mb-6 tracking-tight"
+                className="mb-4 text-3xl font-extrabold tracking-tight md:text-5xl"
                 style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
               >
                 {content?.headline}
@@ -605,16 +619,31 @@ function FeatureGridSection({ content, editable, onChange }: SectionProps<'featu
             </>
           )}
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-16">
+        <div
+          className="grid gap-px overflow-hidden md:grid-cols-2 lg:grid-cols-3"
+          style={{
+            backgroundColor: ink(12),
+            border: `1px solid ${ink(12)}`,
+            borderRadius: 'var(--lp-radius)',
+          }}
+        >
           {items.map((feature, i) => {
             const Icon = feature.icon ? IconMap[feature.icon] : null
             return (
-              <div key={i} className="group relative">
+              <div
+                key={i}
+                className={`group relative p-8 ${i === 0 ? 'md:col-span-2 lg:col-span-1 lg:row-span-1' : ''}`}
+                style={{ backgroundColor: 'var(--lp-bg)' }}
+              >
                 <div
-                  className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6"
-                  style={{ backgroundColor: ink(8), color: ink(65) }}
+                  className="mb-6 flex h-12 w-12 items-center justify-center"
+                  style={{
+                    backgroundColor: ink(8),
+                    color: 'var(--lp-primary)',
+                    borderRadius: 'var(--lp-radius)',
+                  }}
                 >
-                  {Icon && <Icon className="w-7 h-7" />}
+                  {Icon && <Icon className="h-6 w-6" />}
                 </div>
                 {editable ? (
                   <>
@@ -1112,14 +1141,18 @@ function ContactSection({
             </p>
           ) : (
             <>
-              <div className="[&_label]:!text-[color:color-mix(in_srgb,var(--lp-bg)_70%,var(--lp-ink))] [&_input]:!rounded-lg [&_input]:!border [&_input]:!border-[color:color-mix(in_srgb,var(--lp-bg)_20%,var(--lp-ink))] [&_input]:!bg-transparent [&_input]:!text-[color:var(--lp-bg)] [&_select]:!rounded-lg [&_select]:!border [&_select]:!border-[color:color-mix(in_srgb,var(--lp-bg)_20%,var(--lp-ink))] [&_select]:!bg-transparent [&_select]:!text-[color:var(--lp-bg)] [&_.text-muted-foreground]:!text-[color:color-mix(in_srgb,var(--lp-bg)_60%,var(--lp-ink))] [&_button]:!text-[color:var(--lp-bg)] [&_button]:!border-[color:color-mix(in_srgb,var(--lp-bg)_25%,var(--lp-ink))]">
+              <div className="[&_label]:!text-[color:color-mix(in_srgb,var(--lp-bg)_70%,var(--lp-ink))] [&_input]:!border [&_input]:!border-[color:color-mix(in_srgb,var(--lp-bg)_20%,var(--lp-ink))] [&_input]:!bg-transparent [&_input]:!text-[color:var(--lp-bg)] [&_input]:![border-radius:var(--lp-radius)] [&_select]:!border [&_select]:!border-[color:color-mix(in_srgb,var(--lp-bg)_20%,var(--lp-ink))] [&_select]:!bg-transparent [&_select]:!text-[color:var(--lp-bg)] [&_select]:![border-radius:var(--lp-radius)] [&_.text-muted-foreground]:!text-[color:color-mix(in_srgb,var(--lp-bg)_60%,var(--lp-ink))] [&_button]:!text-[color:var(--lp-bg)] [&_button]:!border-[color:color-mix(in_srgb,var(--lp-bg)_25%,var(--lp-ink))]">
                 <FormFieldsEditor fields={formFields} onChange={onFormFields} protectEmail />
               </div>
               <button
                 type="button"
                 disabled
-                className="mt-6 inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-semibold rounded-lg"
-                style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+                className="mt-6 inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-semibold"
+                style={{
+                  backgroundColor: 'var(--lp-primary)',
+                  color: 'var(--lp-on-primary)',
+                  borderRadius: 'var(--lp-radius)',
+                }}
               >
                 {submitLabel} <ArrowRight className="h-4 w-4" />
               </button>
@@ -1153,126 +1186,149 @@ function NavBar({
   }
 
   return (
-    <nav
-      className="w-full z-50 backdrop-blur-xl border-b transition-all duration-300"
-      style={{
-        backgroundColor: 'color-mix(in srgb, var(--lp-bg) 80%, transparent)',
-        borderColor: ink(10),
-      }}
-    >
-      <div className="max-w-6xl mx-auto px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
-          <div className="flex items-center gap-3">
+    <nav className="sticky top-0 z-50 w-full px-4 pt-4 lg:px-6">
+      <div
+        className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 lg:px-5"
+        style={{
+          backgroundColor: 'color-mix(in srgb, var(--lp-bg) 92%, transparent)',
+          border: `1px solid ${ink(12)}`,
+          borderRadius: 'var(--lp-radius)',
+          backdropFilter: 'blur(12px)',
+        }}
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <div
+            className="flex h-9 w-9 shrink-0 items-center justify-center"
+            style={{
+              backgroundColor: 'var(--lp-primary)',
+              borderRadius: 'var(--lp-radius)',
+            }}
+          >
             <div
-              className="w-10 h-10 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: 'var(--lp-primary)' }}
+              className="h-3.5 w-3.5 rotate-45"
+              style={{ backgroundColor: 'var(--lp-on-primary)' }}
+            />
+          </div>
+          {editable ? (
+            <CanvasText
+              ariaLabel="Brand name"
+              value={brand}
+              onChange={(next) => onChange({ brand: next })}
+              placeholder="Brand"
+              style={{ color: 'var(--lp-ink)' }}
+              className="w-auto truncate text-xl font-extrabold tracking-tight"
+            />
+          ) : (
+            <span
+              className="truncate text-xl font-extrabold tracking-tight"
+              style={{ color: 'var(--lp-ink)' }}
             >
-              <div
-                className="w-4 h-4 rounded-sm rotate-45"
-                style={{ backgroundColor: 'var(--lp-on-primary)' }}
-              ></div>
-            </div>
-            {editable ? (
-              <CanvasText
-                ariaLabel="Brand name"
-                value={brand}
-                onChange={(next) => onChange({ brand: next })}
-                placeholder="Brand"
-                style={{ color: 'var(--lp-ink)' }}
-                className="font-extrabold text-2xl tracking-tight w-auto"
-              />
-            ) : (
-              <span
-                className="font-extrabold text-2xl tracking-tight"
-                style={{ color: 'var(--lp-ink)' }}
-              >
-                {brand}
-              </span>
-            )}
-          </div>
+              {brand}
+            </span>
+          )}
+        </div>
 
-          <div className="hidden md:flex items-center gap-8">
-            {menuLinks.map((link) => {
-              const sourceIndex = links.indexOf(link)
-              return editable ? (
-                <EditableLinkTrigger
-                  key={sourceIndex}
-                  label={link.label}
-                  url={link.url}
-                  onChange={(next) => updateLink(sourceIndex, next)}
-                >
-                  <span className="text-sm font-semibold" style={{ color: ink(70) }}>
-                    {link.label}
-                  </span>
-                </EditableLinkTrigger>
-              ) : (
-                <a
-                  key={sourceIndex}
-                  href={link.url}
-                  className="text-sm font-semibold transition-colors"
-                  style={{ color: ink(70) }}
-                >
-                  {link.label}
-                </a>
-              )
-            })}
-            {editable ? (
-              <button
-                type="button"
-                onClick={() => onChange({ links: [...links, { label: 'New link', url: '#' }] })}
-                aria-label="Add nav link"
-                className="text-sm font-medium"
-                style={{ color: ink(50) }}
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-            ) : null}
-          </div>
-
-          <div className="hidden md:flex items-center gap-4">
-            {editable && contactIndex >= 0 ? (
+        <div
+          className="hidden items-center gap-1 rounded-full px-2 py-1 md:flex"
+          style={{ backgroundColor: ink(6) }}
+        >
+          {menuLinks.map((link) => {
+            const sourceIndex = links.indexOf(link)
+            return editable ? (
               <EditableLinkTrigger
-                label={contactLink.label}
-                url={contactLink.url}
-                onChange={(next) => updateLink(contactIndex, next)}
+                key={sourceIndex}
+                label={link.label}
+                url={link.url}
+                onChange={(next) => updateLink(sourceIndex, next)}
               >
                 <span
-                  className="text-sm font-bold px-6 py-2.5 rounded-lg"
-                  style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+                  className="px-3 py-1.5 text-sm font-semibold"
+                  style={{ color: ink(70), borderRadius: 'var(--lp-radius)' }}
                 >
-                  {contactLink.label}
+                  {link.label}
                 </span>
               </EditableLinkTrigger>
             ) : (
               <a
-                href={contactLink.url}
-                className="text-sm font-bold px-6 py-2.5 rounded-lg shadow-md transition-all hover:-translate-y-0.5"
-                style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+                key={sourceIndex}
+                href={link.url}
+                className="px-3 py-1.5 text-sm font-semibold transition-colors"
+                style={{ color: ink(70), borderRadius: 'var(--lp-radius)' }}
+              >
+                {link.label}
+              </a>
+            )
+          })}
+          {editable ? (
+            <button
+              type="button"
+              onClick={() => onChange({ links: [...links, { label: 'New link', url: '#' }] })}
+              aria-label="Add nav link"
+              className="px-2 py-1.5 text-sm font-medium"
+              style={{ color: ink(50) }}
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          ) : null}
+        </div>
+
+        <div className="hidden items-center md:flex">
+          {editable && contactIndex >= 0 ? (
+            <EditableLinkTrigger
+              label={contactLink.label}
+              url={contactLink.url}
+              onChange={(next) => updateLink(contactIndex, next)}
+            >
+              <span
+                className="inline-flex items-center gap-1 px-5 py-2.5 text-sm font-bold"
+                style={{
+                  backgroundColor: 'var(--lp-primary)',
+                  color: 'var(--lp-on-primary)',
+                  borderRadius: 'var(--lp-radius)',
+                }}
               >
                 {contactLink.label}
-              </a>
-            )}
-          </div>
-
-          <button
-            type="button"
-            className="md:hidden p-2"
-            style={{ color: ink(70) }}
-            aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={mobileMenuOpen}
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+                <ArrowRight className="h-4 w-4" />
+              </span>
+            </EditableLinkTrigger>
+          ) : (
+            <a
+              href={contactLink.url}
+              className="inline-flex items-center gap-1 px-5 py-2.5 text-sm font-bold transition-opacity hover:opacity-90"
+              style={{
+                backgroundColor: 'var(--lp-primary)',
+                color: 'var(--lp-on-primary)',
+                borderRadius: 'var(--lp-radius)',
+              }}
+            >
+              {contactLink.label}
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          )}
         </div>
+
+        <button
+          type="button"
+          className="p-2 md:hidden"
+          style={{ color: ink(70) }}
+          aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={mobileMenuOpen}
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        >
+          {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </button>
       </div>
 
       {mobileMenuOpen && (
         <div
-          className="md:hidden border-b py-4 px-6"
-          style={{ backgroundColor: 'var(--lp-bg)', borderColor: ink(10) }}
+          className="mx-auto mt-2 max-w-6xl px-4 py-4 md:hidden"
+          style={{
+            backgroundColor: 'var(--lp-bg)',
+            border: `1px solid ${ink(12)}`,
+            borderRadius: 'var(--lp-radius)',
+          }}
         >
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
             {menuLinks.map((link, i) => (
               <a
                 key={i}
@@ -1288,8 +1344,12 @@ function NavBar({
             <a
               href={contactLink.url}
               onClick={() => setMobileMenuOpen(false)}
-              className="text-center text-base font-bold px-6 py-3 rounded-lg"
-              style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+              className="px-6 py-3 text-center text-base font-bold"
+              style={{
+                backgroundColor: 'var(--lp-primary)',
+                color: 'var(--lp-on-primary)',
+                borderRadius: 'var(--lp-radius)',
+              }}
             >
               {contactLink.label}
             </a>
@@ -1348,6 +1408,7 @@ export function CorporateProfessional({
         ['--lp-ink' as string]: t.inkColor ?? TOKEN_DEFAULTS.inkColor,
         ['--lp-card' as string]: t.cardColor ?? TOKEN_DEFAULTS.cardColor,
         ['--lp-heading' as string]: t.headingFont ?? TOKEN_DEFAULTS.headingFont,
+        ['--lp-radius' as string]: t.radius ?? TOKEN_DEFAULTS.radius,
       }}
     >
       <NavBar content={c.nav} editable={editable} onChange={(patch) => slotChange('nav', patch)} />

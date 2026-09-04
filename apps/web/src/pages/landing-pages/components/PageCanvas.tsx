@@ -35,16 +35,16 @@ export function PageCanvas({
   onFormFields: (fields: FormFieldDraft[]) => void
   onSlots: (slots: AdSlotDraft[]) => void
 }) {
-  const backgroundColor = theme.backgroundColor ?? '#E8EEF4'
-  const fontFamily = theme.fontFamily ?? '"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif'
-  const headingFont = theme.headingFont ?? '"IBM Plex Serif", Georgia, serif'
-  const primaryColor = theme.primaryColor ?? '#0B3D91'
+  const backgroundColor = theme.backgroundColor ?? '#FFFFFF'
+  const fontFamily = theme.fontFamily ?? '"DM Sans", ui-sans-serif, system-ui, sans-serif'
+  const headingFont = theme.headingFont ?? 'Syne, ui-sans-serif, system-ui, sans-serif'
+  const primaryColor = theme.primaryColor ?? '#FF2D6A'
   const onPrimaryColor = theme.onPrimaryColor ?? '#FFFFFF'
-  const inkColor = theme.inkColor ?? '#122033'
-  const cardColor = theme.cardColor ?? '#FFFFFF'
+  const inkColor = theme.inkColor ?? '#0A0A0A'
+  const cardColor = theme.cardColor ?? '#F5F5F5'
   const googleFonts =
-    theme.googleFonts ?? 'family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600'
-  const radius = theme.radius ?? '0.5rem'
+    theme.googleFonts ?? 'family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800'
+  const radius = theme.radius ?? '9999px'
   const hasBottom = slots.some((slot) => slot.placement === 'BOTTOM')
 
   useEffect(() => {

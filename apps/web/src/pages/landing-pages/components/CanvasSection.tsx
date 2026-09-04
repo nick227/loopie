@@ -34,7 +34,7 @@ const HeroBlock = ({ content, set }: CanvasBlockProps) => {
         onChange={(headline) => set({ headline })}
         placeholder="Headline"
         style={{ fontFamily: 'var(--lp-heading)' }}
-        className="text-[2.6rem] font-semibold leading-[1.12] tracking-tight"
+        className="text-[2.8rem] font-bold leading-[1.08] tracking-tight sm:text-[3.2rem]"
       />
       <CanvasText
         ariaLabel="Body"

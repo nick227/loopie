@@ -26,7 +26,7 @@ describe('PageToolbar', () => {
       <PageToolbar
         templateId="studio"
         templateSchema={undefined}
-        theme={{ presetId: 'carbon', primaryColor: '#0B3D91' }}
+        theme={{ presetId: 'carbon', primaryColor: '#FF2D6A' }}
         onTemplate={onTemplate}
         onTheme={onTheme}
       />,

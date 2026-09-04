@@ -14,13 +14,14 @@ import type {
 // Email-shaped sales vehicle: constrained column on a soft canvas, letter hierarchy, one ask.
 // Colors come only from theme tokens so any preset still recolors correctly.
 const TOKEN_DEFAULTS = {
-  primaryColor: '#1A5F4A',
-  onPrimaryColor: '#F7F8F6',
-  backgroundColor: '#D8DCE2',
-  inkColor: '#1A222C',
-  cardColor: '#FFFFFF',
-  fontFamily: '"Source Sans 3", ui-sans-serif, system-ui, sans-serif',
-  headingFont: '"Source Serif 4", Georgia, serif',
+  primaryColor: '#FF2D6A',
+  onPrimaryColor: '#FFFFFF',
+  backgroundColor: '#FFFFFF',
+  inkColor: '#0A0A0A',
+  cardColor: '#F5F5F5',
+  fontFamily: '"DM Sans", ui-sans-serif, system-ui, sans-serif',
+  headingFont: 'Syne, ui-sans-serif, system-ui, sans-serif',
+  radius: '9999px',
 }
 
 const ink = (mix: number) => `color-mix(in srgb, var(--lp-ink) ${mix}%, var(--lp-bg))`
@@ -88,17 +89,23 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
           ariaLabel="Hero eyebrow"
           value={content?.eyebrow ?? ''}
           onChange={(eyebrow) => onChange({ eyebrow })}
-          className="mb-4 block text-[11px] font-semibold uppercase tracking-[0.2em]"
+          className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em]"
           style={{ color: 'var(--lp-primary)' }}
         />
       ) : content?.eyebrow ? (
         <p
-          className="mb-4 text-[11px] font-semibold uppercase tracking-[0.2em]"
+          className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em]"
           style={{ color: 'var(--lp-primary)' }}
         >
           {content.eyebrow}
         </p>
       ) : null}
+
+      <div
+        className="mb-5 h-px w-12"
+        style={{ backgroundColor: 'color-mix(in srgb, var(--lp-ink) 22%, var(--lp-bg))' }}
+        aria-hidden
+      />
 
       {editable ? (
         <CanvasText
@@ -142,34 +149,26 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
             onChange={(next) => onChange({ primaryCta: next })}
           >
             <span
-              className="inline-flex items-center gap-2 px-5 py-3 text-sm font-semibold"
-              style={{
-                backgroundColor: 'var(--lp-primary)',
-                color: 'var(--lp-on-primary)',
-                borderRadius: '6px',
-              }}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold underline underline-offset-4"
+              style={{ color: 'var(--lp-ink)' }}
             >
-              {cta.label || 'Add a call to action'} <ArrowRight className="h-4 w-4" />
+              {cta.label || 'Add a call to action'} <ArrowRight className="h-3.5 w-3.5" />
             </span>
           </EditableLinkTrigger>
         </div>
       ) : cta.label ? (
         <a
           href={cta.url}
-          className="mb-6 inline-flex items-center gap-2 px-5 py-3 text-sm font-semibold no-underline"
-          style={{
-            backgroundColor: 'var(--lp-primary)',
-            color: 'var(--lp-on-primary)',
-            borderRadius: '6px',
-          }}
+          className="mb-6 inline-flex items-center gap-1.5 text-sm font-semibold underline underline-offset-4"
+          style={{ color: 'var(--lp-ink)' }}
         >
-          {cta.label} <ArrowRight className="h-4 w-4" />
+          {cta.label} <ArrowRight className="h-3.5 w-3.5" />
         </a>
       ) : null}
 
       <div
         className="mt-2 overflow-hidden"
-        style={{ borderRadius: '8px', backgroundColor: ink(6) }}
+        style={{ borderRadius: 'var(--lp-radius)', backgroundColor: ink(6) }}
       >
         {editable ? (
           <MediaSlotField
@@ -609,14 +608,10 @@ function ContactSection({
           <button
             type="button"
             disabled
-            className="mt-5 inline-flex items-center gap-2 px-5 py-3 text-sm font-semibold"
-            style={{
-              backgroundColor: 'var(--lp-primary)',
-              color: 'var(--lp-on-primary)',
-              borderRadius: '6px',
-            }}
+            className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold underline underline-offset-4"
+            style={{ color: 'var(--lp-ink)', background: 'transparent', border: 0 }}
           >
-            {submitLabel} <ArrowRight className="h-4 w-4" />
+            {submitLabel} <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </>
       )}
@@ -669,6 +664,7 @@ export function EmailOutreach({
         ['--lp-ink' as string]: t.inkColor ?? TOKEN_DEFAULTS.inkColor,
         ['--lp-card' as string]: t.cardColor ?? TOKEN_DEFAULTS.cardColor,
         ['--lp-heading' as string]: t.headingFont ?? TOKEN_DEFAULTS.headingFont,
+        ['--lp-radius' as string]: t.radius ?? TOKEN_DEFAULTS.radius,
       }}
     >
       <article

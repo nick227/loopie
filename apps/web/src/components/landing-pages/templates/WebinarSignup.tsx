@@ -14,17 +14,17 @@ import type {
 // Same token vocabulary/fallbacks as CorporateProfessional.tsx and PageCanvas.tsx — any layout
 // that sets these --lp-* custom properties on its own wrapper picks up theme changes for free.
 const TOKEN_DEFAULTS = {
-  primaryColor: '#0B3D91',
+  primaryColor: '#FF2D6A',
   onPrimaryColor: '#FFFFFF',
-  backgroundColor: '#E8EEF4',
-  inkColor: '#122033',
-  cardColor: '#FFFFFF',
-  fontFamily: '"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif',
-  headingFont: '"IBM Plex Serif", Georgia, serif',
+  backgroundColor: '#FFFFFF',
+  inkColor: '#0A0A0A',
+  cardColor: '#F5F5F5',
+  fontFamily: '"DM Sans", ui-sans-serif, system-ui, sans-serif',
+  headingFont: 'Syne, ui-sans-serif, system-ui, sans-serif',
+  radius: '9999px',
 }
 
 const ink = (mix: number) => `color-mix(in srgb, var(--lp-ink) ${mix}%, var(--lp-bg))`
-const inv = (mix: number) => `color-mix(in srgb, var(--lp-bg) ${mix}%, var(--lp-ink))`
 
 type SectionProps<K extends keyof PageContent> = {
   content: PageContent[K]
@@ -72,11 +72,11 @@ function CountdownUnit({ value, label }: { value: number; label: string }) {
     <div className="flex flex-col items-center">
       <span
         className="text-3xl md:text-4xl font-extrabold tabular-nums tracking-tight"
-        style={{ fontFamily: 'var(--lp-heading)' }}
+        style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
       >
         {String(value).padStart(2, '0')}
       </span>
-      <span className="text-[11px] uppercase tracking-widest" style={{ color: inv(60) }}>
+      <span className="text-[11px] uppercase tracking-widest" style={{ color: ink(55) }}>
         {label}
       </span>
     </div>
@@ -87,7 +87,7 @@ function Countdown({ eventDate }: { eventDate?: string }) {
   const t = useCountdown(eventDate)
   if (!eventDate) {
     return (
-      <p className="text-sm" style={{ color: inv(60) }}>
+      <p className="text-sm" style={{ color: ink(55) }}>
         Set an event date to show a live countdown.
       </p>
     )
@@ -95,7 +95,7 @@ function Countdown({ eventDate }: { eventDate?: string }) {
   if (!t) return null
   if (t.started) {
     return (
-      <p className="text-sm font-semibold" style={{ color: 'var(--lp-bg)' }}>
+      <p className="text-sm font-semibold" style={{ color: 'var(--lp-ink)' }}>
         This event has started
       </p>
     )
@@ -164,7 +164,7 @@ function EditableDateTime({
           if (e.key === 'Escape') setEditing(false)
         }}
         className="rounded border px-2 py-1 text-sm"
-        style={{ borderColor: inv(25), backgroundColor: 'transparent', color: 'var(--lp-bg)' }}
+        style={{ borderColor: ink(22), backgroundColor: 'transparent', color: 'var(--lp-ink)' }}
       />
     )
   }
@@ -174,28 +174,24 @@ function EditableDateTime({
       onClick={() => setEditing(true)}
       aria-label="Event date and time"
       className="text-left underline decoration-dotted underline-offset-4"
+      style={{ color: 'var(--lp-ink)' }}
     >
       {formatEventDate(value)}
     </button>
   )
 }
 
-// --- Hero --------------------------------------------------------------------
+// --- Hero — primary color field, massive centered headline, one hot CTA (Amacrux / Forwex).
 
 function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
   const cta = content?.primaryCta ?? {}
   const media = content?.media ?? {}
+  const muted = `color-mix(in srgb, var(--lp-on-primary) 78%, transparent)`
   return (
     <section
-      className="relative overflow-hidden pt-24 pb-28 lg:pt-32 lg:pb-36"
-      style={{ backgroundColor: 'var(--lp-ink)', color: 'var(--lp-bg)' }}
+      className="relative overflow-hidden pt-20 pb-20 lg:pt-28 lg:pb-24"
+      style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
     >
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background: `radial-gradient(ellipse 80% 60% at 50% -10%, ${inv(30)}, transparent 70%)`,
-        }}
-      />
       <div className="relative z-10 mx-auto max-w-5xl px-6 text-center lg:px-8">
         {editable ? (
           <CanvasText
@@ -203,13 +199,13 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
             value={content?.eyebrow ?? ''}
             onChange={(eyebrow) => onChange({ eyebrow })}
             placeholder="Eyebrow label"
-            className="mx-auto mb-6 inline-block rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em]"
-            style={{ backgroundColor: inv(15), color: 'var(--lp-bg)' }}
+            className="mx-auto mb-6 inline-block px-0 text-xs font-semibold uppercase tracking-[0.22em]"
+            style={{ color: muted }}
           />
         ) : content?.eyebrow ? (
           <span
-            className="mb-6 inline-block rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em]"
-            style={{ backgroundColor: inv(15) }}
+            className="mb-6 inline-block text-xs font-semibold uppercase tracking-[0.22em]"
+            style={{ color: muted }}
           >
             {content.eyebrow}
           </span>
@@ -222,13 +218,13 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
             value={content?.headline ?? ''}
             onChange={(headline) => onChange({ headline })}
             placeholder="Headline"
-            style={{ fontFamily: 'var(--lp-heading)' }}
-            className="text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-6xl lg:text-7xl"
+            style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-on-primary)' }}
+            className="text-[clamp(2.75rem,8vw,5.5rem)] font-extrabold leading-[1.02] tracking-tight"
           />
         ) : (
           <h1
-            className="text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-6xl lg:text-7xl"
-            style={{ fontFamily: 'var(--lp-heading)' }}
+            className="text-[clamp(2.75rem,8vw,5.5rem)] font-extrabold leading-[1.02] tracking-tight"
+            style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-on-primary)' }}
           >
             {content?.headline}
           </h1>
@@ -241,13 +237,13 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
             onChange={(body) => onChange({ body })}
             multiline
             placeholder="Subheadline"
-            style={{ color: inv(75) }}
+            style={{ color: muted }}
             className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed sm:text-xl"
           />
         ) : (
           <p
             className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed sm:text-xl"
-            style={{ color: inv(75) }}
+            style={{ color: muted }}
           >
             {content?.body}
           </p>
@@ -261,8 +257,12 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
               onChange={(next) => onChange({ primaryCta: next })}
             >
               <span
-                className="inline-flex items-center justify-center rounded-lg px-8 py-4 text-base font-semibold"
-                style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+                className="inline-flex items-center justify-center px-8 py-4 text-base font-semibold"
+                style={{
+                  backgroundColor: 'var(--lp-ink)',
+                  color: 'var(--lp-bg)',
+                  borderRadius: 'var(--lp-radius)',
+                }}
               >
                 {cta.label || 'Add a call to action'}
                 <ArrowRight className="ml-2 w-5 h-5" />
@@ -271,8 +271,12 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
           ) : cta.label ? (
             <a
               href={cta.url}
-              className="inline-flex items-center justify-center rounded-lg px-8 py-4 text-base font-semibold transition-transform hover:-translate-y-0.5"
-              style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+              className="inline-flex items-center justify-center px-8 py-4 text-base font-semibold no-underline transition-transform hover:-translate-y-0.5"
+              style={{
+                backgroundColor: 'var(--lp-ink)',
+                color: 'var(--lp-bg)',
+                borderRadius: 'var(--lp-radius)',
+              }}
             >
               {cta.label}
               <ArrowRight className="ml-2 w-5 h-5" />
@@ -280,22 +284,23 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
           ) : null}
         </div>
 
-        <div className="relative mx-auto mt-16 max-w-4xl">
+        {(editable || media.url) && (
           <div
-            className="absolute inset-0 -z-10 translate-y-6 scale-95 rounded-2xl blur-2xl"
-            style={{ backgroundColor: inv(20) }}
-          />
-          {editable ? (
-            <MediaSlotField
-              kind="IMAGE"
-              urlMode
-              fallbackUrl={media.url}
-              onUrlChange={(url) => onChange({ media: { ...media, url } })}
-            />
-          ) : media.url ? (
-            <img src={media.url} alt={media.alt || ''} className="w-full rounded-2xl shadow-2xl" />
-          ) : null}
-        </div>
+            className="relative mx-auto mt-14 max-w-4xl overflow-hidden"
+            style={{ borderRadius: 'var(--lp-radius)' }}
+          >
+            {editable ? (
+              <MediaSlotField
+                kind="IMAGE"
+                urlMode
+                fallbackUrl={media.url}
+                onUrlChange={(url) => onChange({ media: { ...media, url } })}
+              />
+            ) : media.url ? (
+              <img src={media.url} alt={media.alt || ''} className="w-full" />
+            ) : null}
+          </div>
+        )}
       </div>
     </section>
   )
@@ -325,14 +330,19 @@ function EventWidgetSection({
   return (
     <section
       id="signup"
-      className="py-20"
-      style={{ backgroundColor: 'var(--lp-ink)', color: 'var(--lp-bg)' }}
+      className="py-16 lg:py-20"
+      style={{ backgroundColor: 'var(--lp-bg)', color: 'var(--lp-ink)' }}
     >
       <div className="mx-auto grid max-w-6xl gap-8 px-6 lg:grid-cols-2 lg:px-8">
         {/* Event meta */}
         <div
-          className="rounded-3xl border p-8"
-          style={{ backgroundColor: inv(8), borderColor: inv(18) }}
+          className="p-8"
+          style={{
+            backgroundColor: 'var(--lp-card)',
+            color: 'var(--lp-ink)',
+            border: `2px solid ${ink(28)}`,
+            borderRadius: 'var(--lp-radius)',
+          }}
         >
           <div className="mb-8">
             <Countdown eventDate={content?.eventDate} />
@@ -340,7 +350,7 @@ function EventWidgetSection({
 
           <div className="space-y-3 text-sm">
             <div className="flex items-center gap-2.5">
-              <Calendar size={16} style={{ color: inv(60) }} />
+              <Calendar size={16} style={{ color: ink(55) }} />
               {editable ? (
                 <EditableDateTime
                   value={content?.eventDate}
@@ -351,7 +361,7 @@ function EventWidgetSection({
               )}
             </div>
             <div className="flex items-center gap-2.5">
-              <Clock size={16} style={{ color: inv(60) }} />
+              <Clock size={16} style={{ color: ink(55) }} />
               {editable ? (
                 <CanvasText
                   ariaLabel="Duration"
@@ -375,7 +385,7 @@ function EventWidgetSection({
 
           <div className="mt-8">
             <div className="mb-2 flex items-center justify-between text-sm">
-              <span className="flex items-center gap-1.5" style={{ color: inv(70) }}>
+              <span className="flex items-center gap-1.5" style={{ color: ink(65) }}>
                 <Users size={15} /> Seats reserved
               </span>
               <span className="font-semibold">
@@ -386,7 +396,7 @@ function EventWidgetSection({
             {pct !== null ? (
               <div
                 className="h-2 w-full overflow-hidden rounded-full"
-                style={{ backgroundColor: inv(15) }}
+                style={{ backgroundColor: ink(12) }}
               >
                 <div
                   className="h-full rounded-full transition-all"
@@ -395,7 +405,7 @@ function EventWidgetSection({
               </div>
             ) : null}
             {editable ? (
-              <label className="mt-2 block text-xs" style={{ color: inv(55) }}>
+              <label className="mt-2 block text-xs" style={{ color: ink(55) }}>
                 Capacity (optional)
                 <CanvasText
                   ariaLabel="Seats total"
@@ -412,7 +422,7 @@ function EventWidgetSection({
 
           <div
             className="mt-8 flex items-start gap-3 border-t pt-6"
-            style={{ borderColor: inv(15) }}
+            style={{ borderColor: ink(15) }}
           >
             {editable ? (
               <MediaSlotField
@@ -447,10 +457,10 @@ function EventWidgetSection({
                   onChange={(hostTitle) => onChange({ hostTitle })}
                   placeholder="Host title"
                   className="text-sm"
-                  style={{ color: inv(60) }}
+                  style={{ color: ink(55) }}
                 />
               ) : (
-                <p className="text-sm" style={{ color: inv(60) }}>
+                <p className="text-sm" style={{ color: ink(55) }}>
                   {content?.hostTitle}
                 </p>
               )}
@@ -462,10 +472,10 @@ function EventWidgetSection({
                   multiline
                   placeholder="Short host bio"
                   className="mt-1 text-sm"
-                  style={{ color: inv(65) }}
+                  style={{ color: ink(65) }}
                 />
               ) : content?.hostBio ? (
-                <p className="mt-1 text-sm" style={{ color: inv(65) }}>
+                <p className="mt-1 text-sm" style={{ color: ink(65) }}>
                   {content.hostBio}
                 </p>
               ) : null}
@@ -475,8 +485,13 @@ function EventWidgetSection({
 
         {/* Signup form */}
         <div
-          className="rounded-3xl p-8"
-          style={{ backgroundColor: 'var(--lp-card)', color: 'var(--lp-ink)' }}
+          className="p-8"
+          style={{
+            backgroundColor: 'var(--lp-card)',
+            color: 'var(--lp-ink)',
+            border: `2px solid ${ink(28)}`,
+            borderRadius: 'var(--lp-radius)',
+          }}
         >
           <h3 className="mb-1 text-2xl font-bold" style={{ fontFamily: 'var(--lp-heading)' }}>
             Reserve your seat
@@ -499,8 +514,12 @@ function EventWidgetSection({
               <button
                 type="button"
                 disabled
-                className="mt-4 w-full rounded-lg px-6 py-3.5 text-sm font-semibold"
-                style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+                className="mt-4 w-full px-6 py-3.5 text-sm font-semibold"
+                style={{
+                  backgroundColor: 'var(--lp-primary)',
+                  color: 'var(--lp-on-primary)',
+                  borderRadius: 'var(--lp-radius)',
+                }}
               >
                 {submitLabel}
               </button>
@@ -843,8 +862,12 @@ function CTASection({ content, editable, onChange }: SectionProps<'footer'>) {
             onChange={(next) => onChange({ cta: next })}
           >
             <span
-              className="inline-flex items-center justify-center rounded-lg px-8 py-4 text-base font-semibold"
-              style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+              className="inline-flex items-center justify-center px-8 py-4 text-base font-semibold"
+              style={{
+                backgroundColor: 'var(--lp-primary)',
+                color: 'var(--lp-on-primary)',
+                borderRadius: 'var(--lp-radius)',
+              }}
             >
               {cta.label || 'Add a call to action'}
             </span>
@@ -852,8 +875,12 @@ function CTASection({ content, editable, onChange }: SectionProps<'footer'>) {
         ) : cta.label ? (
           <a
             href={cta.url}
-            className="inline-flex items-center justify-center rounded-lg px-8 py-4 text-base font-semibold"
-            style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+            className="inline-flex items-center justify-center px-8 py-4 text-base font-semibold no-underline"
+            style={{
+              backgroundColor: 'var(--lp-primary)',
+              color: 'var(--lp-on-primary)',
+              borderRadius: 'var(--lp-radius)',
+            }}
           >
             {cta.label}
           </a>
@@ -910,6 +937,7 @@ export function WebinarSignup({
         ['--lp-ink' as string]: t.inkColor ?? TOKEN_DEFAULTS.inkColor,
         ['--lp-card' as string]: t.cardColor ?? TOKEN_DEFAULTS.cardColor,
         ['--lp-heading' as string]: t.headingFont ?? TOKEN_DEFAULTS.headingFont,
+        ['--lp-radius' as string]: t.radius ?? TOKEN_DEFAULTS.radius,
       }}
     >
       <HeroSection

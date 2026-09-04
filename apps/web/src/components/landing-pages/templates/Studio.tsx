@@ -25,13 +25,14 @@ import type {
 // corners, no shadows, hairline rules only), never from hardcoded colors. Any theme still recolors
 // this template correctly.
 const TOKEN_DEFAULTS = {
-  primaryColor: '#0B3D91',
+  primaryColor: '#FF2D6A',
   onPrimaryColor: '#FFFFFF',
-  backgroundColor: '#E8EEF4',
-  inkColor: '#122033',
-  cardColor: '#FFFFFF',
-  fontFamily: '"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif',
-  headingFont: '"IBM Plex Serif", Georgia, serif',
+  backgroundColor: '#FFFFFF',
+  inkColor: '#0A0A0A',
+  cardColor: '#F5F5F5',
+  fontFamily: '"DM Sans", ui-sans-serif, system-ui, sans-serif',
+  headingFont: 'Syne, ui-sans-serif, system-ui, sans-serif',
+  radius: '9999px',
 }
 
 const ink = (mix: number) => `color-mix(in srgb, var(--lp-ink) ${mix}%, var(--lp-bg))`
@@ -143,11 +144,11 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
                 onChange={(headline) => onChange({ headline })}
                 placeholder="Headline"
                 style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-                className="text-6xl font-extrabold leading-[0.96] tracking-tight sm:text-7xl lg:text-[6.5rem]"
+                className="text-6xl font-bold leading-[0.9] tracking-tighter sm:text-7xl lg:text-[7rem]"
               />
             ) : (
               <h1
-                className="text-6xl font-extrabold leading-[0.96] tracking-tight sm:text-7xl lg:text-[6.5rem]"
+                className="text-6xl font-bold leading-[0.9] tracking-tighter sm:text-7xl lg:text-[7rem]"
                 style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
               >
                 {content?.headline}
@@ -737,6 +738,7 @@ function GalleryTile({
   onCaptionChange,
   onRemove,
   captionLabel,
+  featured = false,
 }: {
   item: GalleryItem
   editable: boolean
@@ -744,19 +746,29 @@ function GalleryTile({
   onCaptionChange: (caption: string) => void
   onRemove: () => void
   captionLabel: string
+  featured?: boolean
 }) {
   const src = useResolvedGallerySrc(item)
   return (
-    <div className="group relative mb-3 break-inside-avoid">
+    <div
+      className={`group relative h-full min-h-0 ${featured ? 'lg:col-span-2 lg:row-span-2' : ''}`}
+    >
       {src ? (
         <img
           src={src}
           alt={item.alt ?? ''}
           onClick={() => !editable && onOpen()}
-          className={editable ? 'w-full object-cover' : 'w-full cursor-zoom-in object-cover'}
+          className={
+            editable
+              ? `h-full w-full object-cover ${featured ? 'aspect-auto min-h-full' : 'aspect-square'}`
+              : `h-full w-full cursor-zoom-in object-cover ${featured ? 'aspect-auto min-h-full' : 'aspect-square'}`
+          }
         />
       ) : (
-        <div className="aspect-square w-full" style={{ backgroundColor: ink(6) }} />
+        <div
+          className={`w-full ${featured ? 'aspect-auto min-h-full h-full' : 'aspect-square'}`}
+          style={{ backgroundColor: ink(6) }}
+        />
       )}
       {!editable && item.caption ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 transition-opacity group-hover:opacity-100">
@@ -818,12 +830,13 @@ function GallerySection({ content, editable, onChange }: SectionProps<'gallery'>
           </h2>
         )}
 
-        <div className="columns-2 gap-3 sm:columns-3">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {items.map((item, i) => (
             <GalleryTile
               key={i}
               item={item}
               editable={editable}
+              featured={i === 0}
               onOpen={() => setLightboxIndex(i)}
               onCaptionChange={(caption) => updateItem(i, { caption })}
               onRemove={() => onChange({ items: items.filter((_, idx) => idx !== i) })}
@@ -1360,6 +1373,7 @@ export function Studio({
         ['--lp-ink' as string]: t.inkColor ?? TOKEN_DEFAULTS.inkColor,
         ['--lp-card' as string]: t.cardColor ?? TOKEN_DEFAULTS.cardColor,
         ['--lp-heading' as string]: t.headingFont ?? TOKEN_DEFAULTS.headingFont,
+        ['--lp-radius' as string]: t.radius ?? TOKEN_DEFAULTS.radius,
       }}
     >
       <style>{`

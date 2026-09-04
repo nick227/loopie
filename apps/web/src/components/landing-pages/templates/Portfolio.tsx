@@ -18,13 +18,14 @@ import type {
 // visual-first, editorial — comes entirely from type weight/scale, generous whitespace, and large
 // unadorned imagery, never from hardcoded colors, so any theme still recolors this correctly.
 const TOKEN_DEFAULTS = {
-  primaryColor: '#0B3D91',
+  primaryColor: '#FF2D6A',
   onPrimaryColor: '#FFFFFF',
-  backgroundColor: '#E8EEF4',
-  inkColor: '#122033',
-  cardColor: '#FFFFFF',
-  fontFamily: '"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif',
-  headingFont: '"IBM Plex Serif", Georgia, serif',
+  backgroundColor: '#FFFFFF',
+  inkColor: '#0A0A0A',
+  cardColor: '#F5F5F5',
+  fontFamily: '"DM Sans", ui-sans-serif, system-ui, sans-serif',
+  headingFont: 'Syne, ui-sans-serif, system-ui, sans-serif',
+  radius: '9999px',
 }
 
 const ink = (mix: number) => `color-mix(in srgb, var(--lp-ink) ${mix}%, var(--lp-bg))`
@@ -116,117 +117,133 @@ function NavBar({ content, editable, onChange }: SectionProps<'nav'>) {
   )
 }
 
-// --- Hero — image-dominant, not headline-dominant: a huge full-bleed frame opens the page, and
-// the copy sits quietly below it in a narrow centered column, the opposite of a "banner" hero. ---
+// --- Hero — full-bleed media with overlaid left-aligned brutal headline so pitch + CTA land in
+// the first viewport (Noisefracture editorial). Dark gradient from bottom/left; text uses --lp-bg.
 
 function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
   const cta = content?.primaryCta ?? {}
   const media = content?.media ?? {}
+  const onMedia = 'var(--lp-bg)'
+  const onMediaMuted = `color-mix(in srgb, var(--lp-bg) 72%, transparent)`
+
   return (
-    <section>
-      {editable ? (
-        <MediaSlotField
-          kind="IMAGE"
-          urlMode
-          fallbackUrl={media.url}
-          onUrlChange={(url) => onChange({ media: { ...media, url } })}
-        />
-      ) : media.url ? (
-        <img
-          src={media.url}
-          alt={media.alt || ''}
-          className="h-[55vh] w-full object-cover sm:h-[70vh] lg:h-[80vh]"
-        />
-      ) : (
-        <div
-          className="h-[55vh] w-full sm:h-[70vh] lg:h-[80vh]"
-          style={{ backgroundColor: ink(6) }}
-        />
-      )}
-
-      <div className="mx-auto max-w-2xl px-6 py-16 text-center lg:px-8 lg:py-24">
+    <section className="relative min-h-[70vh] overflow-hidden sm:min-h-[78vh]">
+      <div className="absolute inset-0 [&>div]:h-full [&>div]:min-h-full">
         {editable ? (
-          <CanvasText
-            ariaLabel="Hero eyebrow"
-            value={content?.eyebrow ?? ''}
-            onChange={(eyebrow) => onChange({ eyebrow })}
-            placeholder="Eyebrow"
-            className="mx-auto mb-5 block w-fit text-[11px] font-medium uppercase tracking-[0.3em]"
-            style={{ color: ink(50) }}
+          <MediaSlotField
+            kind="IMAGE"
+            urlMode
+            fill
+            fallbackUrl={media.url}
+            onUrlChange={(url) => onChange({ media: { ...media, url } })}
           />
-        ) : content?.eyebrow ? (
-          <p
-            className="mb-5 text-[11px] font-medium uppercase tracking-[0.3em]"
-            style={{ color: ink(50) }}
-          >
-            {content.eyebrow}
-          </p>
-        ) : null}
-
-        {editable ? (
-          <CanvasText
-            as="h1"
-            ariaLabel="Hero headline"
-            value={content?.headline ?? ''}
-            onChange={(headline) => onChange({ headline })}
-            placeholder="Headline"
-            style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-            className="mx-auto mb-5 text-center text-4xl font-medium leading-tight sm:text-5xl"
-          />
+        ) : media.url ? (
+          <img src={media.url} alt={media.alt || ''} className="h-full w-full object-cover" />
         ) : (
-          <h1
-            className="mb-5 text-4xl font-medium leading-tight sm:text-5xl"
-            style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-          >
-            {content?.headline}
-          </h1>
+          <div className="h-full w-full" style={{ backgroundColor: ink(12) }} />
         )}
+      </div>
 
-        {editable ? (
-          <CanvasText
-            ariaLabel="Hero body"
-            value={content?.body ?? ''}
-            onChange={(body) => onChange({ body })}
-            multiline
-            placeholder="A short line about the work."
-            style={{ color: ink(65) }}
-            className="mx-auto mb-7 leading-relaxed"
-          />
-        ) : content?.body ? (
-          <p className="mb-7 leading-relaxed" style={{ color: ink(65) }}>
-            {content.body}
-          </p>
-        ) : null}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(to top, color-mix(in srgb, var(--lp-ink) 88%, transparent) 0%, color-mix(in srgb, var(--lp-ink) 45%, transparent) 42%, transparent 72%), linear-gradient(to right, color-mix(in srgb, var(--lp-ink) 55%, transparent) 0%, transparent 55%)',
+        }}
+      />
 
-        {editable ? (
-          <EditableLinkTrigger
-            label={cta.label ?? ''}
-            url={cta.url ?? '#contact'}
-            onChange={(next) => onChange({ primaryCta: next })}
-          >
-            <span
-              className="inline-flex items-center gap-2 text-sm font-medium underline underline-offset-4"
-              style={{ color: 'var(--lp-ink)' }}
+      <div className="relative z-10 mx-auto flex min-h-[70vh] max-w-6xl flex-col justify-end px-6 pb-12 pt-28 sm:min-h-[78vh] sm:pb-16 lg:px-8 lg:pb-20">
+        <div className="max-w-2xl text-left">
+          {editable ? (
+            <CanvasText
+              ariaLabel="Hero eyebrow"
+              value={content?.eyebrow ?? ''}
+              onChange={(eyebrow) => onChange({ eyebrow })}
+              placeholder="Eyebrow"
+              className="mb-5 block w-fit text-[11px] font-medium uppercase tracking-[0.3em]"
+              style={{ color: onMediaMuted }}
+            />
+          ) : content?.eyebrow ? (
+            <p
+              className="mb-5 text-[11px] font-medium uppercase tracking-[0.3em]"
+              style={{ color: onMediaMuted }}
             >
-              {cta.label || 'Add a call to action'} <ArrowRight className="h-3.5 w-3.5" />
-            </span>
-          </EditableLinkTrigger>
-        ) : cta.label ? (
-          <a
-            href={cta.url}
-            className="inline-flex items-center gap-2 text-sm font-medium underline underline-offset-4"
-            style={{ color: 'var(--lp-ink)' }}
-          >
-            {cta.label} <ArrowRight className="h-3.5 w-3.5" />
-          </a>
-        ) : null}
+              {content.eyebrow}
+            </p>
+          ) : null}
+
+          {editable ? (
+            <CanvasText
+              as="h1"
+              ariaLabel="Hero headline"
+              value={content?.headline ?? ''}
+              onChange={(headline) => onChange({ headline })}
+              placeholder="Headline"
+              style={{ fontFamily: 'var(--lp-heading)', color: onMedia }}
+              className="mb-5 text-left text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl"
+            />
+          ) : (
+            <h1
+              className="mb-5 text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl"
+              style={{ fontFamily: 'var(--lp-heading)', color: onMedia }}
+            >
+              {content?.headline}
+            </h1>
+          )}
+
+          {editable ? (
+            <CanvasText
+              ariaLabel="Hero body"
+              value={content?.body ?? ''}
+              onChange={(body) => onChange({ body })}
+              multiline
+              placeholder="A short line about the work."
+              style={{ color: onMediaMuted }}
+              className="mb-8 max-w-lg leading-relaxed"
+            />
+          ) : content?.body ? (
+            <p className="mb-8 max-w-lg leading-relaxed" style={{ color: onMediaMuted }}>
+              {content.body}
+            </p>
+          ) : null}
+
+          {editable ? (
+            <EditableLinkTrigger
+              label={cta.label ?? ''}
+              url={cta.url ?? '#contact'}
+              onChange={(next) => onChange({ primaryCta: next })}
+            >
+              <span
+                className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold"
+                style={{
+                  backgroundColor: 'var(--lp-primary)',
+                  color: 'var(--lp-on-primary)',
+                  borderRadius: 'var(--lp-radius)',
+                }}
+              >
+                {cta.label || 'Add a call to action'} <ArrowRight className="h-3.5 w-3.5" />
+              </span>
+            </EditableLinkTrigger>
+          ) : cta.label ? (
+            <a
+              href={cta.url}
+              className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold no-underline"
+              style={{
+                backgroundColor: 'var(--lp-primary)',
+                color: 'var(--lp-on-primary)',
+                borderRadius: 'var(--lp-radius)',
+              }}
+            >
+              {cta.label} <ArrowRight className="h-3.5 w-3.5" />
+            </a>
+          ) : null}
+        </div>
       </div>
     </section>
   )
 }
 
-// --- Featured work — a stack of full-width single-column projects: big image on top, quiet
-// centered caption below. No side-by-side alternating grid, no numbering. ----------------------
+// --- Featured work — full-width projects with a left-aligned caption rail (not centered mush).
 
 function ServiceSelectorSection({ content, editable, onChange }: SectionProps<'services'>) {
   const items = content?.items ?? []
@@ -244,11 +261,11 @@ function ServiceSelectorSection({ content, editable, onChange }: SectionProps<'s
             onChange={(title) => onChange({ title })}
             placeholder="Featured work"
             style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-            className="mb-16 text-center text-3xl font-medium sm:text-4xl"
+            className="mb-16 text-left text-3xl font-medium sm:text-4xl"
           />
         ) : (
           <h2
-            className="mb-16 text-center text-3xl font-medium sm:text-4xl"
+            className="mb-16 text-left text-3xl font-medium sm:text-4xl"
             style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
           >
             {content?.title}
@@ -275,13 +292,13 @@ function ServiceSelectorSection({ content, editable, onChange }: SectionProps<'s
                 <div className="aspect-[16/10] w-full" style={{ backgroundColor: ink(6) }} />
               )}
 
-              <div className="mx-auto mt-8 max-w-2xl text-center">
+              <div className="mt-8 max-w-xl text-left">
                 {editable ? (
                   <CanvasText
                     ariaLabel={`Project ${i + 1} label`}
                     value={service.label}
                     onChange={(label) => updateItem(i, { label })}
-                    className="mx-auto mb-3 block w-fit text-[11px] font-medium uppercase tracking-[0.3em]"
+                    className="mb-3 block w-fit text-[11px] font-medium uppercase tracking-[0.3em]"
                     style={{ color: ink(50) }}
                   />
                 ) : (
@@ -358,16 +375,14 @@ function ServiceSelectorSection({ content, editable, onChange }: SectionProps<'s
         </div>
 
         {editable ? (
-          <div className="text-center">
-            <AddRow
-              label="Add project"
-              onClick={() =>
-                onChange({
-                  items: [...items, { id: `project-${items.length}`, label: 'New project' }],
-                })
-              }
-            />
-          </div>
+          <AddRow
+            label="Add project"
+            onClick={() =>
+              onChange({
+                items: [...items, { id: `project-${items.length}`, label: 'New project' }],
+              })
+            }
+          />
         ) : null}
       </div>
     </section>
@@ -985,6 +1000,7 @@ export function Portfolio({
         ['--lp-ink' as string]: t.inkColor ?? TOKEN_DEFAULTS.inkColor,
         ['--lp-card' as string]: t.cardColor ?? TOKEN_DEFAULTS.cardColor,
         ['--lp-heading' as string]: t.headingFont ?? TOKEN_DEFAULTS.headingFont,
+        ['--lp-radius' as string]: t.radius ?? TOKEN_DEFAULTS.radius,
       }}
     >
       <NavBar content={c.nav} editable={editable} onChange={(patch) => slotChange('nav', patch)} />

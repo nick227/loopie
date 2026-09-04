@@ -17,13 +17,14 @@ import type {
 // rounder radii, pill-shaped CTAs, and leaning on --lp-primary as a bold block (not just an
 // accent), never from hardcoded colors. Any theme still recolors this template correctly.
 const TOKEN_DEFAULTS = {
-  primaryColor: '#0B3D91',
+  primaryColor: '#FF2D6A',
   onPrimaryColor: '#FFFFFF',
-  backgroundColor: '#E8EEF4',
-  inkColor: '#122033',
-  cardColor: '#FFFFFF',
-  fontFamily: '"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif',
-  headingFont: '"IBM Plex Serif", Georgia, serif',
+  backgroundColor: '#FFFFFF',
+  inkColor: '#0A0A0A',
+  cardColor: '#F5F5F5',
+  fontFamily: '"DM Sans", ui-sans-serif, system-ui, sans-serif',
+  headingFont: 'Syne, ui-sans-serif, system-ui, sans-serif',
+  radius: '9999px',
 }
 
 const ink = (mix: number) => `color-mix(in srgb, var(--lp-ink) ${mix}%, var(--lp-bg))`
@@ -95,8 +96,12 @@ function NavBar({ content, editable, onChange }: SectionProps<'nav'>) {
             onChange={(next) => (links.length ? updateLink(0, next) : onChange({ links: [next] }))}
           >
             <span
-              className="inline-flex items-center rounded-full px-4 py-1.5 text-sm font-semibold"
-              style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+              className="inline-flex items-center px-4 py-1.5 text-sm font-semibold"
+              style={{
+                backgroundColor: 'var(--lp-primary)',
+                color: 'var(--lp-on-primary)',
+                borderRadius: 'var(--lp-radius)',
+              }}
             >
               {primary?.label || 'Add a link'}
             </span>
@@ -104,8 +109,12 @@ function NavBar({ content, editable, onChange }: SectionProps<'nav'>) {
         ) : primary?.label ? (
           <a
             href={primary.url}
-            className="inline-flex items-center rounded-full px-4 py-1.5 text-sm font-semibold"
-            style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+            className="inline-flex items-center px-4 py-1.5 text-sm font-semibold"
+            style={{
+              backgroundColor: 'var(--lp-primary)',
+              color: 'var(--lp-on-primary)',
+              borderRadius: 'var(--lp-radius)',
+            }}
           >
             {primary.label}
           </a>
@@ -146,13 +155,21 @@ function BadgeList({
               value={badge}
               onChange={(next) => updateBadge(i, next)}
               placeholder="Badge"
-              className="inline-block rounded-full px-3 py-1 text-xs font-semibold w-auto"
-              style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+              className="inline-block px-3 py-1 text-xs font-semibold w-auto"
+              style={{
+                backgroundColor: 'var(--lp-primary)',
+                color: 'var(--lp-on-primary)',
+                borderRadius: 'var(--lp-radius)',
+              }}
             />
           ) : (
             <span
-              className="inline-block rounded-full px-3 py-1 text-xs font-semibold"
-              style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+              className="inline-block px-3 py-1 text-xs font-semibold"
+              style={{
+                backgroundColor: 'var(--lp-primary)',
+                color: 'var(--lp-on-primary)',
+                borderRadius: 'var(--lp-radius)',
+              }}
             >
               {badge}
             </span>
@@ -173,8 +190,8 @@ function BadgeList({
         <button
           type="button"
           onClick={() => onChange([...badges, 'New badge'])}
-          className="inline-flex items-center gap-1 rounded-full border border-dashed px-3 py-1 text-xs font-medium"
-          style={{ borderColor: ink(30), color: ink(60) }}
+          className="inline-flex items-center gap-1 border border-dashed px-3 py-1 text-xs font-medium"
+          style={{ borderColor: ink(30), color: ink(60), borderRadius: 'var(--lp-radius)' }}
         >
           <Plus className="h-3 w-3" /> Add badge
         </button>
@@ -189,7 +206,10 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
   const badges = content?.badges ?? []
 
   return (
-    <section className="pt-16 pb-20 lg:pt-24">
+    <section
+      className="w-full max-w-none pt-16 pb-20 lg:pt-24"
+      style={{ backgroundColor: 'var(--lp-bg)' }}
+    >
       <div className="mx-auto max-w-6xl px-6 lg:px-8">
         <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
           <div>
@@ -206,11 +226,11 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
                 onChange={(headline) => onChange({ headline })}
                 placeholder="Headline"
                 style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-                className="text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl"
+                className="text-5xl font-bold leading-[0.9] tracking-tighter sm:text-6xl lg:text-7xl xl:text-8xl"
               />
             ) : (
               <h1
-                className="text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl"
+                className="text-5xl font-bold leading-[0.9] tracking-tighter sm:text-6xl lg:text-7xl xl:text-8xl"
                 style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
               >
                 {content?.headline}
@@ -241,8 +261,12 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
                   onChange={(next) => onChange({ primaryCta: next })}
                 >
                   <span
-                    className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-base font-semibold"
-                    style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+                    className="inline-flex items-center gap-2 px-6 py-3 text-base font-semibold"
+                    style={{
+                      backgroundColor: 'var(--lp-primary)',
+                      color: 'var(--lp-on-primary)',
+                      borderRadius: 'var(--lp-radius)',
+                    }}
                   >
                     {cta.label || 'Add a call to action'} <ArrowRight className="h-4 w-4" />
                   </span>
@@ -250,8 +274,12 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
               ) : cta.label ? (
                 <a
                   href={cta.url}
-                  className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-base font-semibold"
-                  style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+                  className="inline-flex items-center gap-2 px-6 py-3 text-base font-semibold"
+                  style={{
+                    backgroundColor: 'var(--lp-primary)',
+                    color: 'var(--lp-on-primary)',
+                    borderRadius: 'var(--lp-radius)',
+                  }}
                 >
                   {cta.label} <ArrowRight className="h-4 w-4" />
                 </a>
@@ -271,12 +299,13 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
               <img
                 src={media.url}
                 alt={media.alt || ''}
-                className="aspect-[4/5] w-full rounded-3xl object-cover"
+                className="aspect-[4/5] w-full object-cover"
+                style={{ borderRadius: 'var(--lp-radius)' }}
               />
             ) : (
               <div
-                className="aspect-[4/5] w-full rounded-3xl"
-                style={{ backgroundColor: ink(6) }}
+                className="aspect-[4/5] w-full"
+                style={{ backgroundColor: ink(6), borderRadius: 'var(--lp-radius)' }}
               />
             )}
           </div>
@@ -353,12 +382,13 @@ function ProductsSection({ content, editable, onChange }: SectionProps<'products
                   <img
                     src={product.media.url}
                     alt={product.media.alt ?? product.name}
-                    className="aspect-[4/5] w-full rounded-2xl object-cover"
+                    className="aspect-[4/5] w-full object-cover"
+                    style={{ borderRadius: 'var(--lp-radius)' }}
                   />
                 ) : (
                   <div
-                    className="aspect-[4/5] w-full rounded-2xl"
-                    style={{ backgroundColor: ink(6) }}
+                    className="aspect-[4/5] w-full"
+                    style={{ backgroundColor: ink(6), borderRadius: 'var(--lp-radius)' }}
                   />
                 )}
 
@@ -369,17 +399,22 @@ function ProductsSection({ content, editable, onChange }: SectionProps<'products
                       value={product.badge ?? ''}
                       onChange={(badge) => updateItem(i, { badge })}
                       placeholder="Badge"
-                      className="inline-block rounded-full px-2.5 py-1 text-[11px] font-semibold w-auto"
+                      className="inline-block px-2.5 py-1 text-[11px] font-semibold w-auto"
                       style={{
                         backgroundColor: 'var(--lp-primary)',
                         color: 'var(--lp-on-primary)',
+                        borderRadius: 'var(--lp-radius)',
                       }}
                     />
                   </div>
                 ) : product.badge ? (
                   <span
-                    className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-semibold"
-                    style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+                    className="absolute left-3 top-3 px-2.5 py-1 text-[11px] font-semibold"
+                    style={{
+                      backgroundColor: 'var(--lp-primary)',
+                      color: 'var(--lp-on-primary)',
+                      borderRadius: 'var(--lp-radius)',
+                    }}
                   >
                     {product.badge}
                   </span>
@@ -423,10 +458,11 @@ function ProductsSection({ content, editable, onChange }: SectionProps<'products
                         onChange={(next) => updateItem(i, { cta: next })}
                       >
                         <span
-                          className="inline-flex items-center rounded-full px-4 py-1.5 text-xs font-semibold"
+                          className="inline-flex items-center px-4 py-1.5 text-xs font-semibold"
                           style={{
                             backgroundColor: 'var(--lp-primary)',
                             color: 'var(--lp-on-primary)',
+                            borderRadius: 'var(--lp-radius)',
                           }}
                         >
                           {product.cta?.label || 'Shop now'}
@@ -447,10 +483,11 @@ function ProductsSection({ content, editable, onChange }: SectionProps<'products
                     {product.cta?.label ? (
                       <a
                         href={product.cta.url}
-                        className="mt-3 inline-flex items-center rounded-full px-4 py-1.5 text-xs font-semibold"
+                        className="mt-3 inline-flex items-center px-4 py-1.5 text-xs font-semibold"
                         style={{
                           backgroundColor: 'var(--lp-primary)',
                           color: 'var(--lp-on-primary)',
+                          borderRadius: 'var(--lp-radius)',
                         }}
                       >
                         {product.cta.label}
@@ -512,7 +549,11 @@ function CategoriesSection({ content, editable, onChange }: SectionProps<'catego
 
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {items.map((category, i) => (
-            <div key={i} className="group relative aspect-square overflow-hidden rounded-2xl">
+            <div
+              key={i}
+              className={`group relative aspect-square overflow-hidden ${i === 0 ? 'lg:col-span-2 lg:row-span-2 lg:aspect-auto lg:min-h-full' : ''}`}
+              style={{ borderRadius: 'var(--lp-radius)' }}
+            >
               {editable ? (
                 <MediaSlotField
                   kind="IMAGE"
@@ -597,12 +638,13 @@ function IntroSection({ content, editable, onChange }: SectionProps<'intro'>) {
               <img
                 src={media.url}
                 alt={media.alt || ''}
-                className="aspect-[4/3] w-full rounded-3xl object-cover"
+                className="aspect-[4/3] w-full object-cover"
+                style={{ borderRadius: 'var(--lp-radius)' }}
               />
             ) : (
               <div
-                className="aspect-[4/3] w-full rounded-3xl"
-                style={{ backgroundColor: ink(8) }}
+                className="aspect-[4/3] w-full"
+                style={{ backgroundColor: ink(8), borderRadius: 'var(--lp-radius)' }}
               />
             )}
           </div>
@@ -766,8 +808,8 @@ function TestimonialsSection({ content, editable, onChange }: SectionProps<'test
           {items.map((testimonial, i) => (
             <div
               key={i}
-              className="group relative rounded-2xl p-6"
-              style={{ backgroundColor: 'var(--lp-card)' }}
+              className="group relative p-6"
+              style={{ backgroundColor: 'var(--lp-card)', borderRadius: 'var(--lp-radius)' }}
             >
               {editable ? (
                 <>
@@ -858,7 +900,7 @@ function PromoFooterSection({
   return (
     <section
       id="contact"
-      className="py-14"
+      className="w-full max-w-none py-14"
       style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
     >
       <div className="mx-auto grid max-w-6xl items-center gap-8 px-6 lg:grid-cols-2 lg:px-8">
@@ -900,8 +942,12 @@ function PromoFooterSection({
                 onChange={(next) => onChange({ cta: next })}
               >
                 <span
-                  className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold"
-                  style={{ backgroundColor: 'var(--lp-on-primary)', color: 'var(--lp-primary)' }}
+                  className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold"
+                  style={{
+                    backgroundColor: 'var(--lp-on-primary)',
+                    color: 'var(--lp-primary)',
+                    borderRadius: 'var(--lp-radius)',
+                  }}
                 >
                   {cta.label || 'Add a call to action'} <ArrowRight className="h-4 w-4" />
                 </span>
@@ -909,8 +955,12 @@ function PromoFooterSection({
             ) : cta.label ? (
               <a
                 href={cta.url}
-                className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold"
-                style={{ backgroundColor: 'var(--lp-on-primary)', color: 'var(--lp-primary)' }}
+                className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold"
+                style={{
+                  backgroundColor: 'var(--lp-on-primary)',
+                  color: 'var(--lp-primary)',
+                  borderRadius: 'var(--lp-radius)',
+                }}
               >
                 {cta.label} <ArrowRight className="h-4 w-4" />
               </a>
@@ -924,15 +974,22 @@ function PromoFooterSection({
               No reusable form attached. Choose a form above to embed real fields here.
             </p>
           ) : (
-            <div className="rounded-2xl p-5" style={{ backgroundColor: inv(12) }}>
-              <div className="[&_label]:!text-[color:color-mix(in_srgb,var(--lp-on-primary)_80%,var(--lp-primary))] [&_input]:!rounded-full [&_input]:!border-0 [&_input]:!bg-[color:var(--lp-on-primary)] [&_input]:!px-4 [&_input]:!py-2 [&_input]:!text-[color:var(--lp-primary)] [&_select]:!rounded-full [&_select]:!border-0 [&_select]:!bg-[color:var(--lp-on-primary)] [&_select]:!px-4 [&_select]:!text-[color:var(--lp-primary)] [&_.text-muted-foreground]:!text-[color:color-mix(in_srgb,var(--lp-on-primary)_65%,var(--lp-primary))] [&_button]:!text-[color:var(--lp-on-primary)] [&_button]:!border-[color:color-mix(in_srgb,var(--lp-on-primary)_25%,var(--lp-primary))]">
+            <div
+              className="p-5"
+              style={{ backgroundColor: inv(12), borderRadius: 'var(--lp-radius)' }}
+            >
+              <div className="[&_label]:!text-[color:color-mix(in_srgb,var(--lp-on-primary)_80%,var(--lp-primary))] [&_input]:!border-0 [&_input]:!bg-[color:var(--lp-on-primary)] [&_input]:!px-4 [&_input]:!py-2 [&_input]:!text-[color:var(--lp-primary)] [&_select]:!border-0 [&_select]:!bg-[color:var(--lp-on-primary)] [&_select]:!px-4 [&_select]:!text-[color:var(--lp-primary)] [&_.text-muted-foreground]:!text-[color:color-mix(in_srgb,var(--lp-on-primary)_65%,var(--lp-primary))] [&_button]:!text-[color:var(--lp-on-primary)] [&_button]:!border-[color:color-mix(in_srgb,var(--lp-on-primary)_25%,var(--lp-primary))] [&_input]:![border-radius:var(--lp-radius)] [&_select]:![border-radius:var(--lp-radius)]">
                 <FormFieldsEditor fields={formFields} onChange={onFormFields} protectEmail />
               </div>
               <button
                 type="button"
                 disabled
-                className="mt-4 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold"
-                style={{ backgroundColor: 'var(--lp-on-primary)', color: 'var(--lp-primary)' }}
+                className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold"
+                style={{
+                  backgroundColor: 'var(--lp-on-primary)',
+                  color: 'var(--lp-primary)',
+                  borderRadius: 'var(--lp-radius)',
+                }}
               >
                 {submitLabel} <ArrowRight className="h-4 w-4" />
               </button>
@@ -989,6 +1046,7 @@ export function Store({
         ['--lp-ink' as string]: t.inkColor ?? TOKEN_DEFAULTS.inkColor,
         ['--lp-card' as string]: t.cardColor ?? TOKEN_DEFAULTS.cardColor,
         ['--lp-heading' as string]: t.headingFont ?? TOKEN_DEFAULTS.headingFont,
+        ['--lp-radius' as string]: t.radius ?? TOKEN_DEFAULTS.radius,
       }}
     >
       <style>{`
