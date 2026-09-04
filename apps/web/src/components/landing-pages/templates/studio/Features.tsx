@@ -1,11 +1,15 @@
 import { motion, useTransform, type MotionValue } from 'framer-motion'
 import { CanvasText } from '../../../../pages/landing-pages/components/CanvasText'
 import type { FeatureItem } from '../../../../pages/landing-pages/components/types'
-import { AddRow, type SectionProps } from './shared'
-import { KineticBackdrop, SnapPanel, useMotionPanel } from './SnapPanel'
+import { AddRow, Eyebrow, type SectionProps } from './shared'
+import { FrameInner, SnapPanel, useMotionPanel } from './SnapPanel'
 import { useStudioMotionDisabled } from './motion'
-import { inv, kineticWord } from './tokens'
+import { BODY, TITLE } from './tokens'
 
+/**
+ * Frame gesture: process steps — the index numeral shrinks from display-scale
+ * into a quiet marker as the row settles (sequence, so numbers earn their keep).
+ */
 function FeatureRow({
   index,
   feature,
@@ -22,20 +26,30 @@ function FeatureRow({
   onRemove: () => void
 }) {
   const disabled = useStudioMotionDisabled()
-  const dir = index % 2 ? 1 : -1
-  const x = useTransform(progress, [0, 0.5, 1], [dir * 70, 0, dir * -35])
+  const start = 0.18 + index * 0.1
+  const end = start + 0.2
+  const numScale = useTransform(progress, [start, end], [1.55, 1])
+  const numOpacity = useTransform(progress, [start, end], [0.25, 0.45])
+  const rowY = useTransform(progress, [start, end], [28, 0])
+  const rowOpacity = useTransform(progress, [start, end], [0, 1])
 
   return (
     <motion.div
-      className="group relative grid grid-cols-1 gap-3 py-8 sm:grid-cols-[8rem_1fr] sm:gap-8"
-      style={disabled ? undefined : { x }}
+      className="group relative grid grid-cols-[4.5rem_1fr] gap-4 border-t py-8 sm:grid-cols-[6rem_1fr] sm:gap-8"
+      style={{
+        borderColor: 'color-mix(in srgb, var(--lp-on-primary) 22%, transparent)',
+        ...(disabled ? {} : { y: rowY, opacity: rowOpacity }),
+      }}
     >
-      <span
-        className="text-5xl font-black tabular-nums"
-        style={{ fontFamily: 'var(--lp-heading)', color: inv(35) }}
+      <motion.span
+        className="text-4xl font-bold tabular-nums sm:text-5xl"
+        style={{
+          fontFamily: 'var(--lp-heading)',
+          ...(disabled ? { opacity: 0.4 } : { scale: numScale, opacity: numOpacity }),
+        }}
       >
         {String(index + 1).padStart(2, '0')}
-      </span>
+      </motion.span>
       <div className="max-w-xl">
         {editable ? (
           <>
@@ -44,20 +58,20 @@ function FeatureRow({
               ariaLabel={`Feature ${index + 1} title`}
               value={feature.title}
               onChange={(title) => onPatch({ title })}
-              className="mb-2 text-2xl font-black uppercase tracking-tight"
+              className="mb-2 text-xl font-semibold tracking-tight"
             />
             <CanvasText
               ariaLabel={`Feature ${index + 1} body`}
               value={feature.body}
               onChange={(body) => onPatch({ body })}
               multiline
-              className="leading-relaxed opacity-80"
+              className={`${BODY} opacity-80`}
             />
           </>
         ) : (
           <>
-            <h3 className="mb-2 text-2xl font-black uppercase tracking-tight">{feature.title}</h3>
-            <p className="leading-relaxed opacity-80">{feature.body}</p>
+            <h3 className="mb-2 text-xl font-semibold tracking-tight">{feature.title}</h3>
+            <p className={`${BODY} opacity-80`}>{feature.body}</p>
           </>
         )}
       </div>
@@ -78,47 +92,40 @@ function FeatureRow({
 export function FeaturesSection({ content, editable, onChange }: SectionProps<'features'>) {
   const items = content?.items ?? []
   const { ref, progress } = useMotionPanel()
-  const word = kineticWord(content?.headline, 'PROCESS')
 
   return (
     <SnapPanel ref={ref} tone="primary" className="flex flex-col justify-center">
-      <KineticBackdrop word={word} progress={progress} mode="crush" />
-      <div className="relative z-10 mx-auto w-full max-w-6xl px-6 py-24 lg:px-8">
-        <div className="mb-14 max-w-2xl">
-          {editable ? (
-            <>
-              <CanvasText
-                as="h2"
-                ariaLabel="Features headline"
-                value={content?.headline ?? ''}
-                onChange={(headline) => onChange({ headline })}
-                style={{ fontFamily: 'var(--lp-heading)' }}
-                className="mb-3 text-[clamp(2.5rem,7vw,5rem)] font-black uppercase leading-[0.9] tracking-tighter"
-              />
-              <CanvasText
-                ariaLabel="Features body"
-                value={content?.body ?? ''}
-                onChange={(body) => onChange({ body })}
-                multiline
-                className="text-lg opacity-80"
-              />
-            </>
-          ) : (
-            <>
-              <h2
-                className="mb-3 text-[clamp(2.5rem,7vw,5rem)] font-black uppercase leading-[0.9] tracking-tighter"
-                style={{ fontFamily: 'var(--lp-heading)' }}
-              >
-                {content?.headline}
-              </h2>
-              <p className="text-lg opacity-80">{content?.body}</p>
-            </>
-          )}
-        </div>
-        <div
-          className="divide-y"
-          style={{ borderColor: 'color-mix(in srgb, var(--lp-on-primary) 25%, transparent)' }}
-        >
+      <FrameInner>
+        <Eyebrow>How we work</Eyebrow>
+        {editable ? (
+          <CanvasText
+            as="h2"
+            ariaLabel="Features headline"
+            value={content?.headline ?? ''}
+            onChange={(headline) => onChange({ headline })}
+            style={{ fontFamily: 'var(--lp-heading)' }}
+            className={`${TITLE} mb-3`}
+          />
+        ) : (
+          <h2 className={`${TITLE} mb-3`} style={{ fontFamily: 'var(--lp-heading)' }}>
+            {content?.headline}
+          </h2>
+        )}
+        {editable ? (
+          <CanvasText
+            ariaLabel="Features body"
+            value={content?.body ?? ''}
+            onChange={(body) => onChange({ body })}
+            multiline
+            className={`${BODY} mb-10 max-w-lg opacity-80`}
+          />
+        ) : content?.body ? (
+          <p className={`${BODY} mb-10 max-w-lg opacity-80`}>{content.body}</p>
+        ) : (
+          <div className="mb-10" />
+        )}
+
+        <div>
           {items.map((feature, i) => (
             <FeatureRow
               key={i}
@@ -141,7 +148,7 @@ export function FeaturesSection({ content, editable, onChange }: SectionProps<'f
             onClick={() => onChange({ items: [...items, { title: 'New step', body: '' }] })}
           />
         ) : null}
-      </div>
+      </FrameInner>
     </SnapPanel>
   )
 }

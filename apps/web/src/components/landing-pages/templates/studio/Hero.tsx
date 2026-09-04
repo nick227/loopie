@@ -3,26 +3,32 @@ import { ArrowRight } from 'lucide-react'
 import { CanvasText } from '../../../../pages/landing-pages/components/CanvasText'
 import { EditableLinkTrigger } from '../../../../pages/landing-pages/components/editable/EditableLinkTrigger'
 import { MediaSlotField } from '../../../../pages/landing-pages/components/MediaSlotField'
-import { KineticBackdrop, KineticHeadline, SnapPanel, useMotionPanel } from './SnapPanel'
+import { FrameInner, SnapPanel, useMotionPanel } from './SnapPanel'
 import { useStudioMotionDisabled } from './motion'
-import type { SectionProps } from './shared'
-import { kineticWord } from './tokens'
+import { SolidCta, type SectionProps } from './shared'
+import { BODY, DISPLAY, ink } from './tokens'
 
+/**
+ * Frame gesture: clip-mask wipe on the headline (reads left→right as you scroll),
+ * image counters with a soft vertical drift. No ghost type behind the copy.
+ */
 export function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
   const cta = content?.primaryCta ?? {}
   const media = content?.media ?? {}
   const { ref, progress } = useMotionPanel()
   const disabled = useStudioMotionDisabled()
-  const mediaY = useTransform(progress, [0, 1], [80, -120])
-  const word = kineticWord(content?.headline, 'STUDIO')
+
+  const clip = useTransform(progress, [0.15, 0.45], ['inset(0 100% 0 0)', 'inset(0 0% 0 0)'])
+  const mediaY = useTransform(progress, [0, 1], [48, -72])
+  const mediaScale = useTransform(progress, [0, 1], [1.08, 1])
+  const railY = useTransform(progress, [0.2, 0.55], [24, 0])
+  const railOpacity = useTransform(progress, [0.2, 0.45], [0, 1])
 
   return (
-    <SnapPanel ref={ref} tone="bg" className="flex flex-col justify-end">
-      <KineticBackdrop word={word} progress={progress} mode="crush" />
-
-      <div className="relative z-10 mx-auto grid w-full max-w-6xl gap-10 px-6 pb-16 pt-28 lg:grid-cols-12 lg:items-end lg:px-8 lg:pb-20">
-        <div className="lg:col-span-8">
-          <KineticHeadline progress={progress}>
+    <SnapPanel ref={ref} tone="bg" className="flex flex-col justify-center">
+      <FrameInner className="grid min-h-[calc(100svh-5rem)] items-center gap-12 lg:grid-cols-12 lg:gap-10">
+        <div className="lg:col-span-7">
+          <motion.div style={disabled ? undefined : { clipPath: clip }}>
             {editable ? (
               <CanvasText
                 as="h1"
@@ -31,72 +37,80 @@ export function HeroSection({ content, editable, onChange }: SectionProps<'hero'
                 onChange={(headline) => onChange({ headline })}
                 placeholder="Headline"
                 style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-                className="text-[clamp(3.25rem,12vw,9rem)] font-black uppercase leading-[0.85] tracking-tighter"
+                className={DISPLAY}
               />
             ) : (
               <h1
-                className="text-[clamp(3.25rem,12vw,9rem)] font-black uppercase leading-[0.85] tracking-tighter"
+                className={DISPLAY}
                 style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
               >
                 {content?.headline}
               </h1>
             )}
-          </KineticHeadline>
+          </motion.div>
+
+          <motion.div
+            className="mt-8 flex max-w-sm flex-col gap-6"
+            style={disabled ? undefined : { y: railY, opacity: railOpacity }}
+          >
+            {editable ? (
+              <CanvasText
+                ariaLabel="Hero body"
+                value={content?.body ?? ''}
+                onChange={(body) => onChange({ body })}
+                multiline
+                placeholder="Subheadline"
+                style={{ color: ink(70) }}
+                className={BODY}
+              />
+            ) : (
+              <p className={BODY} style={{ color: ink(70) }}>
+                {content?.body}
+              </p>
+            )}
+
+            {editable ? (
+              <EditableLinkTrigger
+                label={cta.label ?? ''}
+                url={cta.url ?? '#contact'}
+                onChange={(next) => onChange({ primaryCta: next })}
+              >
+                <SolidCta>
+                  {cta.label || 'Add a call to action'} <ArrowRight className="h-4 w-4" />
+                </SolidCta>
+              </EditableLinkTrigger>
+            ) : cta.label ? (
+              <SolidCta href={cta.url}>
+                {cta.label} <ArrowRight className="h-4 w-4" />
+              </SolidCta>
+            ) : null}
+          </motion.div>
         </div>
 
-        <div className="flex flex-col gap-6 lg:col-span-4 lg:pb-4">
+        <motion.div
+          className="lg:col-span-5"
+          style={disabled ? undefined : { y: mediaY, scale: mediaScale }}
+        >
           {editable ? (
-            <CanvasText
-              ariaLabel="Hero body"
-              value={content?.body ?? ''}
-              onChange={(body) => onChange({ body })}
-              multiline
-              placeholder="Subheadline"
-              style={{ color: 'var(--lp-ink)' }}
-              className="max-w-sm text-base leading-relaxed opacity-75"
+            <div className="aspect-[4/5] w-full overflow-hidden">
+              <MediaSlotField
+                kind="IMAGE"
+                urlMode
+                fallbackUrl={media.url}
+                onUrlChange={(url) => onChange({ media: { ...media, url } })}
+              />
+            </div>
+          ) : media.url ? (
+            <img
+              src={media.url}
+              alt={media.alt || ''}
+              className="aspect-[4/5] w-full object-cover"
             />
           ) : (
-            <p className="max-w-sm text-base leading-relaxed opacity-75">{content?.body}</p>
+            <div className="aspect-[4/5] w-full" style={{ backgroundColor: ink(8) }} />
           )}
-
-          {editable ? (
-            <EditableLinkTrigger
-              label={cta.label ?? ''}
-              url={cta.url ?? '#contact'}
-              onChange={(next) => onChange({ primaryCta: next })}
-            >
-              <span className="inline-flex items-center gap-2 self-start bg-[var(--lp-ink)] px-5 py-3 text-sm font-bold uppercase tracking-widest text-[var(--lp-bg)]">
-                {cta.label || 'Add a call to action'} <ArrowRight className="h-4 w-4" />
-              </span>
-            </EditableLinkTrigger>
-          ) : cta.label ? (
-            <a
-              href={cta.url}
-              className="inline-flex items-center gap-2 self-start bg-[var(--lp-ink)] px-5 py-3 text-sm font-bold uppercase tracking-widest text-[var(--lp-bg)]"
-            >
-              {cta.label} <ArrowRight className="h-4 w-4" />
-            </a>
-          ) : null}
-        </div>
-      </div>
-
-      <motion.div
-        className="absolute bottom-0 right-0 z-[5] hidden w-[min(38vw,420px)] lg:block"
-        style={disabled ? undefined : { y: mediaY }}
-      >
-        {editable ? (
-          <div className="aspect-[3/4] w-full overflow-hidden">
-            <MediaSlotField
-              kind="IMAGE"
-              urlMode
-              fallbackUrl={media.url}
-              onUrlChange={(url) => onChange({ media: { ...media, url } })}
-            />
-          </div>
-        ) : media.url ? (
-          <img src={media.url} alt={media.alt || ''} className="aspect-[3/4] w-full object-cover" />
-        ) : null}
-      </motion.div>
+        </motion.div>
+      </FrameInner>
     </SnapPanel>
   )
 }

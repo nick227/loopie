@@ -12,12 +12,15 @@ export const TOKEN_DEFAULTS = {
 export const ink = (mix: number) => `color-mix(in srgb, var(--lp-ink) ${mix}%, var(--lp-bg))`
 export const inv = (mix: number) => `color-mix(in srgb, var(--lp-bg) ${mix}%, var(--lp-ink))`
 
-/** Uppercase punch word for kinetic backdrops — prefers longer words over "We"/"A". */
-export function kineticWord(text: string | undefined, fallback: string): string {
-  const words = (text ?? '')
-    .replace(/[^\w\s'-]/g, ' ')
-    .split(/\s+/)
-    .filter(Boolean)
-  const pick = [...words].sort((a, b) => b.length - a.length)[0] ?? fallback
-  return pick.toUpperCase().slice(0, 16)
-}
+/** Shared layout rhythm — every frame uses the same gutter + measure. */
+export const FRAME = 'relative mx-auto w-full max-w-[1280px] px-6 py-16 sm:px-8 lg:px-12 lg:py-20'
+
+export const DISPLAY =
+  'font-bold leading-[0.92] tracking-[-0.04em] text-[clamp(2.75rem,8vw,6.5rem)]'
+
+export const TITLE =
+  'font-bold leading-[1.05] tracking-[-0.03em] text-[clamp(1.75rem,3.5vw,2.75rem)]'
+
+export const LABEL = 'text-[11px] font-semibold uppercase tracking-[0.22em]'
+
+export const BODY = 'text-base leading-relaxed sm:text-[1.05rem]'

@@ -1,11 +1,17 @@
+import { motion, useTransform } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
 import { CanvasText } from '../../../../pages/landing-pages/components/CanvasText'
 import { EditableLinkTrigger } from '../../../../pages/landing-pages/components/editable/EditableLinkTrigger'
 import { FormFieldsEditor, type FormFieldDraft } from '@/components/forms/FormFieldsEditor'
-import type { SectionProps } from './shared'
-import { KineticBackdrop, KineticHeadline, SnapPanel, useMotionPanel } from './SnapPanel'
-import { kineticWord } from './tokens'
+import { SolidCta, type SectionProps } from './shared'
+import { FrameInner, SnapPanel, useMotionPanel } from './SnapPanel'
+import { useStudioMotionDisabled } from './motion'
+import { BODY, TITLE } from './tokens'
 
+/**
+ * Frame gesture: a solid ink bar rises from the bottom behind the form column
+ * (progress → height), while the headline stays still and readable.
+ */
 export function ContactSection({
   content,
   editable,
@@ -22,42 +28,42 @@ export function ContactSection({
 }) {
   const cta = content?.cta ?? {}
   const { ref, progress } = useMotionPanel()
-  const word = kineticWord(content?.headline, 'HELLO')
+  const disabled = useStudioMotionDisabled()
+  const fillHeight = useTransform(progress, [0.15, 0.55], ['0%', '100%'])
 
   return (
     <SnapPanel ref={ref} id="contact" tone="primary" className="flex flex-col justify-center">
-      <KineticBackdrop word={word} progress={progress} mode="crush" />
-      <div className="relative z-10 mx-auto grid w-full max-w-6xl gap-12 px-6 py-28 lg:grid-cols-2 lg:gap-20 lg:px-8">
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-0 bg-[var(--lp-ink)]"
+        style={disabled ? { height: '42%' } : { height: fillHeight }}
+      />
+      <FrameInner className="relative z-10 grid gap-12 lg:grid-cols-2 lg:gap-16">
         <div>
-          <KineticHeadline progress={progress}>
-            {editable ? (
-              <CanvasText
-                as="h2"
-                ariaLabel="Closing headline"
-                value={content?.headline ?? ''}
-                onChange={(headline) => onChange({ headline })}
-                style={{ fontFamily: 'var(--lp-heading)' }}
-                className="mb-5 text-[clamp(2.5rem,7vw,5rem)] font-black uppercase leading-[0.9] tracking-tighter"
-              />
-            ) : (
-              <h2
-                className="mb-5 text-[clamp(2.5rem,7vw,5rem)] font-black uppercase leading-[0.9] tracking-tighter"
-                style={{ fontFamily: 'var(--lp-heading)' }}
-              >
-                {content?.headline}
-              </h2>
-            )}
-          </KineticHeadline>
+          {editable ? (
+            <CanvasText
+              as="h2"
+              ariaLabel="Closing headline"
+              value={content?.headline ?? ''}
+              onChange={(headline) => onChange({ headline })}
+              style={{ fontFamily: 'var(--lp-heading)' }}
+              className={`${TITLE} mb-5`}
+            />
+          ) : (
+            <h2 className={`${TITLE} mb-5`} style={{ fontFamily: 'var(--lp-heading)' }}>
+              {content?.headline}
+            </h2>
+          )}
           {editable ? (
             <CanvasText
               ariaLabel="Closing body"
               value={content?.body ?? ''}
               onChange={(body) => onChange({ body })}
               multiline
-              className="max-w-sm leading-relaxed opacity-80"
+              className={`${BODY} max-w-sm opacity-80`}
             />
           ) : (
-            <p className="max-w-sm leading-relaxed opacity-80">{content?.body}</p>
+            <p className={`${BODY} max-w-sm opacity-80`}>{content?.body}</p>
           )}
           {editable ? (
             <div className="mt-6">
@@ -66,7 +72,7 @@ export function ContactSection({
                 url={cta.url ?? '#contact'}
                 onChange={(next) => onChange({ cta: next })}
               >
-                <span className="text-sm font-bold uppercase tracking-widest underline underline-offset-4">
+                <span className="text-sm font-semibold underline underline-offset-4">
                   {cta.label || 'Add a call to action'}
                 </span>
               </EditableLinkTrigger>
@@ -83,17 +89,15 @@ export function ContactSection({
               <div className="[&_label]:!text-[color:color-mix(in_srgb,var(--lp-on-primary)_75%,transparent)] [&_input]:!rounded-none [&_input]:!border-0 [&_input]:!border-b [&_input]:!border-[color:color-mix(in_srgb,var(--lp-on-primary)_35%,transparent)] [&_input]:!bg-transparent [&_input]:!px-0 [&_input]:!pb-2 [&_input]:!text-[color:var(--lp-on-primary)] [&_select]:!rounded-none [&_select]:!border-0 [&_select]:!border-b [&_select]:!border-[color:color-mix(in_srgb,var(--lp-on-primary)_35%,transparent)] [&_select]:!bg-transparent [&_select]:!px-0 [&_select]:!text-[color:var(--lp-on-primary)] [&_.text-muted-foreground]:!text-[color:color-mix(in_srgb,var(--lp-on-primary)_60%,transparent)] [&_button]:!text-[color:var(--lp-on-primary)] [&_button]:!border-[color:color-mix(in_srgb,var(--lp-on-primary)_35%,transparent)]">
                 <FormFieldsEditor fields={formFields} onChange={onFormFields} protectEmail />
               </div>
-              <button
-                type="button"
-                disabled
-                className="mt-6 inline-flex items-center gap-2 bg-[var(--lp-ink)] px-5 py-3 text-sm font-bold uppercase tracking-widest text-[var(--lp-bg)]"
-              >
-                {submitLabel} <ArrowRight className="h-4 w-4" />
-              </button>
+              <div className="mt-6">
+                <SolidCta inverted>
+                  {submitLabel} <ArrowRight className="h-4 w-4" />
+                </SolidCta>
+              </div>
             </>
           )}
         </div>
-      </div>
+      </FrameInner>
     </SnapPanel>
   )
 }

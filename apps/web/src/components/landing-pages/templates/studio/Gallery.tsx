@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
+import { motion, useTransform } from 'framer-motion'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useAsset } from '@project/sdk'
 import { CanvasText } from '../../../../pages/landing-pages/components/CanvasText'
 import { GalleryAddButton } from '../../../../pages/landing-pages/components/editable/GalleryAddButton'
 import type { GalleryItem } from '../../../../pages/landing-pages/components/types'
 import { mediaSrc } from '@/lib/media'
-import { type SectionProps } from './shared'
-import { KineticBackdrop, SnapPanel, useMotionPanel } from './SnapPanel'
-import { ink, kineticWord } from './tokens'
+import { Eyebrow, type SectionProps } from './shared'
+import { FrameInner, SnapPanel, useMotionPanel } from './SnapPanel'
+import { useStudioMotionDisabled } from './motion'
+import { ink, TITLE } from './tokens'
 
 function useResolvedGallerySrc(item: GalleryItem | undefined): string | null {
   const assetQuery = useAsset(item?.assetId ?? '')
@@ -116,16 +118,16 @@ function GalleryTile({
 }) {
   const src = useResolvedGallerySrc(item)
   return (
-    <div className="group relative min-h-0">
+    <div className="group relative w-[min(72vw,420px)] shrink-0 sm:w-[320px]">
       {src ? (
         <img
           src={src}
           alt={item.alt ?? ''}
           onClick={() => !editable && onOpen()}
-          className={`aspect-square h-full w-full object-cover ${editable ? '' : 'cursor-zoom-in'}`}
+          className={`aspect-[4/5] w-full object-cover ${editable ? '' : 'cursor-zoom-in'}`}
         />
       ) : (
-        <div className="aspect-square w-full" style={{ backgroundColor: ink(8) }} />
+        <div className="aspect-[4/5] w-full" style={{ backgroundColor: ink(8) }} />
       )}
       {editable ? (
         <>
@@ -134,8 +136,8 @@ function GalleryTile({
             value={item.caption ?? ''}
             onChange={onCaptionChange}
             placeholder="Caption"
-            className="mt-1 text-xs"
-            style={{ color: ink(60) }}
+            className="mt-2 text-xs"
+            style={{ color: ink(55) }}
           />
           <button
             type="button"
@@ -146,23 +148,32 @@ function GalleryTile({
             <X className="h-3.5 w-3.5" />
           </button>
         </>
+      ) : item.caption ? (
+        <p className="mt-2 text-xs" style={{ color: ink(55) }}>
+          {item.caption}
+        </p>
       ) : null}
     </div>
   )
 }
 
+/**
+ * Frame gesture: vertical scroll drives a horizontal strip — the classic
+ * side-scroll feel without leaving the snap sequence.
+ */
 export function GallerySection({ content, editable, onChange }: SectionProps<'gallery'>) {
   const items = content?.items ?? []
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const { ref, progress } = useMotionPanel()
-  const word = kineticWord(content?.title, 'WORK')
+  const disabled = useStudioMotionDisabled()
+  const x = useTransform(progress, [0.1, 0.9], ['0%', '-35%'])
 
   if (!items.length && !editable) return null
 
   return (
-    <SnapPanel ref={ref} tone="bg" className="flex flex-col justify-center py-16">
-      <KineticBackdrop word={word} progress={progress} mode="slide" />
-      <div className="relative z-10 mx-auto w-full max-w-6xl px-6 lg:px-8">
+    <SnapPanel ref={ref} tone="bg" className="flex flex-col justify-center">
+      <FrameInner className="pb-6">
+        <Eyebrow muted>Selected work</Eyebrow>
         {editable ? (
           <CanvasText
             ariaLabel="Gallery title"
@@ -170,18 +181,20 @@ export function GallerySection({ content, editable, onChange }: SectionProps<'ga
             onChange={(title) => onChange({ title })}
             placeholder="From the studio floor"
             style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-            className="mb-10 text-[clamp(2.5rem,8vw,5.5rem)] font-black uppercase leading-[0.9] tracking-tighter"
+            className={TITLE}
           />
         ) : (
-          <h2
-            className="mb-10 text-[clamp(2.5rem,8vw,5.5rem)] font-black uppercase leading-[0.9] tracking-tighter"
-            style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-          >
+          <h2 className={TITLE} style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}>
             {content?.title}
           </h2>
         )}
+      </FrameInner>
 
-        <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+      <div className="overflow-hidden pb-16">
+        <motion.div
+          className="flex gap-4 px-6 sm:gap-5 sm:px-8 lg:px-12"
+          style={disabled || editable ? undefined : { x }}
+        >
           {items.map((item, i) => (
             <GalleryTile
               key={i}
@@ -197,18 +210,20 @@ export function GallerySection({ content, editable, onChange }: SectionProps<'ga
               captionLabel={`Photo ${i + 1} caption`}
             />
           ))}
-        </div>
+        </motion.div>
+      </div>
 
-        {editable ? (
+      {editable ? (
+        <div className="px-6 pb-12 sm:px-8 lg:px-12">
           <GalleryAddButton
-            className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium underline underline-offset-4"
+            className="inline-flex items-center gap-1.5 text-sm font-medium underline underline-offset-4"
             onAdd={(assetIds) =>
               onChange({ items: [...items, ...assetIds.map((assetId) => ({ assetId }))] })
             }
             label="Add photos"
           />
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       {!editable && lightboxIndex !== null ? (
         <Lightbox

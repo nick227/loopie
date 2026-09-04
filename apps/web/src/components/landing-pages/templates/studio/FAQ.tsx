@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { CanvasText } from '../../../../pages/landing-pages/components/CanvasText'
 import type { FaqItem } from '../../../../pages/landing-pages/components/types'
-import { AddRow, type SectionProps } from './shared'
-import { SnapPanel } from './SnapPanel'
-import { ink } from './tokens'
+import { AddRow, Eyebrow, type SectionProps } from './shared'
+import { FrameInner, SnapPanel } from './SnapPanel'
+import { ink, TITLE } from './tokens'
 
+/** Quiet frame — no scroll theater. Consistency over constant motion. */
 export function FAQSection({ content, editable, onChange }: SectionProps<'faq'>) {
   const items = content?.items ?? []
   const [openIndex, setOpenIndex] = useState<number | null>(0)
@@ -13,8 +14,9 @@ export function FAQSection({ content, editable, onChange }: SectionProps<'faq'>)
     onChange({ items: items.map((row, idx) => (idx === i ? { ...row, ...patch } : row)) })
   }
   return (
-    <SnapPanel tone="card" snap={false} className="py-24">
-      <div className="mx-auto max-w-3xl px-6 lg:px-8">
+    <SnapPanel tone="card" snap={false} fill={false}>
+      <FrameInner className="max-w-3xl py-20 lg:py-24">
+        <Eyebrow muted>Questions</Eyebrow>
         {editable ? (
           <CanvasText
             as="h2"
@@ -22,11 +24,11 @@ export function FAQSection({ content, editable, onChange }: SectionProps<'faq'>)
             value={content?.headline ?? ''}
             onChange={(headline) => onChange({ headline })}
             style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-            className="mb-12 text-[clamp(2rem,5vw,3.5rem)] font-black uppercase tracking-tighter"
+            className={`${TITLE} mb-10`}
           />
         ) : (
           <h2
-            className="mb-12 text-[clamp(2rem,5vw,3.5rem)] font-black uppercase tracking-tighter"
+            className={`${TITLE} mb-10`}
             style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
           >
             {content?.headline}
@@ -34,7 +36,7 @@ export function FAQSection({ content, editable, onChange }: SectionProps<'faq'>)
         )}
         <div className="divide-y" style={{ borderColor: ink(12) }}>
           {items.map((faq, i) => (
-            <div key={i} className="py-6">
+            <div key={i} className="py-5">
               <button
                 type="button"
                 onClick={() => setOpenIndex(openIndex === i ? null : i)}
@@ -45,12 +47,12 @@ export function FAQSection({ content, editable, onChange }: SectionProps<'faq'>)
                     ariaLabel={`Question ${i + 1}`}
                     value={faq.question}
                     onChange={(question) => updateItem(i, { question })}
-                    className="text-lg font-bold uppercase tracking-tight"
+                    className="text-base font-semibold tracking-tight"
                     style={{ color: 'var(--lp-ink)' }}
                   />
                 ) : (
                   <span
-                    className="text-lg font-bold uppercase tracking-tight"
+                    className="text-base font-semibold tracking-tight"
                     style={{ color: 'var(--lp-ink)' }}
                   >
                     {faq.question}
@@ -62,7 +64,7 @@ export function FAQSection({ content, editable, onChange }: SectionProps<'faq'>)
                 />
               </button>
               {openIndex === i ? (
-                <div className="mt-4 max-w-xl text-sm leading-relaxed" style={{ color: ink(65) }}>
+                <div className="mt-3 max-w-xl text-sm leading-relaxed" style={{ color: ink(62) }}>
                   {editable ? (
                     <CanvasText
                       ariaLabel={`Answer ${i + 1}`}
@@ -86,7 +88,7 @@ export function FAQSection({ content, editable, onChange }: SectionProps<'faq'>)
             }
           />
         ) : null}
-      </div>
+      </FrameInner>
     </SnapPanel>
   )
 }

@@ -37,19 +37,6 @@ export function escapeHtml(value: unknown): string {
     .replace(/"/g, '&quot;')
 }
 
-function kineticWord(text: unknown, fallback: string): string {
-  const words = String(text ?? '')
-    .replace(/[^\w\s'-]/g, ' ')
-    .split(/\s+/)
-    .filter(Boolean)
-  const pick = [...words].sort((a, b) => b.length - a.length)[0] ?? fallback
-  return pick.toUpperCase().slice(0, 16)
-}
-
-function kineticBg(word: string, mode = 'scale-x'): string {
-  return `<div class="lp-kinetic-bg" aria-hidden="true" data-lp-kinetic="${escapeHtml(mode)}"><span class="lp-kinetic-word">${escapeHtml(word)}</span></div>`
-}
-
 export type AdSlotEmbedItem = { embedUrl: string; format?: string | null }
 
 function renderAdSlot(item: AdSlotEmbedItem, context: string, sessionToken?: string): string {
@@ -186,7 +173,7 @@ export function renderSection(
       const src = safeHttpUrl(media.src) || safeHttpUrl(media.url)
       const copyClass =
         renderer === 'studio'
-          ? 'lp-hero-copy lp-kinetic-text'
+          ? 'lp-hero-copy'
           : renderer === 'portfolio'
             ? 'lp-hero-copy lp-fade-in-scroll'
             : 'lp-hero-copy'
@@ -195,7 +182,7 @@ export function renderSection(
         ? `<div class="${mediaClass}"><img src="${escapeHtml(src)}" alt="${escapeHtml(media.alt ?? '')}" /></div>`
         : ''
       if (renderer === 'studio') {
-        return `<section class="lp-section lp-hero lp-snap" data-lp-snap>${kineticBg(kineticWord(c.headline, 'STUDIO'), 'crush')}<div class="${copyClass}">${badges || eyebrow}${headline}${body}${cta}</div>${mediaHtml}</section>`
+        return `<section class="lp-section lp-hero lp-snap" data-lp-snap data-lp-fx="hero-wipe"><div class="${copyClass}">${badges || eyebrow}${headline}${body}${cta}</div>${mediaHtml}</section>`
       }
       return `<section class="lp-section lp-hero"><div class="${copyClass}">${badges || eyebrow || '<p class="lp-kicker">Now booking</p>'}${headline}${body}${cta}</div>${mediaHtml}</section>`
     }
@@ -210,7 +197,7 @@ export function renderSection(
       const headline = c.headline ? `<h2>${escapeHtml(c.headline)}</h2>` : ''
       const body = c.body ? `<p class="lp-section-intro">${escapeHtml(c.body)}</p>` : ''
       if (renderer === 'studio') {
-        return `<section class="lp-section lp-features lp-snap lp-snap--primary" data-lp-snap${idAttr}>${kineticBg(kineticWord(c.headline, 'PROCESS'), 'crush')}<div class="lp-section-heading">${headline}${body}</div><div class="lp-feature-grid">${itemsHtml}</div></section>`
+        return `<section class="lp-section lp-features lp-snap lp-snap--primary" data-lp-snap data-lp-fx="rise"${idAttr}><div class="lp-section-heading">${headline}${body}</div><div class="lp-feature-grid">${itemsHtml}</div></section>`
       }
       return `<section class="lp-section lp-features"${idAttr}><div class="lp-section-heading">${headline}${body}</div><div class="lp-feature-grid">${itemsHtml}</div></section>`
     }
@@ -240,7 +227,7 @@ export function renderSection(
       const body = c.body ? `<p>${escapeHtml(c.body)}</p>` : ''
       const cta = renderCta(c.cta)
       if (renderer === 'studio') {
-        return `<section class="lp-section lp-studio-contact lp-snap lp-snap--primary" data-lp-snap${idAttr}>${kineticBg(kineticWord(c.headline, 'HELLO'), 'crush')}<div>${headline}${body}${cta}</div><div class="lp-form-card">${formHtml}</div></section>`
+        return `<section class="lp-section lp-studio-contact lp-snap lp-snap--primary" data-lp-snap data-lp-fx="fill-rise"${idAttr}><div class="lp-contact-fill" aria-hidden="true"></div><div>${headline}${body}${cta}</div><div class="lp-form-card">${formHtml}</div></section>`
       }
       return `<section class="lp-section lp-studio-contact"${idAttr}><div>${headline}${body}${cta}</div><div class="lp-form-card">${formHtml}</div></section>`
     }
@@ -311,22 +298,17 @@ export function renderSection(
           const media = src
             ? `<img src="${escapeHtml(src)}" alt="${escapeHtml(item.media?.alt ?? '')}" />`
             : ''
-          const indexHtml =
-            renderer === 'studio'
-              ? `<span class="lp-service-index">${String(index + 1).padStart(2, '0')}</span>`
-              : ''
           const kicker =
             renderer === 'studio' || renderer === 'portfolio'
               ? `<p class="lp-kicker">${escapeHtml(item.label)}</p>`
               : `<h3>${escapeHtml(item.label)}</h3>`
           if (renderer === 'studio') {
-            const tones = ['primary', 'bg', 'ink'] as const
+            const tones = ['bg', 'ink', 'primary'] as const
             const tone = tones[index % tones.length]
-            const mode = index % 2 ? 'spin' : 'scale-x'
-            return `<article class="lp-service lp-snap lp-snap--${tone}" data-lp-snap>${kineticBg(kineticWord(item.label || item.headline, String(index + 1).padStart(2, '0')), mode)}${media}<div class="lp-service-copy">${indexHtml}${kicker}${item.headline ? `<h3>${escapeHtml(item.headline)}</h3>` : ''}<p>${escapeHtml(item.description ?? '')}</p>${renderCta(item.cta)}</div></article>`
+            return `<article class="lp-service lp-snap lp-snap--${tone}" data-lp-snap data-lp-fx="service-slide">${media}<div class="lp-service-copy">${kicker}${item.headline ? `<h3>${escapeHtml(item.headline)}</h3>` : ''}<p>${escapeHtml(item.description ?? '')}</p>${renderCta(item.cta)}</div></article>`
           }
           const articleClass = renderer === 'portfolio' ? 'lp-service lp-fade-in-row' : 'lp-service'
-          return `<article class="${articleClass}">${media}<div class="lp-service-copy">${indexHtml}${kicker}${item.headline ? `<h3>${escapeHtml(item.headline)}</h3>` : ''}<p>${escapeHtml(item.description ?? '')}</p>${renderCta(item.cta)}</div></article>`
+          return `<article class="${articleClass}">${media}<div class="lp-service-copy">${kicker}${item.headline ? `<h3>${escapeHtml(item.headline)}</h3>` : ''}<p>${escapeHtml(item.description ?? '')}</p>${renderCta(item.cta)}</div></article>`
         })
         .join('')
       if (renderer === 'studio') {
@@ -350,7 +332,7 @@ export function renderSection(
         )
         .join('')
       if (renderer === 'studio') {
-        return `<section class="lp-section lp-metrics lp-snap lp-snap--ink" data-lp-snap>${kineticBg('PROOF', 'slide')}${rows}</section>`
+        return `<section class="lp-section lp-metrics lp-snap lp-snap--ink" data-lp-snap data-lp-fx="rise">${rows}</section>`
       }
       return `<section class="lp-section lp-metrics">${rows}</section>`
     }
@@ -395,7 +377,7 @@ export function renderSection(
                 )}</div><button type="button" data-lp-carousel-next aria-label="Next testimonial">›</button></div>`
             : ''
         if (renderer === 'studio') {
-          return `<section class="lp-section lp-testimonials lp-snap lp-snap--ink" data-lp-snap data-lp-carousel${idAttr}>${kineticBg('SAID', 'spin')}<div class="lp-section-heading">${headline}${body}</div><div class="lp-carousel-viewport">${slides}</div>${controls}</section>`
+          return `<section class="lp-section lp-testimonials lp-snap lp-snap--ink" data-lp-snap data-lp-fx="track-tighten" data-lp-carousel${idAttr}><div class="lp-section-heading">${headline}${body}</div><div class="lp-carousel-viewport">${slides}</div>${controls}</section>`
         }
         return `<section class="lp-section lp-testimonials"${idAttr} data-lp-carousel><div class="lp-section-heading">${headline}${body}</div><div class="lp-carousel-viewport">${slides}</div>${controls}</section>`
       }
@@ -468,7 +450,7 @@ export function renderSection(
         })
         .join('')
       if (renderer === 'studio') {
-        return `<section class="lp-section lp-gallery lp-snap" data-lp-snap>${kineticBg(kineticWord(c.title, 'WORK'), 'slide')}${title}<div class="lp-gallery-grid">${tiles}</div></section>`
+        return `<section class="lp-section lp-gallery lp-snap" data-lp-snap data-lp-fx="h-drift">${title}<div class="lp-gallery-grid">${tiles}</div></section>`
       }
       return `<section class="lp-section lp-gallery">${title}<div class="lp-gallery-grid">${tiles}</div></section>`
     }
@@ -494,7 +476,7 @@ export function renderSection(
         })
         .join('')
       if (renderer === 'studio') {
-        return `<section class="lp-section lp-team lp-snap" data-lp-snap>${kineticBg(kineticWord(c.headline, 'CREW'), 'scale-x')}<div class="lp-section-heading">${headline}${body}</div><div class="lp-team-grid">${rows}</div></section>`
+        return `<section class="lp-section lp-team lp-snap" data-lp-snap data-lp-fx="rise"><div class="lp-section-heading">${headline}${body}</div><div class="lp-team-grid">${rows}</div></section>`
       }
       return `<section class="lp-section lp-team"><div class="lp-section-heading">${headline}${body}</div><div class="lp-team-grid">${rows}</div></section>`
     }

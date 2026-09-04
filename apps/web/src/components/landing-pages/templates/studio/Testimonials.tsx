@@ -1,16 +1,26 @@
 import { useState } from 'react'
+import { motion, useTransform } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { CanvasText } from '../../../../pages/landing-pages/components/CanvasText'
 import type { TestimonialItem } from '../../../../pages/landing-pages/components/types'
-import type { SectionProps } from './shared'
-import { KineticBackdrop, KineticHeadline, SnapPanel, useMotionPanel } from './SnapPanel'
+import { Eyebrow, type SectionProps } from './shared'
+import { FrameInner, SnapPanel, useMotionPanel } from './SnapPanel'
+import { useStudioMotionDisabled } from './motion'
 import { inv } from './tokens'
 
+/**
+ * Frame gesture: quote letter-spacing tightens from open tracking into readable
+ * measure as the panel settles — kinetic type that IS the quote.
+ */
 export function TestimonialsSection({ content, editable, onChange }: SectionProps<'testimonials'>) {
   const items = content?.items ?? []
   const [index, setIndex] = useState(0)
   const current = items[Math.min(index, items.length - 1)]
   const { ref, progress } = useMotionPanel()
+  const disabled = useStudioMotionDisabled()
+
+  const tracking = useTransform(progress, [0.2, 0.5], ['0.12em', '-0.02em'])
+  const opacity = useTransform(progress, [0.15, 0.4], [0.2, 1])
 
   function updateCurrent(patch: Partial<TestimonialItem>) {
     onChange({ items: items.map((row, idx) => (idx === index ? { ...row, ...patch } : row)) })
@@ -19,29 +29,22 @@ export function TestimonialsSection({ content, editable, onChange }: SectionProp
   if (!items.length && !editable) return null
 
   return (
-    <SnapPanel ref={ref} tone="ink" className="flex flex-col justify-center text-center">
-      <KineticBackdrop word="SAID" progress={progress} mode="spin" />
-      <div className="relative z-10 mx-auto max-w-4xl px-6 py-28 lg:px-8">
+    <SnapPanel ref={ref} tone="ink" className="flex flex-col justify-center">
+      <FrameInner className="max-w-4xl text-left lg:mx-auto">
         {editable ? (
           <CanvasText
             ariaLabel="Testimonials headline"
             value={content?.headline ?? ''}
             onChange={(headline) => onChange({ headline })}
-            className="mb-12 text-[11px] font-bold uppercase tracking-[0.28em]"
-            style={{ color: inv(55) }}
+            className="mb-10"
           />
         ) : content?.headline ? (
-          <p
-            className="mb-12 text-[11px] font-bold uppercase tracking-[0.28em]"
-            style={{ color: inv(55) }}
-          >
-            {content.headline}
-          </p>
+          <Eyebrow>{content.headline}</Eyebrow>
         ) : null}
 
         {current ? (
           <>
-            <KineticHeadline progress={progress} className="origin-center">
+            <motion.div style={disabled ? undefined : { letterSpacing: tracking, opacity }}>
               {editable ? (
                 <CanvasText
                   ariaLabel={`Testimonial ${index + 1} quote`}
@@ -49,49 +52,49 @@ export function TestimonialsSection({ content, editable, onChange }: SectionProp
                   onChange={(quote) => updateCurrent({ quote })}
                   multiline
                   style={{ fontFamily: 'var(--lp-heading)' }}
-                  className="text-[clamp(1.75rem,4.5vw,3.25rem)] font-black uppercase leading-[1.05] tracking-tight"
+                  className="text-[clamp(1.5rem,3.5vw,2.5rem)] font-semibold leading-[1.2]"
                 />
               ) : (
                 <p
-                  className="text-[clamp(1.75rem,4.5vw,3.25rem)] font-black uppercase leading-[1.05] tracking-tight"
+                  className="text-[clamp(1.5rem,3.5vw,2.5rem)] font-semibold leading-[1.2]"
                   style={{ fontFamily: 'var(--lp-heading)' }}
                 >
-                  &quot;{current.quote}&quot;
+                  &ldquo;{current.quote}&rdquo;
                 </p>
               )}
-            </KineticHeadline>
-            <div className="mt-8 flex items-baseline justify-center gap-2 text-sm">
+            </motion.div>
+            <div className="mt-8 flex items-baseline gap-2 text-sm">
               {editable ? (
                 <CanvasText
                   ariaLabel={`Testimonial ${index + 1} author`}
                   value={current.author}
                   onChange={(author) => updateCurrent({ author })}
-                  className="font-bold uppercase tracking-wider"
+                  className="font-semibold"
                 />
               ) : (
-                <span className="font-bold uppercase tracking-wider">{current.author}</span>
+                <span className="font-semibold">{current.author}</span>
               )}
               {editable ? (
                 <CanvasText
                   ariaLabel={`Testimonial ${index + 1} role`}
                   value={current.role ?? ''}
                   onChange={(role) => updateCurrent({ role })}
-                  style={{ color: inv(65) }}
+                  style={{ color: inv(60) }}
                 />
               ) : (
-                <span style={{ color: inv(65) }}>{current.role}</span>
+                <span style={{ color: inv(60) }}>{current.role}</span>
               )}
             </div>
           </>
         ) : null}
 
         {items.length > 1 ? (
-          <div className="mt-10 flex items-center justify-center gap-4">
+          <div className="mt-12 flex items-center gap-4">
             <button
               type="button"
               aria-label="Previous testimonial"
               onClick={() => setIndex((index - 1 + items.length) % items.length)}
-              style={{ color: inv(60) }}
+              style={{ color: inv(55) }}
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
@@ -102,8 +105,8 @@ export function TestimonialsSection({ content, editable, onChange }: SectionProp
                   type="button"
                   aria-label={`Show testimonial ${i + 1}`}
                   onClick={() => setIndex(i)}
-                  className="h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: i === index ? 'var(--lp-bg)' : inv(30) }}
+                  className="h-1 w-6"
+                  style={{ backgroundColor: i === index ? 'var(--lp-bg)' : inv(25) }}
                 />
               ))}
             </div>
@@ -111,7 +114,7 @@ export function TestimonialsSection({ content, editable, onChange }: SectionProp
               type="button"
               aria-label="Next testimonial"
               onClick={() => setIndex((index + 1) % items.length)}
-              style={{ color: inv(60) }}
+              style={{ color: inv(55) }}
             >
               <ChevronRight className="h-5 w-5" />
             </button>
@@ -119,7 +122,7 @@ export function TestimonialsSection({ content, editable, onChange }: SectionProp
         ) : null}
 
         {editable ? (
-          <div className="mt-8 flex items-center justify-center gap-4">
+          <div className="mt-8 flex items-center gap-4">
             {current ? (
               <button
                 type="button"
@@ -146,7 +149,7 @@ export function TestimonialsSection({ content, editable, onChange }: SectionProp
             </button>
           </div>
         ) : null}
-      </div>
+      </FrameInner>
     </SnapPanel>
   )
 }
