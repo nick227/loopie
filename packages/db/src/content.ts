@@ -105,7 +105,7 @@ export type PageContent = {
   footer?: { headline?: string; body?: string; cta?: CtaRef }
   // A pure-visual image wall (studio/behind-the-scenes photos, work samples with no case-study
   // copy) — distinct from `services`, which pairs each item with a headline/description/link.
-  gallery?: { title?: string; items: GalleryItem[] }
+  gallery?: { title?: string; body?: string; items: GalleryItem[] }
   // People, not case studies — Studio's "About/Team" and Portfolio's "About" (a single-item team
   // for a solo practitioner). Distinct from `testimonials` (quotes from clients, not the business's
   // own people) and from `services` (what's offered, not who does it).

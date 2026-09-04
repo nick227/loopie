@@ -1,10 +1,10 @@
 import { motion, useTransform, type MotionValue } from 'framer-motion'
 import { CanvasText } from '../../../../pages/landing-pages/components/CanvasText'
 import type { FeatureItem } from '../../../../pages/landing-pages/components/types'
-import { AddRow, Eyebrow, type SectionProps } from './shared'
+import { AddRow, SectionHeader, type SectionProps } from './shared'
 import { FrameInner, SnapPanel, useMotionPanel } from './SnapPanel'
 import { useStudioMotionDisabled } from './motion'
-import { BODY, TITLE } from './tokens'
+import { BODY } from './tokens'
 
 /**
  * Frame gesture: process steps — the index numeral shrinks from display-scale
@@ -96,34 +96,18 @@ export function FeaturesSection({ content, editable, onChange }: SectionProps<'f
   return (
     <SnapPanel ref={ref} tone="primary" className="flex flex-col justify-center">
       <FrameInner>
-        <Eyebrow>How we work</Eyebrow>
-        {editable ? (
-          <CanvasText
-            as="h2"
-            ariaLabel="Features headline"
-            value={content?.headline ?? ''}
-            onChange={(headline) => onChange({ headline })}
-            style={{ fontFamily: 'var(--lp-heading)' }}
-            className={`${TITLE} mb-3`}
-          />
-        ) : (
-          <h2 className={`${TITLE} mb-3`} style={{ fontFamily: 'var(--lp-heading)' }}>
-            {content?.headline}
-          </h2>
-        )}
-        {editable ? (
-          <CanvasText
-            ariaLabel="Features body"
-            value={content?.body ?? ''}
-            onChange={(body) => onChange({ body })}
-            multiline
-            className={`${BODY} mb-10 max-w-lg opacity-80`}
-          />
-        ) : content?.body ? (
-          <p className={`${BODY} mb-10 max-w-lg opacity-80`}>{content.body}</p>
-        ) : (
-          <div className="mb-10" />
-        )}
+        <SectionHeader
+          editable={editable}
+          eyebrow="How we work"
+          eyebrowLabel="Features eyebrow"
+          title={content?.headline ?? ''}
+          titleLabel="Features headline"
+          onTitle={(headline) => onChange({ headline })}
+          body={content?.body ?? ''}
+          bodyLabel="Features body"
+          onBody={(body) => onChange({ body })}
+          className="mb-10"
+        />
 
         <div>
           {items.map((feature, i) => (

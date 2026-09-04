@@ -179,6 +179,7 @@ export const studioStarterContent: PageContent = {
   },
   gallery: {
     title: 'Selected work',
+    body: 'A few frames from recent projects and days on the studio floor — proof before the pitch.',
     items: [
       {
         url: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&q=80&w=1200',

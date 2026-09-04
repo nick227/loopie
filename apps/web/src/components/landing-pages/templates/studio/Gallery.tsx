@@ -6,10 +6,10 @@ import { CanvasText } from '../../../../pages/landing-pages/components/CanvasTex
 import { GalleryAddButton } from '../../../../pages/landing-pages/components/editable/GalleryAddButton'
 import type { GalleryItem } from '../../../../pages/landing-pages/components/types'
 import { mediaSrc } from '@/lib/media'
-import { Eyebrow, type SectionProps } from './shared'
+import { SectionHeader, type SectionProps } from './shared'
 import { FrameInner, SnapPanel, useMotionPanel } from './SnapPanel'
 import { useStudioMotionDisabled } from './motion'
-import { ink, TITLE } from './tokens'
+import { ink } from './tokens'
 
 function useResolvedGallerySrc(item: GalleryItem | undefined): string | null {
   const assetQuery = useAsset(item?.assetId ?? '')
@@ -172,22 +172,19 @@ export function GallerySection({ content, editable, onChange }: SectionProps<'ga
 
   return (
     <SnapPanel ref={ref} tone="bg" className="flex flex-col justify-center">
-      <FrameInner className="pb-6">
-        <Eyebrow muted>Selected work</Eyebrow>
-        {editable ? (
-          <CanvasText
-            ariaLabel="Gallery title"
-            value={content?.title ?? ''}
-            onChange={(title) => onChange({ title })}
-            placeholder="From the studio floor"
-            style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-            className={TITLE}
-          />
-        ) : (
-          <h2 className={TITLE} style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}>
-            {content?.title}
-          </h2>
-        )}
+      <FrameInner className="pb-8">
+        <SectionHeader
+          editable={editable}
+          eyebrow="Selected work"
+          eyebrowLabel="Gallery eyebrow"
+          title={content?.title ?? ''}
+          titleLabel="Gallery title"
+          onTitle={(title) => onChange({ title })}
+          body={content?.body ?? ''}
+          bodyLabel="Gallery body"
+          onBody={(body) => onChange({ body })}
+          className="mb-10"
+        />
       </FrameInner>
 
       <div className="overflow-hidden pb-16">

@@ -75,17 +75,59 @@ export function renderBody(
   renderer = 'standard',
 ) {
   const chunks: string[] = []
+  const bridgeInner: string[] = []
+  let bridgeMedia = ''
+  let bridgeOpen = false
+
+  const flushBridge = () => {
+    if (!bridgeOpen) return
+    const sticky = bridgeMedia
+      ? `<div class="lp-parallax-sticky" aria-hidden="true">${bridgeMedia}<div class="lp-parallax-scrim"></div></div>`
+      : `<div class="lp-parallax-sticky" aria-hidden="true"><div class="lp-parallax-scrim"></div></div>`
+    chunks.push(
+      `<div class="lp-parallax-bridge" data-lp-parallax-bridge>${sticky}<div class="lp-parallax-content">${bridgeInner.join('\n')}</div></div>`,
+    )
+    bridgeInner.length = 0
+    bridgeOpen = false
+    bridgeMedia = ''
+  }
+
   for (const section of sections) {
     if (section.key && layoutConfig?.sections?.[section.key]?.hidden) continue
     if (section.type === 'form-embed') chunks.push(slotsAt(adSlots, 'BEFORE_FORM', sessionToken))
     const slotGroup = SECTION_TYPE_TO_SLOT_GROUP[section.type]
     const slotContent = slotGroup ? ((content as Record<string, unknown>)[slotGroup] ?? {}) : {}
+
+    if (renderer === 'studio') {
+      const inBridge =
+        section.type === 'hero' || section.type === 'logo-cloud' || section.type === 'metrics'
+      if (inBridge) {
+        if (section.type === 'hero') {
+          const media =
+            slotContent && typeof slotContent === 'object'
+              ? ((slotContent as Record<string, unknown>).media as
+                  Record<string, unknown> | undefined)
+              : undefined
+          const src = safeHttpUrl(media?.src) || safeHttpUrl(media?.url)
+          if (src) {
+            bridgeMedia = `<img class="lp-parallax-img" src="${escapeHtml(src)}" alt="" />`
+          }
+          bridgeOpen = true
+        }
+        bridgeInner.push(renderSection(section, slotContent, formHtml, submissionCount, renderer))
+        if (section.type === 'hero') bridgeInner.push(slotsAt(adSlots, 'AFTER_HERO', sessionToken))
+        continue
+      }
+      flushBridge()
+    }
+
     chunks.push(renderSection(section, slotContent, formHtml, submissionCount, renderer))
     if (section.type === 'hero') chunks.push(slotsAt(adSlots, 'AFTER_HERO', sessionToken))
     if (section.type === 'form-embed' || section.type === 'split-capture') {
       chunks.push(slotsAt(adSlots, 'AFTER_FORM', sessionToken))
     }
   }
+  flushBridge()
   chunks.push(slotsAt(adSlots, 'BOTTOM', sessionToken))
   if (renderer === 'email-outreach') {
     chunks.push(
@@ -182,7 +224,7 @@ export function renderSection(
         ? `<div class="${mediaClass}"><img src="${escapeHtml(src)}" alt="${escapeHtml(media.alt ?? '')}" /></div>`
         : ''
       if (renderer === 'studio') {
-        return `<section class="lp-section lp-hero lp-snap" data-lp-snap data-lp-fx="hero-wipe"><div class="${copyClass}">${badges || eyebrow}${headline}${body}${cta}</div>${mediaHtml}</section>`
+        return `<section class="lp-section lp-hero lp-snap lp-snap--clear" data-lp-snap data-lp-fx="hero-wipe"><div class="${copyClass}">${badges || eyebrow}${headline}${body}${cta}</div></section>`
       }
       return `<section class="lp-section lp-hero"><div class="${copyClass}">${badges || eyebrow || '<p class="lp-kicker">Now booking</p>'}${headline}${body}${cta}</div>${mediaHtml}</section>`
     }
@@ -197,7 +239,7 @@ export function renderSection(
       const headline = c.headline ? `<h2>${escapeHtml(c.headline)}</h2>` : ''
       const body = c.body ? `<p class="lp-section-intro">${escapeHtml(c.body)}</p>` : ''
       if (renderer === 'studio') {
-        return `<section class="lp-section lp-features lp-snap lp-snap--primary" data-lp-snap data-lp-fx="rise"${idAttr}><div class="lp-section-heading">${headline}${body}</div><div class="lp-feature-grid">${itemsHtml}</div></section>`
+        return `<section class="lp-section lp-features lp-snap lp-snap--primary" data-lp-snap data-lp-fx="rise"${idAttr}><div class="lp-section-heading"><p class="lp-kicker">How we work</p>${headline}${body}</div><div class="lp-feature-grid">${itemsHtml}</div></section>`
       }
       return `<section class="lp-section lp-features"${idAttr}><div class="lp-section-heading">${headline}${body}</div><div class="lp-feature-grid">${itemsHtml}</div></section>`
     }
@@ -314,7 +356,7 @@ export function renderSection(
       if (renderer === 'studio') {
         const intro =
           title || body
-            ? `<section class="lp-section lp-services-intro lp-snap" data-lp-snap><div class="lp-section-heading">${title}${body}</div></section>`
+            ? `<section class="lp-section lp-services-intro lp-snap" data-lp-snap><div class="lp-section-heading"><p class="lp-kicker">Capabilities</p>${title}${body}</div></section>`
             : ''
         return `${intro}${rows}`
       }
@@ -437,6 +479,7 @@ export function renderSection(
         : []
       if (!items.length) return ''
       const title = c.title ? `<h2>${escapeHtml(c.title)}</h2>` : ''
+      const galleryBody = c.body ? `<p class="lp-section-intro">${escapeHtml(c.body)}</p>` : ''
       const tiles = items
         .map((item, index) => {
           const src = safeHttpUrl(item.src) || safeHttpUrl(item.url)
@@ -450,7 +493,7 @@ export function renderSection(
         })
         .join('')
       if (renderer === 'studio') {
-        return `<section class="lp-section lp-gallery lp-snap" data-lp-snap data-lp-fx="h-drift">${title}<div class="lp-gallery-grid">${tiles}</div></section>`
+        return `<section class="lp-section lp-gallery lp-snap" data-lp-snap data-lp-fx="h-drift"><div class="lp-section-heading"><p class="lp-kicker">Selected work</p>${title}${galleryBody}</div><div class="lp-gallery-grid">${tiles}</div></section>`
       }
       return `<section class="lp-section lp-gallery">${title}<div class="lp-gallery-grid">${tiles}</div></section>`
     }

@@ -4,7 +4,7 @@ import { CanvasText } from '../../../../pages/landing-pages/components/CanvasTex
 import { EditableLinkTrigger } from '../../../../pages/landing-pages/components/editable/EditableLinkTrigger'
 import { MediaSlotField } from '../../../../pages/landing-pages/components/MediaSlotField'
 import type { ServiceItem } from '../../../../pages/landing-pages/components/types'
-import { AddRow, Eyebrow, type SectionProps } from './shared'
+import { AddRow, Eyebrow, SectionHeader, type SectionProps } from './shared'
 import { FrameInner, SnapPanel, useMotionPanel, type Tone } from './SnapPanel'
 import { useStudioMotionDisabled } from './motion'
 import { BODY, TITLE } from './tokens'
@@ -154,47 +154,20 @@ export function ServicesSection({ content, editable, onChange }: SectionProps<'s
 
   return (
     <>
-      {(content?.title || editable) && (
+      {(content?.title || content?.body || editable) && (
         <SnapPanel tone="bg" className="flex flex-col justify-center">
           <FrameInner className="flex min-h-[calc(100svh-5rem)] flex-col justify-center">
-            {editable ? (
-              <CanvasText
-                as="h2"
-                ariaLabel="Services title"
-                value={content?.title ?? ''}
-                onChange={(title) => onChange({ title })}
-                style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-                className="text-[clamp(2.5rem,7vw,5.5rem)] font-bold leading-[0.95] tracking-[-0.04em]"
-              />
-            ) : (
-              <h2
-                className="text-[clamp(2.5rem,7vw,5.5rem)] font-bold leading-[0.95] tracking-[-0.04em]"
-                style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-              >
-                {content?.title}
-              </h2>
-            )}
-            {content?.body || editable ? (
-              <div className="mt-6 max-w-md">
-                {editable ? (
-                  <CanvasText
-                    ariaLabel="Services body"
-                    value={content?.body ?? ''}
-                    onChange={(body) => onChange({ body })}
-                    multiline
-                    className={BODY}
-                    style={{ color: 'color-mix(in srgb, var(--lp-ink) 65%, var(--lp-bg))' }}
-                  />
-                ) : (
-                  <p
-                    className={BODY}
-                    style={{ color: 'color-mix(in srgb, var(--lp-ink) 65%, var(--lp-bg))' }}
-                  >
-                    {content?.body}
-                  </p>
-                )}
-              </div>
-            ) : null}
+            <SectionHeader
+              editable={editable}
+              eyebrow="Capabilities"
+              eyebrowLabel="Services eyebrow"
+              title={content?.title ?? ''}
+              titleLabel="Services title"
+              onTitle={(title) => onChange({ title })}
+              body={content?.body ?? ''}
+              bodyLabel="Services body"
+              onBody={(body) => onChange({ body })}
+            />
           </FrameInner>
         </SnapPanel>
       )}

@@ -8,6 +8,7 @@ import { HeroSection } from './studio/Hero'
 import { LogoCloudSection } from './studio/Logos'
 import { MetricsSection } from './studio/Metrics'
 import { NavBar } from './studio/NavBar'
+import { ParallaxBridge } from './studio/ParallaxBridge'
 import { ServicesSection } from './studio/Services'
 import { TeamSection } from './studio/Team'
 import { TestimonialsSection } from './studio/Testimonials'
@@ -69,25 +70,38 @@ export function Studio({
         }
       `}</style>
       <NavBar content={c.nav} editable={editable} onChange={(patch) => slotChange('nav', patch)} />
-      <HeroSection
-        content={c.hero}
+
+      {/*
+        Frames 1–2 ride a sticky full-bleed parallax (hero media). It fades out as the
+        track ends so frame 3 (services intro) lands as a clean solid page.
+      */}
+      <ParallaxBridge
+        imageUrl={c.hero?.media?.url}
+        imageAlt={c.hero?.media?.alt ?? ''}
         editable={editable}
-        onChange={(patch) => slotChange('hero', patch)}
-      />
-      {!isHidden('logos') && (
-        <LogoCloudSection
-          content={c.logos}
+        onImageUrl={(url) => slotChange('hero', { media: { ...(c.hero?.media ?? {}), url } })}
+      >
+        <HeroSection
+          content={c.hero}
           editable={editable}
-          onChange={(patch) => slotChange('logos', patch)}
+          onChange={(patch) => slotChange('hero', patch)}
         />
-      )}
-      {!isHidden('metrics') && (
-        <MetricsSection
-          content={c.metrics}
-          editable={editable}
-          onChange={(patch) => slotChange('metrics', patch)}
-        />
-      )}
+        {!isHidden('logos') && (
+          <LogoCloudSection
+            content={c.logos}
+            editable={editable}
+            onChange={(patch) => slotChange('logos', patch)}
+          />
+        )}
+        {!isHidden('metrics') && (
+          <MetricsSection
+            content={c.metrics}
+            editable={editable}
+            onChange={(patch) => slotChange('metrics', patch)}
+          />
+        )}
+      </ParallaxBridge>
+
       {!isHidden('services') && (
         <ServicesSection
           content={c.services}

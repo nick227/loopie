@@ -2,13 +2,14 @@ import { forwardRef, type ReactNode, useRef } from 'react'
 import { useScroll, type MotionValue } from 'framer-motion'
 import { FRAME } from './tokens'
 
-export type Tone = 'bg' | 'ink' | 'primary' | 'card'
+export type Tone = 'bg' | 'ink' | 'primary' | 'card' | 'clear'
 
 const TONE_STYLE: Record<Tone, React.CSSProperties> = {
   bg: { backgroundColor: 'var(--lp-bg)', color: 'var(--lp-ink)' },
   ink: { backgroundColor: 'var(--lp-ink)', color: 'var(--lp-bg)' },
   primary: { backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' },
   card: { backgroundColor: 'var(--lp-card)', color: 'var(--lp-ink)' },
+  clear: { backgroundColor: 'transparent', color: 'var(--lp-ink)' },
 }
 
 export const SnapPanel = forwardRef<

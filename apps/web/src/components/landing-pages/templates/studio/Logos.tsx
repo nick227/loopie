@@ -21,7 +21,7 @@ export function LogoCloudSection({ content, editable, onChange }: SectionProps<'
   ))
 
   return (
-    <SnapPanel tone="card" snap={false} fill={false}>
+    <SnapPanel tone="clear" snap={false} fill={false}>
       <FrameInner className="py-12 lg:py-14">
         {editable ? (
           <CanvasText

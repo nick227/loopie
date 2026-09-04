@@ -94,7 +94,7 @@ export type PageContent = {
   metrics?: { items: MetricItem[] }
   comparison?: { title?: string; items: ComparisonItem[] }
   footer?: { headline?: string; body?: string; cta?: CtaRef }
-  gallery?: { title?: string; items: GalleryItem[] }
+  gallery?: { title?: string; body?: string; items: GalleryItem[] }
   team?: { headline?: string; body?: string; items: TeamMemberItem[] }
   products?: { headline?: string; body?: string; items: ProductItem[] }
   categories?: { headline?: string; items: CategoryItem[] }
@@ -170,6 +170,20 @@ export type TemplateSection = {
   order: number
   hideable?: boolean
   editable?: string[]
+}
+
+// The canonical in-page scroll anchor for a section, used both to build the Content tab's nav
+// link destination picker and as the literal `id` every renderer attaches to that section's DOM
+// element. Most section types anchor on their own slot-group key (which is 1:1 with the key every
+// template schema actually uses — see packages/db/src/data/*.ts) but a handful of section *types*
+// share one conventional anchor across every template that uses them (a contact-style footer is
+// always `#contact`, a lead form is always `#form`) regardless of the slot-group key backing it.
+export function sectionAnchorId(section: Pick<TemplateSection, 'key' | 'type'>): string {
+  if (section.type === 'form-embed') return 'form'
+  if (section.type === 'footer' || section.type === 'cta-band' || section.type === 'studio-contact')
+    return 'contact'
+  if (section.type === 'webinar-widget') return 'signup'
+  return section.key
 }
 
 // Legacy shapes a page's content may still be persisted as (pre-migration rows) — normalized on

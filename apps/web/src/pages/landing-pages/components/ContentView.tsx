@@ -109,6 +109,7 @@ const SLOT_GROUP_FIELDS: Record<SlotGroupKey, FieldSpec[]> = {
   ],
   gallery: [
     { key: 'title', label: 'Title', kind: 'text' },
+    { key: 'body', label: 'Body', kind: 'richtext' },
     { key: 'items', label: 'Photos', kind: 'gallery' },
   ],
   team: [

@@ -1,6 +1,7 @@
 import { Plus } from 'lucide-react'
+import { CanvasText } from '../../../../pages/landing-pages/components/CanvasText'
 import type { PageContent } from '../../../../pages/landing-pages/components/types'
-import { ink, LABEL } from './tokens'
+import { BODY, ink, LABEL, TITLE } from './tokens'
 
 export type SectionProps<K extends keyof PageContent> = {
   content: PageContent[K]
@@ -35,6 +36,70 @@ export function Eyebrow({
     >
       {children}
     </p>
+  )
+}
+
+/** Shared opener used on services / gallery / features — eyebrow, title, paragraph. */
+export function SectionHeader({
+  editable,
+  eyebrow,
+  eyebrowLabel,
+  onEyebrow,
+  title,
+  titleLabel,
+  onTitle,
+  body,
+  bodyLabel,
+  onBody,
+  className = '',
+}: {
+  editable: boolean
+  eyebrow: string
+  eyebrowLabel: string
+  onEyebrow?: (value: string) => void
+  title: string
+  titleLabel: string
+  onTitle: (value: string) => void
+  body: string
+  bodyLabel: string
+  onBody: (value: string) => void
+  className?: string
+}) {
+  return (
+    <div className={`max-w-xl ${className}`}>
+      <Eyebrow>
+        {editable && onEyebrow ? (
+          <CanvasText ariaLabel={eyebrowLabel} value={eyebrow} onChange={onEyebrow} />
+        ) : (
+          eyebrow
+        )}
+      </Eyebrow>
+      {editable ? (
+        <CanvasText
+          as="h2"
+          ariaLabel={titleLabel}
+          value={title}
+          onChange={onTitle}
+          style={{ fontFamily: 'var(--lp-heading)' }}
+          className={`${TITLE} mb-4`}
+        />
+      ) : (
+        <h2 className={`${TITLE} mb-4`} style={{ fontFamily: 'var(--lp-heading)' }}>
+          {title}
+        </h2>
+      )}
+      {editable ? (
+        <CanvasText
+          ariaLabel={bodyLabel}
+          value={body}
+          onChange={onBody}
+          multiline
+          className={`${BODY} opacity-75`}
+        />
+      ) : body ? (
+        <p className={`${BODY} opacity-75`}>{body}</p>
+      ) : null}
+    </div>
   )
 }
 
