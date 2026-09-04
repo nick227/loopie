@@ -1,16 +1,14 @@
-import { motion, useTransform } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
 import { CanvasText } from '../../../../pages/landing-pages/components/CanvasText'
 import { EditableLinkTrigger } from '../../../../pages/landing-pages/components/editable/EditableLinkTrigger'
 import { FormFieldsEditor, type FormFieldDraft } from '@/components/forms/FormFieldsEditor'
 import { SolidCta, type SectionProps } from './shared'
-import { FrameInner, SnapPanel, useMotionPanel } from './SnapPanel'
-import { useStudioMotionDisabled } from './motion'
+import { ColorWash, FrameInner, SnapPanel, useMotionPanel, washForIndex } from './SnapPanel'
 import { BODY, TITLE } from './tokens'
 
 /**
- * Frame gesture: a solid ink bar rises from the bottom behind the form column
- * (progress → height), while the headline stays still and readable.
+ * Closing frame: rising color wash behind the inquiry form (same ColorWash
+ * used across almost every snap — Contact is just the last beat).
  */
 export function ContactSection({
   content,
@@ -28,17 +26,12 @@ export function ContactSection({
 }) {
   const cta = content?.cta ?? {}
   const { ref, progress } = useMotionPanel()
-  const disabled = useStudioMotionDisabled()
-  const fillHeight = useTransform(progress, [0.15, 0.55], ['0%', '100%'])
+  const wash = washForIndex(7)
 
   return (
     <SnapPanel ref={ref} id="contact" tone="primary" className="flex flex-col justify-center">
-      <motion.div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-0 bg-[var(--lp-ink)]"
-        style={disabled ? { height: '42%' } : { height: fillHeight }}
-      />
-      <FrameInner className="relative z-10 grid gap-12 lg:grid-cols-2 lg:gap-16">
+      <ColorWash progress={progress} color={wash.color} edge={wash.edge} rest="42%" />
+      <FrameInner className="grid gap-12 lg:grid-cols-2 lg:gap-16">
         <div>
           {editable ? (
             <CanvasText

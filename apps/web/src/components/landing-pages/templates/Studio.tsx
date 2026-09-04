@@ -6,11 +6,9 @@ import { FeaturesSection } from './studio/Features'
 import { GallerySection } from './studio/Gallery'
 import { HeroSection } from './studio/Hero'
 import { LogoCloudSection } from './studio/Logos'
-import { MetricsSection } from './studio/Metrics'
 import { NavBar } from './studio/NavBar'
 import { ParallaxBridge } from './studio/ParallaxBridge'
 import { ServicesSection } from './studio/Services'
-import { TeamSection } from './studio/Team'
 import { TestimonialsSection } from './studio/Testimonials'
 import { TOKEN_DEFAULTS } from './studio/tokens'
 
@@ -71,10 +69,6 @@ export function Studio({
       `}</style>
       <NavBar content={c.nav} editable={editable} onChange={(patch) => slotChange('nav', patch)} />
 
-      {/*
-        Frames 1–2 ride a sticky full-bleed parallax (hero media). It fades out as the
-        track ends so frame 3 (services intro) lands as a clean solid page.
-      */}
       <ParallaxBridge
         imageUrl={c.hero?.media?.url}
         imageAlt={c.hero?.media?.alt ?? ''}
@@ -87,62 +81,60 @@ export function Studio({
           onChange={(patch) => slotChange('hero', patch)}
         />
         {!isHidden('logos') && (
-          <LogoCloudSection
-            content={c.logos}
-            editable={editable}
-            onChange={(patch) => slotChange('logos', patch)}
-          />
-        )}
-        {!isHidden('metrics') && (
-          <MetricsSection
-            content={c.metrics}
-            editable={editable}
-            onChange={(patch) => slotChange('metrics', patch)}
-          />
+          <div id="logos">
+            <LogoCloudSection
+              content={c.logos}
+              editable={editable}
+              onChange={(patch) => slotChange('logos', patch)}
+            />
+          </div>
         )}
       </ParallaxBridge>
 
       {!isHidden('services') && (
-        <ServicesSection
-          content={c.services}
-          editable={editable}
-          onChange={(patch) => slotChange('services', patch)}
-        />
+        <div id="services">
+          <ServicesSection
+            content={c.services}
+            editable={editable}
+            onChange={(patch) => slotChange('services', patch)}
+          />
+        </div>
       )}
       {!isHidden('gallery') && (
-        <GallerySection
-          content={c.gallery}
-          editable={editable}
-          onChange={(patch) => slotChange('gallery', patch)}
-        />
+        <div id="gallery">
+          <GallerySection
+            content={c.gallery}
+            editable={editable}
+            onChange={(patch) => slotChange('gallery', patch)}
+          />
+        </div>
       )}
       {!isHidden('features') && (
-        <FeaturesSection
-          content={c.features}
-          editable={editable}
-          onChange={(patch) => slotChange('features', patch)}
-        />
-      )}
-      {!isHidden('team') && (
-        <TeamSection
-          content={c.team}
-          editable={editable}
-          onChange={(patch) => slotChange('team', patch)}
-        />
+        <div id="features">
+          <FeaturesSection
+            content={c.features}
+            editable={editable}
+            onChange={(patch) => slotChange('features', patch)}
+          />
+        </div>
       )}
       {!isHidden('testimonials') && (
-        <TestimonialsSection
-          content={c.testimonials}
-          editable={editable}
-          onChange={(patch) => slotChange('testimonials', patch)}
-        />
+        <div id="testimonials">
+          <TestimonialsSection
+            content={c.testimonials}
+            editable={editable}
+            onChange={(patch) => slotChange('testimonials', patch)}
+          />
+        </div>
       )}
       {!isHidden('faq') && (
-        <FAQSection
-          content={c.faq}
-          editable={editable}
-          onChange={(patch) => slotChange('faq', patch)}
-        />
+        <div id="faq">
+          <FAQSection
+            content={c.faq}
+            editable={editable}
+            onChange={(patch) => slotChange('faq', patch)}
+          />
+        </div>
       )}
       <ContactSection
         content={c.footer}

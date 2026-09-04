@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { CanvasText } from '../../../../pages/landing-pages/components/CanvasText'
 import type { TestimonialItem } from '../../../../pages/landing-pages/components/types'
 import { Eyebrow, type SectionProps } from './shared'
-import { FrameInner, SnapPanel, useMotionPanel } from './SnapPanel'
+import { ColorWash, FrameInner, SnapPanel, useMotionPanel, washForIndex } from './SnapPanel'
 import { useStudioMotionDisabled } from './motion'
 import { inv } from './tokens'
 
@@ -28,8 +28,11 @@ export function TestimonialsSection({ content, editable, onChange }: SectionProp
 
   if (!items.length && !editable) return null
 
+  const wash = washForIndex(6)
+
   return (
     <SnapPanel ref={ref} tone="ink" className="flex flex-col justify-center">
+      <ColorWash progress={progress} color={wash.color} edge={wash.edge} />
       <FrameInner className="max-w-4xl text-left lg:mx-auto">
         {editable ? (
           <CanvasText

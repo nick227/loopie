@@ -5,7 +5,14 @@ import { EditableLinkTrigger } from '../../../../pages/landing-pages/components/
 import { MediaSlotField } from '../../../../pages/landing-pages/components/MediaSlotField'
 import type { ServiceItem } from '../../../../pages/landing-pages/components/types'
 import { AddRow, Eyebrow, SectionHeader, type SectionProps } from './shared'
-import { FrameInner, SnapPanel, useMotionPanel, type Tone } from './SnapPanel'
+import {
+  ColorWash,
+  FrameInner,
+  SnapPanel,
+  useMotionPanel,
+  washForIndex,
+  type Tone,
+} from './SnapPanel'
 import { useStudioMotionDisabled } from './motion'
 import { BODY, TITLE } from './tokens'
 
@@ -45,8 +52,11 @@ function ServicePanel({
         ? 'color-mix(in srgb, var(--lp-bg) 68%, transparent)'
         : 'color-mix(in srgb, var(--lp-ink) 65%, var(--lp-bg))'
 
+  const wash = washForIndex(index + 1)
+
   return (
     <SnapPanel ref={ref} tone={tone} className="flex flex-col justify-center">
+      <ColorWash progress={progress} color={wash.color} edge={wash.edge} />
       <FrameInner
         className={`grid items-center gap-10 lg:grid-cols-12 lg:gap-14 ${fromRight ? 'lg:[&>*:first-child]:order-2' : ''}`}
       >
@@ -149,27 +159,37 @@ function ServicePanel({
   )
 }
 
+function ServicesIntro({ content, editable, onChange }: SectionProps<'services'>) {
+  const { ref, progress } = useMotionPanel()
+  const wash = washForIndex(0)
+
+  return (
+    <SnapPanel ref={ref} tone="bg" className="flex flex-col justify-center">
+      <ColorWash progress={progress} color={wash.color} edge={wash.edge} />
+      <FrameInner className="flex min-h-[calc(100svh-5rem)] flex-col justify-center">
+        <SectionHeader
+          editable={editable}
+          eyebrow="Capabilities"
+          eyebrowLabel="Services eyebrow"
+          title={content?.title ?? ''}
+          titleLabel="Services title"
+          onTitle={(title) => onChange({ title })}
+          body={content?.body ?? ''}
+          bodyLabel="Services body"
+          onBody={(body) => onChange({ body })}
+        />
+      </FrameInner>
+    </SnapPanel>
+  )
+}
+
 export function ServicesSection({ content, editable, onChange }: SectionProps<'services'>) {
   const items = content?.items ?? []
 
   return (
     <>
       {(content?.title || content?.body || editable) && (
-        <SnapPanel tone="bg" className="flex flex-col justify-center">
-          <FrameInner className="flex min-h-[calc(100svh-5rem)] flex-col justify-center">
-            <SectionHeader
-              editable={editable}
-              eyebrow="Capabilities"
-              eyebrowLabel="Services eyebrow"
-              title={content?.title ?? ''}
-              titleLabel="Services title"
-              onTitle={(title) => onChange({ title })}
-              body={content?.body ?? ''}
-              bodyLabel="Services body"
-              onBody={(body) => onChange({ body })}
-            />
-          </FrameInner>
-        </SnapPanel>
+        <ServicesIntro content={content} editable={editable} onChange={onChange} />
       )}
       {items.map((service, i) => (
         <ServicePanel

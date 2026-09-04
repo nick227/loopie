@@ -7,7 +7,7 @@ import { GalleryAddButton } from '../../../../pages/landing-pages/components/edi
 import type { GalleryItem } from '../../../../pages/landing-pages/components/types'
 import { mediaSrc } from '@/lib/media'
 import { SectionHeader, type SectionProps } from './shared'
-import { FrameInner, SnapPanel, useMotionPanel } from './SnapPanel'
+import { ColorWash, FrameInner, SnapPanel, useMotionPanel, washForIndex } from './SnapPanel'
 import { useStudioMotionDisabled } from './motion'
 import { ink } from './tokens'
 
@@ -170,8 +170,11 @@ export function GallerySection({ content, editable, onChange }: SectionProps<'ga
 
   if (!items.length && !editable) return null
 
+  const wash = washForIndex(4)
+
   return (
     <SnapPanel ref={ref} tone="bg" className="flex flex-col justify-center">
+      <ColorWash progress={progress} color={wash.color} edge={wash.edge} />
       <FrameInner className="pb-8">
         <SectionHeader
           editable={editable}
@@ -187,7 +190,7 @@ export function GallerySection({ content, editable, onChange }: SectionProps<'ga
         />
       </FrameInner>
 
-      <div className="overflow-hidden pb-16">
+      <div className="relative z-10 overflow-hidden pb-16">
         <motion.div
           className="flex gap-4 px-6 sm:gap-5 sm:px-8 lg:px-12"
           style={disabled || editable ? undefined : { x }}

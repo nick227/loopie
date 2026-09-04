@@ -2,7 +2,7 @@ import { motion, useTransform, type MotionValue } from 'framer-motion'
 import { CanvasText } from '../../../../pages/landing-pages/components/CanvasText'
 import type { FeatureItem } from '../../../../pages/landing-pages/components/types'
 import { AddRow, SectionHeader, type SectionProps } from './shared'
-import { FrameInner, SnapPanel, useMotionPanel } from './SnapPanel'
+import { ColorWash, FrameInner, SnapPanel, useMotionPanel, washForIndex } from './SnapPanel'
 import { useStudioMotionDisabled } from './motion'
 import { BODY } from './tokens'
 
@@ -93,8 +93,11 @@ export function FeaturesSection({ content, editable, onChange }: SectionProps<'f
   const items = content?.items ?? []
   const { ref, progress } = useMotionPanel()
 
+  const wash = washForIndex(5)
+
   return (
     <SnapPanel ref={ref} tone="primary" className="flex flex-col justify-center">
+      <ColorWash progress={progress} color={wash.color} edge={wash.edge} />
       <FrameInner>
         <SectionHeader
           editable={editable}

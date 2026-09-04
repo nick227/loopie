@@ -4,22 +4,12 @@ import { PAGE_THEME_PRESETS } from '../pageThemes'
 
 export const SYSTEM_STUDIO_TEMPLATE_ID = 'system-template-studio'
 
-// Third "rich" renderer family. Reuses almost every existing canonical slot group — the
-// distinctiveness is mostly in its visual language (apps/web/.../templates/Studio.tsx): oversized
-// editorial typography, no card chrome, hairline rules instead of shadows/borders, asymmetric
-// grids. Two new section *types*: 'studio-contact' (a plain footer-slot renderer that also
-// carries the real signup form, same pattern as webinar-widget) and 'photo-gallery' (a pure
-// visual image wall, backing the new canonical `gallery` slot group in content.ts).
-//
-// Reordered and extended (see CLAUDE.md's Portfolio/Studio/Store pass): section order now follows
-// Hero -> What we do (services) -> Selected work (gallery, a light-touch proof wall rather than a
-// full case-study treatment) -> How we work (features/process) -> About/Team (new 'team' type) ->
-// Testimonials -> FAQ -> Contact, matching the brief's "explain services clearly, feature selected
-// work as proof without making the whole page a portfolio, and make the team feel human and
-// credible."
+// Kinetic studio: Hero + logos (image parallax bridge) → services → gallery →
+// features → testimonials → FAQ → contact. Color-wash snaps on nearly every
+// full-viewport frame; metrics and team were cut to keep the scroll short.
 export const studioTitle = 'Creative studio'
 export const studioDescription =
-  'Full-viewport kinetic studio site: massive scroll-locked type, solid color snaps, selected work, team, and a project inquiry form.'
+  'Full-viewport kinetic studio: color-snap frames, selected work, and a project inquiry form.'
 
 export const studioSchema: TemplateSchema = {
   renderer: 'studio',
@@ -33,47 +23,39 @@ export const studioSchema: TemplateSchema = {
       editable: ['headline', 'body', 'media', 'primaryCta'],
     },
     { key: 'logos', type: 'logo-cloud', order: 1, hideable: true, editable: ['title', 'items'] },
-    { key: 'metrics', type: 'metrics', order: 2, hideable: true, editable: ['items'] },
     {
       key: 'services',
       type: 'service-selector',
-      order: 3,
+      order: 2,
       hideable: true,
       editable: ['title', 'body', 'items'],
     },
     {
       key: 'gallery',
       type: 'photo-gallery',
-      order: 4,
+      order: 3,
       hideable: true,
-      editable: ['title', 'items'],
+      editable: ['title', 'body', 'items'],
     },
     {
       key: 'features',
       type: 'feature-grid',
-      order: 5,
-      hideable: true,
-      editable: ['headline', 'body', 'items'],
-    },
-    {
-      key: 'team',
-      type: 'team',
-      order: 6,
+      order: 4,
       hideable: true,
       editable: ['headline', 'body', 'items'],
     },
     {
       key: 'testimonials',
       type: 'testimonials',
-      order: 7,
+      order: 5,
       hideable: true,
       editable: ['headline', 'body', 'items'],
     },
-    { key: 'faq', type: 'faq', order: 8, hideable: true, editable: ['headline', 'body', 'items'] },
+    { key: 'faq', type: 'faq', order: 6, hideable: true, editable: ['headline', 'body', 'items'] },
     {
       key: 'footer',
       type: 'studio-contact',
-      order: 9,
+      order: 7,
       hideable: false,
       editable: ['headline', 'body', 'cta'],
     },
@@ -108,13 +90,6 @@ export const studioStarterContent: PageContent = {
       { name: 'Ledger & Co.' },
       { name: 'Meridian' },
       { name: 'Alder' },
-    ],
-  },
-  metrics: {
-    items: [
-      { value: '11', label: 'Years in practice' },
-      { value: '64', label: 'Projects shipped' },
-      { value: '92%', label: 'Clients who return' },
     ],
   },
   features: {
@@ -210,39 +185,6 @@ export const studioStarterContent: PageContent = {
         url: 'https://images.unsplash.com/photo-1497215842964-222b430dc094?auto=format&fit=crop&q=80&w=1200',
         alt: 'Team working around a table',
         caption: 'Studio, most Tuesdays',
-      },
-    ],
-  },
-  team: {
-    headline: 'Who you’ll actually work with',
-    body: 'A small studio on purpose — the people who pitch it are the people who make it.',
-    items: [
-      {
-        name: 'Jules Okonkwo',
-        role: 'Founder, Creative Director',
-        bio: 'Eleven years leading brand work for founder-led companies, previously at a 40-person agency she left to keep the client list small.',
-        media: {
-          url: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=800',
-          alt: 'Portrait of Jules Okonkwo',
-        },
-      },
-      {
-        name: 'Marcus Lindqvist',
-        role: 'Head of Strategy',
-        bio: 'Asks the harder questions first, so the design phase doesn’t have to answer them for the third time.',
-        media: {
-          url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=800',
-          alt: 'Portrait of Marcus Lindqvist',
-        },
-      },
-      {
-        name: 'Ada Reyes',
-        role: 'Senior Designer',
-        bio: 'Builds the systems that make a brand survivable past launch day — the part most studios skip.',
-        media: {
-          url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=800',
-          alt: 'Portrait of Ada Reyes',
-        },
       },
     ],
   },

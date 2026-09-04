@@ -73,7 +73,7 @@ const MORE_OPTIONS: StartOption[] = [
   {
     templateId: 'system-template-studio',
     label: 'Creative studio',
-    description: 'Editorial studio site with selected work and a team.',
+    description: 'Kinetic color-snap studio site with selected work.',
     icon: Palette,
   },
 ]
