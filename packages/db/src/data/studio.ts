@@ -1,5 +1,6 @@
 import type { TemplateSchema } from '../leadGenTemplate'
 import { DEFAULT_PAGE_FAVICON_URL, type PageContent } from '../content'
+import { PAGE_THEME_PRESETS } from '../pageThemes'
 
 export const SYSTEM_STUDIO_TEMPLATE_ID = 'system-template-studio'
 
@@ -18,7 +19,7 @@ export const SYSTEM_STUDIO_TEMPLATE_ID = 'system-template-studio'
 // credible."
 export const studioTitle = 'Creative studio'
 export const studioDescription =
-  'Editorial studio site: big type, selected work, team, and a project inquiry form.'
+  'Full-viewport kinetic studio site: massive scroll-locked type, solid color snaps, selected work, team, and a project inquiry form.'
 
 export const studioSchema: TemplateSchema = {
   renderer: 'studio',
@@ -78,6 +79,7 @@ export const studioSchema: TemplateSchema = {
     },
   ],
   themeTokens: [],
+  themePresets: PAGE_THEME_PRESETS,
 }
 
 export const studioStarterContent: PageContent = {
@@ -90,7 +92,7 @@ export const studioStarterContent: PageContent = {
     links: [{ label: 'Start a project', url: '#contact' }],
   },
   hero: {
-    headline: 'We build work people actually remember.',
+    headline: 'Make work people remember.',
     body: 'Fieldnote is an independent studio for founders who want fewer, better decisions — strategy, identity, and digital design under one roof.',
     media: {
       url: 'https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&q=80&w=2400',

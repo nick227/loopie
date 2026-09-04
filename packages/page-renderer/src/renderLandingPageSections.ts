@@ -37,6 +37,19 @@ export function escapeHtml(value: unknown): string {
     .replace(/"/g, '&quot;')
 }
 
+function kineticWord(text: unknown, fallback: string): string {
+  const words = String(text ?? '')
+    .replace(/[^\w\s'-]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+  const pick = [...words].sort((a, b) => b.length - a.length)[0] ?? fallback
+  return pick.toUpperCase().slice(0, 16)
+}
+
+function kineticBg(word: string, mode = 'scale-x'): string {
+  return `<div class="lp-kinetic-bg" aria-hidden="true" data-lp-kinetic="${escapeHtml(mode)}"><span class="lp-kinetic-word">${escapeHtml(word)}</span></div>`
+}
+
 export type AdSlotEmbedItem = { embedUrl: string; format?: string | null }
 
 function renderAdSlot(item: AdSlotEmbedItem, context: string, sessionToken?: string): string {
@@ -171,10 +184,20 @@ export function renderSection(
         unknown
       >
       const src = safeHttpUrl(media.src) || safeHttpUrl(media.url)
+      const copyClass =
+        renderer === 'studio'
+          ? 'lp-hero-copy lp-kinetic-text'
+          : renderer === 'portfolio'
+            ? 'lp-hero-copy lp-fade-in-scroll'
+            : 'lp-hero-copy'
+      const mediaClass = renderer === 'portfolio' ? 'lp-hero-media lp-parallax-bg' : 'lp-hero-media'
       const mediaHtml = src
-        ? `<div class="lp-hero-media"><img src="${escapeHtml(src)}" alt="${escapeHtml(media.alt ?? '')}" /></div>`
+        ? `<div class="${mediaClass}"><img src="${escapeHtml(src)}" alt="${escapeHtml(media.alt ?? '')}" /></div>`
         : ''
-      return `<section class="lp-section lp-hero"><div class="lp-hero-copy">${badges || eyebrow || '<p class="lp-kicker">Now booking</p>'}${headline}${body}${cta}</div>${mediaHtml}</section>`
+      if (renderer === 'studio') {
+        return `<section class="lp-section lp-hero lp-snap" data-lp-snap>${kineticBg(kineticWord(c.headline, 'STUDIO'), 'crush')}<div class="${copyClass}">${badges || eyebrow}${headline}${body}${cta}</div>${mediaHtml}</section>`
+      }
+      return `<section class="lp-section lp-hero"><div class="${copyClass}">${badges || eyebrow || '<p class="lp-kicker">Now booking</p>'}${headline}${body}${cta}</div>${mediaHtml}</section>`
     }
     case 'feature-grid': {
       const items = Array.isArray(c.items) ? (c.items as { title: string; body: string }[]) : []
@@ -186,6 +209,9 @@ export function renderSection(
         .join('')
       const headline = c.headline ? `<h2>${escapeHtml(c.headline)}</h2>` : ''
       const body = c.body ? `<p class="lp-section-intro">${escapeHtml(c.body)}</p>` : ''
+      if (renderer === 'studio') {
+        return `<section class="lp-section lp-features lp-snap lp-snap--primary" data-lp-snap${idAttr}>${kineticBg(kineticWord(c.headline, 'PROCESS'), 'crush')}<div class="lp-section-heading">${headline}${body}</div><div class="lp-feature-grid">${itemsHtml}</div></section>`
+      }
       return `<section class="lp-section lp-features"${idAttr}><div class="lp-section-heading">${headline}${body}</div><div class="lp-feature-grid">${itemsHtml}</div></section>`
     }
     case 'form-embed':
@@ -213,6 +239,9 @@ export function renderSection(
       const headline = c.headline ? `<h2>${escapeHtml(c.headline)}</h2>` : ''
       const body = c.body ? `<p>${escapeHtml(c.body)}</p>` : ''
       const cta = renderCta(c.cta)
+      if (renderer === 'studio') {
+        return `<section class="lp-section lp-studio-contact lp-snap lp-snap--primary" data-lp-snap${idAttr}>${kineticBg(kineticWord(c.headline, 'HELLO'), 'crush')}<div>${headline}${body}${cta}</div><div class="lp-form-card">${formHtml}</div></section>`
+      }
       return `<section class="lp-section lp-studio-contact"${idAttr}><div>${headline}${body}${cta}</div><div class="lp-form-card">${formHtml}</div></section>`
     }
     case 'media-image': {
@@ -290,9 +319,23 @@ export function renderSection(
             renderer === 'studio' || renderer === 'portfolio'
               ? `<p class="lp-kicker">${escapeHtml(item.label)}</p>`
               : `<h3>${escapeHtml(item.label)}</h3>`
-          return `<article class="lp-service">${media}<div class="lp-service-copy">${indexHtml}${kicker}${item.headline ? `<h3>${escapeHtml(item.headline)}</h3>` : ''}<p>${escapeHtml(item.description ?? '')}</p>${renderCta(item.cta)}</div></article>`
+          if (renderer === 'studio') {
+            const tones = ['primary', 'bg', 'ink'] as const
+            const tone = tones[index % tones.length]
+            const mode = index % 2 ? 'spin' : 'scale-x'
+            return `<article class="lp-service lp-snap lp-snap--${tone}" data-lp-snap>${kineticBg(kineticWord(item.label || item.headline, String(index + 1).padStart(2, '0')), mode)}${media}<div class="lp-service-copy">${indexHtml}${kicker}${item.headline ? `<h3>${escapeHtml(item.headline)}</h3>` : ''}<p>${escapeHtml(item.description ?? '')}</p>${renderCta(item.cta)}</div></article>`
+          }
+          const articleClass = renderer === 'portfolio' ? 'lp-service lp-fade-in-row' : 'lp-service'
+          return `<article class="${articleClass}">${media}<div class="lp-service-copy">${indexHtml}${kicker}${item.headline ? `<h3>${escapeHtml(item.headline)}</h3>` : ''}<p>${escapeHtml(item.description ?? '')}</p>${renderCta(item.cta)}</div></article>`
         })
         .join('')
+      if (renderer === 'studio') {
+        const intro =
+          title || body
+            ? `<section class="lp-section lp-services-intro lp-snap" data-lp-snap><div class="lp-section-heading">${title}${body}</div></section>`
+            : ''
+        return `${intro}${rows}`
+      }
       return `<section class="lp-section lp-services"${idAttr}><div class="lp-section-heading">${title}${body}</div><div class="lp-service-grid">${rows}</div></section>`
     }
     case 'metrics': {
@@ -306,6 +349,9 @@ export function renderSection(
             `<div class="lp-metric"><span class="lp-metric-value">${escapeHtml(item.value)}</span><span class="lp-metric-label">${escapeHtml(item.label)}</span>${item.description ? `<p>${escapeHtml(item.description)}</p>` : ''}</div>`,
         )
         .join('')
+      if (renderer === 'studio') {
+        return `<section class="lp-section lp-metrics lp-snap lp-snap--ink" data-lp-snap>${kineticBg('PROOF', 'slide')}${rows}</section>`
+      }
       return `<section class="lp-section lp-metrics">${rows}</section>`
     }
     case 'comparison': {
@@ -348,6 +394,9 @@ export function renderSection(
                   '',
                 )}</div><button type="button" data-lp-carousel-next aria-label="Next testimonial">›</button></div>`
             : ''
+        if (renderer === 'studio') {
+          return `<section class="lp-section lp-testimonials lp-snap lp-snap--ink" data-lp-snap data-lp-carousel${idAttr}>${kineticBg('SAID', 'spin')}<div class="lp-section-heading">${headline}${body}</div><div class="lp-carousel-viewport">${slides}</div>${controls}</section>`
+        }
         return `<section class="lp-section lp-testimonials"${idAttr} data-lp-carousel><div class="lp-section-heading">${headline}${body}</div><div class="lp-carousel-viewport">${slides}</div>${controls}</section>`
       }
       const rows = items
@@ -407,13 +456,20 @@ export function renderSection(
       if (!items.length) return ''
       const title = c.title ? `<h2>${escapeHtml(c.title)}</h2>` : ''
       const tiles = items
-        .map((item) => {
+        .map((item, index) => {
           const src = safeHttpUrl(item.src) || safeHttpUrl(item.url)
           if (!src) return ''
           const caption = item.caption ? `<figcaption>${escapeHtml(item.caption)}</figcaption>` : ''
-          return `<figure class="lp-gallery-tile" data-lp-lightbox-src="${escapeHtml(src)}" data-lp-lightbox-caption="${escapeHtml(item.caption ?? '')}"><img src="${escapeHtml(src)}" alt="${escapeHtml(item.alt ?? '')}" loading="lazy" />${caption}</figure>`
+          const tileClass =
+            renderer === 'studio' && index % 2 !== 0
+              ? 'lp-gallery-tile lp-parallax-tile'
+              : 'lp-gallery-tile'
+          return `<figure class="${tileClass}" data-lp-lightbox-src="${escapeHtml(src)}" data-lp-lightbox-caption="${escapeHtml(item.caption ?? '')}"><img src="${escapeHtml(src)}" alt="${escapeHtml(item.alt ?? '')}" loading="lazy" />${caption}</figure>`
         })
         .join('')
+      if (renderer === 'studio') {
+        return `<section class="lp-section lp-gallery lp-snap" data-lp-snap>${kineticBg(kineticWord(c.title, 'WORK'), 'slide')}${title}<div class="lp-gallery-grid">${tiles}</div></section>`
+      }
       return `<section class="lp-section lp-gallery">${title}<div class="lp-gallery-grid">${tiles}</div></section>`
     }
     case 'team': {
@@ -437,6 +493,9 @@ export function renderSection(
           return `<div class="lp-team-member">${photo}<h3>${escapeHtml(item.name)}</h3>${item.role ? `<p class="lp-team-role">${escapeHtml(item.role)}</p>` : ''}${item.bio ? `<p class="lp-team-bio">${escapeHtml(item.bio)}</p>` : ''}</div>`
         })
         .join('')
+      if (renderer === 'studio') {
+        return `<section class="lp-section lp-team lp-snap" data-lp-snap>${kineticBg(kineticWord(c.headline, 'CREW'), 'scale-x')}<div class="lp-section-heading">${headline}${body}</div><div class="lp-team-grid">${rows}</div></section>`
+      }
       return `<section class="lp-section lp-team"><div class="lp-section-heading">${headline}${body}</div><div class="lp-team-grid">${rows}</div></section>`
     }
     case 'product-grid': {
