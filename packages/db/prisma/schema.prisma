@@ -90,6 +90,15 @@ model Business {
   stripeCustomerId     String?   @unique
   stripeSubscriptionId String?
   subscriptionStatus   String?
+  // Assistant business-consultant pass (2026-09-04) — durable facts learned via the Assistant's
+  // Learn phase that have no existing canonical column: venture taxonomy classification (family/
+  // group/type + traits), primary goal/offer, and constraint bands (budget/time/customer-count).
+  // Freeform Json, same "no controlled vocabulary yet" reasoning as industry/targetAudience above
+  // — the taxonomy itself is content (business-guidance/taxonomy), not a schema-enforced enum, so
+  // adding a new venture leaf never needs a migration. targetCustomer/serviceArea deliberately
+  // reuse targetAudience/location instead of duplicating them here — see
+  // business-guidance/knowledge/businessKnowledge.ts.
+  knowledge            Json?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
@@ -147,9 +156,10 @@ model Business {
   pinnedRiverPost        RiverPost?              @relation("BusinessPinnedRiverPost", fields: [pinnedRiverPostId], references: [id])
   riverComments          RiverComment[]          @relation("RiverCommentActor")
 
-  goalIdeaTemplates GoalIdeaTemplate[]
-  goalIdeaStates    GoalIdeaState[]
-  scheduledGoals    ScheduledGoal[]
+  goalIdeaTemplates   GoalIdeaTemplate[]
+  goalIdeaStates      GoalIdeaState[]
+  scheduledGoals      ScheduledGoal[]
+  assistantGoalCycles AssistantGoalCycle[]
 
   // Teams / multi-company (2026-09-03) — Business remains the tenant; membership grants access.
   memberships BusinessMembership[]
@@ -3124,12 +3134,42 @@ enum ScheduledGoalStatus {
 // How this ScheduledGoal came to exist — analytics/debugging only, no branching logic reads it
 // beyond CRM_NEXT_ACTION (whose rows are identified by externalKey, not this field). WORKFLOW is
 // reserved for the not-yet-built sales-workflow engine described in the product spec, so a future
-// workflow step creating Calendar work is additive, not a schema change.
+// workflow step creating Calendar work is additive, not a schema change. ASSISTANT_PLAYBOOK
+// (2026-09-04) is a distinct source from WORKFLOW on purpose — a Playbook is a deterministic,
+// goal-cycle-scoped batch of steps scheduled once from the Assistant, not the reserved recurring
+// lead-event engine WORKFLOW is parked for.
 enum ScheduledGoalSource {
   IDEA_TEMPLATE
   USER_CREATED
   CRM_NEXT_ACTION
   WORKFLOW
+  ASSISTANT_PLAYBOOK
+}
+
+// The Assistant's goal-cycle phase (2026-09-04 "Assistant becomes the consultant" pass) —
+// Learn -> Act -> Review -> Grow -> Act ... See business-guidance/phaseEngine.ts for the
+// deterministic transition rules; this enum is just the state.
+enum AssistantPhase {
+  LEARN
+  ACT
+  REVIEW
+  GROW
+}
+
+// Deterministic Review classification — see business-guidance/signals/reviewSignals.ts and
+// AssistantSignalService. Never inferred by AI; always derived from real Loopie data or an
+// explicit user answer to a question Loopie can't derive.
+enum AssistantReviewOutcome {
+  WORKING
+  PARTIALLY_WORKING
+  NOT_WORKING
+  NOT_ENOUGH_DATA
+  NOT_EXECUTED
+}
+
+enum AssistantGoalCycleStatus {
+  ACTIVE
+  COMPLETED
 }
 
 enum GoalEventType {
@@ -3235,66 +3275,72 @@ model GoalIdeaState {
 }
 
 model ScheduledGoal {
-  id               String              @id @default(cuid())
-  businessId       String
-  title            String
+  id                   String              @id @default(cuid())
+  businessId           String
+  title                String
   // Copied from the source template's `detail` at creation time (or set directly for
   // USER_CREATED/CRM_NEXT_ACTION goals that have none) — read-only in the detail view; editing an
   // in-flight goal's own notes is out of POC scope.
-  detail           String?             @db.Text
+  detail               String?             @db.Text
   // Frozen at schedule/creation time from whichever destination was resolved then (a template's
   // static actionTarget, a live-resolved one such as a specific draft ad, or set directly for
   // CRM_NEXT_ACTION mirrors — see lib/coachRules.ts's resolveAction and LeadService). Not
   // recomputed on read the way currentValue is; if the underlying record is later deleted the
   // link simply 404s, same as any other stale deep link elsewhere in the app.
-  actionType       String?
-  actionTarget     String?
-  actionLabel      String?
-  source           ScheduledGoalSource
-  sourceTemplateId String?
+  actionType           String?
+  actionTarget         String?
+  actionLabel          String?
+  source               ScheduledGoalSource
+  sourceTemplateId     String?
+  // Set only for source=ASSISTANT_PLAYBOOK — links this step back to the Assistant goal cycle that
+  // scheduled it, so Review can query "how many of this cycle's steps are DONE" directly instead
+  // of parsing externalKey strings. Null for every other source.
+  assistantGoalCycleId String?
   // Idempotency key for system-mirrored goals only, e.g. "crm-next-action:<leadId>" — lets
   // LeadService upsert the Calendar-visible mirror of Lead.nextActionAt without a lookup race, the
   // same nullable-unique-with-MySQL-null-distinctness trick already used on Sale.idempotencyKey
   // and InboxThread's compound uniques. Rows created any other way leave this null.
-  externalKey      String?
-  subjectType      GoalSubjectType     @default(GENERAL)
-  subjectId        String?
-  trackingType     GoalTrackingType    @default(MANUAL)
-  metricKey        String?
-  targetValue      Int?
+  externalKey          String?
+  subjectType          GoalSubjectType     @default(GENERAL)
+  subjectId            String?
+  trackingType         GoalTrackingType    @default(MANUAL)
+  metricKey            String?
+  targetValue          Int?
   // Only meaningful (and hand-updated) for trackingType=MANUAL; ENTITY_STATE/COUNT progress is
   // always computed live from real data at read time (see CalendarService), never trusted from a
   // stored column that could drift.
-  currentValue     Int?
-  estimateMinutes  Int?
+  currentValue         Int?
+  estimateMinutes      Int?
   // Deliberately no stored `horizon` enum: "Today"/"This week"/"Next week" are resolved to a
   // concrete scheduledFor at schedule time and re-bucketed against `now` on every read, so an item
   // scheduled for "next week" correctly slides into "this week" as the calendar actually turns
   // over — a static label would need its own rollover job to do the same thing correctly.
-  scheduledFor     DateTime?
+  scheduledFor         DateTime?
   // Whether scheduledFor carries a meaningful time-of-day (true) or is just a bucket day at local
   // midnight (false, the quick-schedule default). Deliberately not a formatted "HH:mm" string:
   // the frontend renders the time itself from scheduledFor using the viewer's own timezone
   // (Date.toLocaleTimeString), which a server-baked string could never localize correctly for
   // every viewer. Only hasTime=true goals get a time-precise reminder from the poller — see
   // CalendarReminderService.
-  hasTime          Boolean             @default(false)
-  completedAt      DateTime?
-  dismissedAt      DateTime?
-  status           ScheduledGoalStatus @default(SCHEDULED)
+  hasTime              Boolean             @default(false)
+  completedAt          DateTime?
+  dismissedAt          DateTime?
+  status               ScheduledGoalStatus @default(SCHEDULED)
   // Set once the due-time reminder has fired so the poller never sends it twice.
-  reminderSentAt   DateTime?
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
+  reminderSentAt       DateTime?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
 
-  business Business          @relation(fields: [businessId], references: [id])
-  template GoalIdeaTemplate? @relation(fields: [sourceTemplateId], references: [id])
-  events   GoalEvent[]
+  business           Business            @relation(fields: [businessId], references: [id])
+  template           GoalIdeaTemplate?   @relation(fields: [sourceTemplateId], references: [id])
+  assistantGoalCycle AssistantGoalCycle? @relation(fields: [assistantGoalCycleId], references: [id])
+  events             GoalEvent[]
 
   @@unique([businessId, externalKey])
   @@index([businessId, status, scheduledFor])
   @@index([subjectType, subjectId])
   @@index([sourceTemplateId])
+  @@index([assistantGoalCycleId])
 }
 
 // Append-only audit trail for a ScheduledGoal — mirrors AutomationLog's role for Automation.
@@ -3308,4 +3354,44 @@ model GoalEvent {
   goal ScheduledGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
 
   @@index([goalId, occurredAt])
+}
+
+// Assistant business-consultant pass (2026-09-04) — one Learn->Act->Review->Grow goal cycle. At
+// most one ACTIVE cycle per business in practice (queried via findFirst({businessId,
+// status:'ACTIVE'}), not enforced by a DB constraint since MySQL has no native partial-unique
+// index); COMPLETED cycles are kept so Grow's "this approach produced a sale, do more of it" can
+// look back at what actually worked. Deliberately separate from Business.knowledge: knowledge is
+// durable facts about the business that outlive any single cycle, this is the ephemeral state of
+// one goal-directed pass through Learn/Act/Review/Grow.
+model AssistantGoalCycle {
+  id                    String                   @id @default(cuid())
+  businessId            String
+  // GoalKey from business-guidance/goals/goals.ts, e.g. "GET_MORE_CUSTOMERS" — a plain string
+  // catalog key, same discipline as GoalIdeaTemplate.metricKey, not an enum (goal content can grow
+  // without a migration).
+  goal                  String
+  // Key of the selected business-guidance/playbooks/*.ts entry, set once Learn resolves one.
+  playbookKey           String?
+  phase                 AssistantPhase           @default(LEARN)
+  reviewOutcome         AssistantReviewOutcome?
+  status                AssistantGoalCycleStatus @default(ACTIVE)
+  // Reactive-signal dedup (POC scope) — the last signal key shown and when it was dismissed, so
+  // the same "3 interested leads need follow-up" nudge doesn't reappear immediately after the user
+  // acts on it.
+  lastSignalKey         String?
+  lastSignalDismissedAt DateTime?
+  startedAt             DateTime                 @default(now())
+  // Set when schedulePlan first runs (phase -> ACT) — Review's elapsed-time/signal windows measure
+  // from here, not from startedAt, so time spent answering Learn questions never counts against
+  // the playbook's own review window.
+  actStartedAt          DateTime?
+  reviewedAt            DateTime?
+  completedAt           DateTime?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  business Business        @relation(fields: [businessId], references: [id])
+  goals    ScheduledGoal[]
+
+  @@index([businessId, status])
 }

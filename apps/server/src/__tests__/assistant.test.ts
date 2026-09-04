@@ -160,6 +160,12 @@ describe('getNextAction', () => {
       pageName: null,
       pageUrl: null,
       campaignId,
+      cycleId: null,
+      step: null,
+      knownFacts: null,
+      plan: null,
+      growSummary: null,
+      signalSummary: null,
       homepageUrl: expect.stringContaining('/p/'),
     })
 
@@ -193,19 +199,34 @@ describe('getNextAction', () => {
       data: { campaignId: homepageCampaignId, creativeId: homepageCreative.id },
     })
 
-    // Both pages promoted, both campaigns complete -> falls through to CALENDAR, the
-    // unconditional fallback.
+    // Both pages promoted, both campaigns complete -> the Business/Page/Advertising chain has
+    // nothing left, so the Assistant now offers to start a goal cycle (the "Assistant becomes the
+    // consultant" pass, 2026-09-04) instead of falling straight to CALENDAR — no active cycle
+    // exists yet for this business, so it's the very first Learn question (venture family).
     action = await getNextAction()
     expect(action).toEqual({
-      type: 'CALENDAR',
-      actionId: 'calendar',
+      type: 'GOAL_CYCLE',
+      actionId: 'learn_step',
       operationId: null,
       fields: null,
       landingPageId: null,
       pageName: null,
       pageUrl: null,
       campaignId: null,
+      cycleId: null,
+      step: {
+        key: 'venture_family',
+        heading: 'Tell Loopie about your business.',
+        choices: expect.any(Array),
+        writesKnowledge: 'ventureFamily',
+      },
+      knownFacts: [],
+      plan: null,
+      growSummary: null,
+      signalSummary: null,
       homepageUrl: expect.stringContaining('/p/'),
     })
+    expect(action.step.choices.length).toBeGreaterThan(0)
+    expect(action.step.choices.length).toBeLessThanOrEqual(7)
   })
 })

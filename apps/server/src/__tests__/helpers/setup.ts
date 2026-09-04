@@ -105,6 +105,7 @@ afterEach(async () => {
   await db.landingPageTemplate.deleteMany()
   await db.goalEvent.deleteMany()
   await db.scheduledGoal.deleteMany()
+  await db.assistantGoalCycle.deleteMany()
   await db.goalIdeaState.deleteMany()
   await db.goalIdeaTemplate.deleteMany()
   await db.performanceSnapshot.deleteMany()

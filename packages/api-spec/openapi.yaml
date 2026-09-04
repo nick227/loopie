@@ -533,7 +533,7 @@ components:
       properties:
         type:
           type: string
-          enum: [BUSINESS_PROFILE, PAGE, ADVERTISING, CALENDAR]
+          enum: [BUSINESS_PROFILE, PAGE, ADVERTISING, CALENDAR, GOAL_CYCLE, SIGNAL]
         actionId:
           type: string
           enum:
@@ -545,11 +545,17 @@ components:
             - campaign_create
             - campaign_resume
             - calendar
+            - learn_step
+            - build_plan
+            - grow
+            - page_traffic_no_leads
+            - interested_leads_followup
+            - sale_recorded
         operationId:
           type: string
           nullable: true
           enum: [updateBusiness, createLandingPage, publishLandingPage, createCampaign]
-          description: The existing operationId the client should invoke to complete this action; null for pure-navigation actions (campaign_resume, calendar).
+          description: The existing operationId the client should invoke to complete this action; null for pure-navigation actions (campaign_resume, calendar) and for every GOAL_CYCLE/SIGNAL action (those go through the assistant-goal-cycle operations below instead).
         fields:
           type: array
           nullable: true
@@ -571,6 +577,37 @@ components:
           type: string
           nullable: true
           description: campaign_resume — the draft campaign to resume.
+        cycleId:
+          type: string
+          nullable: true
+          description: >
+            GOAL_CYCLE/SIGNAL actions — the AssistantGoalCycle this action belongs to. Null only
+            for the very first learn_step (venture family) before any goal has been chosen.
+        step:
+          allOf: [{ $ref: '#/components/schemas/AssistantChoiceStepDTO' }]
+          nullable: true
+          description: learn_step only.
+        knownFacts:
+          type: array
+          nullable: true
+          items: { type: string }
+          description: >
+            learn_step only — ordered label trail of everything already established this cycle
+            (e.g. ["Local service", "Home services", "Roofing"]). Cumulative progress, not a
+            question-count/percentage — the total isn't knowable since known facts get skipped.
+        plan:
+          type: array
+          nullable: true
+          items: { $ref: '#/components/schemas/PlannedTaskDTO' }
+          description: build_plan only.
+        growSummary:
+          allOf: [{ $ref: '#/components/schemas/GrowSummaryDTO' }]
+          nullable: true
+          description: grow only.
+        signalSummary:
+          allOf: [{ $ref: '#/components/schemas/SignalSummaryDTO' }]
+          nullable: true
+          description: page_traffic_no_leads / interested_leads_followup / sale_recorded only.
         homepageUrl:
           type: string
           nullable: true
@@ -578,6 +615,61 @@ components:
             The live hosted URL of the business's homepage, once published. Display-only (e.g. a
             "View homepage" link) — always present once published, independent of which action is
             currently on top. Null until published.
+
+    AssistantChoiceDTO:
+      type: object
+      required: [value, label]
+      properties:
+        value: { type: string }
+        label: { type: string }
+
+    AssistantChoiceStepDTO:
+      type: object
+      required: [key, heading, choices, writesKnowledge]
+      description: >
+        One Learn-phase question — heading + 3-7 concrete choices, content computed server-side
+        (varies by taxonomy node / selected playbook). See
+        docs/loopie-assistant-playbook-poc/03-poc-implementation-plan.md section 13.
+      properties:
+        key: { type: string }
+        heading: { type: string }
+        description: { type: string, nullable: true }
+        choices:
+          type: array
+          items: { $ref: '#/components/schemas/AssistantChoiceDTO' }
+        writesKnowledge: { type: string }
+
+    PlannedTaskDTO:
+      type: object
+      required: [templateId, title, horizon]
+      properties:
+        templateId: { type: string }
+        title: { type: string }
+        horizon: { type: string, enum: [TODAY, THIS_WEEK, NEXT_WEEK] }
+
+    GrowSummaryDTO:
+      type: object
+      required: [headline, directions]
+      properties:
+        headline: { type: string }
+        detail: { type: string, nullable: true }
+        directions:
+          type: array
+          items:
+            type: object
+            required: [value, label]
+            properties:
+              value: { type: string, enum: [DO_MORE, IMPROVE, NEW_CHANNEL, INCREASE_GOAL, NEW_GOAL] }
+              label: { type: string }
+
+    SignalSummaryDTO:
+      type: object
+      required: [headline, actionLabel, actionTarget]
+      properties:
+        headline: { type: string }
+        detail: { type: string, nullable: true }
+        actionLabel: { type: string }
+        actionTarget: { type: string, nullable: true }
 
     Billing:
       type: object
@@ -5002,6 +5094,142 @@ paths:
                 type: object
                 properties:
                   data: { $ref: '#/components/schemas/AssistantActionDTO' }
+
+  # ---------- Assistant goal cycle (Learn -> Act -> Review -> Grow) ----------
+  # See docs/loopie-assistant-playbook-poc/ and apps/server/src/business-guidance/. Every response
+  # here is the same AssistantActionDTO getNextAction returns (nullable — a mutation can complete
+  # with nothing left for this slot to show); the client always trusts getNextAction as the
+  # authoritative re-fetch afterward, same pattern the existing assistant actions already use.
+  /assistant/goal-cycle/answer:
+    post:
+      operationId: answerAssistantLearnQuestion
+      summary: Answer one Learn-phase question
+      description: Creates the AssistantGoalCycle on the first primaryGoal answer; every earlier taxonomy question just writes Business.knowledge.
+      tags: [assistant-goal-cycle]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [questionKey, value]
+              properties:
+                questionKey: { type: string }
+                value: { type: string }
+      responses:
+        '200':
+          description: The resulting next action
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { allOf: [{ $ref: '#/components/schemas/AssistantActionDTO' }], nullable: true }
+
+  /assistant/goal-cycle/schedule-plan:
+    post:
+      operationId: scheduleAssistantPlan
+      summary: Schedule a built plan's steps to Calendar
+      description: Calls CalendarService.scheduleIdea per step (source ASSISTANT_PLAYBOOK) and advances the cycle to ACT.
+      tags: [assistant-goal-cycle]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cycleId]
+              properties:
+                cycleId: { type: string }
+      responses:
+        '200':
+          description: The resulting next action
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { allOf: [{ $ref: '#/components/schemas/AssistantActionDTO' }], nullable: true }
+
+  /assistant/goal-cycle/review:
+    post:
+      operationId: reviewAssistantGoalCycle
+      summary: Force a Review classification now
+      description: Recomputes the same way the ACT-phase read path does, unless manualOutcome is given (Loopie couldn't derive it).
+      tags: [assistant-goal-cycle]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cycleId]
+              properties:
+                cycleId: { type: string }
+                manualOutcome:
+                  type: string
+                  nullable: true
+                  enum: [WORKING, PARTIALLY_WORKING, NOT_WORKING, NOT_ENOUGH_DATA, NOT_EXECUTED]
+      responses:
+        '200':
+          description: The resulting next action
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { allOf: [{ $ref: '#/components/schemas/AssistantActionDTO' }], nullable: true }
+
+  /assistant/goal-cycle/grow:
+    post:
+      operationId: growAssistantGoalCycle
+      summary: Choose a Grow direction and start the next Act cycle
+      description: Completes the current cycle; NEW_GOAL routes back through Learn, every other direction re-runs the same playbook without re-asking known facts.
+      tags: [assistant-goal-cycle]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cycleId, direction]
+              properties:
+                cycleId: { type: string }
+                direction: { type: string, enum: [DO_MORE, IMPROVE, NEW_CHANNEL, INCREASE_GOAL, NEW_GOAL] }
+      responses:
+        '200':
+          description: The resulting next action
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { allOf: [{ $ref: '#/components/schemas/AssistantActionDTO' }], nullable: true }
+
+  /assistant/goal-cycle/dismiss-signal:
+    post:
+      operationId: dismissAssistantSignal
+      summary: Dismiss a reactive signal so it doesn't reappear immediately
+      tags: [assistant-goal-cycle]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cycleId, signalKey]
+              properties:
+                cycleId: { type: string }
+                signalKey: { type: string }
+      responses:
+        '200':
+          description: Acknowledged
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, properties: { ok: { type: boolean } } }
 
   # ---------- Contacts ----------
   /contacts:

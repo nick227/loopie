@@ -402,6 +402,103 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/assistant/goal-cycle/answer': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Answer one Learn-phase question
+     * @description Creates the AssistantGoalCycle on the first primaryGoal answer; every earlier taxonomy question just writes Business.knowledge.
+     */
+    post: operations['answerAssistantLearnQuestion']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/assistant/goal-cycle/schedule-plan': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Schedule a built plan's steps to Calendar
+     * @description Calls CalendarService.scheduleIdea per step (source ASSISTANT_PLAYBOOK) and advances the cycle to ACT.
+     */
+    post: operations['scheduleAssistantPlan']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/assistant/goal-cycle/review': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Force a Review classification now
+     * @description Recomputes the same way the ACT-phase read path does, unless manualOutcome is given (Loopie couldn't derive it).
+     */
+    post: operations['reviewAssistantGoalCycle']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/assistant/goal-cycle/grow': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Choose a Grow direction and start the next Act cycle
+     * @description Completes the current cycle; NEW_GOAL routes back through Learn, every other direction re-runs the same playbook without re-asking known facts.
+     */
+    post: operations['growAssistantGoalCycle']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/assistant/goal-cycle/dismiss-signal': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Dismiss a reactive signal so it doesn't reappear immediately */
+    post: operations['dismissAssistantSignal']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/contacts': {
     parameters: {
       query?: never
@@ -3602,7 +3699,7 @@ export interface components {
     /** @description The single most valuable next action across the business, recomputed live on every read from Business/LandingPage/Campaign state — never persisted. Priority chain: an incomplete business profile, then an incomplete/unpublished page, then a published page with no ad promotion, then (unconditional fallback) Calendar's own next-best-action system. Each action's actual write goes through the same real operation that feature's own UI uses — this endpoint only decides which one to surface next. */
     AssistantActionDTO: {
       /** @enum {string} */
-      type: 'BUSINESS_PROFILE' | 'PAGE' | 'ADVERTISING' | 'CALENDAR'
+      type: 'BUSINESS_PROFILE' | 'PAGE' | 'ADVERTISING' | 'CALENDAR' | 'GOAL_CYCLE' | 'SIGNAL'
       /** @enum {string} */
       actionId:
         | 'business_info'
@@ -3613,8 +3710,14 @@ export interface components {
         | 'campaign_create'
         | 'campaign_resume'
         | 'calendar'
+        | 'learn_step'
+        | 'build_plan'
+        | 'grow'
+        | 'page_traffic_no_leads'
+        | 'interested_leads_followup'
+        | 'sale_recorded'
       /**
-       * @description The existing operationId the client should invoke to complete this action; null for pure-navigation actions (campaign_resume, calendar).
+       * @description The existing operationId the client should invoke to complete this action; null for pure-navigation actions (campaign_resume, calendar) and for every GOAL_CYCLE/SIGNAL action (those go through the assistant-goal-cycle operations below instead).
        * @enum {string|null}
        */
       operationId?:
@@ -3629,8 +3732,53 @@ export interface components {
       pageUrl?: string | null
       /** @description campaign_resume — the draft campaign to resume. */
       campaignId?: string | null
+      /** @description GOAL_CYCLE/SIGNAL actions — the AssistantGoalCycle this action belongs to. Null only for the very first learn_step (venture family) before any goal has been chosen. */
+      cycleId?: string | null
+      /** @description learn_step only. */
+      step?: components['schemas']['AssistantChoiceStepDTO'] | null
+      /** @description learn_step only — ordered label trail of everything already established this cycle (e.g. ["Local service", "Home services", "Roofing"]). Cumulative progress, not a question-count/percentage — the total isn't knowable since known facts get skipped. */
+      knownFacts?: string[] | null
+      /** @description build_plan only. */
+      plan?: components['schemas']['PlannedTaskDTO'][] | null
+      /** @description grow only. */
+      growSummary?: components['schemas']['GrowSummaryDTO'] | null
+      /** @description page_traffic_no_leads / interested_leads_followup / sale_recorded only. */
+      signalSummary?: components['schemas']['SignalSummaryDTO'] | null
       /** @description The live hosted URL of the business's homepage, once published. Display-only (e.g. a "View homepage" link) — always present once published, independent of which action is currently on top. Null until published. */
       homepageUrl?: string | null
+    }
+    AssistantChoiceDTO: {
+      value: string
+      label: string
+    }
+    /** @description One Learn-phase question — heading + 3-7 concrete choices, content computed server-side (varies by taxonomy node / selected playbook). See docs/loopie-assistant-playbook-poc/03-poc-implementation-plan.md section 13. */
+    AssistantChoiceStepDTO: {
+      key: string
+      heading: string
+      description?: string | null
+      choices: components['schemas']['AssistantChoiceDTO'][]
+      writesKnowledge: string
+    }
+    PlannedTaskDTO: {
+      templateId: string
+      title: string
+      /** @enum {string} */
+      horizon: 'TODAY' | 'THIS_WEEK' | 'NEXT_WEEK'
+    }
+    GrowSummaryDTO: {
+      headline: string
+      detail?: string | null
+      directions: {
+        /** @enum {string} */
+        value: 'DO_MORE' | 'IMPROVE' | 'NEW_CHANNEL' | 'INCREASE_GOAL' | 'NEW_GOAL'
+        label: string
+      }[]
+    }
+    SignalSummaryDTO: {
+      headline: string
+      detail?: string | null
+      actionLabel: string
+      actionTarget: string | null
     }
     Billing: {
       subscriptionStatus: string | null
@@ -7120,6 +7268,160 @@ export interface operations {
         content: {
           'application/json': {
             data?: components['schemas']['AssistantActionDTO']
+          }
+        }
+      }
+    }
+  }
+  answerAssistantLearnQuestion: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          questionKey: string
+          value: string
+        }
+      }
+    }
+    responses: {
+      /** @description The resulting next action */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['AssistantActionDTO'] | null
+          }
+        }
+      }
+    }
+  }
+  scheduleAssistantPlan: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          cycleId: string
+        }
+      }
+    }
+    responses: {
+      /** @description The resulting next action */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['AssistantActionDTO'] | null
+          }
+        }
+      }
+    }
+  }
+  reviewAssistantGoalCycle: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          cycleId: string
+          /** @enum {string|null} */
+          manualOutcome?:
+            | 'WORKING'
+            | 'PARTIALLY_WORKING'
+            | 'NOT_WORKING'
+            | 'NOT_ENOUGH_DATA'
+            | 'NOT_EXECUTED'
+            | null
+        }
+      }
+    }
+    responses: {
+      /** @description The resulting next action */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['AssistantActionDTO'] | null
+          }
+        }
+      }
+    }
+  }
+  growAssistantGoalCycle: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          cycleId: string
+          /** @enum {string} */
+          direction: 'DO_MORE' | 'IMPROVE' | 'NEW_CHANNEL' | 'INCREASE_GOAL' | 'NEW_GOAL'
+        }
+      }
+    }
+    responses: {
+      /** @description The resulting next action */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['AssistantActionDTO'] | null
+          }
+        }
+      }
+    }
+  }
+  dismissAssistantSignal: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          cycleId: string
+          signalKey: string
+        }
+      }
+    }
+    responses: {
+      /** @description Acknowledged */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: {
+              ok?: boolean
+            }
           }
         }
       }

@@ -1,5 +1,7 @@
 import type { Campaign, LandingPage } from '@prisma/client'
 import type { BusinessService } from '../services/BusinessService'
+import type { AssistantChoiceStep } from '../business-guidance/types'
+import type { GrowDirection } from '../business-guidance/phaseEngine'
 
 // Matches CORPORATE_PROFESSIONAL_TEMPLATE_ID in
 // apps/web/src/pages/landing-pages/components/types.ts — the same seeded system template
@@ -52,6 +54,86 @@ export type AssistantAction =
     }
   | { type: 'ADVERTISING'; actionId: 'campaign_resume'; operationId: null; campaignId: string }
   | { type: 'CALENDAR'; actionId: 'calendar'; operationId: null }
+  // ---------- Assistant business-consultant pass (2026-09-04) ----------
+  // Learn -> Act -> Review -> Grow (see apps/server/src/business-guidance/). Content
+  // (headings/choices/computed numbers) travels in the DTO itself, unlike the static per-actionId
+  // copy above — this content is inherently dynamic (varies by taxonomy node/playbook/live
+  // quantities), so the frontend renders it generically instead of looking it up by actionId.
+  // cycleId is null only for the very first learn_step (venture_family) — no AssistantGoalCycle
+  // row exists yet until a primaryGoal is answered (see AssistantGoalCycleService.answer).
+  | {
+      type: 'GOAL_CYCLE'
+      actionId: 'learn_step'
+      operationId: null
+      cycleId: string | null
+      step: AssistantChoiceStep
+      // Ordered label trail of everything already established this cycle (e.g. ["Local
+      // service", "Home services", "Roofing"]) — cumulative progress without a question-count/
+      // percentage, which the docs explicitly avoid since known facts get skipped and the total
+      // isn't knowable in advance.
+      knownFacts: string[]
+    }
+  | {
+      type: 'GOAL_CYCLE'
+      actionId: 'build_plan'
+      operationId: null
+      cycleId: string
+      plan: PlannedTaskDTO[]
+    }
+  | {
+      type: 'GOAL_CYCLE'
+      actionId: 'grow'
+      operationId: null
+      cycleId: string
+      growSummary: GrowSummaryDTO
+    }
+  | {
+      type: 'SIGNAL'
+      actionId: 'page_traffic_no_leads' | 'interested_leads_followup' | 'sale_recorded'
+      operationId: null
+      cycleId: string
+      signalSummary: SignalSummaryDTO
+    }
+
+export type PlannedTaskDTO = {
+  templateId: string
+  title: string
+  horizon: 'TODAY' | 'THIS_WEEK' | 'NEXT_WEEK'
+}
+export type GrowSummaryDTO = {
+  headline: string
+  detail?: string
+  directions: { value: GrowDirection; label: string }[]
+}
+export type SignalSummaryDTO = {
+  headline: string
+  detail?: string
+  actionLabel: string
+  actionTarget: string | null
+}
+
+// Shared flattening of the discriminated AssistantAction union into one flat DTO object — used by
+// both AssistantService.getNextAction and the assistant-goal-cycle mutation handlers, so every
+// endpoint that can return "the next assistant action" returns the identical shape.
+export function flattenAssistantAction(action: AssistantAction, homepageUrl: string | null) {
+  return {
+    type: action.type,
+    actionId: action.actionId,
+    operationId: action.operationId,
+    fields: 'fields' in action ? action.fields : null,
+    landingPageId: 'landingPageId' in action ? action.landingPageId : null,
+    pageName: 'pageName' in action ? action.pageName : null,
+    pageUrl: 'pageUrl' in action ? action.pageUrl : null,
+    campaignId: 'campaignId' in action ? action.campaignId : null,
+    cycleId: 'cycleId' in action ? action.cycleId : null,
+    step: 'step' in action ? action.step : null,
+    knownFacts: 'knownFacts' in action ? action.knownFacts : null,
+    plan: 'plan' in action ? action.plan : null,
+    growSummary: 'growSummary' in action ? action.growSummary : null,
+    signalSummary: 'signalSummary' in action ? action.signalSummary : null,
+    homepageUrl,
+  }
+}
 
 // Beyond name (enforced product-wide), the assistant treats these as its own minimal "complete
 // enough" identity — the product itself treats all of them as optional profile polish (see

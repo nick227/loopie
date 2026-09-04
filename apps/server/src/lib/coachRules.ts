@@ -237,7 +237,7 @@ export async function evaluateEligibility(
 // A lead someone explicitly flagged "needs follow-up" (the same checkbox the contact sales panel
 // shows) that's still open — the most direct, lowest-inference signal the CRM has: a human already
 // decided this needs action, Calendar just has to surface it.
-async function countLeadsFlaggedForFollowUp(businessId: string): Promise<number> {
+export async function countLeadsFlaggedForFollowUp(businessId: string): Promise<number> {
   return db.lead.count({ where: { businessId, openSlot: 'OPEN', followUp: true } })
 }
 
@@ -245,7 +245,7 @@ async function countLeadsFlaggedForFollowUp(businessId: string): Promise<number>
 // obvious next move is a proposal, not more small talk. Deliberately stage-only (not further
 // gated on "has been contacted"): a lead can reach INTERESTED from a form submission with no
 // logged activity yet, and it should still prompt exactly the same next step.
-async function countInterestedLeadsNeedingProposal(businessId: string): Promise<number> {
+export async function countInterestedLeadsNeedingProposal(businessId: string): Promise<number> {
   return db.lead.count({
     where: { businessId, openSlot: 'OPEN', stage: 'INTERESTED', proposalSent: false },
   })

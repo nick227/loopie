@@ -161,21 +161,17 @@ test.describe('next steps assistant', () => {
     await page.reload()
     await expect(assistantButton).toBeVisible({ timeout: 15000 })
 
-    // --- Back at Assistant Home: with Business/Pages/Advertising all clear, it hands off to
-    // Calendar's own real next-best-action content instead of dead-ending ---
+    // --- Back at Assistant Home: with Business/Pages/Advertising all clear, the Assistant now
+    // offers to start a goal cycle (2026-09-04 "Assistant becomes the consultant" pass) instead of
+    // handing straight off to Calendar — Calendar remains the execution surface once a plan is
+    // actually scheduled, but the terminal default here is the first Learn question. ---
     await assistantButton.click()
     await expect(dialog).toBeVisible()
-    await expect(dialog.getByText('Nice work — your homepage is live.')).toBeVisible({
+    await expect(dialog.getByText('Tell Loopie about your business.')).toBeVisible({
       timeout: 15000,
     })
     await expect(dialog.getByRole('link', { name: 'View homepage' })).toBeVisible()
-    const ideaCard = dialog.getByRole('button', { name: /add to this week/i })
-    const caughtUp = dialog.getByText(/all caught up/i)
-    await expect(ideaCard.or(caughtUp)).toBeVisible({ timeout: 15000 })
-    if (await ideaCard.isVisible()) {
-      await ideaCard.click()
-      await expect(dialog.getByText('Added to your calendar')).toBeVisible({ timeout: 10000 })
-    }
+    await expect(dialog.getByRole('button', { name: 'Local service' })).toBeVisible()
 
     await page.keyboard.press('Escape')
     await expect(dialog).toBeHidden()
@@ -184,8 +180,14 @@ test.describe('next steps assistant', () => {
     await page.reload()
     await expect(assistantButton).toBeVisible({ timeout: 15000 })
     await assistantButton.click()
-    await expect(dialog.getByText('Nice work — your homepage is live.')).toBeVisible({
+    await expect(dialog.getByText('Tell Loopie about your business.')).toBeVisible({
       timeout: 15000,
+    })
+
+    // --- Answering Learn questions advances in place, without leaving Assistant Home ---
+    await dialog.getByRole('button', { name: 'Local service' }).click()
+    await expect(dialog.getByRole('button', { name: 'Home services' })).toBeVisible({
+      timeout: 10000,
     })
   })
 
@@ -216,7 +218,7 @@ test.describe('next steps assistant', () => {
 
     // --- "What is this site?" — a plain static answer, Back returns to Home ---
     await dialog.getByRole('button', { name: 'What is this site?' }).click()
-    await expect(dialog.getByText(/Loopie is one platform/)).toBeVisible()
+    await expect(dialog.getByText(/Loopie gives you the power of/)).toBeVisible()
     await dialog.getByRole('button', { name: /assistant home/i }).click()
     await expect(dialog.getByText('Learn about Loopie')).toBeVisible()
 

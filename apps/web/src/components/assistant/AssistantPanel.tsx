@@ -19,6 +19,11 @@ import { AssistantHomepageCreateStep } from './steps/AssistantHomepageCreateStep
 import { AssistantPagePublishStep } from './steps/AssistantPagePublishStep'
 import { AssistantCampaignCreateStep } from './steps/AssistantCampaignCreateStep'
 import { AssistantCampaignResumeStep } from './steps/AssistantCampaignResumeStep'
+import { AssistantChoiceStepView } from './steps/AssistantChoiceStepView'
+import { AssistantPlanView } from './steps/AssistantPlanView'
+import { AssistantGrowView } from './steps/AssistantGrowView'
+import { AssistantSignalCard } from './AssistantSignalCard'
+import { AssistantBotMessage } from './AssistantBotMessage'
 import { AssistantEducationDetail } from './AssistantEducationDetail'
 import {
   STEP_COPY,
@@ -113,47 +118,96 @@ function HomeView({
   businessName,
   onOpenFlow,
   onSelectEducationTopic,
+  onNavigate,
+  onSuccess,
 }: {
   action: NextAction
   homepageUrl: string | null
   businessName?: string
   onOpenFlow: () => void
   onSelectEducationTopic: (id: EducationTopicId) => void
+  onNavigate: (path: string) => void
+  onSuccess: (message: string) => void
 }) {
-  const actionId = action.actionId as AssistantActionId
-  const copy = STEP_COPY[actionId]
+  const actionId = action.actionId
+  const isGoalCycle = action.type === 'GOAL_CYCLE'
+  const isSignal = action.type === 'SIGNAL'
+  const copy = isGoalCycle || isSignal ? null : STEP_COPY[actionId as AssistantActionId]
   const cardSubtitle =
     actionId === 'page_publish' && action.pageName
       ? pagePublishCardSubtitle(action.pageName)
-      : copy.cardSubtitle
+      : copy?.cardSubtitle
 
   return (
     <div className="flex flex-1 flex-col gap-4 py-4">
-      <div>
-        <p className="text-sm text-muted-foreground">
-          {greeting()}
-          {actionId === 'calendar' ? '.' : '. What are we working on?'}
-        </p>
-        {actionId === 'calendar' ? (
-          <h3 className="mt-1 text-lg font-semibold text-foreground">
-            Nice work — your homepage is live.
-          </h3>
-        ) : businessName ? (
-          <h3 className="mt-1 text-lg font-semibold text-foreground">{businessName}</h3>
-        ) : null}
-        {homepageUrl ? (
-          <a
-            href={homepageUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-1 inline-block text-xs font-medium text-muted-foreground underline underline-offset-2 hover:text-foreground"
-          >
-            View homepage
-          </a>
-        ) : null}
-      </div>
+      {/* GOAL_CYCLE/SIGNAL skip the greeting preamble entirely — opening the Assistant should
+          immediately show the most relevant thing, not a welcome paragraph before it. The
+          heading (rendered by each branch below, via AssistantBotMessage) establishes context on
+          its own. */}
+      {!isGoalCycle && !isSignal ? (
+        <div>
+          <p className="text-sm text-muted-foreground">
+            {greeting()}
+            {actionId === 'calendar' ? '.' : '. What are we working on?'}
+          </p>
+          {actionId === 'calendar' ? (
+            <h3 className="mt-1 text-lg font-semibold text-foreground">
+              Nice work — your homepage is live.
+            </h3>
+          ) : businessName ? (
+            <h3 className="mt-1 text-lg font-semibold text-foreground">{businessName}</h3>
+          ) : null}
+          {homepageUrl ? (
+            <a
+              href={homepageUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 inline-block text-xs font-medium text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            >
+              View homepage
+            </a>
+          ) : null}
+        </div>
+      ) : null}
       {actionId === 'calendar' ? (
         <AssistantCalendarCard />
+      ) : isSignal && action.cycleId && action.signalSummary ? (
+        <AssistantSignalCard
+          cycleId={action.cycleId}
+          actionId={action.actionId}
+          signal={action.signalSummary}
+          onNavigate={onNavigate}
+        />
+      ) : actionId === 'learn_step' && action.step ? (
+        <AssistantChoiceStepView
+          step={action.step}
+          knownFacts={action.knownFacts ?? []}
+          onLearnComplete={() => onSuccess('Got it.')}
+        />
+      ) : actionId === 'build_plan' && action.cycleId && action.plan ? (
+        <div className="space-y-4">
+          <AssistantBotMessage
+            heading="Your first plan"
+            detail={`${action.plan.length} steps to get started.`}
+          />
+          <AssistantPlanView
+            cycleId={action.cycleId}
+            plan={action.plan}
+            onSuccess={() => onSuccess('Added to your Calendar.')}
+          />
+        </div>
+      ) : actionId === 'grow' && action.cycleId && action.growSummary ? (
+        <div className="space-y-4">
+          <AssistantBotMessage
+            heading={action.growSummary.headline}
+            detail={action.growSummary.detail}
+          />
+          <AssistantGrowView
+            cycleId={action.cycleId}
+            directions={action.growSummary.directions}
+            onSuccess={() => onSuccess('Got it.')}
+          />
+        </div>
       ) : (
         <button
           type="button"
@@ -161,7 +215,7 @@ function HomeView({
           className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4 text-left transition-colors hover:border-foreground/20 hover:bg-accent"
         >
           <div>
-            <p className="text-sm font-semibold text-foreground">{copy.cardTitle}</p>
+            <p className="text-sm font-semibold text-foreground">{copy?.cardTitle}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">{cardSubtitle}</p>
           </div>
           <ArrowRight size={18} className="shrink-0 text-muted-foreground" />
@@ -201,17 +255,22 @@ function FlowView({
 }) {
   if (confirmation) return <ConfirmationView message={confirmation.message} />
 
+  // GOAL_CYCLE/SIGNAL actions never reach Flow — they render directly on Home (see HomeView),
+  // same as Calendar's own card, since Learn/Plan/Grow already read as one self-contained
+  // card/list rather than needing a click-through screen.
   const actionId = action.actionId as AssistantActionId
   const flowHeadline =
     actionId === 'page_publish' && action.pageName
       ? `You have an unpublished page: "${action.pageName}".`
       : actionId === 'campaign_create' && action.pageName
         ? campaignCreateFlowHeadline(action.pageName)
-        : STEP_COPY[actionId].flowHeadline
+        : STEP_COPY[actionId as keyof typeof STEP_COPY]?.flowHeadline
 
   return (
     <div className="flex-1 space-y-4 py-2">
-      <p className="text-base font-medium text-foreground">{flowHeadline}</p>
+      {flowHeadline ? (
+        <p className="text-base font-medium text-foreground">{flowHeadline}</p>
+      ) : null}
       {actionId === 'business_info' ? (
         <AssistantBusinessInfoStep
           fields={action.fields ?? []}
@@ -264,6 +323,7 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
   const { data, isLoading, isError } = useNextAction()
   const business = useBusiness()
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [view, setView] = useState<'home' | 'flow' | 'education'>('home')
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
   const [educationTopicId, setEducationTopicId] = useState<EducationTopicId | null>(null)
@@ -298,10 +358,14 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
     }
   }
 
-  // Calendar only ever renders on Home (see AssistantCalendarCard) — once an auto-advance lands
-  // on it while the user is still mid-flow, bounce back to Home so it's actually shown. Same
-  // during-render adjustment pattern as above.
-  if (data?.actionId === 'calendar' && view === 'flow' && !confirmation) {
+  // Calendar/GOAL_CYCLE/SIGNAL all render directly on Home (see AssistantCalendarCard/HomeView) —
+  // once an auto-advance lands on one of them while the user is still mid-flow, bounce back to
+  // Home so it's actually shown. Same during-render adjustment pattern as above.
+  if (
+    (data?.type === 'CALENDAR' || data?.type === 'GOAL_CYCLE' || data?.type === 'SIGNAL') &&
+    view === 'flow' &&
+    !confirmation
+  ) {
     setView('home')
   }
 
@@ -353,7 +417,9 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
           </button>
         ) : null}
 
-        {isLoading || !data ? (
+        {confirmation ? (
+          <ConfirmationView message={confirmation.message} />
+        ) : isLoading || !data ? (
           <div className="flex flex-1 items-center justify-center py-10">
             <Spinner size="sm" />
           </div>
@@ -373,6 +439,11 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
               setEducationTopicId(id)
               setView('education')
             }}
+            onNavigate={(path) => {
+              onClose()
+              navigate(path)
+            }}
+            onSuccess={handleSuccess}
           />
         ) : view === 'education' && educationTopicId ? (
           <AssistantEducationDetail

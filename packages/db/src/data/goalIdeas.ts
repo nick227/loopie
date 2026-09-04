@@ -711,6 +711,51 @@ export const STATIC_GOAL_IDEA_TEMPLATES: GoalIdeaTemplateSeed[] = [
     repeatable: true,
     cooldownDays: 25,
   },
+  // ---------- Assistant playbook steps (2026-09-04) — the two genuinely missing task templates
+  // the Learn->Act->Review->Grow playbooks need; everything else they use already existed above.
+  // Universal (businessTypes: null) so both remain ordinary Ideas-feed candidates too, not a
+  // parallel playbook-only universe — see apps/server/src/business-guidance/playbooks/.
+  {
+    id: 'system-idea-define-primary-offer',
+    title: 'Define your primary offer',
+    detail: 'A specific, one-sentence answer to "what do you sell" makes every pitch sharper.',
+    ideaType: 'ACTION',
+    subjectType: 'BUSINESS',
+    stage: 'FOUNDATION',
+    requiresTemplateIds: null,
+    action: { target: '/business/profile', label: 'Edit business profile' },
+    businessTypes: null,
+    defaultHorizon: 'TODAY',
+    defaultEstimateMinutes: 15,
+    trackingType: 'MANUAL',
+    metricKey: null,
+    targetValue: null,
+    priorityWeight: 6,
+    repeatable: false,
+    cooldownDays: null,
+  },
+  {
+    id: 'system-idea-contact-prospects',
+    // The Assistant always schedules this with an explicit titleOverride (a real resolved count),
+    // so this default only shows if the template is ever scheduled outside a playbook.
+    title: 'Contact prospects',
+    detail:
+      'Direct outreach to people who already fit your target customer is the fastest path to a first conversation.',
+    ideaType: 'ACTION',
+    subjectType: 'CRM',
+    stage: 'ATTRACT',
+    requiresTemplateIds: null,
+    action: { target: '/contacts', label: 'Open contacts' },
+    businessTypes: null,
+    defaultHorizon: 'THIS_WEEK',
+    defaultEstimateMinutes: 45,
+    trackingType: 'MANUAL',
+    metricKey: null,
+    targetValue: null,
+    priorityWeight: 7,
+    repeatable: false,
+    cooldownDays: null,
+  },
 ]
 
 // Condition evaluated by lib/coachRules.ts — see evaluateEligibility there. targetValue here is a

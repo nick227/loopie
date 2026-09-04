@@ -1,5 +1,10 @@
 import { db } from '@project/db'
-import type { GoalIdeaTemplate, ScheduledGoal } from '@prisma/client'
+import type {
+  GoalIdeaTemplate,
+  ScheduledGoal,
+  ScheduledGoalSource,
+  GoalTrackingType,
+} from '@prisma/client'
 import { ensureSystemGoalIdeaTemplates } from '../lib/ensureSystemGoalIdeas'
 import { localDayWindow, localWeekWindow, resolveHorizonDate } from '../lib/calendarWindows'
 import {
@@ -252,6 +257,12 @@ export class CalendarService {
   // defaults straight to "this week" with the idea's own default estimate. The full When/Pick-
   // date/Estimate control still exists here for the detail view's "choose a different time"
   // option; the frontend just no longer forces everyone through it up front.
+  // `overrides` is consulted only when passed — every existing Ideas-driven scheduling call (the
+  // frontend's "schedule this idea" action) omits it, so behavior there is unchanged. It exists for
+  // the Assistant's playbook scheduling (AssistantGoalCycleService.schedulePlan), which needs to
+  // (a) tag the resulting rows to a goal cycle and (b) occasionally reuse a template whose own
+  // trackingType/metricKey/title don't fit a fixed-plan step as-is — e.g. scheduling the existing
+  // dynamic "N interested leads" idea as a plain Day-0 MANUAL reminder rather than a live metric.
   async scheduleIdea(
     businessId: string,
     templateId: string,
@@ -261,6 +272,13 @@ export class CalendarService {
       hasTime?: boolean
       estimateMinutes?: number | null
       utcOffsetMinutes?: number
+    },
+    overrides?: {
+      source?: ScheduledGoalSource
+      assistantGoalCycleId?: string
+      titleOverride?: string
+      targetValueOverride?: number | null
+      trackingTypeOverride?: GoalTrackingType
     },
   ) {
     const template = await this._findAccessibleTemplate(businessId, templateId)
@@ -291,14 +309,18 @@ export class CalendarService {
       const created = await tx.scheduledGoal.create({
         data: {
           businessId,
-          title: resolved.title,
+          title: overrides?.titleOverride ?? resolved.title,
           detail: template.detail,
-          source: 'IDEA_TEMPLATE',
+          source: overrides?.source ?? 'IDEA_TEMPLATE',
           sourceTemplateId: template.id,
+          assistantGoalCycleId: overrides?.assistantGoalCycleId,
           subjectType: template.subjectType,
-          trackingType: template.trackingType,
+          trackingType: overrides?.trackingTypeOverride ?? template.trackingType,
           metricKey: template.metricKey,
-          targetValue: resolved.targetValue,
+          targetValue:
+            overrides?.targetValueOverride !== undefined
+              ? overrides.targetValueOverride
+              : resolved.targetValue,
           estimateMinutes,
           scheduledFor,
           hasTime,

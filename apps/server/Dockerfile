@@ -15,6 +15,7 @@ WORKDIR /app
 # "Cannot find module '@prisma/client'" inside packages/page-renderer/src.
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY packages/db/package.json ./packages/db/
+COPY packages/ad-renderer/package.json ./packages/ad-renderer/
 COPY packages/page-renderer/package.json ./packages/page-renderer/
 COPY packages/embed-contract/package.json ./packages/embed-contract/
 COPY apps/server/package.json ./apps/server/
@@ -57,6 +58,10 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages/db ./packages/db
 COPY --from=builder /app/packages/api-spec ./packages/api-spec
+# page-renderer and server both import @project/ad-renderer. Its package points directly at
+# TypeScript source, so the workspace symlink installed in node_modules needs this runtime target.
+COPY --from=builder /app/packages/ad-renderer/src ./packages/ad-renderer/src
+COPY --from=builder /app/packages/ad-renderer/package.json ./packages/ad-renderer/
 # Several services import specific dependency-free subpaths off @project/sdk directly (e.g.
 # AdRunService.ts's validateAdvertisement, ContactService.ts's importContactSchema) rather than
 # the package's root export (which pulls in React/react-query — see packages/sdk/package.json's

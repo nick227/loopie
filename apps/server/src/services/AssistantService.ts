@@ -1,5 +1,6 @@
 import { db } from '@project/db'
 import { BusinessService } from './BusinessService'
+import { AssistantGoalCycleService } from './AssistantGoalCycleService'
 import { hostedPageUrl } from '../lib/urls'
 import {
   HOMEPAGE_TEMPLATE_ID,
@@ -7,11 +8,13 @@ import {
   resolvePageAction,
   resolveAdvertisingAction,
   resolveCalendarAction,
+  flattenAssistantAction,
   type AssistantAction,
 } from '../lib/assistantActions'
 import type { LandingPage } from '@prisma/client'
 
 const businessService = new BusinessService()
+const assistantGoalCycleService = new AssistantGoalCycleService()
 
 function normalizeUrl(url: string) {
   return url.trim().toLowerCase().replace(/\/$/, '')
@@ -20,6 +23,13 @@ function normalizeUrl(url: string) {
 export class AssistantService {
   async getNextAction(businessId: string) {
     const business = await businessService.get(businessId)
+
+    // Highest priority (docs/loopie-assistant-playbook-poc/02-feature-analysis.md section 12): an
+    // urgent signal tied to an active goal cycle outranks the setup chain below. A GOAL_CYCLE
+    // result (Learn question / unscheduled plan / Grow choices) is held and only shown once that
+    // chain finds nothing — same call either way, so this never double-queries.
+    const goalCycleResult = await assistantGoalCycleService.resolveAction(businessId)
+    if (goalCycleResult?.type === 'SIGNAL') return this.toDTO(goalCycleResult, null)
 
     const businessAction = resolveBusinessProfileAction(business)
     if (businessAction) return this.toDTO(businessAction, null)
@@ -54,6 +64,8 @@ export class AssistantService {
     const adAction = resolveAdvertisingAction(draftCampaign, unpromoted)
     if (adAction) return this.toDTO(adAction, homepage)
 
+    if (goalCycleResult) return this.toDTO(goalCycleResult, homepage)
+
     return this.toDTO(resolveCalendarAction(), homepage)
   }
 
@@ -77,16 +89,9 @@ export class AssistantService {
   }
 
   private toDTO(action: AssistantAction, homepage: LandingPage | null) {
-    return {
-      type: action.type,
-      actionId: action.actionId,
-      operationId: action.operationId,
-      fields: 'fields' in action ? action.fields : null,
-      landingPageId: 'landingPageId' in action ? action.landingPageId : null,
-      pageName: 'pageName' in action ? action.pageName : null,
-      pageUrl: 'pageUrl' in action ? action.pageUrl : null,
-      campaignId: 'campaignId' in action ? action.campaignId : null,
-      homepageUrl: homepage?.status === 'PUBLISHED' ? hostedPageUrl(homepage.slug) : null,
-    }
+    return flattenAssistantAction(
+      action,
+      homepage?.status === 'PUBLISHED' ? hostedPageUrl(homepage.slug) : null,
+    )
   }
 }
