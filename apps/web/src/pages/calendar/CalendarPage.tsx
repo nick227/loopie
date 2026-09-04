@@ -14,8 +14,10 @@ import {
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { cn } from '@/lib/utils'
 import { usePageTitle } from '@/lib/headerContext'
+import { CalendarCollectionInsights } from './CalendarCollectionInsights'
 
 type ScheduledGoal = components['schemas']['ScheduledGoal']
 type GoalIdea = components['schemas']['GoalIdea']
@@ -29,13 +31,6 @@ const WHEN_CHOICES: { value: Horizon; label: string }[] = [
   { value: 'THIS_WEEK', label: 'This week' },
   { value: 'NEXT_WEEK', label: 'Next week' },
 ]
-const STAGE_LABEL: Record<string, string> = {
-  FOUNDATION: 'Foundation',
-  ATTRACT: 'Attract',
-  CAPTURE: 'Capture',
-  CONVERT: 'Convert',
-  GROW: 'Grow',
-}
 const WEEKDAY_LABELS_MON_FIRST = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 function formatMinutes(minutes: number | null | undefined): string | null {
@@ -547,7 +542,7 @@ function QuickAddTask() {
   const pending = createIdea.isPending || scheduleIdea.isPending
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex w-full min-w-0 items-center gap-2">
       <Input
         value={title}
         onChange={(event) => setTitle(event.target.value)}
@@ -558,10 +553,18 @@ function QuickAddTask() {
           }
         }}
         placeholder="Add a task…"
-        className="h-8 w-48 text-xs"
+        className="h-8 min-w-0 flex-1 text-xs sm:max-w-xs"
       />
-      <Button variant="outline" size="sm" loading={pending} onClick={submit}>
-        <Plus size={13} /> Add task
+      <Button
+        variant="outline"
+        size="sm"
+        loading={pending}
+        onClick={submit}
+        aria-label="Add task"
+        className="shrink-0"
+      >
+        <Plus size={13} />
+        <span className="hidden sm:inline">Add task</span>
       </Button>
     </div>
   )
@@ -802,7 +805,7 @@ function CalendarNav({
   onToday: () => void
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <Button variant="outline" size="sm" onClick={onToday}>
         Today
       </Button>
@@ -907,16 +910,17 @@ function DayDetailPanel({
 // button in a button is invalid HTML with unpredictable click behavior. Marking done happens in
 // the day detail panel a click away, which is also where "mark done" belongs given Month cells
 // have no room for it anyway.
+function monthDotTone(goal: ScheduledGoal): string {
+  if (goal.status === 'DONE') return 'bg-success'
+  if (goal.hasTime) return 'bg-primary'
+  return 'bg-muted-foreground/50'
+}
+
 function MonthDayItem({ goal }: { goal: ScheduledGoal }) {
   const done = goal.status === 'DONE'
   return (
     <div className="flex w-full items-center gap-1 px-0.5 py-0.5">
-      <span
-        className={cn(
-          'h-1.5 w-1.5 shrink-0 rounded-full',
-          done ? 'bg-success' : goal.hasTime ? 'bg-primary' : 'bg-muted-foreground/50',
-        )}
-      />
+      <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', monthDotTone(goal))} />
       <span className={cn('truncate text-[11px]', done && 'text-muted-foreground line-through')}>
         {goal.hasTime && goal.scheduledFor ? `${formatTime(goal.scheduledFor)} ` : ''}
         {goal.title}
@@ -926,6 +930,7 @@ function MonthDayItem({ goal }: { goal: ScheduledGoal }) {
 }
 
 const MONTH_CELL_CAP = 3
+const MONTH_MOBILE_DOT_CAP = 4
 
 // The primary Calendar surface on desktop — a real month grid, the way an indie developer would
 // actually want to see a whole month's worth of work at a glance. Every goal renders on its real
@@ -966,14 +971,19 @@ function MonthView({
   const now = new Date()
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg border border-border bg-border">
+    <div className="min-w-0 space-y-4">
+      <div className="grid w-full min-w-0 grid-cols-7 gap-px overflow-hidden rounded-lg border border-border bg-border">
         {WEEKDAY_LABELS_MON_FIRST.map((label) => (
           <div
             key={label}
-            className="bg-muted/40 px-2 py-1.5 text-center text-[11px] font-medium uppercase text-muted-foreground"
+            className="bg-muted/40 px-0.5 py-1.5 text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground sm:px-2 sm:text-[11px]"
           >
-            {label}
+            <span aria-label={label}>
+              <span className="sm:hidden" aria-hidden="true">
+                {label.charAt(0)}
+              </span>
+              <span className="hidden sm:inline">{label}</span>
+            </span>
           </div>
         ))}
         {days.map((day) => {
@@ -988,14 +998,16 @@ function MonthView({
               type="button"
               onClick={() => onSelectDay(isSelected ? null : day)}
               className={cn(
-                'flex min-h-[6rem] flex-col items-stretch gap-0.5 bg-background p-1.5 text-left transition-colors hover:bg-accent',
+                // Mobile: taller tap targets with dots only — titles don't fit in ~50px columns.
+                // sm+: desktop month cell with truncated titles.
+                'flex min-h-[5.25rem] flex-col items-stretch gap-0.5 bg-background p-1 text-left transition-colors hover:bg-accent sm:min-h-[6rem] sm:p-1.5',
                 !inMonth && 'bg-muted/20',
                 isSelected && 'ring-2 ring-inset ring-foreground/30',
               )}
             >
               <span
                 className={cn(
-                  'inline-flex h-5 w-5 items-center justify-center rounded-full text-xs',
+                  'inline-flex h-6 w-6 items-center justify-center self-center rounded-full text-xs sm:h-5 sm:w-5 sm:self-start',
                   isToday
                     ? 'bg-foreground text-background'
                     : inMonth
@@ -1005,7 +1017,22 @@ function MonthView({
               >
                 {day.getDate()}
               </span>
-              <div className="min-h-0 flex-1 space-y-0.5 overflow-hidden">
+              {/* Mobile: presence dots only */}
+              <div className="mt-auto flex flex-wrap justify-center gap-0.5 px-0.5 pb-0.5 sm:hidden">
+                {items.slice(0, MONTH_MOBILE_DOT_CAP).map((goal) => (
+                  <span
+                    key={goal.id}
+                    className={cn('h-1.5 w-1.5 rounded-full', monthDotTone(goal))}
+                  />
+                ))}
+                {items.length > MONTH_MOBILE_DOT_CAP ? (
+                  <span className="text-[9px] leading-none text-muted-foreground">
+                    +{items.length - MONTH_MOBILE_DOT_CAP}
+                  </span>
+                ) : null}
+              </div>
+              {/* Desktop: titled chips */}
+              <div className="hidden min-h-0 flex-1 space-y-0.5 overflow-hidden sm:block">
                 {items.slice(0, MONTH_CELL_CAP).map((goal) => (
                   <MonthDayItem key={goal.id} goal={goal} />
                 ))}
@@ -1177,7 +1204,6 @@ export function CalendarPage() {
   const thisWeek = board?.thisWeek ?? []
   const recentlyCompleted = board?.recentlyCompleted ?? []
   const ideas = board?.ideas ?? []
-  const currentStage = board?.currentStage
   const rangeGoals = rangeQuery.data?.data ?? []
 
   function step(n: number) {
@@ -1210,22 +1236,24 @@ export function CalendarPage() {
     : { when: 'TODAY' }
 
   return (
-    <div className="mx-auto w-full space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">Calendar</h1>
-          {currentStage ? (
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Focusing on{' '}
-              <span className="font-medium text-foreground">{STAGE_LABEL[currentStage]}</span>
-            </p>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <QuickAddTask />
-          <ViewSwitch view={view} onChange={setView} />
-        </div>
-      </div>
+    <div className="mx-auto w-full min-w-0 space-y-6">
+      <CalendarCollectionInsights
+        today={today}
+        thisWeek={thisWeek}
+        recentlyCompleted={recentlyCompleted}
+        ideas={ideas}
+      />
+
+      <PageHeader
+        variant="list"
+        title="Calendar"
+        className="min-w-0"
+        primaryAction={<ViewSwitch view={view} onChange={setView} />}
+      >
+        {/* Full-width under the title row so the fixed w-48 input + Add + view switch can't
+            spill past the right edge on narrow viewports. */}
+        <QuickAddTask />
+      </PageHeader>
 
       {view === 'list' ? (
         <ListView
