@@ -92,6 +92,13 @@
     border-color: hsl(var(--border));
   }
 
+  html,
+  body,
+  #root {
+    min-height: 100%;
+    min-height: 100dvh;
+  }
+
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));

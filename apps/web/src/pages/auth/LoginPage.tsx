@@ -29,7 +29,7 @@ export function LoginPage() {
       : '/'
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="flex min-h-dvh w-full items-center justify-center overflow-y-auto bg-background px-4 py-8">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-4 text-center">
           <div className="flex items-center gap-3">
