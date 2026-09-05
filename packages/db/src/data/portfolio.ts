@@ -1,5 +1,6 @@
 import type { TemplateSchema } from '../leadGenTemplate'
 import { DEFAULT_PAGE_FAVICON_URL, type PageContent } from '../content'
+import { PAGE_THEME_PRESETS } from '../pageThemes'
 
 export const SYSTEM_PORTFOLIO_TEMPLATE_ID = 'system-template-portfolio'
 
@@ -49,6 +50,10 @@ export const portfolioSchema: TemplateSchema = {
       hideable: true,
       editable: ['items'],
     },
+    // Editorial metadata, not an independent render node — 'studio-contact' (below) renders the
+    // attached Form's fields nested inside its own contact block, never as a standalone section.
+    // Exists only so the Content tab can order/hide/delete it like every other section.
+    { key: 'form', type: 'form-embed', order: 5.5, hideable: true, editable: [] },
     {
       key: 'footer',
       type: 'studio-contact',
@@ -58,6 +63,7 @@ export const portfolioSchema: TemplateSchema = {
     },
   ],
   themeTokens: [],
+  themePresets: PAGE_THEME_PRESETS,
 }
 
 export const portfolioStarterContent: PageContent = {

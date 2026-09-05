@@ -1,12 +1,10 @@
 import { useState } from 'react'
-import { Plus, X, ArrowUpRight, MapPin, Briefcase } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { useUpdateBusiness, ApiError } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
-import { BusinessLogoField } from '@/components/business/BusinessLogoField'
 import { BusinessGalleryField } from '@/components/business/BusinessGalleryField'
-import { Link } from 'react-router-dom'
 
 type SocialProfileLink = { platform: string; url: string }
 
@@ -45,9 +43,8 @@ export function BusinessIdentityForm({
   const [name, setName] = useState(initial.name)
   const [location, setLocation] = useState(initial.location ?? '')
   const [industry, setIndustry] = useState(initial.industry ?? '')
-  const slug = initial.slug ?? ''
   const [targetAudience, setTargetAudience] = useState(initial.targetAudience ?? '')
-  const [logoUrl, setLogoUrl] = useState<string | null>(initial.logoUrl)
+  const logoUrl = initial.logoUrl
   const [socialProfiles, setSocialProfiles] = useState<SocialProfileLink[]>(initial.socialProfiles)
   const [description, setDescription] = useState(initial.description ?? '')
   const [phone, setPhone] = useState(initial.phone ?? '')
@@ -103,38 +100,6 @@ export function BusinessIdentityForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="flex gap-1 align-items-center items-center">
-        <BusinessLogoField name={name || 'Business'} logoUrl={logoUrl} onChange={setLogoUrl} />
-
-        <h2 className="font-semibold tracking-tight text-foreground text-3xl">
-          {name || 'Business'}
-        </h2>
-      </div>
-      <Link
-        to={`/b/${slug}`}
-        className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        View public profile <ArrowUpRight size={14} />
-      </Link>
-
-      <div className="min-w-0 lg:w-full">
-        <div className="mt-1.5 space-y-1 text-sm text-muted-foreground">
-          {industry && (
-            <div className="flex items-center gap-1.5">
-              <Briefcase size={13} strokeWidth={1.8} />
-              <span className="truncate">{industry}</span>
-            </div>
-          )}
-
-          {location && (
-            <div className="flex items-center gap-1.5">
-              <MapPin size={13} strokeWidth={1.8} />
-              <span className="truncate">{location}</span>
-            </div>
-          )}
-        </div>
-      </div>
-
       <div className="space-y-1.5">
         <label htmlFor="business-name" className="text-sm font-medium text-foreground">
           Business name

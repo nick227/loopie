@@ -4,12 +4,25 @@ import { Button } from '@/components/ui/Button'
 import { Copy, Check, Loader2, AlertCircle } from 'lucide-react'
 import { getApiClient } from '@project/sdk'
 import { useMutation } from '@tanstack/react-query'
+import { FORMAT_ASPECT_RATIO, type AdCreativeFormat } from '@project/ad-renderer'
+import { AD_SERVER_URL } from '@/lib/adPlatformConfig'
 
 interface EmbedModalProps {
   isOpen: boolean
   onClose: () => void
   objectType: 'PAGE' | 'ADVERTISEMENT'
   objectId: string
+}
+
+type EmbedDeploymentResult = {
+  publicId: string
+  format?: AdCreativeFormat | null
+}
+
+function hostAspectRatio(objectType: 'PAGE' | 'ADVERTISEMENT', format?: AdCreativeFormat | null) {
+  if (objectType === 'PAGE') return '16 / 9'
+  const key = (format ?? 'FEED_POST') as AdCreativeFormat
+  return FORMAT_ASPECT_RATIO[key] ?? FORMAT_ASPECT_RATIO.FEED_POST
 }
 
 export function EmbedModal({ isOpen, onClose, objectType, objectId }: EmbedModalProps) {
@@ -21,8 +34,26 @@ export function EmbedModal({ isOpen, onClose, objectType, objectId }: EmbedModal
     isPending,
     error,
   } = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<EmbedDeploymentResult> => {
       const client = getApiClient()
+
+      // AdEditor has no separate Publish control — freeze the current draft into a published
+      // snapshot before minting/promoting the embed deployment so the snippet always reflects
+      // the media/CTA/headline the user just edited (not a stale prior version).
+      if (objectType === 'ADVERTISEMENT') {
+        const { error: publishError } = await client.POST(
+          '/advertisements/{advertisementId}/publish',
+          {
+            params: { path: { advertisementId: objectId } },
+            body: {},
+          },
+        )
+        if (publishError) {
+          const errorData = publishError as { error?: string; message?: string }
+          throw new Error(errorData.error || errorData.message || 'Failed to publish advertisement')
+        }
+      }
+
       const { data, error: apiError } = await client.POST('/embed-deployments/get-or-create', {
         body: { objectType, objectId },
       })
@@ -32,7 +63,9 @@ export function EmbedModal({ isOpen, onClose, objectType, objectId }: EmbedModal
         throw new Error(errorData.error || errorData.message || 'Failed to generate embed code')
       }
 
-      return data?.data
+      const result = data?.data as EmbedDeploymentResult | undefined
+      if (!result?.publicId) throw new Error('Failed to generate embed code')
+      return result
     },
   })
 
@@ -42,11 +75,10 @@ export function EmbedModal({ isOpen, onClose, objectType, objectId }: EmbedModal
     }
   }, [isOpen, objectType, objectId, mutate])
 
-  const adServerUrl = 'https://ad.loopie.up' // or get from config
-
+  const aspect = hostAspectRatio(objectType, deployment?.format)
   const buildEmbedCode = (publicId: string) => {
-    return `<script src="${adServerUrl}/v1.js" async></script>
-<div class="loopie-embed" data-public-id="${publicId}"></div>`
+    return `<script src="${AD_SERVER_URL}/v1.js" async></script>
+<div class="loopie-embed" data-public-id="${publicId}" style="width:100%;max-width:400px;aspect-ratio:${aspect};"></div>`
   }
 
   const embedCode = deployment?.publicId ? buildEmbedCode(deployment.publicId) : ''
@@ -103,6 +135,10 @@ export function EmbedModal({ isOpen, onClose, objectType, objectId }: EmbedModal
                 <code>{embedCode}</code>
               </pre>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Paste on any site. The slot is capped at 400px wide with the creative&apos;s aspect
+              ratio. Opening Embed publishes the current draft so the snippet stays in sync.
+            </p>
           </div>
         )}
       </div>

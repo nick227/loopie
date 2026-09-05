@@ -134,6 +134,15 @@ export const KNOWN_SLOT_GROUPS: SlotGroupKey[] = [
   'footer',
 ]
 
+// Mirrors packages/db/src/content.ts's SECTION_TYPE_TO_SLOT_GROUP exactly — see that file's own
+// comment for the full rationale. One point worth restating here since ContentView.tsx leans on it
+// directly: `form-embed` is the one section type NOT guaranteed to be an independently rendered
+// DOM block. It's real content only for the plain lead-gen templates; for every rich template it's
+// editorial metadata — the attached Form's fields render nested inside whatever section actually
+// owns that visual real estate (footer/contact for most templates, the event-widget for
+// webinar-signup — see LandingPage.tsx's `hasForm` computation). ContentView.tsx's Form row reads
+// this entry's `order`/`hideable` for positioning/controls, same as any other section, but never
+// reads/writes `content[group]` for it (there is no slot group — see `undefined` below).
 export const SECTION_TYPE_TO_SLOT_GROUP: Record<string, SlotGroupKey | undefined> = {
   hero: 'hero',
   'split-capture': 'hero',

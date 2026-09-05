@@ -145,6 +145,19 @@ export type SlotGroupKey = Exclude<keyof PageContent, 'browser'>
 // just which visual component renders it. `form-embed` intentionally maps to nothing: form
 // content is a separate Form entity, not page content.
 //
+// `form-embed` is also the one section type that is NOT guaranteed to be an independently
+// rendered DOM block — do not assume every schema entry maps 1:1 to a standalone visual node.
+// Every template declares exactly one `form-embed` entry purely so the attached Form can be
+// ordered/hidden/deleted in the Content tab like any other section (apps/web's ContentView reads
+// its `order`/`hideable` the same generic way it reads every other TemplateSection). For the plain
+// lead-gen templates (leadGenTemplate.ts) it really is its own render node (CanvasSection's
+// FormEmbedBlock). For every rich template (corporate-professional.ts, portfolio.ts, store.ts,
+// studio.ts, email-outreach.ts, webinar-signup.ts) it is editorial metadata only — the visual
+// component threads the attached Form's fields as props (`hasForm`/`formFields`) into whichever
+// section actually renders them (the footer/contact section for most; the event-widget section for
+// webinar-signup), never as a separate DOM element of its own. See each template's own 'form' entry
+// comment for exactly where.
+//
 // The inverse must never happen: a single template's schema must never declare two sections whose
 // *types* map to the same slot group (renderBody/ContentView key content purely by slot group, not
 // by section key, so a second section of an already-used type would silently read/write the first

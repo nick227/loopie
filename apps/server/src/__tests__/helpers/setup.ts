@@ -67,6 +67,12 @@ afterEach(async () => {
   await db.embedDeployment.deleteMany()
   await db.publishedAdvertisementVersion.deleteMany()
 
+  // Not FK-cascaded from anything for SYSTEM_LAYOUT rows (no publishedVersionId) — left
+  // uncleaned, these accumulate across every test run and corrupt processPending's `take` window
+  // for every later run (oldest-PENDING-first ordering keeps returning ancient orphaned rows
+  // instead of the one a given test just enqueued). PUBLISHED_VERSION rows are also covered here
+  // rather than relying solely on the onDelete: Cascade from publishedPageVersion below.
+  await db.pageThumbnail.deleteMany()
   await db.landingPageAdSlot.deleteMany()
   await db.landingPage.updateMany({ data: { publishedVersionId: null } })
   await db.publishedPageVersion.deleteMany()

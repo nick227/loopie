@@ -1,9 +1,10 @@
 import { db } from '@project/db'
 import { getLiveConnector } from '../lib/crm/registry'
 import { integrationScope } from '../lib/crm/catalog'
+import { parseProviderConfig } from '../lib/crm/googleSheets'
 import { matchIdentity } from '../lib/identityMatch'
 import { normalizeEmail, normalizePhone } from '../lib/identityResolution'
-import { readCreds } from './CrmOAuthService'
+import { ensureFreshToken } from './CrmOAuthService'
 
 const MAX_PREVIEW_PAGES = 8
 
@@ -18,11 +19,14 @@ export class CrmPreviewService {
     const integration = await db.integration.findFirst({ where: { id: integrationId, businessId } })
     if (!integration) throw { statusCode: 404, message: 'Integration not found' }
     const live = getLiveConnector(integration.provider)
-    const creds = readCreds(integration.credentialsEnc)
-    if (!creds?.accessToken) throw { statusCode: 409, message: 'Connect this account first' }
+    const creds = await ensureFreshToken(integration)
+    const sheetsConfig = parseProviderConfig(integration.providerConfig)
     const opts = {
       shop: creds.shop ?? integration.externalAccountId ?? undefined,
       secret: creds.consumerSecret,
+      spreadsheetId: sheetsConfig.spreadsheetId,
+      sheetTab: sheetsConfig.sheetTab,
+      columnMapping: sheetsConfig.columnMapping,
     }
 
     const candidates: Candidate[] = []

@@ -29,14 +29,15 @@ export function AssistantGrowView({
   }
 
   return (
-    <div className="grid gap-2">
+    <div className="flex flex-col gap-2">
       {directions.map((direction, i) =>
         i === 0 ? (
           <Button
             key={direction.value}
+            size="lg"
             onClick={() => handleChoose(direction.value)}
             loading={grow.isPending}
-            className="justify-start"
+            className="h-auto justify-start rounded-lg py-3.5"
           >
             {direction.label}
           </Button>
@@ -47,7 +48,7 @@ export function AssistantGrowView({
             disabled={grow.isPending}
             onClick={() => handleChoose(direction.value)}
             className={cn(
-              'rounded-xl border border-border bg-surface px-4 py-3 text-left text-sm font-medium text-foreground transition-colors hover:border-foreground/20 hover:bg-accent disabled:opacity-50',
+              'rounded-lg border border-border bg-surface px-4 py-3.5 text-left text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-accent active:scale-[0.99] disabled:opacity-50',
             )}
           >
             {direction.label}

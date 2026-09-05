@@ -66,7 +66,7 @@ export function LandingPageShareMenu({
           id={panelId}
           role="dialog"
           aria-label="Share page"
-          className="absolute right-0 top-[calc(100%+0.5rem)] z-40 w-52 rounded-xl border border-border bg-popover p-1.5 shadow-lg"
+          className="absolute right-0 top-[calc(100%+0.5rem)] z-40 w-52 rounded-xl border border-border bg-surface p-1.5 shadow-lg"
         >
           <button
             type="button"

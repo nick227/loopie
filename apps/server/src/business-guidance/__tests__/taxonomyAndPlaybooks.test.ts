@@ -65,6 +65,21 @@ describe('resolveLearnQuestion — known fact -> skip question', () => {
     expect(goal.knownFacts).toEqual(['Local service', 'Home services', 'Roofing'])
     knowledge = { ...knowledge, primaryGoal: 'GET_MORE_CUSTOMERS' }
 
+    // Team size is asked once, universally, right after the goal — before any playbook-specific
+    // qualification question (2026-09-04: team-appropriate content must be knowable by build-plan
+    // time for every playbook, not just the local-service one).
+    const teamSize = resolveLearnQuestion(knowledge)
+    expect(teamSize.done).toBe(false)
+    if (teamSize.done) throw new Error('unreachable')
+    expect(teamSize.step.key).toBe('team_size')
+    expect(teamSize.knownFacts).toEqual([
+      'Local service',
+      'Home services',
+      'Roofing',
+      'Get more customers',
+    ])
+    knowledge = { ...knowledge, teamSize: 'SOLO' }
+
     // Qualification questions follow (target_customer first for the local-service playbook).
     const qualification = resolveLearnQuestion(knowledge)
     expect(qualification.done).toBe(false)
@@ -75,6 +90,7 @@ describe('resolveLearnQuestion — known fact -> skip question', () => {
       'Home services',
       'Roofing',
       'Get more customers',
+      'Just me',
     ])
   })
 
@@ -84,6 +100,7 @@ describe('resolveLearnQuestion — known fact -> skip question', () => {
       businessGroup: 'HOME_SERVICES',
       ventureType: 'ROOFING',
       primaryGoal: 'GET_MORE_CUSTOMERS',
+      teamSize: 'SMALL_TEAM',
       targetCustomer: 'HOMEOWNERS',
       serviceArea: 'ONE_CITY',
       customerGoalBand: 'FOUR_TO_TEN',
@@ -99,6 +116,7 @@ describe('resolveLearnQuestion — known fact -> skip question', () => {
       'Home services',
       'Roofing',
       'Get more customers',
+      '2–5 people',
       'Homeowners',
       'Just my city',
       '4–10',
@@ -113,6 +131,7 @@ describe('resolveLearnQuestion — known fact -> skip question', () => {
       businessGroup: 'HOME_SERVICES',
       ventureType: 'ROOFING',
       primaryGoal: 'MAKE_MORE_SALES',
+      teamSize: 'SOLO',
     }
     const result = resolveLearnQuestion(knowledge)
     expect(result).toMatchObject({ done: true, playbookKey: '' })
@@ -142,18 +161,33 @@ describe('selectPlaybook — specificity precedence', () => {
     expect(selectPlaybook('IMPROVE_WEBSITE', { traits: [] })).toBeUndefined()
   })
 
-  it('every playbook step references a real GoalIdeaTemplate id (checked against the seed catalog)', async () => {
+  it('every playbook step (in every layer) references a real GoalIdeaTemplate id (checked against the seed catalog)', async () => {
     const { STATIC_GOAL_IDEA_TEMPLATES, DYNAMIC_GOAL_IDEA_TEMPLATES } = await import('@project/db')
     const allIds = new Set(
       [...STATIC_GOAL_IDEA_TEMPLATES, ...DYNAMIC_GOAL_IDEA_TEMPLATES].map((t) => t.id),
     )
-    for (const key of ['LOCAL_SERVICE_GET_CUSTOMERS', 'WEB_DEVELOPMENT_GET_CUSTOMERS']) {
+    for (const key of [
+      'LOCAL_SERVICE_GET_CUSTOMERS',
+      'WEB_DEVELOPMENT_GET_CUSTOMERS',
+      'DESIGN_STUDIO_GET_CUSTOMERS',
+    ]) {
       const playbook = getPlaybook(key)
       expect(playbook).toBeDefined()
-      for (const step of playbook!.steps) {
-        expect(allIds.has(step.templateId)).toBe(true)
+      for (const layer of playbook!.layers) {
+        for (const step of layer.steps) {
+          expect(allIds.has(step.templateId)).toBe(true)
+        }
       }
     }
+  })
+
+  it('design studio, an exact-venture-type match, beats no match at all', () => {
+    const playbook = selectPlaybook('GET_MORE_CUSTOMERS', {
+      ventureType: 'DESIGN_STUDIO',
+      businessGroup: 'DIGITAL_SERVICES',
+      traits: ['ONLINE', 'PROJECT_BASED'],
+    })
+    expect(playbook?.key).toBe('DESIGN_STUDIO_GET_CUSTOMERS')
   })
 })
 

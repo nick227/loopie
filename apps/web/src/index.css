@@ -10,6 +10,8 @@
     --surface: 255 100% 100%;
     --surface-foreground: 240 6% 20%;
 
+    --input-background: 0 0% 98%;
+
     /* Primary: violet. Does real structural work (buttons, active nav, selected states, focus,
        links, emphasis) — not a decorative accent. See docs/design/00-design-language-spec.md. */
     --primary: 262 83% 58%;
@@ -83,6 +85,7 @@
     --warning-foreground: 0 0% 100%;
     --info: 221 65% 46%;
     --info-foreground: 0 0% 100%;
+    --input-background: 0 0% 6%;
   }
 
   * {
@@ -99,6 +102,11 @@
       sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  input,
+  textarea {
+    background-color: hsl(var(--input-background));
   }
 }
 

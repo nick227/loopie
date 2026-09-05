@@ -1,5 +1,6 @@
 import { ChevronRight } from 'lucide-react'
 import { useAnswerAssistantLearnQuestion } from '@project/sdk'
+import { cn } from '@/lib/utils'
 import { AssistantBotMessage } from '../AssistantBotMessage'
 
 type Step = {
@@ -8,6 +9,15 @@ type Step = {
   description?: string | null
   choices: { value: string; label: string }[]
   writesKnowledge: string
+}
+
+// A short-label, small set of choices (a value pick — budget/count/time/reach bands) reads better
+// as a compact horizontal row than a drill-down list; a longer-label or larger set (taxonomy
+// navigation, a goal statement) reads as one category per row. This is a purely presentational
+// read of the same generic {value,label} shape the server already sends — no new content model,
+// no per-question authoring — so it stays correct automatically as playbook content grows.
+function isCompactChoiceSet(choices: Step['choices']): boolean {
+  return choices.length <= 5 && choices.every((c) => c.label.length <= 16)
 }
 
 // The Learn phase's one generic renderer (docs/loopie-assistant-playbook-poc/03-poc-
@@ -29,6 +39,7 @@ export function AssistantChoiceStepView({
   onLearnComplete: () => void
 }) {
   const answer = useAnswerAssistantLearnQuestion()
+  const compact = isCompactChoiceSet(step.choices)
 
   function handleChoose(value: string) {
     answer.mutate(
@@ -38,25 +49,39 @@ export function AssistantChoiceStepView({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <AssistantBotMessage
         knownFacts={knownFacts}
         heading={step.heading}
         detail={step.description}
       />
-      <div className="grid gap-2">
-        {step.choices.map((choice) => (
-          <button
-            key={choice.value}
-            type="button"
-            disabled={answer.isPending}
-            onClick={() => handleChoose(choice.value)}
-            className="flex items-center justify-between gap-2 rounded-xl border border-border bg-surface px-4 py-3 text-left text-sm font-medium text-foreground transition-colors hover:border-foreground/20 hover:bg-accent disabled:opacity-50"
-          >
-            {choice.label}
-            <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
-          </button>
-        ))}
+      <div className={compact ? 'flex flex-wrap gap-2' : 'flex flex-col gap-2'}>
+        {step.choices.map((choice) =>
+          compact ? (
+            <button
+              key={choice.value}
+              type="button"
+              disabled={answer.isPending}
+              onClick={() => handleChoose(choice.value)}
+              className="min-w-[4.5rem] flex-1 rounded-lg border border-border bg-surface px-4 py-3 text-center text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-accent active:scale-[0.98] disabled:opacity-50"
+            >
+              {choice.label}
+            </button>
+          ) : (
+            <button
+              key={choice.value}
+              type="button"
+              disabled={answer.isPending}
+              onClick={() => handleChoose(choice.value)}
+              className={cn(
+                'flex items-center justify-between gap-2 rounded-lg border border-border bg-surface px-4 py-3.5 text-left text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-accent active:scale-[0.99] disabled:opacity-50',
+              )}
+            >
+              {choice.label}
+              <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
+            </button>
+          ),
+        )}
       </div>
     </div>
   )

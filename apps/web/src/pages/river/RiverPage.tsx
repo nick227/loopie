@@ -3,7 +3,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Waves, PenLine } from 'lucide-react'
 import type { components } from '@project/sdk'
 import { useCurrentUser, useRiverFeed, useRiverFeedPoll } from '@project/sdk'
-import { PageHeader } from '@/components/ui/PageHeader'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { VirtualInfiniteList } from '@/components/ui/VirtualInfiniteList'
@@ -13,6 +12,7 @@ import {
   RiverDiscoveryModule,
   type DiscoveryBusiness,
 } from '@/components/river/RiverDiscoveryModule'
+import { RiverCompanionRail } from '@/components/river/RiverCompanionRail'
 
 type RiverFeedItem = components['schemas']['RiverFeedItem']
 
@@ -91,7 +91,7 @@ export function RiverPage() {
   const viewerRecognized = !me.isLoading && Boolean(viewer)
   const viewerBusinessId = viewer?.businessId
 
-  const [following, setFollowing] = useState(false)
+  const following = false
   const [composerOpen, setComposerOpen] = useState(false)
   const queryClient = useQueryClient()
 
@@ -109,9 +109,6 @@ export function RiverPage() {
   function insertNewPosts() {
     const newItems = poll.data?.items
     if (!newItems?.length) return
-    // Once this runs, `items[0]` changes on the next render, which gives useRiverFeedPoll a
-    // brand-new `after` value and therefore a brand-new (empty, un-fetched) query — the banner
-    // disappears on its own with no need to separately clear the old poll query's cache.
     queryClient.setQueryData(
       ['riverFeed', { following: viewerRecognized && following }],
       (data: typeof feed.data) => {
@@ -129,110 +126,95 @@ export function RiverPage() {
   const showSkeletons = feed.isPending
 
   return (
-    <div className="mx-auto max-w-[590px]">
-      {/* This whole header block (title/tabs/compose bar/banner) is its own snap point at the
-          top of the document — without it, scroll position 0 has no snap point of its own (the
-          first one belongs to the first stage post further down), so `proximity` snapping pulls
-          any small scroll near the top straight past this chrome and down to that post. Found
-          live: it broke a scripted click on "Share an update" the same way it would a real
-          visitor's first scroll. snap-start here just means "0 already satisfies alignment," so
-          normal scrolling away from the top is unaffected. */}
-      <div className="snap-start">
-        <PageHeader variant="list">
-          {viewerRecognized ? (
-            <div className="flex gap-2 border-b border-border pb-3">
-              <button
-                type="button"
-                onClick={() => setFollowing(false)}
-                className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
-                  !following
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Latest
-              </button>
-              <button
-                type="button"
-                onClick={() => setFollowing(true)}
-                className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
-                  following
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Following
-              </button>
-            </div>
-          ) : null}
-        </PageHeader>
-
-        {/* One destination-feeling entry point into the composer, not a bare "Post to River"
-          button off in the header actions — see the design critique's "give River a page-level
-          header" note. Per-type shortcut buttons (Photo/Video/Page/Ad) were floated in that note
-          too; skipped here since that's new interaction surface, not layout/spacing/typography,
-          and RiverComposerModal already offers all three modes the moment it opens. */}
-        {viewerRecognized ? (
-          <button
-            type="button"
-            onClick={() => setComposerOpen(true)}
-            className="mb-6 mt-4 flex w-full items-center gap-3 rounded-full border border-border px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
-          >
-            <PenLine size={16} className="shrink-0" />
-            Share an update…
-          </button>
-        ) : (
-          <div className="mb-6 mt-4" />
-        )}
-
-        {pendingCount > 0 ? (
-          <button
-            type="button"
-            onClick={insertNewPosts}
-            className="mb-6 w-full rounded-full border border-primary/30 bg-primary/10 py-2 text-center text-sm font-medium text-primary transition-colors hover:bg-primary/15"
-          >
-            ↑ {pendingCount} new post{pendingCount === 1 ? '' : 's'}
-          </button>
-        ) : null}
+    <div className="mx-auto w-full max-w-[900px] pb-12">
+      <div className="mb-8 px-4 sm:px-0">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">River</h1>
+        <p className="mt-1 text-muted-foreground">
+          Share updates, promote your content, and keep your audience engaged.
+        </p>
       </div>
 
-      {showSkeletons ? (
-        <div className="space-y-6">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-48 w-full rounded-xl" />
-          ))}
-        </div>
-      ) : items.length === 0 ? (
-        <EmptyState
-          icon={Waves}
-          title={following ? 'No posts from businesses you follow yet' : 'No posts yet'}
-          description={
-            viewerRecognized
-              ? 'Be the first to share something.'
-              : 'Check back soon, or sign in to post.'
-          }
-        />
-      ) : (
-        <VirtualInfiniteList
-          items={rows}
-          hasNextPage={!!feed.hasNextPage}
-          isFetchingNextPage={feed.isFetchingNextPage}
-          fetchNextPage={feed.fetchNextPage}
-          estimateSize={typeof window !== 'undefined' ? Math.round(window.innerHeight * 0.85) : 700}
-          gap={0}
-          renderItem={(row) =>
-            row.kind === 'post' ? (
-              <RiverFeedCard item={row.item} viewerBusinessId={viewerBusinessId} variant="stage" />
-            ) : (
-              <RiverDiscoveryModule businesses={row.businesses} />
-            )
-          }
-        />
-      )}
+      <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+        <div className="w-full flex-1 max-w-[520px] px-4 sm:px-0">
+          <div className="snap-start">
+            {viewerRecognized ? (
+              <button
+                type="button"
+                onClick={() => setComposerOpen(true)}
+                className="mb-8 flex w-full items-center gap-3 bg-accent/50 rounded-2xl border border-border/50 px-4 py-4 text-left text-sm text-muted-foreground transition-colors hover:border-border hover:bg-accent"
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  {viewerBusinessId?.[0]?.toUpperCase() ?? 'Y'}
+                </div>
+                <span className="flex-1">Share an update...</span>
+                <div className="flex items-center gap-4 text-muted-foreground/60">
+                  <PenLine size={18} />
+                </div>
+              </button>
+            ) : null}
 
-      {viewerRecognized ? (
-        <RiverComposerModal isOpen={composerOpen} onClose={() => setComposerOpen(false)} />
-      ) : null}
+            {pendingCount > 0 ? (
+              <button
+                type="button"
+                onClick={insertNewPosts}
+                className="mb-6 w-full rounded-full border border-primary/30 bg-primary/10 py-2 text-center text-sm font-medium text-primary transition-colors hover:bg-primary/15"
+              >
+                ↑ {pendingCount} new post{pendingCount === 1 ? '' : 's'}
+              </button>
+            ) : null}
+          </div>
+
+          {showSkeletons ? (
+            <div className="space-y-6">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-48 w-full rounded-xl" />
+              ))}
+            </div>
+          ) : items.length === 0 ? (
+            <EmptyState
+              icon={Waves}
+              title={following ? 'No posts from businesses you follow yet' : 'No posts yet'}
+              description={
+                viewerRecognized
+                  ? 'Be the first to share something.'
+                  : 'Check back soon, or sign in to post.'
+              }
+            />
+          ) : (
+            <VirtualInfiniteList
+              items={rows}
+              hasNextPage={!!feed.hasNextPage}
+              isFetchingNextPage={feed.isFetchingNextPage}
+              fetchNextPage={feed.fetchNextPage}
+              estimateSize={
+                typeof window !== 'undefined' ? Math.round(window.innerHeight * 0.85) : 700
+              }
+              gap={16}
+              renderItem={(row) =>
+                row.kind === 'post' ? (
+                  <RiverFeedCard
+                    item={row.item}
+                    viewerBusinessId={viewerBusinessId}
+                    variant="stage"
+                  />
+                ) : (
+                  <RiverDiscoveryModule businesses={row.businesses} />
+                )
+              }
+            />
+          )}
+
+          {viewerRecognized ? (
+            <RiverComposerModal isOpen={composerOpen} onClose={() => setComposerOpen(false)} />
+          ) : null}
+        </div>
+
+        <div className="hidden lg:block w-[320px] shrink-0">
+          <div className="sticky top-6">
+            <RiverCompanionRail />
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

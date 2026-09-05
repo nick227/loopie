@@ -3,7 +3,6 @@ import { cn } from '@/lib/utils'
 import { useQuickCreatePage } from '@/hooks/useQuickCreatePage'
 import {
   Building2,
-  Target,
   CalendarDays,
   Mail,
   ShoppingBag,
@@ -30,12 +29,6 @@ const PRIMARY_OPTIONS: StartOption[] = [
     label: 'Homepage',
     description: 'Company site with services, proof, and a contact form.',
     icon: Building2,
-  },
-  {
-    templateId: 'system-template-lead-gen',
-    label: 'Sales page',
-    description: 'A focused pitch that turns visitors into leads.',
-    icon: Target,
   },
   {
     templateId: 'system-template-webinar-signup',

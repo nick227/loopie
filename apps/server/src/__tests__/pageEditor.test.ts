@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto'
 import {
   SYSTEM_LEAD_GEN_TEMPLATE_ID,
   SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID,
+  SYSTEM_CORPORATE_PROFESSIONAL_TEMPLATE_ID,
   parseYoutubeId,
   issueSid,
 } from '@project/db'
@@ -34,12 +35,12 @@ describe('page editor', () => {
       headers: asAuth(userId),
     })
     const page = list.json().data[0]
-    expect(page.templateId).toBe(SYSTEM_LEAD_GEN_TEMPLATE_ID)
+    expect(page.templateId).toBe(SYSTEM_CORPORATE_PROFESSIONAL_TEMPLATE_ID)
     expect(page.status).toBe('PUBLISHED')
 
     const hosted = await app.inject({ method: 'GET', url: `/p/${page.slug}` })
     expect(hosted.statusCode).toBe(200)
-    expect(hosted.body).toContain('Editor Co is booking this week')
+    expect(hosted.body).toContain('Clear work. Reliable results.')
     expect(hosted.body).toContain('images.unsplash.com')
     expect(hosted.body).toContain('class="lp-section lp-hero"')
     expect(hosted.body).toContain('class="lp-section lp-features"')

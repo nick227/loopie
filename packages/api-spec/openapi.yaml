@@ -213,7 +213,11 @@ components:
       in: path
       name: provider
       required: true
-      schema: { type: string, enum: [HUBSPOT, SALESFORCE, SHOPIFY, WOOCOMMERCE, SQUARE, PIPEDRIVE] }
+      schema:
+        {
+          type: string,
+          enum: [HUBSPOT, SALESFORCE, SHOPIFY, WOOCOMMERCE, SQUARE, PIPEDRIVE, GOOGLE_SHEETS],
+        }
     ExternalRecordId:
       in: path
       name: recordId
@@ -519,6 +523,76 @@ components:
         label: { type: string }
         type: { type: string, enum: [text, textarea, url, email, phone] }
         required: { type: boolean }
+
+    AssistantNextActionDTO:
+      type: object
+      required: [action, conversation]
+      description: >
+        Two wholly independent slots (2026-09-04) — GET /assistant/next-action's actual response
+        shape. `action` is the single next executable/decidable thing Loopie wants the user to do
+        or can do for them (the cross-product priority chain: Business -> Page -> Advertising ->
+        the active goal cycle's own Learn/Plan/Grow turn, signal-boosted -> Calendar fallback;
+        Learn is explicitly the first Action, not a separate concept). `conversation` is a
+        browsable advice/knowledge corpus — ongoing business advice the user can read for its own
+        sake, never gated by Action state, so a Learn question and a useful business tip render
+        together instead of one winner-take-all slot.
+      properties:
+        action:
+          allOf: [{ $ref: '#/components/schemas/AssistantActionDTO' }]
+          nullable: true
+        conversation:
+          allOf: [{ $ref: '#/components/schemas/AssistantConversationDTO' }]
+          nullable: true
+
+    AssistantConversationDTO:
+      type: object
+      required: [featuredId, insights, categories]
+      description: >
+        The full eligible advice/knowledge catalog for this business's venture ships in one
+        response — related-topic and category-rail browsing are pure client-side state changes,
+        never a second round trip.
+      properties:
+        featuredId:
+          type: string
+          description: The id of the insight to show prominently on open.
+        insights:
+          type: array
+          items: { $ref: '#/components/schemas/ConversationInsightDTO' }
+        categories:
+          type: array
+          description: Only categories with at least one eligible insight for this business.
+          items:
+            type: object
+            required: [category, count]
+            properties:
+              category: { $ref: '#/components/schemas/ConversationCategory' }
+              count: { type: integer }
+
+    ConversationCategory:
+      type: string
+      enum: [FOUNDATION, MARKETING, SALES, OPERATIONS, TEAM, EQUIPMENT, RETENTION, SCALE]
+
+    ConversationInsightDTO:
+      type: object
+      required: [id, category, headline, detail, extended, chipLabel, relatedInsightIds, isDynamic]
+      properties:
+        id: { type: string }
+        category: { $ref: '#/components/schemas/ConversationCategory' }
+        headline: { type: string }
+        detail: { type: string, nullable: true }
+        extended:
+          type: string
+          nullable: true
+          description: A fuller paragraph shown on "Keep reading"; null advances to the next insight in the same category instead.
+        chipLabel:
+          type: string
+          description: Short label used when this insight appears as another insight's related-topic chip.
+        relatedInsightIds:
+          type: array
+          items: { type: string }
+        isDynamic:
+          type: boolean
+          description: True for a real-data-computed insight (e.g. an actual average sale value) rather than static authored content.
 
     AssistantActionDTO:
       type: object
@@ -1080,7 +1154,7 @@ components:
         provider:
           {
             type: string,
-            enum: [HUBSPOT, SALESFORCE, SHOPIFY, WOOCOMMERCE, WEBHOOK, SQUARE, PIPEDRIVE],
+            enum: [HUBSPOT, SALESFORCE, SHOPIFY, WOOCOMMERCE, WEBHOOK, SQUARE, PIPEDRIVE, GOOGLE_SHEETS],
           }
         label: { type: string }
         capabilities: { $ref: '#/components/schemas/CrmCapabilities' }
@@ -1097,7 +1171,7 @@ components:
         provider:
           {
             type: string,
-            enum: [HUBSPOT, SALESFORCE, SHOPIFY, WOOCOMMERCE, WEBHOOK, SQUARE, PIPEDRIVE],
+            enum: [HUBSPOT, SALESFORCE, SHOPIFY, WOOCOMMERCE, WEBHOOK, SQUARE, PIPEDRIVE, GOOGLE_SHEETS],
           }
         label: { type: string, nullable: true }
         externalAccountId: { type: string, nullable: true }
@@ -1122,6 +1196,13 @@ components:
         webhookSecret:
           { type: string, nullable: true, description: Returned only when a webhook is created. }
         createdAt: { type: string, format: date-time }
+        # GOOGLE_SHEETS-only selection state (see Integration.providerConfig) — surfaced here
+        # rather than a redundant separate GET so the picker/tab/mapping flow survives a reload.
+        # Every other provider always returns these as null.
+        spreadsheetId: { type: string, nullable: true }
+        spreadsheetName: { type: string, nullable: true }
+        sheetTab: { type: string, nullable: true }
+        columnMapping: { $ref: '#/components/schemas/GoogleColumnMapping', nullable: true }
 
     SyncIntegrationResult:
       type: object
@@ -1145,6 +1226,112 @@ components:
         orders: { type: integer }
         revenue: { type: number }
         truncated: { type: boolean }
+
+    GoogleSheetsPickerToken:
+      type: object
+      required: [accessToken]
+      properties:
+        accessToken:
+          {
+            type: string,
+            description: Short-lived Google access token for the frontend Picker widget only.,
+          }
+
+    GoogleColumnMapping:
+      type: object
+      description: 0-based column indices within the chosen tab.
+      properties:
+        name: { type: integer, nullable: true }
+        email: { type: integer, nullable: true }
+        phone: { type: integer, nullable: true }
+        company: { type: integer, nullable: true }
+
+    GoogleSheetsSelection:
+      type: object
+      required: [integrationId, spreadsheetId, spreadsheetName, sheetTab, columnMapping]
+      properties:
+        integrationId: { type: string }
+        spreadsheetId: { type: string, nullable: true }
+        spreadsheetName: { type: string, nullable: true }
+        sheetTab: { type: string, nullable: true }
+        columnMapping: { $ref: '#/components/schemas/GoogleColumnMapping', nullable: true }
+
+    SelectGoogleSheetsSpreadsheetInput:
+      type: object
+      required: [spreadsheetId, spreadsheetName]
+      properties:
+        spreadsheetId: { type: string }
+        spreadsheetName: { type: string }
+
+    GoogleSheetsTab:
+      type: object
+      required: [title, sheetId]
+      properties:
+        title: { type: string }
+        sheetId: { type: integer }
+
+    SelectGoogleSheetsTabInput:
+      type: object
+      required: [sheetTab]
+      properties:
+        sheetTab: { type: string }
+
+    PreviewGoogleSheetsImportInput:
+      type: object
+      properties:
+        mapping:
+          {
+            $ref: '#/components/schemas/GoogleColumnMapping',
+            description: Recompute stats against this mapping instead of the persisted/suggested one, without saving it.,
+          }
+
+    GoogleSheetsPreview:
+      type: object
+      required:
+        [
+          spreadsheetName,
+          sheetTab,
+          headers,
+          sampleRows,
+          suggestedMapping,
+          totalRows,
+          withEmail,
+          withPhone,
+          toImport,
+          toSkip,
+          truncated,
+        ]
+      properties:
+        spreadsheetName: { type: string, nullable: true }
+        sheetTab: { type: string }
+        headers: { type: array, items: { type: string } }
+        sampleRows: { type: array, items: { type: array, items: { type: string } } }
+        suggestedMapping: { $ref: '#/components/schemas/GoogleColumnMapping' }
+        totalRows: { type: integer }
+        withEmail: { type: integer }
+        withPhone: { type: integer }
+        toImport: { type: integer }
+        toSkip: { type: integer }
+        truncated: { type: boolean }
+
+    ConfirmGoogleSheetsMappingInput:
+      type: object
+      required: [mapping]
+      properties:
+        mapping: { $ref: '#/components/schemas/GoogleColumnMapping' }
+
+    ExportContactsToGoogleSheetsInput:
+      type: object
+      properties:
+        title: { type: string }
+
+    GoogleSheetsExportResult:
+      type: object
+      required: [spreadsheetId, url, contactCount]
+      properties:
+        spreadsheetId: { type: string }
+        url: { type: string, format: uri }
+        contactCount: { type: integer }
 
     CreateIntegrationInput:
       type: object
@@ -2962,6 +3149,7 @@ components:
           submissionCount,
           createdAt,
           previewUrl,
+          thumbnailStatus,
         ]
       properties:
         id: { type: string }
@@ -3004,6 +3192,31 @@ components:
           type: array
           items: { $ref: '#/components/schemas/LandingPageAdSlot' }
         createdAt: { type: string, format: date-time }
+        thumbnailUrl:
+          {
+            type: string,
+            nullable: true,
+            description: 'Cached screenshot URL when thumbnailStatus is READY; otherwise null.',
+          }
+        thumbnailStatus:
+          type: string
+          enum: [NONE, PENDING, READY, STALE, FAILED]
+          description: >
+            Derived-cache freshness for list previews. NONE = draft / no published version
+            (use live miniature). PENDING/STALE/FAILED = fall back to miniature while a
+            background job (re)generates. READY = screenshot matches current published checksum.
+        thumbnailChecksum:
+          {
+            type: string,
+            nullable: true,
+            description: 'Checksum the cached screenshot was generated from.',
+          }
+        thumbnailSourceVersionId:
+          {
+            type: string,
+            nullable: true,
+            description: 'PublishedPageVersion id the screenshot is tied to.',
+          }
 
     LandingPageAdSlot:
       type: object
@@ -5087,13 +5300,13 @@ paths:
       tags: [assistant]
       responses:
         '200':
-          description: The next action
+          description: The next action and the current conversation, independently resolved
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  data: { $ref: '#/components/schemas/AssistantActionDTO' }
+                  data: { $ref: '#/components/schemas/AssistantNextActionDTO' }
 
   # ---------- Assistant goal cycle (Learn -> Act -> Review -> Grow) ----------
   # See docs/loopie-assistant-playbook-poc/ and apps/server/src/business-guidance/. Every response
@@ -5506,6 +5719,155 @@ paths:
                 required: [data]
                 properties:
                   data: { $ref: '#/components/schemas/IntegrationPreview' }
+
+  /integrations/{integrationId}/google-sheets/picker-token:
+    get:
+      operationId: getGoogleSheetsPickerToken
+      summary: Short-lived Google access token for the frontend Picker widget
+      tags: [crm]
+      parameters:
+        - $ref: '#/components/parameters/IntegrationId'
+      responses:
+        '200':
+          description: Picker token
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/GoogleSheetsPickerToken' }
+
+  /integrations/{integrationId}/google-sheets/spreadsheet:
+    post:
+      operationId: selectGoogleSheetsSpreadsheet
+      summary: Record the spreadsheet chosen via the Google Picker widget
+      tags: [crm]
+      parameters:
+        - $ref: '#/components/parameters/IntegrationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SelectGoogleSheetsSpreadsheetInput' }
+      responses:
+        '200':
+          description: Selection updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/GoogleSheetsSelection' }
+
+  /integrations/{integrationId}/google-sheets/tabs:
+    get:
+      operationId: listGoogleSheetsTabs
+      summary: List tabs in the selected spreadsheet
+      tags: [crm]
+      parameters:
+        - $ref: '#/components/parameters/IntegrationId'
+      responses:
+        '200':
+          description: Sheet tabs
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/GoogleSheetsTab' } }
+
+  /integrations/{integrationId}/google-sheets/tab:
+    post:
+      operationId: selectGoogleSheetsTab
+      summary: Choose which tab to import from
+      tags: [crm]
+      parameters:
+        - $ref: '#/components/parameters/IntegrationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SelectGoogleSheetsTabInput' }
+      responses:
+        '200':
+          description: Selection updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/GoogleSheetsSelection' }
+
+  /integrations/{integrationId}/google-sheets/preview:
+    post:
+      operationId: previewGoogleSheetsImport
+      summary: Read the selected tab and report row counts, headers, and a suggested column mapping
+      tags: [crm]
+      parameters:
+        - $ref: '#/components/parameters/IntegrationId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PreviewGoogleSheetsImportInput' }
+      responses:
+        '200':
+          description: Sheet preview
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/GoogleSheetsPreview' }
+
+  /integrations/{integrationId}/google-sheets/mapping:
+    post:
+      operationId: confirmGoogleSheetsMapping
+      summary: Confirm the column mapping — required before Import (POST /integrations/{id}/sync) can run
+      tags: [crm]
+      parameters:
+        - $ref: '#/components/parameters/IntegrationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfirmGoogleSheetsMappingInput' }
+      responses:
+        '200':
+          description: Mapping saved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/GoogleSheetsSelection' }
+
+  /integrations/{integrationId}/google-sheets/export:
+    post:
+      operationId: exportContactsToGoogleSheets
+      summary: Create a new Google Sheet with this business's contacts
+      tags: [crm]
+      parameters:
+        - $ref: '#/components/parameters/IntegrationId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExportContactsToGoogleSheetsInput' }
+      responses:
+        '200':
+          description: Export created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/GoogleSheetsExportResult' }
 
   /webhooks/inbound/{integrationId}:
     post:
@@ -8418,6 +8780,34 @@ paths:
                 type: object
                 properties:
                   data: { $ref: '#/components/schemas/PublishedPageVersion' }
+
+  /landing-pages/{landingPageId}/refresh-thumbnail:
+    post:
+      operationId: refreshLandingPageThumbnail
+      summary: Regenerate screenshot thumbnail for the current published version
+      tags: [landing-pages]
+      description: >
+        Enqueues a derived-cache screenshot for the page's current PublishedPageVersion.
+        Draft-only pages return 400. Capture runs asynchronously via the worker; list
+        responses fall back to the live miniature until status is READY.
+      parameters:
+        - $ref: '#/components/parameters/LandingPageId'
+      responses:
+        '202':
+          description: Thumbnail regeneration enqueued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [thumbnailStatus, thumbnailSourceVersionId]
+                    properties:
+                      thumbnailStatus: { type: string, enum: [PENDING] }
+                      thumbnailSourceVersionId: { type: string }
+                      thumbnailChecksum: { type: string, nullable: true }
 
   /landing-pages/{landingPageId}/versions:
     get:

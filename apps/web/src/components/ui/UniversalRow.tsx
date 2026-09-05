@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /**
@@ -20,9 +20,25 @@ import { cn } from '@/lib/utils'
  *   inside a CSS grid, not a divided list — this is Media's shape.
  */
 
-export type UniversalRowDensity = 'comfortable' | 'compact' | 'featured' | 'media'
+export type UniversalRowDensity = 'comfortable' | 'compact' | 'featured' | 'media' | 'showcase'
 export type UniversalRowAccent =
   'primary' | 'success' | 'warning' | 'info' | 'destructive' | 'neutral'
+
+const ACCENT_TINT: Record<UniversalRowAccent, string> = {
+  primary: 'bg-primary/10 text-primary',
+  success: 'bg-success/10 text-success',
+  warning: 'bg-warning/10 text-warning',
+  info: 'bg-info/10 text-info',
+  destructive: 'bg-destructive/10 text-destructive',
+  neutral: 'bg-muted text-muted-foreground',
+}
+
+/** One numeric column in a showcase row's stat strip — a real outcome (views, spend, leads), not
+ * a status pill. See `stats` on UniversalRowProps. */
+export interface UniversalRowStat {
+  value: string
+  label: string
+}
 
 const ACCENT_BORDER: Record<UniversalRowAccent, string> = {
   primary: 'border-l-primary',
@@ -33,7 +49,7 @@ const ACCENT_BORDER: Record<UniversalRowAccent, string> = {
   neutral: 'border-l-muted-foreground/40',
 }
 
-const LEADING_SIZE: Record<Exclude<UniversalRowDensity, 'media'>, string> = {
+const LEADING_SIZE: Record<Exclude<UniversalRowDensity, 'media' | 'showcase'>, string> = {
   comfortable: 'h-10 w-10',
   compact: 'h-8 w-8',
   // Real preview art — a page hero, an ad creative, a channel identity — reads as a thumbnail,
@@ -62,12 +78,25 @@ export interface UniversalRowProps {
   meta?: ReactNode
   /** Right-aligned block, usually one or two stacked lines (a value + a qualifier). */
   trailing?: ReactNode
-  /** An explicit action element (a button/link), distinct from the row's own click/href target. */
+  /** An explicit action element (a button/link), distinct from the row's own click/href target.
+   * In 'showcase' density this overlays the leading thumbnail's top-left corner (a selection
+   * checkbox sitting on the preview art itself) rather than sitting at the row's trailing edge. */
   action?: ReactNode
   /** Trailing chevron implying "click to open." Defaults to true whenever href/onClick is set —
    * the same affordance everywhere a row is clickable, not a per-page choice. Pass false to
-   * suppress it (e.g. a row whose only real action is an explicit `action` button). */
+   * suppress it (e.g. a row whose only real action is an explicit `action` button). Always
+   * suppressed in 'showcase' density — its explicit `viewLink` and full-card click already cover
+   * navigation, and a chevron reads as redundant next to a stat strip. */
   chevron?: boolean
+  /** 'showcase' only — the status pill shown beside `viewLink` (e.g. "Live"/"Running"), keyed to
+   * the same semantic accent tokens as the rest of the row grammar. */
+  status?: { label: string; tone: UniversalRowAccent }
+  /** 'showcase' only — a real external destination ("View live", "View ad") rendered as its own
+   * button (not a nested <a>, since the card itself is a Link) that opens in a new tab. */
+  viewLink?: { label: string; url: string }
+  /** 'showcase' only — the numeric outcome strip (views/leads/conversion, impressions/clicks/
+   * spend, ...) a business actually glances at per property. */
+  stats?: UniversalRowStat[]
   selected?: boolean
   className?: string
 }
@@ -86,10 +115,104 @@ export function UniversalRow({
   trailing,
   action,
   chevron,
+  status,
+  viewLink,
+  stats,
   selected = false,
   className,
 }: UniversalRowProps) {
-  const showChevron = chevron ?? Boolean(href || onClick)
+  const showChevron = density === 'showcase' ? false : (chevron ?? Boolean(href || onClick))
+
+  if (density === 'showcase') {
+    return (
+      <RowContainer
+        href={href}
+        state={state}
+        onClick={onClick}
+        selected={selected}
+        className={cn(
+          'items-stretch gap-4 rounded-xl border p-3 transition-shadow hover:shadow-sm',
+          selected ? 'border-primary' : 'border-border',
+          className,
+        )}
+      >
+        {leading ? (
+          <span className="relative grid aspect-[4/3] w-28 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted text-muted-foreground sm:w-40 md:w-48">
+            {leading}
+            {action ? (
+              <span className="absolute left-2 top-2 p-0.5 shadow-sm backdrop-blur-sm">
+                {action}
+              </span>
+            ) : null}
+          </span>
+        ) : null}
+
+        <span className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
+          <span className="min-w-0">
+            <span className="block truncate text-[0.95rem] font-semibold text-foreground">
+              {title}
+            </span>
+            {subtitle ? (
+              <span className="mt-0.5 block truncate text-sm text-muted-foreground">
+                {subtitle}
+              </span>
+            ) : null}
+            {meta ? (
+              <span className="mt-1.5 flex flex-wrap items-center gap-1.5">{meta}</span>
+            ) : null}
+          </span>
+          {trailing ? (
+            <span className="mt-2 block text-xs text-muted-foreground">{trailing}</span>
+          ) : null}
+        </span>
+
+        {stats && stats.length > 0 ? (
+          <span className="hidden shrink-0 items-center gap-5 border-l border-border pl-4 md:flex">
+            {stats.map((stat, i) => (
+              <span key={i} className="text-center">
+                <span className="block text-sm font-semibold tabular-nums text-foreground">
+                  {stat.value}
+                </span>
+                <span className="mt-0.5 block whitespace-nowrap text-[11px] text-muted-foreground">
+                  {stat.label}
+                </span>
+              </span>
+            ))}
+          </span>
+        ) : null}
+
+        {status || viewLink ? (
+          <span className="flex shrink-0 flex-col items-end justify-center gap-1.5 pl-1">
+            {status ? (
+              <span
+                className={cn(
+                  'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider',
+                  ACCENT_TINT[status.tone],
+                )}
+              >
+                {status.label}
+              </span>
+            ) : null}
+            {viewLink ? (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  window.open(viewLink.url, '_blank', 'noopener,noreferrer')
+                }}
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline underline-offset-2"
+              >
+                {viewLink.label}
+                <ExternalLink size={12} />
+              </button>
+            ) : null}
+          </span>
+        ) : null}
+      </RowContainer>
+    )
+  }
+
   if (density === 'media') {
     return (
       <RowContainer

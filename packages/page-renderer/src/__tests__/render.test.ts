@@ -195,3 +195,109 @@ describe('renderLandingPageHtml', () => {
     expect(html).not.toContain('href="#" class="lp-cta"')
   })
 })
+
+// Every template schema now declares exactly one 'form-embed' section so the Content tab can
+// order/hide/delete it consistently — see packages/db's SECTION_TYPE_TO_SLOT_GROUP comment and
+// each schema file's own 'form' entry comment. For the plain lead-gen templates it's still a real,
+// independently-rendered block. For every rich template (this suite covers the studio-contact
+// family; webinar-widget and split-capture share the exact same mechanism) it's editorial metadata
+// only — the Form's fields actually render nested inside the section that owns them. These tests
+// guard the two failure modes that gap creates if renderSection ever stops accounting for it: the
+// form appearing twice, and hiding it in the Content tab not actually removing it from the page.
+describe('form-embed as editorial metadata (rich templates)', () => {
+  const form = {
+    id: 'form-1',
+    submitLabel: 'Send',
+    fields: [{ label: 'Email', fieldKey: 'email', type: 'EMAIL', required: true, options: null }],
+  }
+  const sections = [
+    { key: 'hero', type: 'hero', order: 0 },
+    { key: 'faq', type: 'faq', order: 1 },
+    { key: 'form', type: 'form-embed', order: 1.5, hideable: true },
+    { key: 'footer', type: 'studio-contact', order: 2 },
+  ]
+
+  function render(layoutConfig: Record<string, unknown> = {}) {
+    return renderLandingPageHtml({
+      pageName: 'Metadata form',
+      templateSchema: { renderer: 'corporate-professional', sections },
+      content: { hero: { headline: 'Hi' }, footer: { headline: 'Talk to us' } },
+      theme: {},
+      layoutConfig: layoutConfig as never,
+      form,
+      submitActionUrl: '/submit',
+    })
+  }
+
+  it('renders the form fields exactly once, nested in the real owner section', () => {
+    const html = render()
+    expect(html.match(/name="email"/g)).toHaveLength(1)
+    expect(html).toContain('lp-studio-contact')
+    // The metadata-only 'form-embed' section contributes no markup/id of its own.
+    expect(html).not.toContain('class="lp-section lp-form"')
+    expect(html).not.toContain('id="form"')
+  })
+
+  it('hiding the form-embed entry removes the form from the page, not just its own empty node', () => {
+    const html = render({ sections: { form: { hidden: true } } })
+    expect(html).not.toContain('name="email"')
+    // The rest of the section it's nested in still renders.
+    expect(html).toContain('Talk to us')
+  })
+
+  it('treats form-embed as metadata for split-capture too (the media lead-gen template)', () => {
+    const html = renderLandingPageHtml({
+      pageName: 'Split capture',
+      templateSchema: {
+        sections: [
+          { key: 'split', type: 'split-capture', order: 0 },
+          { key: 'form', type: 'form-embed', order: 0.5, hideable: true },
+        ],
+      },
+      content: { hero: { headline: 'Hi' } },
+      theme: {},
+      layoutConfig: { sections: { form: { hidden: true } } } as never,
+      form,
+      submitActionUrl: '/submit',
+    })
+    expect(html).not.toContain('name="email"')
+
+    const shown = renderLandingPageHtml({
+      pageName: 'Split capture',
+      templateSchema: {
+        sections: [
+          { key: 'split', type: 'split-capture', order: 0 },
+          { key: 'form', type: 'form-embed', order: 0.5, hideable: true },
+        ],
+      },
+      content: { hero: { headline: 'Hi' } },
+      theme: {},
+      layoutConfig: {},
+      form,
+      submitActionUrl: '/submit',
+    })
+    expect(shown.match(/name="email"/g)).toHaveLength(1)
+    expect(shown).toContain('class="lp-split"')
+    expect(shown).not.toContain('class="lp-section lp-form"')
+  })
+
+  it('leaves the real standalone form-embed section (plain lead-gen templates) untouched', () => {
+    const html = renderLandingPageHtml({
+      pageName: 'Real form-embed',
+      templateSchema: {
+        sections: [
+          { key: 'hero', type: 'hero', order: 0 },
+          { key: 'form', type: 'form-embed', order: 1, hideable: true },
+        ],
+      },
+      content: { hero: { headline: 'Hi' } },
+      theme: {},
+      layoutConfig: {},
+      form,
+      submitActionUrl: '/submit',
+    })
+    expect(html.match(/name="email"/g)).toHaveLength(1)
+    expect(html).toContain('class="lp-section lp-form"')
+    expect(html).toContain('id="form"')
+  })
+})

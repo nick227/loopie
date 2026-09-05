@@ -79,6 +79,25 @@ export function renderBody(
   let bridgeMedia = ''
   let bridgeOpen = false
 
+  // See renderSection's own comment: a 'form-embed' entry is only a real, independently-rendered
+  // block when nothing else in this schema already embeds the attached Form. When it's editorial
+  // metadata (every rich template), BEFORE_FORM/AFTER_FORM ad placements have to skip it too — it
+  // isn't where the form actually sits, and those placements simply don't apply on these templates
+  // (pre-dating this change: rich templates never had a 'form-embed' section for them to key off).
+  const formEmbeddedElsewhere = sections.some(
+    (s) => s.type === 'studio-contact' || s.type === 'webinar-widget' || s.type === 'split-capture',
+  )
+
+  // The 'form-embed' entry's own key carries the Content tab's hide/show state for the Form
+  // section, same as any other section — but when it's editorial metadata, hiding it has to
+  // suppress the *real* formHtml wherever it's actually nested (studio-contact/webinar-widget/
+  // split-capture), not just the (already-empty) metadata entry's own no-op render. Computing one
+  // effective formHtml up front, instead of threading a second hidden flag through every case that
+  // consumes it, keeps "is the form visible" a single source of truth.
+  const formSectionKey = sections.find((s) => s.type === 'form-embed')?.key
+  const formIsHidden = Boolean(formSectionKey && layoutConfig?.sections?.[formSectionKey]?.hidden)
+  const effectiveFormHtml = formIsHidden ? '' : formHtml
+
   const flushBridge = () => {
     if (!bridgeOpen) return
     const sticky = bridgeMedia
@@ -94,7 +113,9 @@ export function renderBody(
 
   for (const section of sections) {
     if (section.key && layoutConfig?.sections?.[section.key]?.hidden) continue
-    if (section.type === 'form-embed') chunks.push(slotsAt(adSlots, 'BEFORE_FORM', sessionToken))
+    if (section.type === 'form-embed' && !formEmbeddedElsewhere) {
+      chunks.push(slotsAt(adSlots, 'BEFORE_FORM', sessionToken))
+    }
     const slotGroup = SECTION_TYPE_TO_SLOT_GROUP[section.type]
     const slotContent = slotGroup ? ((content as Record<string, unknown>)[slotGroup] ?? {}) : {}
 
@@ -113,16 +134,37 @@ export function renderBody(
           }
           bridgeOpen = true
         }
-        bridgeInner.push(renderSection(section, slotContent, formHtml, submissionCount, renderer))
+        bridgeInner.push(
+          renderSection(
+            section,
+            slotContent,
+            effectiveFormHtml,
+            submissionCount,
+            renderer,
+            formEmbeddedElsewhere,
+          ),
+        )
         if (section.type === 'hero') bridgeInner.push(slotsAt(adSlots, 'AFTER_HERO', sessionToken))
         continue
       }
       flushBridge()
     }
 
-    chunks.push(renderSection(section, slotContent, formHtml, submissionCount, renderer))
+    chunks.push(
+      renderSection(
+        section,
+        slotContent,
+        effectiveFormHtml,
+        submissionCount,
+        renderer,
+        formEmbeddedElsewhere,
+      ),
+    )
     if (section.type === 'hero') chunks.push(slotsAt(adSlots, 'AFTER_HERO', sessionToken))
-    if (section.type === 'form-embed' || section.type === 'split-capture') {
+    if (
+      (section.type === 'form-embed' && !formEmbeddedElsewhere) ||
+      section.type === 'split-capture'
+    ) {
       chunks.push(slotsAt(adSlots, 'AFTER_FORM', sessionToken))
     }
   }
@@ -188,6 +230,13 @@ export function renderSection(
   formHtml: string,
   submissionCount = 0,
   renderer = 'standard',
+  // True when some OTHER section in this same schema already embeds `formHtml` itself
+  // (studio-contact/webinar-widget/split-capture all do — see their own cases below). A
+  // template's 'form-embed' entry only renders a real standalone form block when it's the one
+  // and only place the attached Form actually shows up; otherwise it exists purely as Content-tab
+  // ordering/visibility metadata (see e.g. corporate-professional.ts's 'form' entry comment) and
+  // must render nothing here, or the Form's fields would appear twice on the published page.
+  formEmbeddedElsewhere = false,
 ): string {
   const c = (content && typeof content === 'object' ? content : {}) as Record<string, unknown>
   const idAttr = sectionIdAttr(section)
@@ -258,6 +307,7 @@ export function renderSection(
       return `<section class="lp-section lp-features"${idAttr}><div class="lp-section-heading">${headline}${body}</div><div class="lp-feature-grid">${itemsHtml}</div></section>`
     }
     case 'form-embed':
+      if (formEmbeddedElsewhere) return ''
       return `<section class="lp-section lp-form"${idAttr}><div class="lp-form-card"><p class="lp-form-title">Tell us what you need</p>${formHtml}</div></section>`
     case 'split-capture': {
       const media = (c.media && typeof c.media === 'object' ? c.media : {}) as Record<
@@ -551,7 +601,7 @@ export function renderSection(
       const headline = c.headline ? `<h2>${escapeHtml(c.headline)}</h2>` : ''
       const body = c.body ? `<p class="lp-section-intro">${escapeHtml(c.body)}</p>` : ''
       const cards = items
-        .map((item) => {
+        .map((item, index) => {
           const src = safeHttpUrl(item.media?.src) || safeHttpUrl(item.media?.url)
           const media = src
             ? `<img src="${escapeHtml(src)}" alt="${escapeHtml(item.media?.alt ?? item.name)}" />`
@@ -562,10 +612,18 @@ export function renderSection(
           const price = item.price
             ? `<p class="lp-product-price">${escapeHtml(item.price)}</p>`
             : ''
-          return `<article class="lp-product">${badge}<div class="lp-product-media">${media}</div><h3>${escapeHtml(item.name)}</h3>${price}${renderCta(item.cta)}</article>`
+          const hiddenClass =
+            index >= 8 ? ' style="display: none;" data-lp-product-hidden="true"' : ''
+          return `<article class="lp-product"${hiddenClass}>${badge}<div class="lp-product-media">${media}</div><h3>${escapeHtml(item.name)}</h3>${price}</article>`
         })
         .join('')
-      return `<section class="lp-section lp-products"${idAttr}><div class="lp-section-heading">${headline}${body}</div><div class="lp-product-grid">${cards}</div></section>`
+
+      const showMoreHtml =
+        items.length > 8
+          ? `<div class="lp-product-load-more" style="text-align: center; margin-top: 3rem;"><button type="button" class="lp-cta" onclick="var h=this.parentElement.parentElement.querySelectorAll('[data-lp-product-hidden=true]');Array.prototype.slice.call(h,0,8).forEach(function(el){el.style.display='block';el.removeAttribute('data-lp-product-hidden');});if(h.length===Array.prototype.slice.call(h,0,8).length)this.parentElement.style.display='none';">Show More</button></div>`
+          : ''
+
+      return `<section class="lp-section lp-products"${idAttr}><div class="lp-section-heading">${headline}${body}</div><div class="lp-product-grid">${cards}</div>${showMoreHtml}</section>`
     }
     case 'category-grid': {
       const items = Array.isArray(c.items)

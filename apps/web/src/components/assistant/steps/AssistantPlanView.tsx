@@ -29,12 +29,11 @@ export function AssistantPlanView({
 
   return (
     <div className="space-y-4">
-      <ul className="space-y-2">
+      {/* One grouped surface with hairline dividers, not a stack of individually bordered boxes —
+          these rows are a static preview, not choices, so they share a single container. */}
+      <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
         {plan.map((task) => (
-          <li
-            key={task.templateId}
-            className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
-          >
+          <li key={task.templateId} className="px-4 py-3 text-sm text-foreground">
             {task.title}
           </li>
         ))}

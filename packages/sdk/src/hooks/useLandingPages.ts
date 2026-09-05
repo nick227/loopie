@@ -234,6 +234,27 @@ export function usePublishLandingPage() {
   })
 }
 
+export function useRefreshLandingPageThumbnail() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (landingPageId: string) => {
+      const client = getApiClient()
+      const result = await client.POST('/landing-pages/{landingPageId}/refresh-thumbnail', {
+        params: { path: { landingPageId } },
+      })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as { error: string }).error)
+      return data!
+    },
+    onSuccess: (_data, landingPageId) => {
+      queryClient.invalidateQueries({ queryKey: ['landingPage', landingPageId] })
+      queryClient.invalidateQueries({ queryKey: ['landingPages', 'list'] })
+    },
+  })
+}
+
 export function useReplaceLandingPageAdSlots(landingPageId: string) {
   const queryClient = useQueryClient()
   return useMutation({

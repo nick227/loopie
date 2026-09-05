@@ -25,10 +25,14 @@ export const ventureTaxonomy: TaxonomyNode[] = [
           {
             key: 'ROOFING',
             label: 'Roofing',
-            traits: ['LOCAL', 'HIGH_TICKET', 'QUOTE_BASED', 'PROJECT_BASED'],
+            traits: ['LOCAL', 'HIGH_TICKET', 'QUOTE_BASED', 'PROJECT_BASED', 'EQUIPMENT_HEAVY'],
           },
           { key: 'PLUMBING', label: 'Plumbing', traits: ['LOCAL', 'QUOTE_BASED'] },
-          { key: 'HVAC', label: 'HVAC', traits: ['LOCAL', 'HIGH_TICKET', 'QUOTE_BASED'] },
+          {
+            key: 'HVAC',
+            label: 'HVAC',
+            traits: ['LOCAL', 'HIGH_TICKET', 'QUOTE_BASED', 'EQUIPMENT_HEAVY'],
+          },
           { key: 'PAINTING', label: 'Painting', traits: ['LOCAL', 'QUOTE_BASED', 'PROJECT_BASED'] },
           { key: 'HANDYMAN', label: 'Handyman', traits: ['LOCAL', 'QUOTE_BASED'] },
         ],
@@ -37,13 +41,21 @@ export const ventureTaxonomy: TaxonomyNode[] = [
         key: 'PROPERTY_OUTDOOR',
         label: 'Property & outdoor',
         children: [
-          { key: 'LAWN_MOWING', label: 'Lawn mowing', traits: ['LOCAL', 'RECURRING_REVENUE'] },
+          {
+            key: 'LAWN_MOWING',
+            label: 'Lawn mowing',
+            traits: ['LOCAL', 'RECURRING_REVENUE', 'EQUIPMENT_HEAVY'],
+          },
           {
             key: 'LANDSCAPING',
             label: 'Landscaping',
-            traits: ['LOCAL', 'QUOTE_BASED', 'PROJECT_BASED'],
+            traits: ['LOCAL', 'QUOTE_BASED', 'PROJECT_BASED', 'EQUIPMENT_HEAVY'],
           },
-          { key: 'PRESSURE_WASHING', label: 'Pressure washing', traits: ['LOCAL', 'QUOTE_BASED'] },
+          {
+            key: 'PRESSURE_WASHING',
+            label: 'Pressure washing',
+            traits: ['LOCAL', 'QUOTE_BASED', 'EQUIPMENT_HEAVY'],
+          },
         ],
       },
       {

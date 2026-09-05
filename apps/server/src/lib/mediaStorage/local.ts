@@ -20,8 +20,11 @@ const MIME_BY_EXT: Record<string, string> = Object.fromEntries(
   Object.entries(EXT_BY_MIME).map(([mime, ext]) => [ext, mime]),
 )
 
+const UUID_STEM = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+/** Content-addressed thumbnail cache keys — `thumb-{sha256}.jpg`. */
+const THUMB_STEM = 'thumb-[0-9a-f]{32,64}'
 const KEY_PATTERN = new RegExp(
-  `^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(${Object.values(EXT_BY_MIME)
+  `^(${UUID_STEM}|${THUMB_STEM})(${Object.values(EXT_BY_MIME)
     .map((ext) => ext.replace('.', '\\.'))
     .join('|')})$`,
   'i',

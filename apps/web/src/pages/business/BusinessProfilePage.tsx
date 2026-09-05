@@ -10,7 +10,12 @@ import {
   MessageCircle,
   Phone,
 } from 'lucide-react'
-import { useBusinessProfile, useCurrentUser } from '@project/sdk'
+import {
+  useBusinessProfile,
+  useCurrentUser,
+  useFollowRiverBusiness,
+  useUnfollowRiverBusiness,
+} from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -71,9 +76,12 @@ function ContactRow({
 
 export function BusinessProfilePage() {
   const [messageOpen, setMessageOpen] = useState(false)
+  const [followError, setFollowError] = useState<string | null>(null)
   const { slug } = useParams<{ slug: string }>()
   const me = useCurrentUser()
   const profileQuery = useBusinessProfile(slug)
+  const follow = useFollowRiverBusiness()
+  const unfollow = useUnfollowRiverBusiness()
   const profile = profileQuery.data?.data
   usePageTitle(profile?.business.name ?? null)
 
@@ -119,6 +127,19 @@ export function BusinessProfilePage() {
   const hasFacts = Boolean(
     business.location || business.hours || business.industry || business.address,
   )
+  const followPending = follow.isPending || unfollow.isPending
+  const showFollow = Boolean(me.data?.data) && !profile.isOwnProfile
+
+  async function toggleFollow() {
+    setFollowError(null)
+    try {
+      if (profile.viewerIsFollowing) await unfollow.mutateAsync(business.id)
+      else await follow.mutateAsync(business.id)
+      await profileQuery.refetch()
+    } catch {
+      setFollowError('Could not update your follow. Try again.')
+    }
+  }
 
   return (
     // No bespoke wordmark/header here — the page renders inside Shell now (see App.tsx), which
@@ -160,23 +181,42 @@ export function BusinessProfilePage() {
             className="h-14 w-14 shrink-0 rounded-xl border border-border bg-background object-cover sm:h-16 sm:w-16"
           />
         ) : null}
-        <div className="min-w-0">
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-              {business.industry ?? 'Independent business'}
-            </span>
+        <div className="flex min-w-0 flex-1 items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                {business.industry ?? 'Independent business'}
+              </span>
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              {business.name}
+            </h1>
+            {business.tagline ? (
+              <p className="mt-1 text-sm text-muted-foreground">{business.tagline}</p>
+            ) : null}
+            {business.location ? (
+              <p className="mt-1.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+                <MapPin size={14} strokeWidth={1.8} />
+                {business.location}
+              </p>
+            ) : null}
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            {business.name}
-          </h1>
-          {business.tagline ? (
-            <p className="mt-1 text-sm text-muted-foreground">{business.tagline}</p>
-          ) : null}
-          {business.location ? (
-            <p className="mt-1.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-              <MapPin size={14} strokeWidth={1.8} />
-              {business.location}
-            </p>
+          {showFollow ? (
+            <div className="shrink-0 text-right">
+              <Button
+                variant={profile.viewerIsFollowing ? 'outline' : 'default'}
+                size="sm"
+                loading={followPending}
+                onClick={() => void toggleFollow()}
+              >
+                {profile.viewerIsFollowing ? 'Following' : 'Follow'}
+              </Button>
+              {followError ? (
+                <p role="alert" className="mt-2 max-w-44 text-xs text-destructive">
+                  {followError}
+                </p>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </div>

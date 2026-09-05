@@ -4,6 +4,7 @@ import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { catalogEntry } from '../lib/crm/catalog'
 import { getCrmConnector, listCrmConnectors } from '../lib/crm/registry'
 import { normalizeWooStoreUrl } from '../lib/crm/woocommerce'
+import { parseProviderConfig } from '../lib/crm/googleSheets'
 import { writeCreds } from './CrmOAuthService'
 import { randomBytes } from 'node:crypto'
 
@@ -43,10 +44,12 @@ async function toDTO(row: {
   capabilities: unknown
   createdAt: Date
   credentialsEnc: string | null
+  providerConfig?: unknown
 }) {
   const catalog = catalogEntry(row.provider)
   const connector = getCrmConnector(row.provider)
   const job = await lastJob(row.id)
+  const sheetsConfig = parseProviderConfig(row.providerConfig)
   return {
     id: row.id,
     businessId: row.businessId,
@@ -71,6 +74,10 @@ async function toDTO(row: {
     configured: connector.configured(),
     webhookUrl: row.provider === 'WEBHOOK' ? inboundWebhookUrl(row.id) : null,
     createdAt: row.createdAt.toISOString(),
+    spreadsheetId: sheetsConfig.spreadsheetId ?? null,
+    spreadsheetName: sheetsConfig.spreadsheetName ?? null,
+    sheetTab: sheetsConfig.sheetTab ?? null,
+    columnMapping: sheetsConfig.columnMapping ?? null,
   }
 }
 

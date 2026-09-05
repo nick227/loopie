@@ -2,8 +2,9 @@ import { db } from '@project/db'
 import { resolveContact } from '../lib/identityResolution'
 import { integrationScope } from '../lib/crm/catalog'
 import { getLiveConnector } from '../lib/crm/registry'
+import { parseProviderConfig } from '../lib/crm/googleSheets'
 import { ExternalEventService } from './ExternalEventService'
-import { readCreds } from './CrmOAuthService'
+import { ensureFreshToken, readCreds } from './CrmOAuthService'
 import type { Integration } from '@prisma/client'
 
 const events = new ExternalEventService()
@@ -59,9 +60,7 @@ export class CrmSyncService {
     // of only once at the very end of a fully successful run.
     try {
       const live = getLiveConnector(integration.provider)
-      const creds = readCreds(integration.credentialsEnc)
-      if (!creds?.accessToken)
-        throw { statusCode: 409, message: 'This integration is missing its credentials' }
+      const creds = await ensureFreshToken(integration)
       const shop = creds.shop ?? integration.externalAccountId ?? undefined
       const createdLinked = await this.pullContacts(
         integration,
@@ -134,11 +133,15 @@ export class CrmSyncService {
     let linked = 0
     let ambiguous = 0
     let skipped = 0
+    const sheetsConfig = parseProviderConfig(integration.providerConfig)
     for (let page = 0; page < MAX_PAGES; page++) {
       const creds = readCreds(integration.credentialsEnc)
       const batch = await live.listContacts(token, cursor.contacts ?? null, {
         shop,
         secret: creds?.consumerSecret,
+        spreadsheetId: sheetsConfig.spreadsheetId,
+        sheetTab: sheetsConfig.sheetTab,
+        columnMapping: sheetsConfig.columnMapping,
       })
       for (const row of batch.contacts) {
         if (!row.email && !row.phone && !row.externalId) {

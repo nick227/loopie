@@ -30,6 +30,9 @@ const ContactMatchesPage = lazy(() =>
 const IntegrationsPage = lazy(() =>
   import('@/pages/crm/IntegrationsPage').then((m) => ({ default: m.IntegrationsPage })),
 )
+const GoogleSheetsPage = lazy(() =>
+  import('@/pages/crm/GoogleSheetsPage').then((m) => ({ default: m.GoogleSheetsPage })),
+)
 const AudiencesPage = lazy(() =>
   import('@/pages/audiences/AudiencesPage').then((m) => ({ default: m.AudiencesPage })),
 )
@@ -430,6 +433,10 @@ export function App() {
                     element={<ContactInteractionsPage />}
                   />
                   <Route path="/integrations" element={<IntegrationsPage />} />
+                  <Route
+                    path="/integrations/:integrationId/google-sheets"
+                    element={<GoogleSheetsPage />}
+                  />
                   <Route path="/contact-matches" element={<ContactMatchesPage />} />
                   <Route path="/audiences" element={<AudiencesPage />} />
                   <Route path="/audiences/new" element={<CreateAudiencePage />} />

@@ -7,8 +7,6 @@ export type AssistantActionId =
   | 'homepage_create'
   | 'homepage_publish'
   | 'page_publish'
-  | 'campaign_create'
-  | 'campaign_resume'
   | 'calendar'
 
 type ActionCopy = {
@@ -55,20 +53,6 @@ export const STEP_COPY: Record<AssistantActionId, ActionCopy> = {
     actionLabel: 'Publish it',
     successMessage: 'Page published',
   },
-  campaign_create: {
-    cardTitle: 'Promote your page',
-    cardSubtitle: 'Nobody is being sent to it yet',
-    flowHeadline: "Your page is live, but nobody's being sent to it yet.",
-    actionLabel: 'Create your first promotion',
-    successMessage: 'Promotion created',
-  },
-  campaign_resume: {
-    cardTitle: 'Finish setting up your campaign',
-    cardSubtitle: 'A draft campaign is waiting on creatives',
-    flowHeadline: 'You started a campaign but it still needs a creative.',
-    actionLabel: 'Finish setting up your campaign',
-    successMessage: '',
-  },
   calendar: {
     cardTitle: 'Keep growing',
     cardSubtitle: 'A next move for your business',
@@ -82,15 +66,4 @@ export const STEP_COPY: Record<AssistantActionId, ActionCopy> = {
 // as one small function rather than growing a templating system.
 export function pagePublishCardSubtitle(pageName: string) {
   return `"${pageName}" is ready to go live`
-}
-
-export function campaignCreateFlowHeadline(pageName: string) {
-  return `"${pageName}" is live, but nobody's being sent to it yet.`
-}
-
-export function greeting() {
-  const hour = new Date().getHours()
-  if (hour < 12) return 'Good morning'
-  if (hour < 18) return 'Good afternoon'
-  return 'Good evening'
 }

@@ -78,6 +78,7 @@ describe('portable LOOPIE runtime', () => {
       'WEBHOOK',
       'SQUARE',
       'PIPEDRIVE',
+      'GOOGLE_SHEETS',
     ])
     const shopify = res.json().data.find((r: { provider: string }) => r.provider === 'SHOPIFY')
     expect(shopify.capabilities.orders).toBe(true)

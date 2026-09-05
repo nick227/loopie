@@ -1,14 +1,9 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Heart, MessageCircle, FileText, MoreHorizontal, Pin, ArrowUpRight } from 'lucide-react'
+import { Heart, MessageCircle, FileText, ArrowUpRight } from 'lucide-react'
 import type { components } from '@project/sdk'
 import {
   useReactToRiverPost,
   useUnreactToRiverPost,
-  useFollowRiverBusiness,
-  useUnfollowRiverBusiness,
-  usePinRiverPost,
-  useUnpinRiverPost,
   useRiverComments,
   useCreateRiverComment,
 } from '@project/sdk'
@@ -173,7 +168,7 @@ function CtaRow({ item }: { item: RiverFeedItem }) {
     item.cta?.label ?? (item.type === 'AD' || item.type === 'SPONSORED' ? 'Learn more' : null)
   if (!label) return null
   return (
-    <div className="w-full flex justify-end p-2">
+    <div className="">
       <a href={item.clickUrl} target="_blank" rel="noopener noreferrer" className="block">
         <Button variant="outline" size="sm" className="w-full sm:w-auto">
           {label}
@@ -196,8 +191,7 @@ function CtaRow({ item }: { item: RiverFeedItem }) {
 // can afford more width without reading tall. Mobile keeps 4/5 (portrait phone media is genuinely
 // portrait-shaped most of the time). Every content type — text, media, Page, Ad — shares this one
 // sizing class, just with a different fill/overflow treatment layered on top.
-const STAGE_FRAME_SIZE_CLASS =
-  'relative mx-auto aspect-[4/5] w-full max-w-[420px] max-h-full rounded-2xl sm:aspect-[4/3] sm:max-w-[520px]'
+const STAGE_FRAME_SIZE_CLASS = 'relative w-full aspect-[4/5] max-h-full sm:aspect-[4/3]'
 
 function stageTextSizeClass(length: number) {
   if (length <= 40) return 'text-4xl'
@@ -392,74 +386,6 @@ function useStageFocus<T extends HTMLElement>() {
     } as const,
   }
 }
-// -------------------------------------------------------------------------------------------
-
-// The one tertiary-actions overflow — permalink, and (when the caller passes `pin`) Pin/Unpin,
-// both genuinely secondary to the primary engagement signal (reactions/comments) that stays in
-// the main row. Building a shared dropdown primitive for what lives here would be more machinery
-// than the payoff warrants at this size. Permalink is a real in-app route now (see the "River
-// comments" plan doc's RiverPostPage) — an in-app route, not an external hop to the standalone
-// HTML page the way it used to be.
-function MoreMenu({
-  riverPostId,
-  pin,
-}: {
-  riverPostId: string
-  pin?: { isPinned: boolean; pending: boolean; onToggle: () => void }
-}) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    function onClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onClickOutside)
-    return () => document.removeEventListener('mousedown', onClickOutside)
-  }, [open])
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        aria-label="More"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-      >
-        <MoreHorizontal size={16} />
-      </button>
-      {open ? (
-        <div className="absolute right-0 top-full z-20 mt-1 w-44 space-y-0.5 rounded-lg border border-border bg-popover p-1 shadow-lg">
-          <Link
-            to={`/river/posts/${riverPostId}`}
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-foreground hover:bg-accent"
-          >
-            <ArrowUpRight size={14} className="text-muted-foreground" />
-            View post
-          </Link>
-          {pin ? (
-            <button
-              type="button"
-              disabled={pin.pending}
-              onClick={() => {
-                pin.onToggle()
-                setOpen(false)
-              }}
-              className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm text-foreground hover:bg-accent disabled:opacity-50"
-            >
-              <Pin size={14} className="text-muted-foreground" />
-              {pin.isPinned ? 'Unpin from profile' : 'Pin to profile'}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
 function CommentPreviewRow({ comment }: { comment: components['schemas']['RiverComment'] }) {
   return (
     <div className="flex items-start gap-2.5">
@@ -561,37 +487,15 @@ function CommentsSection({ item }: { item: RiverFeedItem }) {
 // bigger canvas — a noticeably bigger avatar and name, not just the same compact row transplanted
 // onto a taller card — per the refinement note's "stronger author row presence."
 // The header sits flush against the card — no background/padding chip of its own (the
-// "detached header" the redesign dropped) — via the shared RiverPostHeaderChrome. Follow and the
-// tertiary overflow menu both live in its trailing slot now (moved up from the engagement row),
-// matching the reference layout: identity + actions on one line, media below it.
+// "detached header" the redesign dropped) — via the shared RiverPostHeaderChrome.
 function AuthorRow({
   item,
-  canInteract,
-  viewerBusinessId,
-  followPending,
-  onToggleFollow,
-  pin,
-  pinPending,
-  onTogglePin,
   size = 'default',
 }: {
   item: RiverFeedItem
-  canInteract: boolean
-  viewerBusinessId?: string
-  followPending: boolean
-  onToggleFollow: () => void
-  pin?: { isPinned: boolean }
-  pinPending: boolean
-  onTogglePin: () => void
   size?: 'default' | 'large'
 }) {
   const large = size === 'large'
-  // Hidden for an anonymous viewer (canInteract false — item.viewer is entirely omitted), and for
-  // the viewer's own post (RiverFeedItem carries no isOwnPost field, so this is the same
-  // viewerBusinessId-vs-author-id gate the hand-rolled page's own feedScript() uses).
-  const showFollow =
-    canInteract && viewerBusinessId !== undefined && viewerBusinessId !== item.business.id
-  const following = Boolean(item.viewer?.following)
   return (
     <RiverPostHeaderChrome
       avatarSrc={item.business.logoUrl}
@@ -609,36 +513,12 @@ function AuthorRow({
           ) : null}
         </span>
       }
-      trailing={
-        <div className="flex shrink-0 items-center gap-1.5 pr-2">
-          {showFollow ? (
-            <Button
-              type="button"
-              variant={following ? 'outline' : 'default'}
-              size="sm"
-              disabled={followPending}
-              onClick={onToggleFollow}
-            >
-              {following ? 'Following' : 'Follow'}
-            </Button>
-          ) : null}
-          <MoreMenu
-            riverPostId={item.id}
-            pin={
-              pin
-                ? { isPinned: pin.isPinned, pending: pinPending, onToggle: onTogglePin }
-                : undefined
-            }
-          />
-        </div>
-      }
     />
   )
 }
 
-// Reactions and comment toggle only now — the tertiary overflow menu moved up into the header
-// (AuthorRow) alongside Follow. `size="large"` (stage only) just gives it slightly bigger
-// icons/type on the bigger canvas, per the refinement note's "engagement row polish."
+// Reactions and comment toggle. `size="large"` (stage only) gives it slightly bigger icons/type
+// on the bigger canvas, per the refinement note's "engagement row polish."
 function EngagementRow({
   item,
   canInteract,
@@ -698,24 +578,22 @@ function EngagementRow({
         <MessageCircle size={iconSize} />
         {item.metrics.comments}
       </button>
+
+      <div className="ml-auto">
+        <CtaRow item={item} />
+      </div>
     </div>
   )
 }
 
 export function RiverFeedCard({
   item,
-  viewerBusinessId,
-  pin,
   variant = 'compact',
 }: {
   item: RiverFeedItem
-  /** The signed-in viewer's own business id, if any — same gate the hand-rolled page's own
-   * feedScript() uses to hide the Follow control on the viewer's own post (RiverFeedItem itself
-   * carries no isOwnPost field). */
+  /** Retained for compatibility with existing feed callers. */
   viewerBusinessId?: string
-  /** Owner-only Pin/Unpin, folded into the tertiary-actions overflow (MoreMenu) rather than a
-   * separate inline control — only BusinessProfilePage ever passes this (for isOwnProfile), and
-   * only it knows which post is currently pinned (RiverFeedItem itself carries no such field). */
+  /** Retained for compatibility with business-profile feed callers. */
   pin?: { isPinned: boolean }
   /** 'compact' (default) is the flowing-list card every non-River-feed consumer still uses
    * (BusinessProfilePage's Featured/Latest, RiverPostPage's own post) — unchanged from the prior
@@ -728,10 +606,6 @@ export function RiverFeedCard({
 }) {
   const react = useReactToRiverPost()
   const unreact = useUnreactToRiverPost()
-  const follow = useFollowRiverBusiness()
-  const unfollow = useUnfollowRiverBusiness()
-  const pinMutation = usePinRiverPost()
-  const unpinMutation = useUnpinRiverPost()
   const [commentsExpanded, setCommentsExpanded] = useState(false)
   // Called unconditionally (not inside the stage/compact branch below) so hook order never
   // depends on `variant` — compact simply never attaches the returned ref, so the observer it
@@ -740,7 +614,6 @@ export function RiverFeedCard({
 
   const canInteract = item.viewer !== undefined
   const isPending = react.isPending || unreact.isPending
-  const followPending = follow.isPending || unfollow.isPending
   const hasMedia = Boolean((item.media ?? []).length)
   const isTextOnly = !hasMedia && !item.linkPreview && item.type !== 'PAGE'
   // Short text-only posts read large and editorial; longer ones step down a size so they don't
@@ -756,23 +629,6 @@ export function RiverFeedCard({
     }
   }
 
-  function toggleFollow() {
-    if (item.viewer?.following) {
-      unfollow.mutate(item.business.id)
-    } else {
-      follow.mutate(item.business.id)
-    }
-  }
-
-  function togglePin() {
-    if (pin?.isPinned) {
-      unpinMutation.mutate(item.id)
-    } else {
-      pinMutation.mutate(item.id)
-    }
-  }
-  const pinPending = pinMutation.isPending || unpinMutation.isPending
-
   const engagement = (
     <EngagementRow
       item={item}
@@ -785,19 +641,7 @@ export function RiverFeedCard({
     />
   )
 
-  const authorRow = (
-    <AuthorRow
-      item={item}
-      canInteract={canInteract}
-      viewerBusinessId={viewerBusinessId}
-      followPending={followPending}
-      onToggleFollow={toggleFollow}
-      pin={pin}
-      pinPending={pinPending}
-      onTogglePin={togglePin}
-      size={variant === 'stage' ? 'large' : 'default'}
-    />
-  )
+  const authorRow = <AuthorRow item={item} size={variant === 'stage' ? 'large' : 'default'} />
 
   const caption = !isTextOnly ? <Caption item={item} /> : null
 
@@ -812,33 +656,32 @@ export function RiverFeedCard({
       <article
         ref={stageRef}
         style={stageStyle}
-        className="flex min-h-[50vh] my-4 flex-col border-b border-border/90 shadow-lg rounded-lg px-6 py-6 snap-start"
+        className="flex my-4 flex-col mx-auto snap-start relative w-full max-w-[480px] rounded-2xl border border-border bg-card overflow-hidden"
       >
-        <div className="shrink-0 px-2">{authorRow}</div>
+        <div className="px-5 pt-5 pb-3 shrink-0">{authorRow}</div>
 
-        <div className="river-card-content gap-2 flex flex-col pt-2">
+        <div className="river-card-content flex flex-col">
           {isTextOnly ? (
-            <StageTextFrame body={item.body ?? ''} />
+            <div className="px-5 pb-4">
+              <StageTextFrame body={item.body ?? ''} />
+            </div>
           ) : (
-            <>
+            <div className="w-full">
               <StageFrame item={item} />
-              <CtaRow item={item} />
-            </>
+            </div>
           )}
 
-          {/* Icons, then caption, then comments — the reference's "text at the bottom" order,
-            pinned in the footer alongside the engagement row rather than floating above the
-            frame the way a centered pre-media paragraph used to. */}
-          <div className="shrink-0 p-2">
-            {caption ? <div className="mt-2 w-full">{caption}</div> : null}
+          {/* Icons, then caption, then comments */}
+          <div className="px-5 pt-3 pb-5 flex flex-col gap-3">
+            {engagement}
+
+            {caption ? <div className="w-full text-[15px]">{caption}</div> : null}
             {commentsExpanded ? (
-              <div className="mt-3 max-h-[24vh] overflow-y-auto border-t border-border/70 pt-3">
+              <div className="mt-2 max-h-[24vh] overflow-y-auto border-t border-border/70 pt-3">
                 <CommentsSection item={item} />
               </div>
             ) : null}
           </div>
-
-          {engagement}
         </div>
       </article>
     )
@@ -871,7 +714,6 @@ export function RiverFeedCard({
           <div className="px-4">
             <PageCard item={item} />
             <LinkPreview item={item} />
-            <CtaRow item={item} />
           </div>
         </>
       )}

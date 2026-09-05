@@ -1821,9 +1821,44 @@ model PublishedPageVersion {
 
   formSubmissions FormSubmission[]
   riverPosts      RiverPost[]
+  thumbnail              PageThumbnail?
 
   @@unique([landingPageId, version])
   @@index([landingPageId])
+}
+
+// Derived screenshot cache — never source of truth. Regenerated from content/version HTML.
+// User pages: enqueue on publish (not every draft save). System layouts: wipe + regen anytime.
+enum PageThumbnailKind {
+  PUBLISHED_VERSION
+  SYSTEM_LAYOUT
+  COMMUNITY_TEMPLATE // reserved for immutable shared-template versions
+}
+
+enum PageThumbnailStatus {
+  PENDING
+  READY
+  FAILED
+}
+
+model PageThumbnail {
+  id                 String              @id @default(cuid())
+  kind               PageThumbnailKind
+  publishedVersionId String?             @unique
+  systemKey          String?             @unique // SYSTEM_LAYOUT: `${templateId}:${themePresetId}`
+  communityVersionId String?             @unique // reserved; unused in V1
+  sourceChecksum     String
+  url                String?
+  status             PageThumbnailStatus @default(PENDING)
+  lastError          String?             @db.Text
+  widthPx            Int?
+  heightPx           Int?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  publishedVersion PublishedPageVersion? @relation(fields: [publishedVersionId], references: [id], onDelete: Cascade)
+
+  @@index([status, updatedAt])
 }
 
 // One row per page view. Lower-volume than ad impressions (which use counters on
@@ -2410,6 +2445,7 @@ enum CrmProvider {
   WEBHOOK
   SQUARE
   PIPEDRIVE
+  GOOGLE_SHEETS
   CSV
 }
 
@@ -2467,6 +2503,11 @@ model Integration {
   syncCursor        String?
   capabilities      Json
   credentialsEnc    String?           @db.Text
+  // Provider-specific selection state that doesn't fit the fixed columns above — today only
+  // GOOGLE_SHEETS uses it (spreadsheetId/spreadsheetName/sheetTab/columnMapping, see
+  // GoogleSheetsService), kept generic rather than named for one provider so a future
+  // file/sheet-shaped connector can reuse it instead of growing more narrow columns.
+  providerConfig    Json?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
@@ -3372,6 +3413,12 @@ model AssistantGoalCycle {
   goal                  String
   // Key of the selected business-guidance/playbooks/*.ts entry, set once Learn resolves one.
   playbookKey           String?
+  // Key of the playbook layer (business-guidance/playbooks/index.ts's PlaybookLayerKey) this
+  // cycle's plan targets — set once build_plan first resolves for this cycle. Lets Grow's "next
+  // cycle" advance to the next layer instead of repeating the same steps (see
+  // AssistantGoalCycleService.resolveNextLayer, which reads every COMPLETED cycle's layerKey for
+  // this business+playbook to find the first layer not yet done).
+  layerKey              String?
   phase                 AssistantPhase           @default(LEARN)
   reviewOutcome         AssistantReviewOutcome?
   status                AssistantGoalCycleStatus @default(ACTIVE)

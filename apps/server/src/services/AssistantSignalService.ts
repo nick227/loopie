@@ -34,8 +34,10 @@ export async function countInterestedLeadsNeedingFollowup(businessId: string): P
 }
 
 // No existing rollup for "views vs submissions since a date" (PageView has no 7d/since aggregate)
-// — a small, direct pair of counts.
-async function pageTrafficNoLeads(businessId: string, since: Date): Promise<boolean> {
+// — a small, direct pair of counts. Exported so AssistantConversationService's dynamic insights
+// can reuse the exact same check (a 30-day window, not tied to any active goal cycle) instead of
+// duplicating the query.
+export async function pageTrafficNoLeads(businessId: string, since: Date): Promise<boolean> {
   const publishedPages = await db.landingPage.findMany({
     where: { businessId, deletedAt: null, status: 'PUBLISHED' },
     select: { id: true },

@@ -434,7 +434,7 @@ function ConnectIntegrationsButton() {
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 {view.provider.provider === 'WEBHOOK'
-                  ? 'Create an authenticated endpoint for WordPress forms, Zapier, Make, or a custom site.'
+                  ? 'Create an authenticated endpoint for a custom site'
                   : `Connect ${view.provider.label} to see its contacts, conversations, and activity here.`}
               </p>
               {view.provider.provider === 'SHOPIFY' ? (
@@ -801,13 +801,6 @@ export function ContactsPage() {
     <div className="space-y-5">
       <ContactsCollectionInsights />
 
-      {/* The default CRM landing experience (CLAUDE.md's work-queue slice) — sits above the
-          searchable full list below, which stays for browsing/finding anyone, not just today's
-          actionable set. */}
-      <div className="rounded-2xl border border-border bg-surface p-2">
-        <LeadWorkQueue />
-      </div>
-
       {/* Same shared PageHeader/SearchFilterBar/UniversalRowList structure as Advertising and
           Pages (docs/strategy/03-product-principles.md's unified navigation grammar) — Connect/
           Import are real CRM-specific actions, not a reason to diverge from the shared header. */}
@@ -831,6 +824,13 @@ export function ContactsPage() {
           </Link>
         }
       />
+
+      {/* The default CRM landing experience (CLAUDE.md's work-queue slice) — sits above the
+          searchable full list below, which stays for browsing/finding anyone, not just today's
+          actionable set. */}
+      <div className="rounded-2xl border border-border bg-surface p-2">
+        <LeadWorkQueue />
+      </div>
 
       <SearchFilterBar
         search={{ value: q, onChange: setQ, placeholder: 'Search name or email…' }}

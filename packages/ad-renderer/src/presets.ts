@@ -35,10 +35,13 @@ export const FORMAT_DEFAULTS: Record<AdCreativeFormat, AdCreativeDesign> = {
   FEED_POST: {
     format: 'FEED_POST',
     textPlacement: 'BOTTOM_LEFT',
-    fontScale: 'STANDARD',
+    fontScale: 'COMPACT',
     textAlign: 'LEFT',
-    overlay: 'SOLID_SCRIM',
-    ctaPlacement: 'INLINE_WITH_COPY',
+    // Bottom-weighted gradient keeps the photo visible up top and readable under copy —
+    // SOLID_SCRIM washed the whole frame and fought busy midtones (cushions, furniture).
+    overlay: 'DARK_GRADIENT',
+    // Stack headline → body → CTA. INLINE put a pill beside a one-word body and looked broken.
+    ctaPlacement: 'BENEATH_COPY',
     mediaFocal: 'CENTER',
   },
 }

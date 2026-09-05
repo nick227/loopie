@@ -8,7 +8,14 @@ import {
   countInterestedLeadsNeedingFollowup,
 } from './AssistantSignalService'
 import { resolveLearnQuestion } from '../business-guidance/questions/learnResolver'
-import { getPlaybook, type Playbook } from '../business-guidance/playbooks'
+import {
+  getPlaybook,
+  type Playbook,
+  type PlaybookLayer,
+  type PlaybookStep,
+} from '../business-guidance/playbooks'
+import { findVentureNode } from '../business-guidance/taxonomy/ventures'
+import type { BusinessTrait } from '../business-guidance/taxonomy/traits'
 import {
   readBusinessKnowledge,
   splitKnowledgeWrite,
@@ -51,13 +58,34 @@ function resolveProspectCount(knowledge: BusinessKnowledge): number {
 }
 
 function stepTitle(
-  step: Playbook['steps'][number],
+  step: PlaybookStep,
   knowledge: BusinessKnowledge,
   templateTitle: string | undefined,
 ): string {
   if (step.title) return step.title
   if (step.quantityFrom) return `Contact ${resolveProspectCount(knowledge)} prospects`
   return templateTitle ?? step.templateId
+}
+
+// A business's real traits — taxonomy-leaf traits, with any knowledge-level override taking
+// precedence, same fallback order selectPlaybook/resolveLearnQuestion already use.
+function resolveTraits(knowledge: BusinessKnowledge): BusinessTrait[] {
+  return knowledge.traits ?? findVentureNode(knowledge.ventureType ?? '')?.traits ?? []
+}
+
+// A step only materializes into a real plan when its conditions hold — lets one playbook show an
+// equipment-maintenance step only to equipment-heavy trades, and a team-only step only once a
+// team actually exists (2026-09-04 operating-system pass).
+function stepApplies(
+  step: PlaybookStep,
+  knowledge: BusinessKnowledge,
+  traits: BusinessTrait[],
+): boolean {
+  if (step.requiresTrait && !traits.includes(step.requiresTrait)) return false
+  if (step.requiresTeamSize && !step.requiresTeamSize.includes(knowledge.teamSize ?? 'SOLO')) {
+    return false
+  }
+  return true
 }
 
 // Learn -> Act -> Review -> Grow orchestration (docs/loopie-assistant-playbook-poc/). Content
@@ -99,7 +127,17 @@ export class AssistantGoalCycleService {
           data: { playbookKey: result.playbookKey },
         })
       }
-      const plan = await this.buildPlanPreview(cycle.playbookKey!, knowledge)
+      if (!cycle.layerKey) {
+        const completedLayerKeys = await this.completedLayerKeys(businessId, cycle.playbookKey!)
+        const layer = this.resolveNextLayer(cycle.playbookKey!, completedLayerKeys)
+        if (layer) {
+          cycle = await db.assistantGoalCycle.update({
+            where: { id: cycle.id },
+            data: { layerKey: layer.key },
+          })
+        }
+      }
+      const plan = await this.buildPlanPreview(cycle.playbookKey!, cycle.layerKey, knowledge)
       return {
         type: 'GOAL_CYCLE',
         actionId: 'build_plan',
@@ -174,14 +212,13 @@ export class AssistantGoalCycleService {
   async answer(businessId: string, input: { questionKey: string; value: string | string[] }) {
     const business = await db.business.findUniqueOrThrow({
       where: { id: businessId },
-      select: { knowledge: true, targetAudience: true, location: true },
+      select: { knowledge: true, targetAudience: true },
     })
     const patch = splitKnowledgeWrite(input.questionKey as keyof BusinessKnowledge, input.value)
     await db.business.update({
       where: { id: businessId },
       data: {
         ...(patch.targetAudience !== undefined ? { targetAudience: patch.targetAudience } : {}),
-        ...(patch.location !== undefined ? { location: patch.location } : {}),
         ...(patch.knowledgePatch
           ? {
               knowledge: {
@@ -211,14 +248,15 @@ export class AssistantGoalCycleService {
       where: { id: cycleId, businessId, status: 'ACTIVE' },
     })
     if (!cycle) throw { statusCode: 404, message: 'Goal cycle not found' }
-    if (cycle.phase !== 'LEARN' || !cycle.playbookKey) {
+    if (cycle.phase !== 'LEARN' || !cycle.playbookKey || !cycle.layerKey) {
       throw { statusCode: 400, message: 'This plan is not ready to schedule yet' }
     }
     const playbook = getPlaybook(cycle.playbookKey)
     if (!playbook) throw { statusCode: 400, message: 'Unknown playbook' }
 
     const knowledge = await this.readKnowledge(businessId)
-    for (const step of playbook.steps) {
+    const steps = this.applicableSteps(cycle.playbookKey, cycle.layerKey, knowledge)
+    for (const step of steps) {
       const templateTitle = await this.templateTitle(step.templateId)
       await calendarService.scheduleIdea(
         businessId,
@@ -325,18 +363,54 @@ export class AssistantGoalCycleService {
     return template?.title
   }
 
+  // Which layer of the playbook a business is on: the first one with no COMPLETED cycle behind
+  // it, or the last (repeatable) layer once every layer has one — this is what turns Grow's
+  // "next cycle" into real progression instead of repeating the same steps forever.
+  private async completedLayerKeys(businessId: string, playbookKey: string): Promise<Set<string>> {
+    const completed = await db.assistantGoalCycle.findMany({
+      where: { businessId, playbookKey, status: 'COMPLETED', layerKey: { not: null } },
+      select: { layerKey: true },
+    })
+    return new Set(completed.map((c) => c.layerKey!))
+  }
+
+  private resolveNextLayer(
+    playbookKey: string,
+    completedLayerKeys: Set<string>,
+  ): PlaybookLayer | null {
+    const playbook = getPlaybook(playbookKey)
+    if (!playbook || playbook.layers.length === 0) return null
+    const next = playbook.layers.find((layer) => !completedLayerKeys.has(layer.key))
+    if (next) return next
+    const last = playbook.layers[playbook.layers.length - 1]
+    return last?.repeatableOnceReached ? last : null
+  }
+
+  private applicableSteps(
+    playbookKey: string,
+    layerKey: string | null,
+    knowledge: BusinessKnowledge,
+  ): PlaybookStep[] {
+    const playbook = getPlaybook(playbookKey)
+    const layer = playbook?.layers.find((l) => l.key === layerKey)
+    if (!layer) return []
+    const traits = resolveTraits(knowledge)
+    return layer.steps.filter((step) => stepApplies(step, knowledge, traits))
+  }
+
   private async buildPlanPreview(
     playbookKey: string,
+    layerKey: string | null,
     knowledge: BusinessKnowledge,
   ): Promise<PlannedTaskDTO[]> {
-    const playbook = getPlaybook(playbookKey)
-    if (!playbook) return []
+    const steps = this.applicableSteps(playbookKey, layerKey, knowledge)
+    if (steps.length === 0) return []
     const templates = await db.goalIdeaTemplate.findMany({
-      where: { id: { in: playbook.steps.map((s) => s.templateId) } },
+      where: { id: { in: steps.map((s) => s.templateId) } },
       select: { id: true, title: true },
     })
     const titleById = new Map(templates.map((t) => [t.id, t.title]))
-    return playbook.steps.map((step) => ({
+    return steps.map((step) => ({
       templateId: step.templateId,
       title: stepTitle(step, knowledge, titleById.get(step.templateId)),
       horizon: step.horizon,

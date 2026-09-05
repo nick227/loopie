@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useLandingPagePerformance } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -13,7 +14,6 @@ import { RICH_TEMPLATE_IDS, type TemplateSection } from './components/types'
 import { useLandingPageEditor } from './hooks/useLandingPageEditor'
 import { AdvancedTemplateRenderer } from './components/AdvancedTemplateRenderer'
 import { ContentView } from './components/ContentView'
-import { FormCaptureSettings } from './components/FormCaptureSettings'
 
 type Tab = 'editor' | 'content' | 'activity'
 
@@ -61,7 +61,8 @@ function PageActivity({ landingPageId }: { landingPageId: string }) {
 }
 
 export function LandingPage() {
-  const [tab, setTab] = useState<Tab>('editor')
+  const navigate = useNavigate()
+  const [tab, setTab] = useState<Tab>('content')
   const [embedModalOpen, setEmbedModalOpen] = useState(false)
   const {
     page,
@@ -81,6 +82,7 @@ export function LandingPage() {
     layoutConfig,
     setLayoutConfig,
     formId,
+    setFormId,
     fields,
     setFields,
     submitLabel,
@@ -118,6 +120,15 @@ export function LandingPage() {
     ...((template?.schema as { sections?: TemplateSection[] })?.sections ?? []),
   ].sort((a, b) => a.order - b.order)
 
+  // Form is a page-level attachment (Form.formId), not a template-schema section — its own
+  // Content-tab row (see ContentView) shares the exact same layoutConfig 'form' key every plain
+  // template's real form-embed schema section already uses, so hiding it here genuinely hides the
+  // block on those templates too. Rich templates have no independent form-embed section (the form
+  // lives inside their footer/contact section) — hasForm is the only lever they read, so gating it
+  // here is what makes "hide" do something real there as well.
+  const formHidden = layoutConfig.sections?.form?.hidden ?? false
+  const hasForm = Boolean(formId) && !formHidden
+
   const previewHref = page.previewUrl
 
   return (
@@ -127,9 +138,9 @@ export function LandingPage() {
           affordance for this entity. A second one here would be exactly the duplicate chrome the
           Singleton/Collection/Entity grammar (docs/strategy/03-product-principles.md) argues
           against. */}
-      <div className="sticky z-20 border-y border-border bg-background/95 backdrop-blur-md">
-        <div className="mx-auto flex min-h-12 max-w-[900px] flex-wrap items-center gap-2 px-3 py-2 lg:flex-nowrap lg:px-0">
-          <div className="flex min-w-[10rem] flex-1 items-center gap-1.5 lg:max-w-[13rem]">
+      <div className="relative z-20 border-y border-border bg-background/95 backdrop-blur-md">
+        <div className="mx-auto flex min-h-12 max-w-[900px] flex-wrap flex-col items-center gap-2 px-3 py-2 lg:flex-nowrap lg:px-0">
+          <div className="flex w-full">
             <input
               value={name}
               onChange={(event) => {
@@ -145,42 +156,44 @@ export function LandingPage() {
             />
           </div>
 
-          <EntityTabs<Tab>
-            compact
-            tabs={[
-              { key: 'editor', label: 'Editor' },
-              { key: 'content', label: 'Content' },
-              { key: 'activity', label: 'Activity' },
-            ]}
-            active={tab}
-            onChange={setTab}
-          />
-
-          <div className="ml-auto flex shrink-0 items-center gap-1.5">
-            <Button
-              variant="outline"
-              className="h-8 px-2"
-              disabled={dirty}
-              onClick={() => window.open(previewHref, '_blank', 'noopener,noreferrer')}
-              aria-label="Preview draft"
-              title={dirty ? 'Wait for changes to save before previewing' : 'Preview draft'}
-            >
-              <Eye size={14} /> Preview
-            </Button>
-            <LandingPageShareMenu
-              hostedUrl={page.hostedUrl ?? ''}
-              published={page.status === 'PUBLISHED' && Boolean(page.hostedUrl)}
-              onEmbed={() => setEmbedModalOpen(true)}
+          <div className="flex w-full justify-between pt-2">
+            <EntityTabs<Tab>
+              compact
+              tabs={[
+                { key: 'content', label: 'Content' },
+                { key: 'editor', label: 'Editor' },
+                { key: 'activity', label: 'Activity' },
+              ]}
+              active={tab}
+              onChange={setTab}
             />
-            <Button
-              size="sm"
-              onClick={handlePublish}
-              loading={publishMutation.isPending}
-              disabled={!publishPending}
-              title={publishPending ? 'Publish the latest changes' : 'No unpublished changes'}
-            >
-              <Rocket size={14} /> Publish
-            </Button>
+
+            <div className="ml-auto flex shrink-0 items-center gap-1.5">
+              <Button
+                variant="outline"
+                className="h-8 px-2"
+                disabled={dirty}
+                onClick={() => window.open(previewHref, '_blank', 'noopener,noreferrer')}
+                aria-label="Preview draft"
+                title={dirty ? 'Wait for changes to save before previewing' : 'Preview draft'}
+              >
+                <Eye size={14} /> Preview
+              </Button>
+              <LandingPageShareMenu
+                hostedUrl={page.hostedUrl ?? ''}
+                published={page.status === 'PUBLISHED' && Boolean(page.hostedUrl)}
+                onEmbed={() => setEmbedModalOpen(true)}
+              />
+              <Button
+                size="sm"
+                onClick={handlePublish}
+                loading={publishMutation.isPending}
+                disabled={!publishPending}
+                title={publishPending ? 'Publish the latest changes' : 'No unpublished changes'}
+              >
+                <Rocket size={14} /> Publish
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -223,14 +236,14 @@ export function LandingPage() {
             />
           </div>
 
-          <div className="[&>div]:rounded-t-none">
+          <div className="[&>div]:rounded-t-none relative z-0">
             {RICH_TEMPLATE_IDS.includes(templateId) ? (
               <AdvancedTemplateRenderer
                 templateId={templateId}
                 content={content}
                 theme={theme}
                 layoutConfig={layoutConfig}
-                hasForm={Boolean(formId)}
+                hasForm={hasForm}
                 formFields={fields}
                 submitLabel={submitLabel}
                 submissionCount={page.submissionCount}
@@ -250,7 +263,7 @@ export function LandingPage() {
                 layoutConfig={layoutConfig}
                 theme={theme}
                 slots={slots}
-                hasForm={Boolean(formId)}
+                hasForm={hasForm}
                 formFields={fields}
                 onFormFields={(next) => {
                   setFields(next)
@@ -270,25 +283,14 @@ export function LandingPage() {
           </div>
         </div>
       ) : tab === 'content' ? (
-        <div className="mx-auto w-full max-w-[900px] space-y-3">
-          {formId ? (
-            <FormCaptureSettings
-              submitLabel={submitLabel}
-              successMessage={successMessage}
-              onSubmitLabel={(value) => {
-                setSubmitLabel(value)
-                setDirty(true)
-              }}
-              onSuccessMessage={(value) => {
-                setSuccessMessage(value)
-                setDirty(true)
-              }}
-            />
-          ) : null}
+        <div className="mx-auto w-full max-w-[900px]">
           <ContentView
             content={content}
             sections={sections}
             layoutConfig={layoutConfig}
+            formId={formId}
+            submitLabel={submitLabel}
+            successMessage={successMessage}
             onBrowserSettings={(next) => {
               setContent((c) => ({ ...c, browser: next }))
               setDirty(true)
@@ -301,6 +303,19 @@ export function LandingPage() {
               setLayoutConfig(next)
               setDirty(true)
             }}
+            onSubmitLabel={(value) => {
+              setSubmitLabel(value)
+              setDirty(true)
+            }}
+            onSuccessMessage={(value) => {
+              setSuccessMessage(value)
+              setDirty(true)
+            }}
+            onDetachForm={() => {
+              setFormId('')
+              setDirty(true)
+            }}
+            onAddForm={() => navigate(`/forms/new?returnTo=/landing-pages/${page.id}`)}
           />
         </div>
       ) : (

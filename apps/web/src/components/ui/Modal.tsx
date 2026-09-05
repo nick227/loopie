@@ -123,7 +123,7 @@ export function Modal({
             ? 'modal-sheet bottom-0 left-0 right-0 h-[94dvh] rounded-t-[1.25rem] border border-b-0 border-border shadow-2xl sm:h-[88dvh] sm:max-h-[56rem] sm:rounded-t-2xl'
             : cn(
                 'left-1/2 top-1/2 w-full -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border',
-                size === 'xl' ? 'max-w-[480px]' : 'max-w-lg',
+                size === 'xl' ? 'max-w-[640px]' : 'max-w-lg',
                 'max-h-[calc(100vh-2rem)]',
               ),
         )}
@@ -145,8 +145,8 @@ export function Modal({
             {toolbar ? <div className="px-3 pb-3 sm:px-5">{toolbar}</div> : null}
           </div>
         ) : (
-          <div className="flex items-center gap-3 px-4 pt-4">
-            <h2 id={titleId} className="shrink-0 text-sm font-medium uppercase tracking-wide">
+          <div className="flex items-center gap-3 px-4 pt-4 bg-accent pb-2">
+            <h2 id={titleId} className="shrink-0 text-sm font-bold uppercase tracking-wide">
               {title}
             </h2>
             {toolbar ? <div className="min-w-0 flex-1">{toolbar}</div> : <div className="flex-1" />}
@@ -156,7 +156,7 @@ export function Modal({
         <div
           className={cn(
             'min-h-0 flex-1',
-            full ? 'flex flex-col overflow-hidden' : 'overflow-y-auto px-4 pt-3',
+            full ? 'flex flex-col overflow-hidden' : 'overflow-y-auto pt-3',
           )}
         >
           {children}

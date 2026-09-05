@@ -14,7 +14,7 @@ import { resolveAdCreativeDesign, type AdCreativeFormat } from '@project/ad-rend
 import { AdDesigner, type AdDesignerDraft } from '@/components/ads/AdDesigner'
 import { useFlatPages } from '@/hooks/useFlatPages'
 import { usePageTitle } from '@/lib/headerContext'
-import { AD_SERVER_URL } from '@/lib/adServer'
+import { AD_SERVER_URL } from '@/lib/adPlatformConfig'
 import { probeFile, fileToDataUrl } from '@/lib/probeMedia'
 import { mediaSrc } from '@/lib/media'
 

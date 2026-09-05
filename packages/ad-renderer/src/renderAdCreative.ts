@@ -106,7 +106,7 @@ export function renderAdCreativeFragment(input: AdCreativeInput): string {
 // ad-creative section; the embed document below always includes it; River mounts it once in
 // Shell.tsx). Deliberately plain CSS text, not a <style> tag, so callers can embed it either way.
 export const AD_CREATIVE_STYLESHEET = `
-.adc { position: relative; display: block; overflow: hidden; width: 100%; border-radius: 12px; text-decoration: none; color: #fff; background: #111; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+.adc { position: relative; display: block; overflow: hidden; width: 100%; border-radius: 12px; text-decoration: none; color: #fff; background: #111; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; container-type: size; }
 .adc--poster { aspect-ratio: ${FORMAT_ASPECT_RATIO.POSTER}; }
 .adc--story { aspect-ratio: ${FORMAT_ASPECT_RATIO.STORY}; }
 .adc--feed_post { aspect-ratio: ${FORMAT_ASPECT_RATIO.FEED_POST}; }
@@ -120,36 +120,37 @@ export const AD_CREATIVE_STYLESHEET = `
 .adc-focal-right { object-position: right center; }
 .adc-overlay { position: absolute; inset: 0; pointer-events: none; }
 .adc-overlay--none { background: transparent; }
-.adc-overlay--dark_gradient { background: linear-gradient(180deg, rgba(0,0,0,0) 35%, rgba(0,0,0,.78) 100%); }
+.adc-overlay--dark_gradient { background: linear-gradient(180deg, rgba(0,0,0,0) 42%, rgba(0,0,0,.52) 68%, rgba(0,0,0,.84) 100%); }
 .adc-overlay--light_gradient { background: linear-gradient(180deg, rgba(255,255,255,0) 35%, rgba(255,255,255,.88) 100%); }
-.adc-overlay--solid_scrim { background: rgba(0,0,0,.38); }
-.adc-copy { position: absolute; display: flex; flex-direction: column; gap: 0.5em; max-width: 100%; padding: 7%; z-index: 2; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.45); }
+.adc-overlay--solid_scrim { background: rgba(0,0,0,.45); }
+.adc-copy { position: absolute; display: flex; flex-direction: column; gap: 0.55em; box-sizing: border-box; max-width: min(90%, 20rem); padding: clamp(14px, 5.5%, 28px); z-index: 2; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.55), 0 0 18px rgba(0,0,0,.35); }
 .adc-overlay--light_gradient + .adc-copy { color: #14181f; text-shadow: none; }
 .adc-place-top_left { top: 0; left: 0; align-items: flex-start; }
-.adc-place-top_center { top: 0; left: 0; right: 0; align-items: center; }
+.adc-place-top_center { top: 0; left: 0; right: 0; align-items: center; max-width: none; margin-inline: auto; padding-inline: clamp(14px, 6%, 32px); }
 .adc-place-top_right { top: 0; right: 0; align-items: flex-end; }
-.adc-place-center { top: 50%; left: 0; right: 0; transform: translateY(-50%); align-items: center; }
+.adc-place-center { top: 50%; left: 0; right: 0; transform: translateY(-50%); align-items: center; max-width: none; margin-inline: auto; padding-inline: clamp(14px, 6%, 32px); }
 .adc-place-bottom_left { bottom: 0; left: 0; align-items: flex-start; }
-.adc-place-bottom_center { bottom: 0; left: 0; right: 0; align-items: center; }
+.adc-place-bottom_center { bottom: 0; left: 0; right: 0; align-items: center; max-width: none; margin-inline: auto; padding-inline: clamp(14px, 6%, 32px); }
 .adc-place-bottom_right { bottom: 0; right: 0; align-items: flex-end; }
 .adc-align-left { text-align: left; }
 .adc-align-center { text-align: center; }
 .adc-align-right { text-align: right; }
-.adc-font-compact .adc-headline { font-size: clamp(0.95rem, 3vw, 1.2rem); }
-.adc-font-compact .adc-body { font-size: clamp(0.7rem, 1.8vw, 0.9rem); }
-.adc-font-standard .adc-headline { font-size: clamp(1.2rem, 4vw, 1.7rem); }
-.adc-font-standard .adc-body { font-size: clamp(0.8rem, 2.1vw, 1rem); }
-.adc-font-oversized .adc-headline { font-size: clamp(1.6rem, 6.5vw, 3rem); }
-.adc-font-oversized .adc-body { font-size: clamp(0.95rem, 2.5vw, 1.2rem); }
-.adc-headline { margin: 0; font-weight: 700; line-height: 1.08; }
-.adc-body { margin: 0; font-weight: 400; line-height: 1.35; }
+.adc-font-compact .adc-headline { font-size: clamp(0.95rem, 4.8cqi, 1.2rem); }
+.adc-font-compact .adc-body { font-size: clamp(0.72rem, 3.2cqi, 0.9rem); }
+.adc-font-standard .adc-headline { font-size: clamp(1.05rem, 5.5cqi, 1.4rem); }
+.adc-font-standard .adc-body { font-size: clamp(0.78rem, 3.6cqi, 0.98rem); }
+.adc-font-oversized .adc-headline { font-size: clamp(1.35rem, 7.5cqi, 2.4rem); }
+.adc-font-oversized .adc-body { font-size: clamp(0.9rem, 4cqi, 1.15rem); }
+.adc-headline { margin: 0; font-weight: 700; line-height: 1.18; letter-spacing: -0.01em; }
+.adc-body { margin: 0; font-weight: 400; line-height: 1.35; opacity: 0.95; }
 .adc-copy-row { display: flex; align-items: center; gap: 0.75em; flex-wrap: wrap; }
-.adc-cta { display: inline-flex; align-items: center; justify-content: center; padding: 0.6em 1.15em; border-radius: 999px; background: #fff; color: #14181f; font-weight: 600; font-size: 0.82em; white-space: nowrap; }
-.adc-cta-beneath { align-self: flex-start; }
+.adc-cta { display: inline-flex; align-items: center; justify-content: center; padding: 0.55em 1.1em; border-radius: 999px; background: #fff; color: #14181f; font-weight: 600; font-size: 0.8em; line-height: 1; white-space: nowrap; box-shadow: 0 2px 10px rgba(0,0,0,.28); }
+.adc-cta-beneath { align-self: flex-start; margin-top: 0.2em; }
 .adc-place-top_center .adc-cta-beneath, .adc-place-bottom_center .adc-cta-beneath, .adc-place-center .adc-cta-beneath { align-self: center; }
 .adc-place-top_right .adc-cta-beneath, .adc-place-bottom_right .adc-cta-beneath { align-self: flex-end; }
 .adc-cta-floating { position: absolute; left: 50%; bottom: 6%; transform: translateX(-50%); z-index: 3; padding: 0.65em 1.4em; border-radius: 999px; background: #fff; color: #14181f; font-weight: 600; font-size: 0.85em; box-shadow: 0 4px 16px rgba(0,0,0,.35); }
 .adc-cta-banner { position: absolute; top: 0; left: 0; right: 0; z-index: 3; padding: 0.55em 1em; background: rgba(17,17,17,.86); color: #fff; text-align: center; font-weight: 600; font-size: 0.85em; }
+.adc--feed_post .adc-copy { gap: 0.45em; max-width: min(88%, 17.5rem); }
 `.trim()
 
 /** A full standalone HTML document — used by the embed route (iframe src) and the ad-server
@@ -170,9 +171,11 @@ export function renderAdCreativeDocument(
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${escapeHtml(title)}</title>
 <style>
-html, body { margin: 0; padding: 0; height: 100%; }
-body { display: flex; }
-.adc { flex: 1; border-radius: 0; }
+/* Host iframe is already aspect-ratio sized by the embed snippet. Fill that slot —
+   do not stretch the creative with flex:1/height:100% in a way that fights aspect-ratio. */
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #111; }
+body { display: flex; align-items: center; justify-content: center; }
+.adc { width: 100%; height: 100%; max-width: 100%; max-height: 100%; border-radius: 0; aspect-ratio: auto; }
 ${AD_CREATIVE_STYLESHEET}
 </style>
 ${opts.injectedHeadScripts ?? ''}

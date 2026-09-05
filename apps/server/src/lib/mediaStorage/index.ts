@@ -52,6 +52,32 @@ export async function saveMediaFile(input: { mimeType: string; data: string }) {
   }
 }
 
+/** Derived-cache screenshots — filename is content-addressed by sourceChecksum (immutable key). */
+export async function saveThumbnailFile(input: { sourceChecksum: string; buffer: Buffer }) {
+  if (!/^[0-9a-f]{32,64}$/i.test(input.sourceChecksum)) {
+    throw { statusCode: 400, message: 'Invalid thumbnail checksum' }
+  }
+  if (input.buffer.length === 0 || input.buffer.length > MAX_BYTES) {
+    throw { statusCode: 400, message: 'File must be between 1 byte and 4 MB' }
+  }
+  const mimeType = 'image/jpeg'
+  const filename = `thumb-${input.sourceChecksum.toLowerCase()}.jpg`
+  await writeLocal(filename, input.buffer)
+  if (r2Enabled()) {
+    try {
+      await r2Put(filename, input.buffer, mimeType)
+    } catch (err) {
+      console.error('R2 put failed; local copy kept', err)
+    }
+  }
+  return {
+    filename,
+    mimeType,
+    sizeBytes: input.buffer.length,
+    url: `/uploads/${filename}`,
+  }
+}
+
 export async function registerUploadStatic(server: FastifyInstance) {
   server.get('/uploads/:filename', async (request, reply) => {
     const filename = (request.params as { filename: string }).filename

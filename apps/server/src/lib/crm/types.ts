@@ -39,6 +39,26 @@ export type CrmToken = {
   externalAccountId: string
 }
 
+// Google Sheets-only column mapping: 0-based column indices within the chosen tab, decided by
+// the user during GoogleSheetsService's confirm-mapping step. Column indices rather than header
+// names so a duplicate/renamed header can't silently break an already-confirmed mapping.
+export type GoogleColumnMapping = {
+  name?: number
+  email?: number
+  phone?: number
+  company?: number
+}
+
+export type CrmListContactsOpts = {
+  shop?: string
+  secret?: string
+  // Google Sheets-only: which spreadsheet/tab to read and how its columns map to contact fields.
+  // Every other connector ignores these.
+  spreadsheetId?: string
+  sheetTab?: string
+  columnMapping?: GoogleColumnMapping
+}
+
 export type CrmLiveConnector = {
   provider: string
   capabilities: CrmCapabilitySet
@@ -49,11 +69,11 @@ export type CrmLiveConnector = {
   listContacts: (
     token: string,
     cursor: string | null,
-    opts?: { shop?: string; secret?: string },
+    opts?: CrmListContactsOpts,
   ) => Promise<CrmContactPage>
   listOrders?: (
     token: string,
     cursor: string | null,
-    opts?: { shop?: string; secret?: string },
+    opts?: CrmListContactsOpts,
   ) => Promise<CrmOrderPage>
 }

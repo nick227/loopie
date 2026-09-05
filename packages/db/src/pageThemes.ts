@@ -65,6 +65,33 @@ export const PAGE_THEME_PRESETS: PageThemePreset[] = [
     googleFonts: 'family=Space+Grotesk:wght@400;500;600;700',
     radius: '9999px',
   },
+  {
+    id: 'brutalist-studio',
+    name: 'Brutalist Studio',
+    primaryColor: '#F93900',
+    onPrimaryColor: '#FFFFFF',
+    backgroundColor: '#FFFFFF',
+    inkColor: '#000000',
+    cardColor: '#F0F0F0',
+    fontFamily: '"DM Sans", ui-sans-serif, system-ui, sans-serif',
+    headingFont: '"Archivo Black", "Arial Black", sans-serif',
+    googleFonts: 'family=Archivo+Black&family=DM+Sans:wght@400;500;600;700',
+    radius: '0',
+  },
+  {
+    id: 'editorial-portfolio',
+    name: 'Editorial Portfolio',
+    primaryColor: '#9C998F',
+    onPrimaryColor: '#1A1A1A',
+    backgroundColor: '#121212',
+    inkColor: '#F5F5F0',
+    cardColor: '#1E1E1E',
+    fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+    headingFont: 'Fraunces, Georgia, serif',
+    googleFonts:
+      'family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Inter:wght@300;400;500',
+    radius: '0',
+  },
 ]
 
 export function themeFromPreset(preset: PageThemePreset): Record<string, string> {

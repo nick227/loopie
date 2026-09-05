@@ -231,6 +231,7 @@ function LogoCloudSection({ content, editable, onChange }: SectionProps<'logos'>
   }
   return (
     <section
+      id="logos"
       className="py-12 border-y"
       style={{ backgroundColor: 'var(--lp-bg)', borderColor: ink(10) }}
     >
@@ -517,7 +518,11 @@ function MetricsSection({ content, editable, onChange }: SectionProps<'metrics'>
     onChange({ items: items.map((row, idx) => (idx === i ? { ...row, ...patch } : row)) })
   }
   return (
-    <section className="py-24" style={{ backgroundColor: 'var(--lp-ink)', color: 'var(--lp-bg)' }}>
+    <section
+      id="metrics"
+      className="py-24"
+      style={{ backgroundColor: 'var(--lp-ink)', color: 'var(--lp-bg)' }}
+    >
       <div className="max-w-6xl mx-auto px-6 lg:px-8">
         <div
           className="grid md:grid-cols-3 gap-12 divide-y md:divide-y-0 md:divide-x"
@@ -698,7 +703,11 @@ function ComparisonSection({ content, editable, onChange }: SectionProps<'compar
     onChange({ items: items.map((row, idx) => (idx === i ? { ...row, ...patch } : row)) })
   }
   return (
-    <section className="py-24 border-t" style={{ backgroundColor: ink(4), borderColor: ink(12) }}>
+    <section
+      id="comparison"
+      className="py-24 border-t"
+      style={{ backgroundColor: ink(4), borderColor: ink(12) }}
+    >
       <div className="max-w-6xl mx-auto px-6 lg:px-8">
         {editable ? (
           <CanvasText
@@ -947,6 +956,7 @@ function FAQSection({ content, editable, onChange }: SectionProps<'faq'>) {
   }
   return (
     <section
+      id="faq"
       className="py-24 border-t"
       style={{ backgroundColor: 'var(--lp-bg)', borderColor: ink(10) }}
     >

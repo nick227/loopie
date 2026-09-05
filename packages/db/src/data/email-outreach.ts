@@ -38,6 +38,10 @@ export const emailOutreachSchema: TemplateSchema = {
       editable: ['headline', 'items'],
     },
     { key: 'faq', type: 'faq', order: 4, hideable: true, editable: ['headline', 'items'] },
+    // Editorial metadata, not an independent render node — 'studio-contact' (below) renders the
+    // attached Form's fields nested inside its own contact block, never as a standalone section.
+    // Exists only so the Content tab can order/hide/delete it like every other section.
+    { key: 'form', type: 'form-embed', order: 4.5, hideable: true, editable: [] },
     {
       key: 'footer',
       type: 'studio-contact',

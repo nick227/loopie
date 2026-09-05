@@ -2,6 +2,11 @@
 // priority chain (Business -> Pages -> Advertising -> Calendar fallback) purely from live state,
 // driving each transition through the same real operations the client would call. See CLAUDE.md
 // "Next Steps Assistant" and the "Assistant as cross-product operator" plan.
+//
+// 2026-09-04: the response carries two wholly independent slots — `action` (this priority chain,
+// unchanged) and `conversation` (a browsable advice/knowledge corpus, never gated by Action
+// state) — so this suite asserts against `.action` for the priority-chain behavior, and separately
+// confirms `.conversation` is present and independent throughout.
 import { describe, it, expect } from 'vitest'
 import { buildTestApp, asAuth, testUserId, testBusinessId } from './helpers'
 import { db } from '@project/db'
@@ -17,14 +22,20 @@ async function getNextAction() {
     headers: asAuth(testUserId),
   })
   expect(res.statusCode).toBe(200)
-  return res.json().data
+  return res.json().data as { action: any; conversation: any }
 }
 
 describe('getNextAction', () => {
   it('walks Business -> Pages -> Advertising -> Calendar in priority order', async () => {
+    // --- Conversation resolves independently from the very first read: even a fresh business
+    // with nothing set yet has real generic advice to read, unrelated to setup-chain progress. ---
+    let next = await getNextAction()
+    expect(next.conversation.insights.length).toBeGreaterThan(0)
+    expect(next.conversation.insights.map((i: any) => i.id)).toContain(next.conversation.featuredId)
+
     // --- BUSINESS_PROFILE ---
     // Seeded business (see helpers/index.ts) only has name set — every core field is missing.
-    let action = await getNextAction()
+    let action = next.action
     expect(action.type).toBe('BUSINESS_PROFILE')
     expect(action.actionId).toBe('business_info')
     expect(action.fields.map((f: any) => f.name).sort()).toEqual([
@@ -48,7 +59,7 @@ describe('getNextAction', () => {
       },
     })
 
-    action = await getNextAction()
+    action = (await getNextAction()).action
     expect(action).toMatchObject({ type: 'BUSINESS_PROFILE', actionId: 'business_logo' })
 
     await app.inject({
@@ -59,7 +70,7 @@ describe('getNextAction', () => {
     })
 
     // --- PAGE: homepage ---
-    action = await getNextAction()
+    action = (await getNextAction()).action
     expect(action).toMatchObject({ type: 'PAGE', actionId: 'homepage_create' })
 
     const homepageRes = await app.inject({
@@ -75,7 +86,7 @@ describe('getNextAction', () => {
     expect(homepageRes.statusCode).toBe(201)
     const homepageId = homepageRes.json().data.id
 
-    action = await getNextAction()
+    action = (await getNextAction()).action
     expect(action).toMatchObject({
       type: 'PAGE',
       actionId: 'homepage_publish',
@@ -91,7 +102,7 @@ describe('getNextAction', () => {
 
     // Homepage published, no other draft page yet, no campaign yet -> falls through PAGE
     // straight into ADVERTISING, promoting the homepage itself.
-    action = await getNextAction()
+    action = (await getNextAction()).action
     expect(action).toMatchObject({
       type: 'ADVERTISING',
       actionId: 'campaign_create',
@@ -116,7 +127,7 @@ describe('getNextAction', () => {
     expect(otherPageRes.statusCode).toBe(201)
     const otherPageId = otherPageRes.json().data.id
 
-    action = await getNextAction()
+    action = (await getNextAction()).action
     expect(action).toMatchObject({
       type: 'PAGE',
       actionId: 'page_publish',
@@ -133,7 +144,7 @@ describe('getNextAction', () => {
     // Both pages published now, neither promoted yet -> ADVERTISING picks the most recently
     // published one (the "other" page) — resolver order isn't homepage-first, it's
     // most-recently-published-first, same convention used elsewhere in this resolver.
-    action = await getNextAction()
+    action = (await getNextAction()).action
     expect(action).toMatchObject({
       type: 'ADVERTISING',
       actionId: 'campaign_create',
@@ -150,7 +161,7 @@ describe('getNextAction', () => {
     expect(campaignRes.statusCode).toBe(201)
     const campaignId = campaignRes.json().data.id
 
-    action = await getNextAction()
+    action = (await getNextAction()).action
     expect(action).toEqual({
       type: 'ADVERTISING',
       actionId: 'campaign_resume',
@@ -176,7 +187,7 @@ describe('getNextAction', () => {
     })
     await db.campaignCreative.create({ data: { campaignId, creativeId: creative.id } })
 
-    action = await getNextAction()
+    action = (await getNextAction()).action
     expect(action).toMatchObject({
       type: 'ADVERTISING',
       actionId: 'campaign_create',
@@ -200,11 +211,11 @@ describe('getNextAction', () => {
     })
 
     // Both pages promoted, both campaigns complete -> the Business/Page/Advertising chain has
-    // nothing left, so the Assistant now offers to start a goal cycle (the "Assistant becomes the
-    // consultant" pass, 2026-09-04) instead of falling straight to CALENDAR — no active cycle
-    // exists yet for this business, so it's the very first Learn question (venture family).
-    action = await getNextAction()
-    expect(action).toEqual({
+    // nothing left, so the Assistant now offers to start a goal cycle instead of falling straight
+    // to CALENDAR — no active cycle exists yet for this business, so it's the very first Learn
+    // question (venture family). Conversation is still there too, wholly unaffected.
+    next = await getNextAction()
+    expect(next.action).toEqual({
       type: 'GOAL_CYCLE',
       actionId: 'learn_step',
       operationId: null,
@@ -226,7 +237,8 @@ describe('getNextAction', () => {
       signalSummary: null,
       homepageUrl: expect.stringContaining('/p/'),
     })
-    expect(action.step.choices.length).toBeGreaterThan(0)
-    expect(action.step.choices.length).toBeLessThanOrEqual(7)
+    expect(next.action.step.choices.length).toBeGreaterThan(0)
+    expect(next.action.step.choices.length).toBeLessThanOrEqual(7)
+    expect(next.conversation.insights.length).toBeGreaterThan(0)
   })
 })

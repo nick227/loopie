@@ -675,6 +675,125 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/integrations/{integrationId}/google-sheets/picker-token': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Short-lived Google access token for the frontend Picker widget */
+    get: operations['getGoogleSheetsPickerToken']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/integrations/{integrationId}/google-sheets/spreadsheet': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Record the spreadsheet chosen via the Google Picker widget */
+    post: operations['selectGoogleSheetsSpreadsheet']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/integrations/{integrationId}/google-sheets/tabs': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List tabs in the selected spreadsheet */
+    get: operations['listGoogleSheetsTabs']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/integrations/{integrationId}/google-sheets/tab': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Choose which tab to import from */
+    post: operations['selectGoogleSheetsTab']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/integrations/{integrationId}/google-sheets/preview': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Read the selected tab and report row counts, headers, and a suggested column mapping */
+    post: operations['previewGoogleSheetsImport']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/integrations/{integrationId}/google-sheets/mapping': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Confirm the column mapping — required before Import (POST /integrations/{id}/sync) can run */
+    post: operations['confirmGoogleSheetsMapping']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/integrations/{integrationId}/google-sheets/export': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Create a new Google Sheet with this business's contacts */
+    post: operations['exportContactsToGoogleSheets']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/webhooks/inbound/{integrationId}': {
     parameters: {
       query?: never
@@ -2396,6 +2515,26 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/landing-pages/{landingPageId}/refresh-thumbnail': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Regenerate screenshot thumbnail for the current published version
+     * @description Enqueues a derived-cache screenshot for the page's current PublishedPageVersion. Draft-only pages return 400. Capture runs asynchronously via the worker; list responses fall back to the live miniature until status is READY.
+     */
+    post: operations['refreshLandingPageThumbnail']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/landing-pages/{landingPageId}/versions': {
     parameters: {
       query?: never
@@ -3696,6 +3835,45 @@ export interface components {
       type: 'text' | 'textarea' | 'url' | 'email' | 'phone'
       required: boolean
     }
+    /** @description Two wholly independent slots (2026-09-04) — GET /assistant/next-action's actual response shape. `action` is the single next executable/decidable thing Loopie wants the user to do or can do for them (the cross-product priority chain: Business -> Page -> Advertising -> the active goal cycle's own Learn/Plan/Grow turn, signal-boosted -> Calendar fallback; Learn is explicitly the first Action, not a separate concept). `conversation` is a browsable advice/knowledge corpus — ongoing business advice the user can read for its own sake, never gated by Action state, so a Learn question and a useful business tip render together instead of one winner-take-all slot. */
+    AssistantNextActionDTO: {
+      action: components['schemas']['AssistantActionDTO'] | null
+      conversation: components['schemas']['AssistantConversationDTO'] | null
+    }
+    /** @description The full eligible advice/knowledge catalog for this business's venture ships in one response — related-topic and category-rail browsing are pure client-side state changes, never a second round trip. */
+    AssistantConversationDTO: {
+      /** @description The id of the insight to show prominently on open. */
+      featuredId: string
+      insights: components['schemas']['ConversationInsightDTO'][]
+      /** @description Only categories with at least one eligible insight for this business. */
+      categories: {
+        category: components['schemas']['ConversationCategory']
+        count: number
+      }[]
+    }
+    /** @enum {string} */
+    ConversationCategory:
+      | 'FOUNDATION'
+      | 'MARKETING'
+      | 'SALES'
+      | 'OPERATIONS'
+      | 'TEAM'
+      | 'EQUIPMENT'
+      | 'RETENTION'
+      | 'SCALE'
+    ConversationInsightDTO: {
+      id: string
+      category: components['schemas']['ConversationCategory']
+      headline: string
+      detail: string | null
+      /** @description A fuller paragraph shown on "Keep reading"; null advances to the next insight in the same category instead. */
+      extended: string | null
+      /** @description Short label used when this insight appears as another insight's related-topic chip. */
+      chipLabel: string
+      relatedInsightIds: string[]
+      /** @description True for a real-data-computed insight (e.g. an actual average sale value) rather than static authored content. */
+      isDynamic: boolean
+    }
     /** @description The single most valuable next action across the business, recomputed live on every read from Business/LandingPage/Campaign state — never persisted. Priority chain: an incomplete business profile, then an incomplete/unpublished page, then a published page with no ad promotion, then (unconditional fallback) Calendar's own next-best-action system. Each action's actual write goes through the same real operation that feature's own UI uses — this endpoint only decides which one to surface next. */
     AssistantActionDTO: {
       /** @enum {string} */
@@ -4049,7 +4227,14 @@ export interface components {
     CrmCatalogEntry: {
       /** @enum {string} */
       provider:
-        'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'WOOCOMMERCE' | 'WEBHOOK' | 'SQUARE' | 'PIPEDRIVE'
+        | 'HUBSPOT'
+        | 'SALESFORCE'
+        | 'SHOPIFY'
+        | 'WOOCOMMERCE'
+        | 'WEBHOOK'
+        | 'SQUARE'
+        | 'PIPEDRIVE'
+        | 'GOOGLE_SHEETS'
       label: string
       capabilities: components['schemas']['CrmCapabilities']
       oauth: boolean
@@ -4062,7 +4247,14 @@ export interface components {
       businessId: string
       /** @enum {string} */
       provider:
-        'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'WOOCOMMERCE' | 'WEBHOOK' | 'SQUARE' | 'PIPEDRIVE'
+        | 'HUBSPOT'
+        | 'SALESFORCE'
+        | 'SHOPIFY'
+        | 'WOOCOMMERCE'
+        | 'WEBHOOK'
+        | 'SQUARE'
+        | 'PIPEDRIVE'
+        | 'GOOGLE_SHEETS'
       label?: string | null
       externalAccountId?: string | null
       /** @enum {string} */
@@ -4094,6 +4286,10 @@ export interface components {
       webhookSecret?: string | null
       /** Format: date-time */
       createdAt: string
+      spreadsheetId?: string | null
+      spreadsheetName?: string | null
+      sheetTab?: string | null
+      columnMapping?: components['schemas']['GoogleColumnMapping']
     }
     SyncIntegrationResult: {
       created: number
@@ -4112,6 +4308,64 @@ export interface components {
       orders: number
       revenue: number
       truncated: boolean
+    }
+    GoogleSheetsPickerToken: {
+      /** @description Short-lived Google access token for the frontend Picker widget only. */
+      accessToken: string
+    }
+    /** @description 0-based column indices within the chosen tab. */
+    GoogleColumnMapping: {
+      name?: number | null
+      email?: number | null
+      phone?: number | null
+      company?: number | null
+    }
+    GoogleSheetsSelection: {
+      integrationId: string
+      spreadsheetId: string | null
+      spreadsheetName: string | null
+      sheetTab: string | null
+      columnMapping: components['schemas']['GoogleColumnMapping']
+    }
+    SelectGoogleSheetsSpreadsheetInput: {
+      spreadsheetId: string
+      spreadsheetName: string
+    }
+    GoogleSheetsTab: {
+      title: string
+      sheetId: number
+    }
+    SelectGoogleSheetsTabInput: {
+      sheetTab: string
+    }
+    PreviewGoogleSheetsImportInput: {
+      /** @description Recompute stats against this mapping instead of the persisted/suggested one */
+      mapping?: components['schemas']['GoogleColumnMapping']
+    }
+    GoogleSheetsPreview: {
+      spreadsheetName: string | null
+      sheetTab: string
+      headers: string[]
+      sampleRows: string[][]
+      suggestedMapping: components['schemas']['GoogleColumnMapping']
+      totalRows: number
+      withEmail: number
+      withPhone: number
+      toImport: number
+      toSkip: number
+      truncated: boolean
+    }
+    ConfirmGoogleSheetsMappingInput: {
+      mapping: components['schemas']['GoogleColumnMapping']
+    }
+    ExportContactsToGoogleSheetsInput: {
+      title?: string
+    }
+    GoogleSheetsExportResult: {
+      spreadsheetId: string
+      /** Format: uri */
+      url: string
+      contactCount: number
     }
     CreateIntegrationInput: {
       /** @enum {string} */
@@ -5458,6 +5712,17 @@ export interface components {
       slots?: components['schemas']['LandingPageAdSlot'][]
       /** Format: date-time */
       createdAt: string
+      /** @description Cached screenshot URL when thumbnailStatus is READY; otherwise null. */
+      thumbnailUrl?: string | null
+      /**
+       * @description Derived-cache freshness for list previews. NONE = draft / no published version (use live miniature). PENDING/STALE/FAILED = fall back to miniature while a background job (re)generates. READY = screenshot matches current published checksum.
+       * @enum {string}
+       */
+      thumbnailStatus: 'NONE' | 'PENDING' | 'READY' | 'STALE' | 'FAILED'
+      /** @description Checksum the cached screenshot was generated from. */
+      thumbnailChecksum?: string | null
+      /** @description PublishedPageVersion id the screenshot is tied to. */
+      thumbnailSourceVersionId?: string | null
     }
     LandingPageAdSlot: {
       id: string
@@ -6608,7 +6873,14 @@ export interface components {
     AdSpendId: string
     CommissionId: string
     IntegrationId: string
-    CrmProviderParam: 'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'WOOCOMMERCE' | 'SQUARE' | 'PIPEDRIVE'
+    CrmProviderParam:
+      | 'HUBSPOT'
+      | 'SALESFORCE'
+      | 'SHOPIFY'
+      | 'WOOCOMMERCE'
+      | 'SQUARE'
+      | 'PIPEDRIVE'
+      | 'GOOGLE_SHEETS'
     ExternalRecordId: string
     ActivityId: string
     ActivityViewId: string
@@ -7260,14 +7532,14 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description The next action */
+      /** @description The next action and the current conversation, independently resolved */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
           'application/json': {
-            data?: components['schemas']['AssistantActionDTO']
+            data?: components['schemas']['AssistantNextActionDTO']
           }
         }
       }
@@ -7761,6 +8033,194 @@ export interface operations {
         content: {
           'application/json': {
             data: components['schemas']['IntegrationPreview']
+          }
+        }
+      }
+    }
+  }
+  getGoogleSheetsPickerToken: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integrationId: components['parameters']['IntegrationId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Picker token */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['GoogleSheetsPickerToken']
+          }
+        }
+      }
+    }
+  }
+  selectGoogleSheetsSpreadsheet: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integrationId: components['parameters']['IntegrationId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SelectGoogleSheetsSpreadsheetInput']
+      }
+    }
+    responses: {
+      /** @description Selection updated */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['GoogleSheetsSelection']
+          }
+        }
+      }
+    }
+  }
+  listGoogleSheetsTabs: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integrationId: components['parameters']['IntegrationId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Sheet tabs */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['GoogleSheetsTab'][]
+          }
+        }
+      }
+    }
+  }
+  selectGoogleSheetsTab: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integrationId: components['parameters']['IntegrationId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SelectGoogleSheetsTabInput']
+      }
+    }
+    responses: {
+      /** @description Selection updated */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['GoogleSheetsSelection']
+          }
+        }
+      }
+    }
+  }
+  previewGoogleSheetsImport: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integrationId: components['parameters']['IntegrationId']
+      }
+      cookie?: never
+    }
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['PreviewGoogleSheetsImportInput']
+      }
+    }
+    responses: {
+      /** @description Sheet preview */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['GoogleSheetsPreview']
+          }
+        }
+      }
+    }
+  }
+  confirmGoogleSheetsMapping: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integrationId: components['parameters']['IntegrationId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ConfirmGoogleSheetsMappingInput']
+      }
+    }
+    responses: {
+      /** @description Mapping saved */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['GoogleSheetsSelection']
+          }
+        }
+      }
+    }
+  }
+  exportContactsToGoogleSheets: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integrationId: components['parameters']['IntegrationId']
+      }
+      cookie?: never
+    }
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['ExportContactsToGoogleSheetsInput']
+      }
+    }
+    responses: {
+      /** @description Export created */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['GoogleSheetsExportResult']
           }
         }
       }
@@ -11453,6 +11913,35 @@ export interface operations {
         content: {
           'application/json': {
             data?: components['schemas']['PublishedPageVersion']
+          }
+        }
+      }
+    }
+  }
+  refreshLandingPageThumbnail: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        landingPageId: components['parameters']['LandingPageId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Thumbnail regeneration enqueued */
+      202: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: {
+              /** @enum {string} */
+              thumbnailStatus: 'PENDING'
+              thumbnailSourceVersionId: string
+              thumbnailChecksum?: string | null
+            }
           }
         }
       }

@@ -1,7 +1,9 @@
 // Local service, get more customers (docs/.../03-poc-implementation-plan.md section 7 + POC path
 // A, Roofing). Applicable to any LOCAL venture via the `traits` match — Plumbing/HVAC/Painting/
-// Handyman/Lawn mowing/etc. all get this same playbook, not a roofing-specific copy, demonstrating
-// the trait-based reuse the docs call for.
+// Handyman/Lawn mowing/Pressure washing/Landscaping all get this same playbook, not a
+// trade-specific copy, demonstrating the trait-based reuse the docs call for. Occupation-specific
+// substance (equipment maintenance, route planning) is gated by the EQUIPMENT_HEAVY trait within
+// Fulfillment & Operations rather than shown to every LOCAL trade regardless of relevance.
 import type { Playbook } from './index'
 
 export const localServiceGetCustomers: Playbook = {
@@ -18,7 +20,7 @@ export const localServiceGetCustomers: Playbook = {
   qualificationQuestions: [
     {
       key: 'target_customer',
-      heading: 'Who are you trying to reach?',
+      heading: "Who you're trying to reach",
       choices: [
         { value: 'HOMEOWNERS', label: 'Homeowners' },
         { value: 'BUSINESSES', label: 'Businesses' },
@@ -28,7 +30,7 @@ export const localServiceGetCustomers: Playbook = {
     },
     {
       key: 'service_area',
-      heading: 'How far do you travel for work?',
+      heading: 'How far you travel for work',
       choices: [
         { value: 'ONE_CITY', label: 'Just my city' },
         { value: 'METRO_AREA', label: 'My metro area' },
@@ -68,32 +70,95 @@ export const localServiceGetCustomers: Playbook = {
       writesKnowledge: 'marketingBudgetBand',
     },
   ],
-  steps: [
-    // DEFINE_PRIMARY_OFFER — no existing template covers "what do you actually sell," so this is
-    // one of the two genuinely new templates (see packages/db/src/data/goalIdeas.ts).
-    { templateId: 'system-idea-define-primary-offer', horizon: 'TODAY' },
-    // VERIFY_OR_PUBLISH_HOMEPAGE — reuses the existing Foundation idea as-is.
-    { templateId: 'system-idea-publish-homepage', horizon: 'TODAY' },
-    // BUILD_PROSPECT_LIST — reuses the existing "create your first audience" idea as-is.
-    { templateId: 'system-idea-first-audience', horizon: 'THIS_WEEK' },
-    // CONTACT_PROSPECTS — the other genuinely new template; its count comes from customerGoalBand
-    // (see AssistantGoalCycleService.buildPlan's band->count map), not a live metric.
+  layers: [
     {
-      templateId: 'system-idea-contact-prospects',
-      horizon: 'THIS_WEEK',
-      quantityFrom: 'customerGoalBand',
+      key: 'OFFER_AND_FOUNDATION',
+      label: 'Marketing Foundation',
+      steps: [
+        { templateId: 'system-idea-define-primary-offer', horizon: 'TODAY' },
+        { templateId: 'system-idea-publish-homepage', horizon: 'TODAY' },
+        { templateId: 'system-idea-first-audience', horizon: 'THIS_WEEK' },
+        {
+          templateId: 'system-idea-assign-team-owner',
+          horizon: 'THIS_WEEK',
+          title: 'Name one person as your booking contact',
+          requiresTeamSize: ['SMALL_TEAM', 'ESTABLISHED_TEAM'],
+        },
+      ],
     },
-    // FOLLOW_UP_INTERESTED_LEADS — reuses the existing dynamic "flagged leads" idea as a plain
-    // MANUAL reminder for Day 0 of the plan (no interested leads exist yet); the same template still
-    // surfaces normally in the Ideas feed once real leads are flagged, unaffected by this override.
     {
-      templateId: 'system-idea-leads-flagged-for-follow-up',
-      horizon: 'NEXT_WEEK',
-      title: 'Follow up with interested leads',
-      trackingTypeOverride: 'MANUAL',
+      key: 'LEAD_AND_SALES_PROCESS',
+      label: 'Sales Process',
+      steps: [
+        { templateId: 'system-idea-callback-window', horizon: 'TODAY' },
+        { templateId: 'system-idea-quoting-script', horizon: 'THIS_WEEK' },
+        {
+          templateId: 'system-idea-contact-prospects',
+          horizon: 'THIS_WEEK',
+          quantityFrom: 'customerGoalBand',
+        },
+        {
+          templateId: 'system-idea-leads-flagged-for-follow-up',
+          horizon: 'NEXT_WEEK',
+          title: 'Follow up with interested leads',
+          trackingTypeOverride: 'MANUAL',
+        },
+      ],
     },
-    // ASK_FOR_REVIEWS_OR_REFERRALS — reuses the existing repeatable idea as-is.
-    { templateId: 'system-idea-ask-for-reviews', horizon: 'NEXT_WEEK' },
+    {
+      key: 'FULFILLMENT_AND_OPERATIONS',
+      label: 'Operations',
+      steps: [
+        {
+          templateId: 'system-idea-equipment-maintenance-log',
+          horizon: 'THIS_WEEK',
+          requiresTrait: 'EQUIPMENT_HEAVY',
+        },
+        {
+          templateId: 'system-idea-route-planning',
+          horizon: 'THIS_WEEK',
+          requiresTrait: 'EQUIPMENT_HEAVY',
+        },
+        { templateId: 'system-idea-job-checklist', horizon: 'THIS_WEEK' },
+        { templateId: 'system-idea-ask-for-reviews', horizon: 'NEXT_WEEK' },
+      ],
+    },
+    {
+      key: 'TEAM_AND_DELEGATION',
+      label: 'Team',
+      steps: [
+        {
+          templateId: 'system-idea-first-hire-scope',
+          horizon: 'THIS_WEEK',
+          requiresTeamSize: ['SOLO'],
+        },
+        {
+          templateId: 'system-idea-document-team-process',
+          horizon: 'THIS_WEEK',
+          title: 'Write down your intake process for the team',
+          requiresTeamSize: ['SMALL_TEAM', 'ESTABLISHED_TEAM'],
+        },
+        {
+          templateId: 'system-idea-weekly-team-checkin',
+          horizon: 'THIS_WEEK',
+          requiresTeamSize: ['SMALL_TEAM', 'ESTABLISHED_TEAM'],
+        },
+      ],
+    },
+    {
+      key: 'SCALE_AND_SYSTEMS',
+      label: 'Scale',
+      repeatableOnceReached: true,
+      steps: [
+        { templateId: 'system-idea-seasonal-maintenance-program', horizon: 'THIS_WEEK' },
+        { templateId: 'system-idea-referral-incentive', horizon: 'NEXT_WEEK' },
+        {
+          templateId: 'system-idea-monthly-review',
+          horizon: 'NEXT_WEEK',
+          title: 'Review your close rate and average job size monthly',
+        },
+      ],
+    },
   ],
   reviewTrigger: { minDaysElapsed: 14, minStepsDoneFraction: 0.5 },
 }

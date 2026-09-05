@@ -112,7 +112,7 @@ describe('Ad Designer (2026-09-03)', () => {
       headline?: string | null
       overlay?: string | null
     }
-    expect(snapshot.overlay).toBe('SOLID_SCRIM') // FEED_POST's own default
+    expect(snapshot.overlay).toBe('DARK_GRADIENT') // FEED_POST's own default
 
     // Republishing after the page's slug changes picks up the new URL live — never a stale copy.
     await app.inject({

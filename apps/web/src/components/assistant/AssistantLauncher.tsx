@@ -11,11 +11,10 @@ import { AssistantPanel } from './AssistantPanel'
 export function AssistantLauncher() {
   const { data } = useNextAction()
   const [open, setOpen] = useState(false)
-  // The resolver always resolves to *something* now (Calendar is an unconditional fallback), so
-  // the dot means "a genuine product gap is waiting," not "the assistant has an opinion" — it
-  // would be on permanently otherwise, which is exactly the "aggressive badge" this is meant to
-  // avoid.
-  const hasNextAction = !!data?.actionId && data.actionId !== 'calendar'
+  // The badge tracks Action only (2026-09-04) — a Conversation insight existing isn't "waiting for
+  // you" the way a real Action is, and a bare Calendar fallback doesn't count either; it would be
+  // on permanently otherwise, exactly the "aggressive badge" this is meant to avoid.
+  const hasNextAction = !!data?.action && data.action.actionId !== 'calendar'
 
   return (
     <>
@@ -29,7 +28,7 @@ export function AssistantLauncher() {
         {hasNextAction ? (
           <span
             aria-hidden="true"
-            className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary"
+            className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-background"
           />
         ) : null}
       </button>

@@ -1,8 +1,8 @@
 import type { Prisma } from '@prisma/client'
 import {
-  SYSTEM_LEAD_GEN_TEMPLATE_ID,
-  SYSTEM_LEAD_GEN_SCHEMA,
-  starterContentForTemplate,
+  SYSTEM_CORPORATE_PROFESSIONAL_TEMPLATE_ID,
+  corporateProfessionalSchema,
+  corporateProfessionalStarterContent,
   DEFAULT_PAGE_THEME,
 } from '@project/db'
 import { snapshotForm } from '@project/page-renderer'
@@ -38,15 +38,12 @@ export async function provisionDefaultPage(
   const clash = await tx.landingPage.findUnique({ where: { slug } })
   if (clash) slug = `${slug}-${input.businessId.slice(-6).toLowerCase()}`
 
-  const content = starterContentForTemplate(
-    SYSTEM_LEAD_GEN_SCHEMA,
-    input.businessName,
-  ) as Prisma.InputJsonValue
+  const content = corporateProfessionalStarterContent as unknown as Prisma.InputJsonValue
 
   const page = await tx.landingPage.create({
     data: {
       businessId: input.businessId,
-      templateId: SYSTEM_LEAD_GEN_TEMPLATE_ID,
+      templateId: SYSTEM_CORPORATE_PROFESSIONAL_TEMPLATE_ID,
       formId: form.id,
       name: 'Home',
       slug,
@@ -88,7 +85,7 @@ export async function provisionDefaultPage(
           items: [],
         },
       ],
-      schemaSnapshot: SYSTEM_LEAD_GEN_SCHEMA as Prisma.InputJsonValue,
+      schemaSnapshot: corporateProfessionalSchema as Prisma.InputJsonValue,
     },
   })
   await tx.landingPage.update({

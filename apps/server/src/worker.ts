@@ -5,6 +5,7 @@ import { runDueAdRunSyncs } from './services/AdRunSyncService'
 import { db, cleanupExpiredRateLimitBuckets } from '@project/db'
 import { processEmbedOutbox } from './services/activity/EmbedProjectionWorker'
 import { runDueGoalReminders } from './services/CalendarReminderService'
+import { processPendingPageThumbnails } from './services/PageThumbnailService'
 
 async function main() {
   console.log('Worker started. Initializing pollers...')
@@ -58,6 +59,13 @@ async function main() {
         console.error('[Worker] Error running due Calendar reminders:', err),
       )
     }, calendarReminderIntervalMs)
+
+    const thumbnailIntervalMs = Number(process.env.PAGE_THUMBNAIL_POLL_INTERVAL_MS ?? 15_000)
+    setInterval(() => {
+      processPendingPageThumbnails().catch((err) =>
+        console.error('[Worker] Error processing page thumbnails:', err),
+      )
+    }, thumbnailIntervalMs)
   }
 
   const shutdown = async () => {

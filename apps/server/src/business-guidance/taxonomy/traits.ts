@@ -14,3 +14,8 @@ export type BusinessTrait =
   | 'RETAIL'
   | 'AUDIENCE_DRIVEN'
   | 'EVENT_DRIVEN'
+  // Powered-equipment/vehicle trades with a real maintenance story (mowers, roofing gear, HVAC
+  // tools) — distinct from a LOCAL trade that only needs hand tools (painting, handyman) or none
+  // at all (photography). Lets one playbook show an equipment-maintenance step only where it's
+  // genuinely relevant instead of to every LOCAL business.
+  | 'EQUIPMENT_HEAVY'

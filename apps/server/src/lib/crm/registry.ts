@@ -3,6 +3,7 @@ import { CRM_CATALOG, catalogEntry } from './catalog'
 import { hubspotConnector } from './hubspot'
 import { shopifyConnector } from './shopify'
 import { woocommerceConnector } from './woocommerce'
+import { googleSheetsConnector } from './googleSheets'
 import type { CrmLiveConnector } from './types'
 
 export type CrmConnector = {
@@ -55,6 +56,14 @@ const connectors: Record<string, CrmConnector> = {
     capabilities: catalogEntry('WEBHOOK')!.capabilities,
     oauth: false,
     configured: () => true,
+    availability: 'LIVE',
+  },
+  GOOGLE_SHEETS: {
+    provider: 'GOOGLE_SHEETS',
+    capabilities: googleSheetsConnector.capabilities,
+    oauth: true,
+    configured: googleSheetsConnector.configured,
+    live: googleSheetsConnector,
     availability: 'LIVE',
   },
   SALESFORCE: stub('SALESFORCE'),

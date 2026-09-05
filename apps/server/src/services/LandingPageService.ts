@@ -26,6 +26,23 @@ import { CONTACT_FORM_FIELDS, EMAIL_CAPTURE_FIELDS } from '../lib/contactForm'
 import { ensureSystemTemplates } from '../lib/ensureSystemTemplates'
 import { withResolvedMedia } from '../lib/pageMedia'
 import { assertYoutubeUrlsInContent } from '../lib/youtubeContent'
+import {
+  PageThumbnailService,
+  resolveThumbnailFields,
+  shouldEnqueueThumbnailRepair,
+} from './PageThumbnailService'
+
+type PublishedThumbInclude = {
+  id: string
+  checksum: string | null
+  thumbnail: {
+    url: string | null
+    status: 'PENDING' | 'READY' | 'FAILED'
+    sourceChecksum: string
+    publishedVersionId: string | null
+    updatedAt: Date
+  } | null
+} | null
 
 function toLandingPageDTO(
   page: {
@@ -43,6 +60,7 @@ function toLandingPageDTO(
     publishedVersionId: string | null
     formStartCount: number
     createdAt: Date
+    publishedVersion?: PublishedThumbInclude
     adSlots?: {
       id: string
       sortOrder: number
@@ -61,6 +79,38 @@ function toLandingPageDTO(
   submissionCount = 0,
 ) {
   const slots = (page.adSlots ?? []).map(toSlotDTO)
+  const published = page.publishedVersion ?? null
+  const thumbFields = resolveThumbnailFields(
+    page.publishedVersionId,
+    published?.checksum ?? null,
+    published?.thumbnail ?? null,
+  )
+  return {
+    ...baseLandingPageFields(page, slots, submissionCount),
+    ...thumbFields,
+  }
+}
+
+function baseLandingPageFields(
+  page: {
+    id: string
+    businessId: string
+    templateId: string
+    formId: string | null
+    name: string
+    slug: string
+    customDomain: string | null
+    status: string
+    content: unknown
+    theme: unknown
+    layoutConfig: unknown
+    publishedVersionId: string | null
+    formStartCount: number
+    createdAt: Date
+  },
+  slots: ReturnType<typeof toSlotDTO>[],
+  submissionCount: number,
+) {
   return {
     id: page.id,
     businessId: page.businessId,
@@ -84,6 +134,43 @@ function toLandingPageDTO(
     adSlotCount: slots.length,
     slots,
     createdAt: page.createdAt.toISOString(),
+  }
+}
+
+const publishedVersionThumbInclude = {
+  select: {
+    id: true,
+    checksum: true,
+    thumbnail: true,
+  },
+} as const
+
+// List-only repair: missing / STALE / FAILED-past-retry-window. Never runs from _find —
+// thumbnail cache must stay non-critical to get/update/export/publish.
+async function enqueueThumbnailRepairs(
+  pages: {
+    publishedVersionId: string | null
+    publishedVersion?: PublishedThumbInclude
+  }[],
+) {
+  try {
+    const service = new PageThumbnailService()
+    for (const page of pages) {
+      const published = page.publishedVersion
+      if (!page.publishedVersionId || !published?.checksum) continue
+      if (
+        !shouldEnqueueThumbnailRepair(
+          page.publishedVersionId,
+          published.checksum,
+          published.thumbnail,
+        )
+      ) {
+        continue
+      }
+      await service.enqueuePublishedVersion(page.publishedVersionId, published.checksum)
+    }
+  } catch (err) {
+    console.error('Failed to enqueue page thumbnail repairs', err)
   }
 }
 
@@ -137,6 +224,7 @@ export class LandingPageService {
       take: limit + 1,
       include: {
         adSlots: { include: { assignments: true }, orderBy: { sortOrder: 'asc' as const } },
+        publishedVersion: publishedVersionThumbInclude,
       },
     })
     const hasMore = pages.length > limit
@@ -161,6 +249,8 @@ export class LandingPageService {
         .filter((row): row is typeof row & { landingPageId: string } => row.landingPageId !== null)
         .map((row) => [row.landingPageId, row._count._all]),
     )
+
+    await enqueueThumbnailRepairs(items)
 
     return {
       data: items.map((page) => toLandingPageDTO(page, submissionCountByPageId.get(page.id) ?? 0)),
@@ -427,6 +517,17 @@ export class LandingPageService {
     const { CalendarService } = await import('./CalendarService')
     await new CalendarService().completePagePublishGoals(result.page.businessId)
 
+    if (result.version.checksum) {
+      try {
+        await new PageThumbnailService().enqueuePublishedVersion(
+          result.version.id,
+          result.version.checksum,
+        )
+      } catch (err) {
+        console.error('Failed to enqueue page thumbnail after publish', err)
+      }
+    }
+
     return toVersionDTO(result.version)
   }
 
@@ -539,6 +640,7 @@ export class LandingPageService {
       where: { id: landingPageId, businessId, deletedAt: null },
       include: {
         adSlots: { include: { assignments: true }, orderBy: { sortOrder: 'asc' as const } },
+        publishedVersion: publishedVersionThumbInclude,
       },
     })
     if (!page) throw { statusCode: 404, message: 'Landing page not found' }

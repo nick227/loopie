@@ -17,6 +17,7 @@
     "db:push": "pnpm --filter @project/db db:push",
     "db:seed": "pnpm --filter @project/db db:seed && pnpm --filter server run seed:activity-backfill",
     "db:studio": "pnpm --filter @project/db db:studio",
+    "thumbs:regen-defaults": "pnpm --filter server run thumbs:regen-defaults",
     "prepare": "husky"
   },
   "devDependencies": {

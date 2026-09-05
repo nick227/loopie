@@ -54,6 +54,12 @@ export const corporateProfessionalSchema: TemplateSchema = {
       editable: ['headline', 'body', 'items'],
     },
     { key: 'faq', type: 'faq', order: 7, hideable: true, editable: ['headline', 'body', 'items'] },
+    // Editorial metadata, not an independent render node — 'studio-contact' (below) renders the
+    // attached Form's fields nested inside its own contact block, never as a standalone section of
+    // its own. This entry exists only so the Content tab can order/hide/delete it like every other
+    // section; deleting/hiding it does not remove the footer, only the form fields within it (see
+    // LandingPage.tsx's `hasForm` computation).
+    { key: 'form', type: 'form-embed', order: 7.5, hideable: true, editable: [] },
     // Real lead capture, not a dead cta-band link — mirrors studio.ts's own 'footer' section.
     // Every nav/hero/footer CTA in this template's starter content already points at #contact
     // (studio-contact is the one section type that renders that id and the attached Form), so no

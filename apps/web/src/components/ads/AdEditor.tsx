@@ -77,7 +77,6 @@ export function AdEditor({
   replaceDestinationPendingRunId,
   replaceDestinationErrorRunId,
   replaceDestinationError,
-  lastPublishedAt,
   onPostToRiver,
   riverPending,
   onDelete,
@@ -358,7 +357,7 @@ export function AdEditor({
         title="Edit Advertisement"
         description={
           <>
-            Create once. Preview everywhere. Publish with confidence.
+            Create a reusable advertisement
             {dirty !== undefined ? <span className="mt-1 block text-xs">{saveHint}</span> : null}
           </>
         }
@@ -382,8 +381,13 @@ export function AdEditor({
             ) : null}
             <Button
               variant="outline"
-              onClick={() => setEmbedModalOpen(true)}
-              disabled={!lastPublishedAt}
+              onClick={() => {
+                void (async () => {
+                  await onSave()
+                  setEmbedModalOpen(true)
+                })()
+              }}
+              disabled={pending}
             >
               <Code2 size={14} /> Embed
             </Button>

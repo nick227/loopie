@@ -539,7 +539,7 @@ function FeatureGridSection({ content, editable, onChange }: SectionProps<'featu
     onChange({ items: items.map((row, idx) => (idx === i ? { ...row, ...patch } : row)) })
   }
   return (
-    <section className="py-24" style={{ backgroundColor: 'var(--lp-bg)' }}>
+    <section id="features" className="py-24" style={{ backgroundColor: 'var(--lp-bg)' }}>
       <div className="mx-auto max-w-5xl px-6 lg:px-8">
         <div className="mx-auto mb-16 max-w-2xl text-center">
           {editable ? (
@@ -648,7 +648,11 @@ function TestimonialsSection({ content, editable, onChange }: SectionProps<'test
     onChange({ items: items.map((row, idx) => (idx === i ? { ...row, ...patch } : row)) })
   }
   return (
-    <section className="py-24 border-t" style={{ backgroundColor: ink(4), borderColor: ink(10) }}>
+    <section
+      id="testimonials"
+      className="py-24 border-t"
+      style={{ backgroundColor: ink(4), borderColor: ink(10) }}
+    >
       <div className="mx-auto max-w-5xl px-6 lg:px-8">
         {editable ? (
           <CanvasText
@@ -736,7 +740,7 @@ function FAQSection({ content, editable, onChange }: SectionProps<'faq'>) {
     onChange({ items: items.map((row, idx) => (idx === i ? { ...row, ...patch } : row)) })
   }
   return (
-    <section className="py-24" style={{ backgroundColor: 'var(--lp-bg)' }}>
+    <section id="faq" className="py-24" style={{ backgroundColor: 'var(--lp-bg)' }}>
       <div className="mx-auto max-w-3xl px-6 lg:px-8">
         {editable ? (
           <CanvasText
@@ -822,7 +826,11 @@ function FAQSection({ content, editable, onChange }: SectionProps<'faq'>) {
 function CTASection({ content, editable, onChange }: SectionProps<'footer'>) {
   const cta = content?.cta ?? {}
   return (
-    <section className="py-20 border-t" style={{ backgroundColor: ink(4), borderColor: ink(12) }}>
+    <section
+      id="contact"
+      className="py-20 border-t"
+      style={{ backgroundColor: ink(4), borderColor: ink(12) }}
+    >
       <div className="mx-auto max-w-3xl px-6 text-center lg:px-8">
         {editable ? (
           <CanvasText

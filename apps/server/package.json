@@ -11,6 +11,7 @@
     "test": "vitest run",
     "shadow-compare": "tsx --env-file=../../.env scripts/shadow-compare.ts",
     "seed:activity-backfill": "tsx --env-file=../../.env scripts/backfillSeedActivity.ts",
+    "thumbs:regen-defaults": "tsx --env-file=../../.env scripts/regenDefaultThumbnails.ts",
     "typecheck": "tsc --noEmit",
     "lint": "echo 'no lint configured for server'"
   },
@@ -30,6 +31,7 @@
     "fastify": "^4.0.0",
     "fastify-openapi-glue": "^4.0.0",
     "js-yaml": "^4.0.0",
+    "playwright": "^1.45.0",
     "resend": "^6.25.0",
     "stripe": "^22.5.0"
   },

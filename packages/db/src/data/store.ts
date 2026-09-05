@@ -21,45 +21,21 @@ export const storeSchema: TemplateSchema = {
   sections: [
     { key: 'nav', type: 'nav', order: -1, hideable: false, editable: ['brand', 'links'] },
     {
-      key: 'hero',
-      type: 'hero',
-      order: 0,
-      hideable: false,
-      editable: ['badges', 'headline', 'body', 'media', 'primaryCta'],
-    },
-    {
       key: 'products',
       type: 'product-grid',
       order: 1,
       hideable: true,
       editable: ['headline', 'body', 'items'],
     },
-    {
-      key: 'categories',
-      type: 'category-grid',
-      order: 2,
-      hideable: true,
-      editable: ['headline', 'items'],
-    },
-    {
-      key: 'intro',
-      type: 'story',
-      order: 3,
-      hideable: true,
-      editable: ['headline', 'body', 'media'],
-    },
-    { key: 'logos', type: 'logo-cloud', order: 4, hideable: true, editable: ['title', 'items'] },
-    {
-      key: 'testimonials',
-      type: 'testimonials',
-      order: 5,
-      hideable: true,
-      editable: ['items'],
-    },
     // studio-contact, not cta-band — a Store page can still have a Form attached (e.g. a "10% off"
     // email-capture), which cta-band would never render. Restyled in the 'store' renderer as a
     // compact promo strip (headline/body/cta beside an inline email field), not the big dark
     // two-column block Studio/Corporate Professional use for it.
+    //
+    // The 'form' entry below is editorial metadata, not an independent render node — the attached
+    // Form's fields render nested inside PromoFooterSection (the 'footer' entry), never as a
+    // standalone block. Exists only so the Content tab can order/hide/delete it consistently.
+    { key: 'form', type: 'form-embed', order: 5.5, hideable: true, editable: [] },
     {
       key: 'footer',
       type: 'studio-contact',

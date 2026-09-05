@@ -9,7 +9,14 @@ export type CrmCapabilitySet = {
 
 export type CrmCatalogEntry = {
   provider:
-    'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'WOOCOMMERCE' | 'WEBHOOK' | 'SQUARE' | 'PIPEDRIVE'
+    | 'HUBSPOT'
+    | 'SALESFORCE'
+    | 'SHOPIFY'
+    | 'WOOCOMMERCE'
+    | 'WEBHOOK'
+    | 'SQUARE'
+    | 'PIPEDRIVE'
+    | 'GOOGLE_SHEETS'
   label: string
   capabilities: CrmCapabilitySet
 }
@@ -97,6 +104,18 @@ export const CRM_CATALOG: CrmCatalogEntry[] = [
       orders: false,
       payments: false,
       events: true,
+    },
+  },
+  {
+    provider: 'GOOGLE_SHEETS',
+    label: 'Google Sheets',
+    capabilities: {
+      contacts: true,
+      companies: false,
+      deals: false,
+      orders: false,
+      payments: false,
+      events: false,
     },
   },
 ]

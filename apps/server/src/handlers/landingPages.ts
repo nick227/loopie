@@ -3,6 +3,7 @@ import { LandingPageService } from '../services/LandingPageService'
 import { LandingPageAdSlotService } from '../services/LandingPageAdSlotService'
 import { LandingPageSubmissionService } from '../services/LandingPageSubmissionService'
 import { LandingPageRenderService } from '../services/LandingPageRenderService'
+import { PageThumbnailService } from '../services/PageThumbnailService'
 
 const templateService = new LandingPageTemplateService()
 const landingPageService = new LandingPageService()
@@ -65,6 +66,14 @@ export async function publishLandingPage(request: any, reply: any) {
     request.user.id,
   )
   return reply.status(201).send({ data: version })
+}
+
+export async function refreshLandingPageThumbnail(request: any, reply: any) {
+  const data = await new PageThumbnailService().refreshForLandingPage(
+    request.user.businessId,
+    request.params.landingPageId,
+  )
+  return reply.status(202).send({ data })
 }
 
 export async function listLandingPageVersions(request: any, reply: any) {

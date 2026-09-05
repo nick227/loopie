@@ -52,6 +52,10 @@ export const studioSchema: TemplateSchema = {
       editable: ['headline', 'body', 'items'],
     },
     { key: 'faq', type: 'faq', order: 6, hideable: true, editable: ['headline', 'body', 'items'] },
+    // Editorial metadata, not an independent render node — 'studio-contact' (below) renders the
+    // attached Form's fields nested inside its own contact block, never as a standalone section.
+    // Exists only so the Content tab can order/hide/delete it like every other section.
+    { key: 'form', type: 'form-embed', order: 6.5, hideable: true, editable: [] },
     {
       key: 'footer',
       type: 'studio-contact',

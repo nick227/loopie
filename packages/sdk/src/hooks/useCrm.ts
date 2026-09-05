@@ -34,6 +34,24 @@ export function useIntegrations() {
   })
 }
 
+export function useIntegration(integrationId: string | undefined) {
+  return useQuery({
+    queryKey: ['integrations', 'detail', integrationId],
+    enabled: Boolean(integrationId),
+    queryFn: async () => {
+      const client = getApiClient()
+      const result = await client.GET('/integrations/{integrationId}', {
+        params: { path: { integrationId: integrationId! } },
+      })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
+      return data!
+    },
+  })
+}
+
 export function useCreateIntegration() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -72,7 +90,14 @@ export function useContactMatches(status?: 'UNMATCHED' | 'AMBIGUOUS') {
 export function useStartCrmOAuth() {
   return useMutation({
     mutationFn: async (input: {
-      provider: 'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'WOOCOMMERCE' | 'SQUARE' | 'PIPEDRIVE'
+      provider:
+        | 'HUBSPOT'
+        | 'SALESFORCE'
+        | 'SHOPIFY'
+        | 'WOOCOMMERCE'
+        | 'SQUARE'
+        | 'PIPEDRIVE'
+        | 'GOOGLE_SHEETS'
       shop?: string
     }) => {
       const client = getApiClient()

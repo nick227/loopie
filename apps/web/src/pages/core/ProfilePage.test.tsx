@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import {
   useBilling,
+  useBusiness,
   useBusinessTeam,
   useCurrentUser,
   useDisconnectIntegration,
@@ -20,6 +21,7 @@ import { ProfilePage } from './ProfilePage'
 vi.mock('@project/sdk', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@project/sdk')>()),
   useBilling: vi.fn(),
+  useBusiness: vi.fn(),
   useCurrentUser: vi.fn(),
   useDisconnectIntegration: vi.fn(),
   useDisconnectPlatformConnection: vi.fn(),
@@ -98,6 +100,20 @@ describe('ProfilePage', () => {
       isError: false,
       data: { data: { subscriptionStatus: 'active', configured: true, planName: 'Loopie Pro' } },
     } as unknown as ReturnType<typeof useBilling>)
+    vi.mocked(useBusiness).mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        data: {
+          id: 'business-1',
+          name: 'Midnight Creative',
+          location: 'Austin, TX',
+          industry: 'Creative services',
+          socialProfiles: [],
+          slug: 'midnight-creative',
+        },
+      },
+    } as unknown as ReturnType<typeof useBusiness>)
     vi.mocked(useIntegrations).mockReturnValue({
       isLoading: false,
       isError: false,
@@ -153,6 +169,11 @@ describe('ProfilePage', () => {
     )
 
     expect(screen.getByRole('heading', { name: 'Permissions' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Midnight Creative' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'View public profile' })).toHaveAttribute(
+      'href',
+      '/b/midnight-creative',
+    )
     expect(screen.getByRole('heading', { name: 'Your team' })).toBeInTheDocument()
     expect(screen.getByText('Ad account act-42')).toBeInTheDocument()
 

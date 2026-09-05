@@ -1,13 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useState } from 'react'
 import { useAsset, useCreateAsset } from '@project/sdk'
 import { MediaPicker } from '@/components/media/MediaPicker'
 import { mediaSrc } from '@/lib/media'
 
-// Two modes: the default (assetId-backed, uploaded asset library) and urlMode (a plain URL field
-// — for templates like Corporate Professional whose media fields store raw external URLs, not
-// uploaded assets, per the confirmed decision to extend this component rather than force every
-// template onto the asset library). Both share the same double-click-to-edit trigger.
+// Two modes: the default (assetId-backed, uploaded asset library) and urlMode (a template stores a
+// plain URL string on its own content rather than an assetId — e.g. Corporate Professional). Both
+// modes open the same site-wide media library modal (upload or pick an existing asset); urlMode just
+// writes the resolved asset URL back into the template's field instead of storing an assetId.
 export function MediaSlotField({
   assetId,
   kind,
@@ -28,7 +27,9 @@ export function MediaSlotField({
 }) {
   const [open, setOpen] = useState(false)
   const [picked, setPicked] = useState<string | undefined>(assetId)
+  const [resolvingUrlPick, setResolvingUrlPick] = useState(false)
   const assetQuery = useAsset(urlMode ? '' : (assetId ?? ''))
+  const pickedAssetQuery = useAsset(urlMode ? (picked ?? '') : '')
   const createAsset = useCreateAsset()
   const selected = assetQuery.data?.data
   const src = urlMode
@@ -82,21 +83,11 @@ export function MediaSlotField({
               : 'Choose audio'}
         </span>
       </button>
-      {open && urlMode ? (
-        <UrlPopover
-          url={fallbackUrl ?? ''}
-          onClose={() => setOpen(false)}
-          onChange={(url) => {
-            onUrlChange?.(url)
-            setOpen(false)
-          }}
-        />
-      ) : null}
-      {open && !urlMode ? (
+      {open ? (
         <MediaPicker
           type={kind}
           selectedIds={picked ? [picked] : []}
-          adding={createAsset.isPending}
+          adding={createAsset.isPending || resolvingUrlPick}
           single
           onToggle={(id) => setPicked(id)}
           onAdd={async (input) => {
@@ -104,72 +95,28 @@ export function MediaSlotField({
             const id = result.data?.id
             if (id) setPicked(id)
           }}
-          onConfirm={() => {
-            if (picked) onChange?.(picked)
-            setOpen(false)
+          onConfirm={async () => {
+            if (!picked) {
+              setOpen(false)
+              return
+            }
+            if (urlMode) {
+              // urlMode writes a resolved URL, not an assetId — fetch the picked asset's own
+              // record for its `url` before applying and closing.
+              setResolvingUrlPick(true)
+              const result = await pickedAssetQuery.refetch()
+              setResolvingUrlPick(false)
+              const url = result.data?.data?.url
+              if (url) onUrlChange?.(mediaSrc(url) ?? url)
+              setOpen(false)
+            } else {
+              onChange?.(picked)
+              setOpen(false)
+            }
           }}
           onClose={() => setOpen(false)}
         />
       ) : null}
     </div>
-  )
-}
-
-function UrlPopover({
-  url,
-  onChange,
-  onClose,
-}: {
-  url: string
-  onChange: (url: string) => void
-  onClose: () => void
-}) {
-  const [draft, setDraft] = useState(url)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function onPointerDown(event: MouseEvent) {
-      if (!ref.current?.contains(event.target as Node)) onChange(draft)
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose()
-      if (event.key === 'Enter') onChange(draft)
-    }
-    window.addEventListener('mousedown', onPointerDown)
-    window.addEventListener('keydown', onKeyDown)
-    return () => {
-      window.removeEventListener('mousedown', onPointerDown)
-      window.removeEventListener('keydown', onKeyDown)
-    }
-  }, [draft, onChange, onClose])
-
-  return createPortal(
-    <div
-      ref={ref}
-      role="dialog"
-      aria-label="Edit image URL"
-      className="fixed left-1/2 top-1/2 z-[90] w-80 -translate-x-1/2 -translate-y-1/2 space-y-2 rounded-lg border border-border bg-popover p-3 shadow-lg"
-    >
-      <label className="block text-xs font-medium text-muted-foreground">
-        Image URL
-        <input
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="https://..."
-          className="mt-1 w-full rounded border border-input-border bg-transparent px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-        />
-      </label>
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => onChange(draft)}
-          className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
-        >
-          Done
-        </button>
-      </div>
-    </div>,
-    document.body,
   )
 }

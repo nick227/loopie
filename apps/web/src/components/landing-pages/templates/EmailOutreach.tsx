@@ -202,7 +202,7 @@ function FeaturesSection({ content, editable, onChange }: SectionProps<'features
   if (!items.length && !editable) return null
 
   return (
-    <section className="border-t px-7 py-8" style={{ borderColor: ink(10) }}>
+    <section id="features" className="border-t px-7 py-8" style={{ borderColor: ink(10) }}>
       {editable ? (
         <CanvasText
           as="h2"
@@ -303,7 +303,7 @@ function MetricsSection({ content, editable, onChange }: SectionProps<'metrics'>
   if (!items.length && !editable) return null
 
   return (
-    <section className="border-t px-7 py-7" style={{ borderColor: ink(10) }}>
+    <section id="metrics" className="border-t px-7 py-7" style={{ borderColor: ink(10) }}>
       <div className="grid gap-5 sm:grid-cols-3">
         {items.map((item, i) => (
           <div key={i}>
@@ -378,7 +378,7 @@ function TestimonialsSection({ content, editable, onChange }: SectionProps<'test
   if (!items.length && !editable) return null
 
   return (
-    <section className="border-t px-7 py-8" style={{ borderColor: ink(10) }}>
+    <section id="testimonials" className="border-t px-7 py-8" style={{ borderColor: ink(10) }}>
       {editable ? (
         <CanvasText
           ariaLabel="Testimonials headline"
@@ -477,7 +477,7 @@ function FaqSection({ content, editable, onChange }: SectionProps<'faq'>) {
   if (!items.length && !editable) return null
 
   return (
-    <section className="border-t px-7 py-8" style={{ borderColor: ink(10) }}>
+    <section id="faq" className="border-t px-7 py-8" style={{ borderColor: ink(10) }}>
       {editable ? (
         <CanvasText
           as="h2"

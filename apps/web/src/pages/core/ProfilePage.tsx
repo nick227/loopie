@@ -14,6 +14,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { BusinessHeader } from '@/components/business/BusinessHeader'
 import { subscriptionStatusLabel, toBillingSnapshot } from '@/lib/billingCopy'
 import { WelcomeSection } from '@/components/welcome/WelcomeSection'
 import { useRestoreOverviewScroll } from '@/hooks/useOverviewScroll'
@@ -285,6 +286,8 @@ export function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
+      <BusinessHeader />
+
       {!isAffiliate ? <ProfileTeamsSection /> : null}
 
       {!isAffiliate ? (

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { ArrowRight, Plus, X } from 'lucide-react'
 import { CanvasText } from '../../../pages/landing-pages/components/CanvasText'
 import { EditableLinkTrigger } from '../../../pages/landing-pages/components/editable/EditableLinkTrigger'
@@ -6,9 +7,6 @@ import { FormFieldsEditor, type FormFieldDraft } from '@/components/forms/FormFi
 import type {
   PageContent,
   ProductItem,
-  CategoryItem,
-  LogoItem,
-  TestimonialItem,
   NavLink,
   CtaRef,
 } from '../../../pages/landing-pages/components/types'
@@ -23,8 +21,8 @@ const TOKEN_DEFAULTS = {
   inkColor: '#0A0A0A',
   cardColor: '#F5F5F5',
   fontFamily: '"DM Sans", ui-sans-serif, system-ui, sans-serif',
-  headingFont: 'Syne, ui-sans-serif, system-ui, sans-serif',
-  radius: '9999px',
+  headingFont: '"Bricolage Grotesque", Syne, ui-sans-serif, system-ui, sans-serif',
+  radius: '8px',
 }
 
 const ink = (mix: number) => `color-mix(in srgb, var(--lp-ink) ${mix}%, var(--lp-bg))`
@@ -34,30 +32,6 @@ type SectionProps<K extends keyof PageContent> = {
   content: PageContent[K]
   editable: boolean
   onChange: (patch: Partial<NonNullable<PageContent[K]>>) => void
-}
-
-function AddRow({ onClick, label }: { onClick: () => void; label: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium underline underline-offset-4"
-      style={{ color: ink(60) }}
-    >
-      <Plus className="h-3.5 w-3.5" /> {label}
-    </button>
-  )
-}
-
-function Kicker({ children }: { children: React.ReactNode }) {
-  return (
-    <p
-      className="mb-3 text-[11px] font-semibold uppercase tracking-[0.28em]"
-      style={{ color: ink(50) }}
-    >
-      {children}
-    </p>
-  )
 }
 
 // --- Nav — brand + one link, bare, no chrome (matches every other rich template's nav) ---------
@@ -124,257 +98,108 @@ function NavBar({ content, editable, onChange }: SectionProps<'nav'>) {
   )
 }
 
-// --- Hero — two-column, badges + headline + copy + pill CTA on the left, tall product image
-// on the right. Badges are the one array-of-plain-strings list in this file. ---------------------
-
-function BadgeList({
-  badges,
-  editable,
-  onChange,
-}: {
-  badges: string[]
-  editable: boolean
-  onChange: (next: string[]) => void
-}) {
-  function updateBadge(i: number, value: string) {
-    onChange(badges.map((row, idx) => (idx === i ? value : row)))
-  }
-  function removeBadge(i: number) {
-    onChange(badges.filter((_, idx) => idx !== i))
-  }
-
-  if (!badges.length && !editable) return null
-
-  return (
-    <div className="mb-6 flex flex-wrap items-center gap-2">
-      {badges.map((badge, i) => (
-        <div key={i} className="group relative">
-          {editable ? (
-            <CanvasText
-              ariaLabel={`Badge ${i + 1}`}
-              value={badge}
-              onChange={(next) => updateBadge(i, next)}
-              placeholder="Badge"
-              className="inline-block px-3 py-1 text-xs font-semibold w-auto"
-              style={{
-                backgroundColor: 'var(--lp-primary)',
-                color: 'var(--lp-on-primary)',
-                borderRadius: 'var(--lp-radius)',
-              }}
-            />
-          ) : (
-            <span
-              className="inline-block px-3 py-1 text-xs font-semibold"
-              style={{
-                backgroundColor: 'var(--lp-primary)',
-                color: 'var(--lp-on-primary)',
-                borderRadius: 'var(--lp-radius)',
-              }}
-            >
-              {badge}
-            </span>
-          )}
-          {editable ? (
-            <button
-              type="button"
-              onClick={() => removeBadge(i)}
-              aria-label={`Remove badge ${i + 1}`}
-              className="absolute -right-1.5 -top-1.5 hidden h-4 w-4 items-center justify-center rounded-full bg-black/60 text-[10px] leading-none text-white group-hover:flex"
-            >
-              ×
-            </button>
-          ) : null}
-        </div>
-      ))}
-      {editable ? (
-        <button
-          type="button"
-          onClick={() => onChange([...badges, 'New badge'])}
-          className="inline-flex items-center gap-1 border border-dashed px-3 py-1 text-xs font-medium"
-          style={{ borderColor: ink(30), color: ink(60), borderRadius: 'var(--lp-radius)' }}
-        >
-          <Plus className="h-3 w-3" /> Add badge
-        </button>
-      ) : null}
-    </div>
-  )
-}
-
-function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
-  const cta: CtaRef = content?.primaryCta ?? {}
-  const media = content?.media ?? {}
-  const badges = content?.badges ?? []
-
-  return (
-    <section
-      className="w-full max-w-none pt-16 pb-20 lg:pt-24"
-      style={{ backgroundColor: 'var(--lp-bg)' }}
-    >
-      <div className="mx-auto max-w-6xl px-6 lg:px-8">
-        <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
-          <div>
-            <BadgeList
-              badges={badges}
-              editable={editable}
-              onChange={(next) => onChange({ badges: next })}
-            />
-            {editable ? (
-              <CanvasText
-                as="h1"
-                ariaLabel="Hero headline"
-                value={content?.headline ?? ''}
-                onChange={(headline) => onChange({ headline })}
-                placeholder="Headline"
-                style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-                className="text-5xl font-bold leading-[0.9] tracking-tighter sm:text-6xl lg:text-7xl xl:text-8xl"
-              />
-            ) : (
-              <h1
-                className="text-5xl font-bold leading-[0.9] tracking-tighter sm:text-6xl lg:text-7xl xl:text-8xl"
-                style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-              >
-                {content?.headline}
-              </h1>
-            )}
-
-            {editable ? (
-              <CanvasText
-                ariaLabel="Hero body"
-                value={content?.body ?? ''}
-                onChange={(body) => onChange({ body })}
-                multiline
-                placeholder="Tell shoppers what makes this worth a look."
-                style={{ color: ink(70) }}
-                className="mt-5 max-w-md text-lg leading-relaxed"
-              />
-            ) : (
-              <p className="mt-5 max-w-md text-lg leading-relaxed" style={{ color: ink(70) }}>
-                {content?.body}
-              </p>
-            )}
-
-            <div className="mt-8">
-              {editable ? (
-                <EditableLinkTrigger
-                  label={cta.label ?? ''}
-                  url={cta.url ?? '#shop'}
-                  onChange={(next) => onChange({ primaryCta: next })}
-                >
-                  <span
-                    className="inline-flex items-center gap-2 px-6 py-3 text-base font-semibold"
-                    style={{
-                      backgroundColor: 'var(--lp-primary)',
-                      color: 'var(--lp-on-primary)',
-                      borderRadius: 'var(--lp-radius)',
-                    }}
-                  >
-                    {cta.label || 'Add a call to action'} <ArrowRight className="h-4 w-4" />
-                  </span>
-                </EditableLinkTrigger>
-              ) : cta.label ? (
-                <a
-                  href={cta.url}
-                  className="inline-flex items-center gap-2 px-6 py-3 text-base font-semibold"
-                  style={{
-                    backgroundColor: 'var(--lp-primary)',
-                    color: 'var(--lp-on-primary)',
-                    borderRadius: 'var(--lp-radius)',
-                  }}
-                >
-                  {cta.label} <ArrowRight className="h-4 w-4" />
-                </a>
-              ) : null}
-            </div>
-          </div>
-
-          <div>
-            {editable ? (
-              <MediaSlotField
-                kind="IMAGE"
-                urlMode
-                fallbackUrl={media.url}
-                onUrlChange={(url) => onChange({ media: { ...media, url } })}
-              />
-            ) : media.url ? (
-              <img
-                src={media.url}
-                alt={media.alt || ''}
-                className="aspect-[4/5] w-full object-cover"
-                style={{ borderRadius: 'var(--lp-radius)' }}
-              />
-            ) : (
-              <div
-                className="aspect-[4/5] w-full"
-                style={{ backgroundColor: ink(6), borderRadius: 'var(--lp-radius)' }}
-              />
-            )}
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
 // --- Featured Products — 4-up grid of product cards, badge pill overlay, name/price/CTA ---------
 
+function getFallbackPattern(index: number) {
+  const colors = [
+    '#f8f9fa', // Lightest gray
+    '#f1f3f5', // Light gray
+    '#e9ecef', // Medium light gray
+    '#dee2e6', // Medium gray
+  ]
+  return colors[index % colors.length]
+}
+
 function ProductsSection({ content, editable, onChange }: SectionProps<'products'>) {
-  const items = content?.items ?? []
+  const mockNames = [
+    'Meteor Shower Tee',
+    'The Power of Reading',
+    'Safe Harbor',
+    'Worry Later Hoodie',
+    'RPG Cats Bookshelf',
+    'Aurora Borealis Song II',
+    'The King! Vintage Wash',
+    'Black Coffee Magic',
+    'Put That Suggestion Back',
+    'I Fix Problems You Created',
+    'Future Me Problem',
+    'Snack Time',
+  ]
+  const mockImages = [
+    'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&q=80&w=800',
+    'https://images.unsplash.com/photo-1581655353564-df123a1eb820?auto=format&fit=crop&q=80&w=800',
+    'https://images.unsplash.com/photo-1503341455253-b2e723bb3dbb?auto=format&fit=crop&q=80&w=800',
+    'https://images.unsplash.com/photo-1529374255404-311a2a4f1fd9?auto=format&fit=crop&q=80&w=800',
+    'https://images.unsplash.com/photo-1576566588028-4147f3842f27?auto=format&fit=crop&q=80&w=800',
+    'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?auto=format&fit=crop&q=80&w=800',
+    'https://images.unsplash.com/photo-1527719327859-c6ce80353573?auto=format&fit=crop&q=80&w=800',
+    'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?auto=format&fit=crop&q=80&w=800',
+  ]
+  const contentItems = content?.items ?? []
+  const items = (
+    contentItems.length > 0 ? contentItems : Array.from<ProductItem | undefined>({ length: 20 })
+  ).map((rawItem, i) => {
+    const item: Partial<ProductItem> = rawItem ?? {}
+    return {
+      id: item.id || `mock-${i}`,
+      name: item.name || mockNames[i % mockNames.length] || `Apparel Item ${i + 1}`,
+      price: item.price || `$${(19 + (i % 3) * 5).toFixed(2)}`,
+      badge: item.badge !== undefined ? item.badge : i % 5 === 0 ? 'Best Seller' : undefined,
+      media: item.media?.url ? item.media : { url: mockImages[i % mockImages.length], alt: '' },
+    }
+  })
+
+  const [visibleCount, setVisibleCount] = useState(8)
+
   function updateItem(i: number, patch: Partial<ProductItem>) {
     onChange({ items: items.map((row, idx) => (idx === i ? { ...row, ...patch } : row)) })
   }
 
   if (!items.length && !editable) return null
 
+  const visibleGridItems = items.slice(0, visibleCount)
+  const hasMore = visibleGridItems.length < items.length
+
   return (
-    <section id="products" className="py-20">
-      <div className="mx-auto max-w-6xl px-6 lg:px-8">
-        <div className="mb-10 max-w-xl">
+    <section id="products" className="py-12" style={{ backgroundColor: 'var(--lp-bg)' }}>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mb-8 border-b pb-4" style={{ borderColor: ink(10) }}>
           {editable ? (
-            <>
-              <CanvasText
-                as="h2"
-                ariaLabel="Products headline"
-                value={content?.headline ?? ''}
-                onChange={(headline) => onChange({ headline })}
-                placeholder="Featured this week"
-                style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-                className="text-3xl font-bold tracking-tight sm:text-4xl mb-3"
-              />
-              <CanvasText
-                ariaLabel="Products body"
-                value={content?.body ?? ''}
-                onChange={(body) => onChange({ body })}
-                multiline
-                placeholder="A few of our favorites, restocked weekly."
-                style={{ color: ink(65) }}
-                className="text-lg"
-              />
-            </>
+            <CanvasText
+              as="h2"
+              ariaLabel="Products headline"
+              value={content?.headline ?? ''}
+              onChange={(headline) => onChange({ headline })}
+              placeholder="Featured this week"
+              style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
+              className="text-2xl font-black tracking-tight"
+            />
           ) : (
-            <>
-              <h2
-                className="text-3xl font-bold tracking-tight sm:text-4xl mb-3"
-                style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-              >
-                {content?.headline}
-              </h2>
-              {content?.body ? (
-                <p className="text-lg" style={{ color: ink(65) }}>
-                  {content.body}
-                </p>
-              ) : null}
-            </>
+            <h2
+              className="text-2xl font-black tracking-tight"
+              style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
+            >
+              {content?.headline || 'Store'}
+            </h2>
           )}
         </div>
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {items.map((product, i) => (
-            <div key={i} className="group relative">
-              <div className="relative">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 lg:gap-6">
+          {visibleGridItems.map((product, i) => (
+            <div
+              key={i}
+              className="group relative flex flex-col transition-shadow hover:shadow-lg"
+              style={{ backgroundColor: 'transparent' }}
+            >
+              <div
+                className="relative aspect-square overflow-hidden mb-3"
+                style={{ borderRadius: '6px', backgroundColor: getFallbackPattern(i) }}
+              >
                 {editable ? (
                   <MediaSlotField
                     kind="IMAGE"
                     urlMode
+                    fill
                     fallbackUrl={product.media?.url}
                     onUrlChange={(url) => updateItem(i, { media: { ...product.media, url } })}
                   />
@@ -382,38 +207,32 @@ function ProductsSection({ content, editable, onChange }: SectionProps<'products
                   <img
                     src={product.media.url}
                     alt={product.media.alt ?? product.name}
-                    className="aspect-[4/5] w-full object-cover"
-                    style={{ borderRadius: 'var(--lp-radius)' }}
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
-                ) : (
-                  <div
-                    className="aspect-[4/5] w-full"
-                    style={{ backgroundColor: ink(6), borderRadius: 'var(--lp-radius)' }}
-                  />
-                )}
+                ) : null}
 
                 {editable ? (
-                  <div className="absolute left-3 top-3">
+                  <div className="absolute left-3 top-3 z-10">
                     <CanvasText
                       ariaLabel={`Product ${i + 1} badge`}
                       value={product.badge ?? ''}
                       onChange={(badge) => updateItem(i, { badge })}
                       placeholder="Badge"
-                      className="inline-block px-2.5 py-1 text-[11px] font-semibold w-auto"
+                      className="inline-block px-3 py-1 text-[10px] font-bold uppercase tracking-wider shadow-sm w-auto"
                       style={{
                         backgroundColor: 'var(--lp-primary)',
                         color: 'var(--lp-on-primary)',
-                        borderRadius: 'var(--lp-radius)',
+                        borderRadius: '4px',
                       }}
                     />
                   </div>
                 ) : product.badge ? (
                   <span
-                    className="absolute left-3 top-3 px-2.5 py-1 text-[11px] font-semibold"
+                    className="absolute left-3 top-3 px-3 py-1 text-[10px] font-bold uppercase tracking-wider shadow-sm"
                     style={{
                       backgroundColor: 'var(--lp-primary)',
                       color: 'var(--lp-on-primary)',
-                      borderRadius: 'var(--lp-radius)',
+                      borderRadius: '4px',
                     }}
                   >
                     {product.badge}
@@ -425,14 +244,14 @@ function ProductsSection({ content, editable, onChange }: SectionProps<'products
                     type="button"
                     onClick={() => onChange({ items: items.filter((_, idx) => idx !== i) })}
                     aria-label={`Remove product ${i + 1}`}
-                    className="absolute right-2 top-2 rounded-full bg-black/60 p-1 text-white opacity-0 group-hover:opacity-100"
+                    className="absolute right-2 top-2 z-10 rounded-full bg-black/60 p-1.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-4 w-4" />
                   </button>
                 ) : null}
               </div>
 
-              <div className="mt-3">
+              <div className="flex flex-col flex-grow text-left px-1">
                 {editable ? (
                   <>
                     <CanvasText
@@ -440,7 +259,7 @@ function ProductsSection({ content, editable, onChange }: SectionProps<'products
                       ariaLabel={`Product ${i + 1} name`}
                       value={product.name}
                       onChange={(name) => updateItem(i, { name })}
-                      className="text-base font-semibold"
+                      className="text-[15px] font-medium leading-snug"
                       style={{ color: 'var(--lp-ink)' }}
                     />
                     <CanvasText
@@ -448,50 +267,22 @@ function ProductsSection({ content, editable, onChange }: SectionProps<'products
                       value={product.price ?? ''}
                       onChange={(price) => updateItem(i, { price })}
                       placeholder="$0.00"
-                      className="mt-1 text-sm font-bold"
+                      className="mt-1 text-[15px] font-bold"
                       style={{ color: 'var(--lp-ink)' }}
                     />
-                    <div className="mt-3">
-                      <EditableLinkTrigger
-                        label={product.cta?.label ?? ''}
-                        url={product.cta?.url ?? '#'}
-                        onChange={(next) => updateItem(i, { cta: next })}
-                      >
-                        <span
-                          className="inline-flex items-center px-4 py-1.5 text-xs font-semibold"
-                          style={{
-                            backgroundColor: 'var(--lp-primary)',
-                            color: 'var(--lp-on-primary)',
-                            borderRadius: 'var(--lp-radius)',
-                          }}
-                        >
-                          {product.cta?.label || 'Shop now'}
-                        </span>
-                      </EditableLinkTrigger>
-                    </div>
                   </>
                 ) : (
                   <>
-                    <h3 className="text-base font-semibold" style={{ color: 'var(--lp-ink)' }}>
+                    <h3
+                      className="text-[15px] font-medium leading-snug"
+                      style={{ color: 'var(--lp-ink)' }}
+                    >
                       {product.name}
                     </h3>
                     {product.price ? (
-                      <p className="mt-1 text-sm font-bold" style={{ color: 'var(--lp-ink)' }}>
+                      <p className="mt-1 text-[15px] font-bold" style={{ color: 'var(--lp-ink)' }}>
                         {product.price}
                       </p>
-                    ) : null}
-                    {product.cta?.label ? (
-                      <a
-                        href={product.cta.url}
-                        className="mt-3 inline-flex items-center px-4 py-1.5 text-xs font-semibold"
-                        style={{
-                          backgroundColor: 'var(--lp-primary)',
-                          color: 'var(--lp-on-primary)',
-                          borderRadius: 'var(--lp-radius)',
-                        }}
-                      >
-                        {product.cta.label}
-                      </a>
                     ) : null}
                   </>
                 )}
@@ -500,380 +291,45 @@ function ProductsSection({ content, editable, onChange }: SectionProps<'products
           ))}
         </div>
 
-        {editable ? (
-          <AddRow
-            label="Add product"
-            onClick={() =>
-              onChange({
-                items: [...items, { id: `product-${items.length}`, name: 'New product' }],
-              })
-            }
-          />
-        ) : null}
-      </div>
-    </section>
-  )
-}
-
-// --- Shop by category — square image tiles, caption+link edited together via EditableLinkTrigger
-
-function CategoriesSection({ content, editable, onChange }: SectionProps<'categories'>) {
-  const items = content?.items ?? []
-  function updateItem(i: number, patch: Partial<CategoryItem>) {
-    onChange({ items: items.map((row, idx) => (idx === i ? { ...row, ...patch } : row)) })
-  }
-
-  if (!items.length && !editable) return null
-
-  return (
-    <section className="border-t py-20" style={{ borderColor: ink(12) }}>
-      <div className="mx-auto max-w-6xl px-6 lg:px-8">
-        {editable ? (
-          <CanvasText
-            as="h2"
-            ariaLabel="Categories headline"
-            value={content?.headline ?? ''}
-            onChange={(headline) => onChange({ headline })}
-            placeholder="Shop by category"
-            style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-            className="mb-10 text-3xl font-bold tracking-tight sm:text-4xl"
-          />
-        ) : (
-          <h2
-            className="mb-10 text-3xl font-bold tracking-tight sm:text-4xl"
-            style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-          >
-            {content?.headline}
-          </h2>
+        {hasMore && (
+          <div className="mt-12 flex justify-center">
+            <button
+              onClick={() => setVisibleCount((c) => c + 8)}
+              className="inline-flex items-center gap-2 px-6 py-2.5 text-xs font-bold uppercase tracking-wider shadow-sm hover:opacity-90"
+              style={{
+                backgroundColor: 'var(--lp-primary)',
+                color: 'var(--lp-on-primary)',
+                borderRadius: 'var(--lp-radius)',
+              }}
+            >
+              Show More
+            </button>
+          </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {items.map((category, i) => (
-            <div
-              key={i}
-              className={`group relative aspect-square overflow-hidden ${i === 0 ? 'lg:col-span-2 lg:row-span-2 lg:aspect-auto lg:min-h-full' : ''}`}
-              style={{ borderRadius: 'var(--lp-radius)' }}
+        {editable && (
+          <div className="mt-6 flex justify-center">
+            <button
+              onClick={() => {
+                const newItems = [
+                  ...items,
+                  {
+                    id: `new-${Date.now()}`,
+                    name: `Apparel Item ${items.length + 1}`,
+                    price: '$29.00',
+                  },
+                ]
+                onChange({ items: newItems })
+                setVisibleCount(newItems.length)
+              }}
+              className="inline-flex items-center gap-2 rounded-full border border-dashed px-6 py-2 text-sm font-medium hover:bg-black/5"
+              style={{ borderColor: ink(30), color: 'var(--lp-ink)' }}
             >
-              {editable ? (
-                <MediaSlotField
-                  kind="IMAGE"
-                  fill
-                  urlMode
-                  fallbackUrl={category.media?.url}
-                  onUrlChange={(url) => updateItem(i, { media: { ...category.media, url } })}
-                />
-              ) : category.media?.url ? (
-                <img
-                  src={category.media.url}
-                  alt={category.media.alt ?? category.label}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="h-full w-full" style={{ backgroundColor: ink(10) }} />
-              )}
-
-              {editable ? (
-                <EditableLinkTrigger
-                  label={category.label}
-                  url={category.url ?? '#'}
-                  onChange={(next) => updateItem(i, { label: next.label, url: next.url })}
-                  className="absolute inset-x-0 bottom-0 z-10"
-                >
-                  <span className="block bg-gradient-to-t from-black/60 to-transparent p-4 text-left text-base font-bold text-white">
-                    {category.label || 'Category name'}
-                  </span>
-                </EditableLinkTrigger>
-              ) : (
-                <a
-                  href={category.url ?? '#'}
-                  className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/60 to-transparent p-4 text-base font-bold text-white"
-                >
-                  {category.label}
-                </a>
-              )}
-
-              {editable ? (
-                <button
-                  type="button"
-                  onClick={() => onChange({ items: items.filter((_, idx) => idx !== i) })}
-                  aria-label={`Remove category ${i + 1}`}
-                  className="absolute right-2 top-2 z-10 rounded-full bg-black/60 p-1 text-white opacity-0 group-hover:opacity-100"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              ) : null}
-            </div>
-          ))}
-        </div>
-
-        {editable ? (
-          <AddRow
-            label="Add category"
-            onClick={() => onChange({ items: [...items, { label: 'New category' }] })}
-          />
-        ) : null}
-      </div>
-    </section>
-  )
-}
-
-// --- Brand Story — warm, narrative "why us" moment, image one side + copy the other -------------
-
-function IntroSection({ content, editable, onChange }: SectionProps<'intro'>) {
-  const media = content?.media ?? {}
-
-  return (
-    <section className="py-20" style={{ backgroundColor: ink(4) }}>
-      <div className="mx-auto max-w-6xl px-6 lg:px-8">
-        <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
-          <div className="order-2 lg:order-1">
-            {editable ? (
-              <MediaSlotField
-                kind="IMAGE"
-                urlMode
-                fallbackUrl={media.url}
-                onUrlChange={(url) => onChange({ media: { ...media, url } })}
-              />
-            ) : media.url ? (
-              <img
-                src={media.url}
-                alt={media.alt || ''}
-                className="aspect-[4/3] w-full object-cover"
-                style={{ borderRadius: 'var(--lp-radius)' }}
-              />
-            ) : (
-              <div
-                className="aspect-[4/3] w-full"
-                style={{ backgroundColor: ink(8), borderRadius: 'var(--lp-radius)' }}
-              />
-            )}
+              <Plus className="h-4 w-4" />
+              Add Product
+            </button>
           </div>
-          <div className="order-1 lg:order-2">
-            {editable ? (
-              <>
-                <CanvasText
-                  as="h2"
-                  ariaLabel="Brand story headline"
-                  value={content?.headline ?? ''}
-                  onChange={(headline) => onChange({ headline })}
-                  placeholder="Why we started this"
-                  style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-                  className="text-3xl font-bold tracking-tight sm:text-4xl mb-4"
-                />
-                <CanvasText
-                  ariaLabel="Brand story body"
-                  value={content?.body ?? ''}
-                  onChange={(body) => onChange({ body })}
-                  multiline
-                  placeholder="A short story about the people and craft behind this shop."
-                  style={{ color: ink(70) }}
-                  className="max-w-md text-lg leading-relaxed"
-                />
-              </>
-            ) : (
-              <>
-                <h2
-                  className="text-3xl font-bold tracking-tight sm:text-4xl mb-4"
-                  style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-                >
-                  {content?.headline}
-                </h2>
-                <p className="max-w-md text-lg leading-relaxed" style={{ color: ink(70) }}>
-                  {content?.body}
-                </p>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// --- As seen in — slow marquee on the live page, plain wrapped list while editing, carried over
-// from Studio essentially unchanged since a moving press-logo row reads well for a retail brand --
-
-function LogoCloudSection({ content, editable, onChange }: SectionProps<'logos'>) {
-  const items = content?.items ?? []
-  function updateItem(i: number, patch: Partial<LogoItem>) {
-    onChange({ items: items.map((row, idx) => (idx === i ? { ...row, ...patch } : row)) })
-  }
-  const track = (
-    <>
-      {items.map((logo, i) => (
-        <span
-          key={i}
-          className="shrink-0 text-xl font-semibold tracking-tight opacity-60"
-          style={{ color: 'var(--lp-ink)' }}
-        >
-          {logo.name}
-        </span>
-      ))}
-    </>
-  )
-
-  if (!items.length && !editable) return null
-
-  return (
-    <section className="border-t py-16" style={{ borderColor: ink(12) }}>
-      <div className="mx-auto max-w-6xl px-6 lg:px-8">
-        {editable ? (
-          <CanvasText
-            ariaLabel="Logos title"
-            value={content?.title ?? ''}
-            onChange={(title) => onChange({ title })}
-            placeholder="As seen in..."
-            className="mb-8 text-[11px] font-semibold uppercase tracking-[0.28em]"
-            style={{ color: ink(50) }}
-          />
-        ) : (
-          <Kicker>{content?.title}</Kicker>
         )}
-      </div>
-
-      {editable ? (
-        <div className="mx-auto max-w-6xl px-6 lg:px-8">
-          <div className="flex flex-wrap items-center gap-x-12 gap-y-4">
-            {items.map((logo, i) => (
-              <div key={i} className="group relative">
-                <CanvasText
-                  ariaLabel={`Logo ${i + 1} name`}
-                  value={logo.name}
-                  onChange={(name) => updateItem(i, { name })}
-                  className="text-xl font-semibold tracking-tight opacity-70"
-                  style={{ color: 'var(--lp-ink)' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => onChange({ items: items.filter((_, idx) => idx !== i) })}
-                  aria-label="Remove"
-                  className="absolute -right-3 -top-2 text-xs opacity-0 group-hover:opacity-100"
-                  style={{ color: ink(45) }}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-          <AddRow
-            label="Add logo"
-            onClick={() => onChange({ items: [...items, { name: 'New press mention' }] })}
-          />
-        </div>
-      ) : items.length ? (
-        <div className="overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
-          <div className="lp-store-marquee flex w-max items-center gap-16 py-1">
-            {track}
-            {track}
-          </div>
-        </div>
-      ) : null}
-    </section>
-  )
-}
-
-// --- Testimonials — static grid of cards (unlike Studio's paged pull-quote carousel) ------------
-
-function TestimonialsSection({ content, editable, onChange }: SectionProps<'testimonials'>) {
-  const items = content?.items ?? []
-  function updateItem(i: number, patch: Partial<TestimonialItem>) {
-    onChange({ items: items.map((row, idx) => (idx === i ? { ...row, ...patch } : row)) })
-  }
-
-  if (!items.length && !editable) return null
-
-  return (
-    <section className="py-20">
-      <div className="mx-auto max-w-6xl px-6 lg:px-8">
-        {editable ? (
-          <CanvasText
-            as="h2"
-            ariaLabel="Testimonials headline"
-            value={content?.headline ?? ''}
-            onChange={(headline) => onChange({ headline })}
-            placeholder="Loved by customers"
-            style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-            className="mb-10 text-3xl font-bold tracking-tight sm:text-4xl"
-          />
-        ) : content?.headline ? (
-          <h2
-            className="mb-10 text-3xl font-bold tracking-tight sm:text-4xl"
-            style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-          >
-            {content.headline}
-          </h2>
-        ) : null}
-
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-          {items.map((testimonial, i) => (
-            <div
-              key={i}
-              className="group relative p-6"
-              style={{ backgroundColor: 'var(--lp-card)', borderRadius: 'var(--lp-radius)' }}
-            >
-              {editable ? (
-                <>
-                  <CanvasText
-                    ariaLabel={`Testimonial ${i + 1} quote`}
-                    value={testimonial.quote}
-                    onChange={(quote) => updateItem(i, { quote })}
-                    multiline
-                    placeholder="What they said"
-                    className="text-sm leading-relaxed"
-                    style={{ color: ink(75) }}
-                  />
-                  <div className="mt-4">
-                    <CanvasText
-                      ariaLabel={`Testimonial ${i + 1} author`}
-                      value={testimonial.author}
-                      onChange={(author) => updateItem(i, { author })}
-                      className="text-sm font-semibold"
-                      style={{ color: 'var(--lp-ink)' }}
-                    />
-                    <CanvasText
-                      ariaLabel={`Testimonial ${i + 1} role`}
-                      value={testimonial.role ?? ''}
-                      onChange={(role) => updateItem(i, { role })}
-                      placeholder="Role (optional)"
-                      className="text-xs"
-                      style={{ color: ink(55) }}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onChange({ items: items.filter((_, idx) => idx !== i) })}
-                    aria-label={`Remove testimonial ${i + 1}`}
-                    className="absolute right-3 top-3 text-xs opacity-0 group-hover:opacity-100"
-                    style={{ color: ink(45) }}
-                  >
-                    ×
-                  </button>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm leading-relaxed" style={{ color: ink(75) }}>
-                    &quot;{testimonial.quote}&quot;
-                  </p>
-                  <div className="mt-4 text-sm">
-                    <span className="font-semibold" style={{ color: 'var(--lp-ink)' }}>
-                      {testimonial.author}
-                    </span>
-                    {testimonial.role ? (
-                      <span style={{ color: ink(55) }}> · {testimonial.role}</span>
-                    ) : null}
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {editable ? (
-          <AddRow
-            label="Add testimonial"
-            onClick={() => onChange({ items: [...items, { quote: '', author: 'New customer' }] })}
-          />
-        ) : null}
       </div>
     </section>
   )
@@ -1035,7 +491,7 @@ export function Store({
 
   return (
     <div
-      className="min-h-screen antialiased"
+      className="min-h-screen antialiased flex flex-col"
       style={{
         backgroundColor: t.backgroundColor ?? TOKEN_DEFAULTS.backgroundColor,
         color: t.inkColor ?? TOKEN_DEFAULTS.inkColor,
@@ -1049,51 +505,18 @@ export function Store({
         ['--lp-radius' as string]: t.radius ?? TOKEN_DEFAULTS.radius,
       }}
     >
-      <style>{`
-        @keyframes lp-store-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-        .lp-store-marquee { animation: lp-store-marquee 28s linear infinite; }
-      `}</style>
       <NavBar content={c.nav} editable={editable} onChange={(patch) => slotChange('nav', patch)} />
-      <HeroSection
-        content={c.hero}
-        editable={editable}
-        onChange={(patch) => slotChange('hero', patch)}
-      />
-      {!isHidden('products') && (
-        <ProductsSection
-          content={c.products}
-          editable={editable}
-          onChange={(patch) => slotChange('products', patch)}
-        />
-      )}
-      {!isHidden('categories') && (
-        <CategoriesSection
-          content={c.categories}
-          editable={editable}
-          onChange={(patch) => slotChange('categories', patch)}
-        />
-      )}
-      {!isHidden('intro') && (
-        <IntroSection
-          content={c.intro}
-          editable={editable}
-          onChange={(patch) => slotChange('intro', patch)}
-        />
-      )}
-      {!isHidden('logos') && (
-        <LogoCloudSection
-          content={c.logos}
-          editable={editable}
-          onChange={(patch) => slotChange('logos', patch)}
-        />
-      )}
-      {!isHidden('testimonials') && (
-        <TestimonialsSection
-          content={c.testimonials}
-          editable={editable}
-          onChange={(patch) => slotChange('testimonials', patch)}
-        />
-      )}
+
+      <main className="flex-grow">
+        {!isHidden('products') && (
+          <ProductsSection
+            content={c.products}
+            editable={editable}
+            onChange={(patch) => slotChange('products', patch)}
+          />
+        )}
+      </main>
+
       <PromoFooterSection
         content={c.footer}
         editable={editable}

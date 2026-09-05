@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { ExternalLink, Image, LayoutTemplate } from 'lucide-react'
 import type { components } from '@project/sdk'
-import { UniversalRow } from '@/components/ui/UniversalRow'
+import { UniversalRow, type UniversalRowAccent } from '@/components/ui/UniversalRow'
+import { RowSelectCheckbox } from '@/components/ui/RowSelectCheckbox'
 import { relativeTime } from '@/components/home/homeFormat'
 import { mediaSrc } from '@/lib/media'
 
@@ -28,34 +29,20 @@ const STATUS: Record<string, string> = {
 // Tint-pair status pill, keyed to the same semantic tokens as everywhere else — a running ad is a
 // positive/success state, a failure is destructive, a pause is worth a second look (warning);
 // draft/ready are pre-launch and stay neutral rather than claiming a status that hasn't happened.
-const STATUS_STYLE: Record<string, string> = {
-  DRAFT: 'bg-muted text-muted-foreground',
-  READY: 'bg-muted text-muted-foreground',
-  RUNNING: 'bg-success/10 text-success',
-  PAUSED: 'bg-warning/10 text-warning',
-  FAILED: 'bg-destructive/10 text-destructive',
+const STATUS_TONE: Record<string, UniversalRowAccent> = {
+  DRAFT: 'neutral',
+  READY: 'neutral',
+  RUNNING: 'success',
+  PAUSED: 'warning',
+  FAILED: 'destructive',
 }
 
 function money(value: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
-}
-
-// One useful performance line, not a dashboard row — same discipline as PageRow's
-// submissions/conversion line. Spend and results (LOOPIE's own attribution outcome, the same
-// tier PaidRunRow elevates above platform-reported metrics — docs/strategy/03-product-
-// principles.md's Ownership Rule) are the two decision-relevant numbers once money has moved;
-// views/clicks stay on the entity's own per-run monitoring, not repeated here. Where this runs
-// (Pages vs. external platforms) moves to the row's meta line as its own badges, see
-// DestinationBadge below.
-function buyLine(ad: AdListItem) {
-  if (ad.spend) {
-    const parts = [`${money(ad.spend)} spent`]
-    if (ad.conversions)
-      parts.push(`${ad.conversions.toLocaleString()} result${ad.conversions === 1 ? '' : 's'}`)
-    return parts.join(' · ')
-  }
-  if (ad.dailyBudget) return `${money(ad.dailyBudget)}/day budget`
-  return 'No buys yet'
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(value)
 }
 
 // Distinguishes LOOPIE-owned delivery (served through a Page's own ad slot — see
@@ -104,44 +91,65 @@ function Thumb({ asset }: { asset: Asset | undefined }) {
   )
 }
 
-export function AdRow({ ad }: { ad: AdListItem }) {
+// Same one-line-performance-takeaway grammar as PageRow's pageInsight — real data only, at most
+// one ad ever claims "Best-performing ad" (decided by the caller across the whole collection, the
+// same computation AdsCollectionInsights already does for its highlight banner).
+function adInsight(ad: AdListItem, isBestPerformer: boolean): string {
+  const conversions = ad.conversions ?? 0
+  if (conversions > 0 && isBestPerformer) return 'Best-performing ad'
+  if (conversions > 0)
+    return `${conversions.toLocaleString()} result${conversions === 1 ? '' : 's'} from this ad`
+  return 'No results yet'
+}
+
+export function AdRow({
+  ad,
+  selected = false,
+  onToggleSelect,
+  isBestPerformer = false,
+}: {
+  ad: AdListItem
+  selected?: boolean
+  onToggleSelect?: () => void
+  isBestPerformer?: boolean
+}) {
   const visual = ad.assets?.find((asset) => asset.type === 'IMAGE' || asset.type === 'VIDEO')
   const status = ad.status ?? 'DRAFT'
   const impressions = ad.impressions ?? 0
   const clicks = ad.clicks ?? 0
-  const ctr = impressions > 0 ? ((clicks / impressions) * 100).toFixed(1) : null
+  const conversions = ad.conversions ?? 0
+  const spend = ad.spend ?? 0
 
   return (
     <UniversalRow
-      density="featured"
+      density="showcase"
       href={`/ads/${ad.id}`}
       state={{ from: 'Advertising', fromTo: '/ads' }}
+      selected={selected}
       leading={<Thumb asset={visual} />}
       title={ad.name}
-      subtitle={buyLine(ad)}
-      meta={
-        <>
-          <span
-            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider ${STATUS_STYLE[status] ?? 'bg-muted text-muted-foreground'}`}
-          >
-            {STATUS[status] ?? status}
-          </span>
-          {ad.destinations?.map((label) => (
-            <DestinationBadge key={label} label={label} />
-          ))}
-          {impressions > 0 ? (
-            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-              {impressions.toLocaleString()} impressions
-            </span>
-          ) : null}
-          {ctr !== null ? (
-            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-              {ctr}% CTR
-            </span>
-          ) : null}
-        </>
-      }
+      subtitle={adInsight(ad, isBestPerformer)}
+      meta={ad.destinations?.map((label) => (
+        <DestinationBadge key={label} label={label} />
+      ))}
       trailing={`Updated ${relativeTime(ad.updatedAt)}`}
+      status={{ label: STATUS[status] ?? status, tone: STATUS_TONE[status] ?? 'neutral' }}
+      viewLink={ad.destinationUrl ? { label: 'Destination', url: ad.destinationUrl } : undefined}
+      stats={[
+        { value: impressions.toLocaleString(), label: 'impressions' },
+        { value: clicks.toLocaleString(), label: 'clicks' },
+        { value: conversions.toLocaleString(), label: 'results' },
+        { value: money(spend), label: 'spent' },
+      ]}
+      action={
+        onToggleSelect ? (
+          <RowSelectCheckbox
+            checked={selected}
+            label={`Select ${ad.name}`}
+            onToggle={onToggleSelect}
+          />
+        ) : null
+      }
     />
   )
 }

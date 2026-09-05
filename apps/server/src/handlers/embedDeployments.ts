@@ -17,7 +17,6 @@ export async function getOrCreateEmbedDeployment(request: any, reply: any) {
       throw { statusCode: 404, message: 'Page not found' }
     }
 
-    // Use the explicit error message required by the user
     if (!page.publishedVersion) {
       throw { statusCode: 400, message: 'Publish this page before embedding it.' }
     }
@@ -41,6 +40,15 @@ export async function getOrCreateEmbedDeployment(request: any, reply: any) {
         'ANY',
         [],
       )
+    } else if (deployment.activePageVersionId !== page.publishedVersion.id) {
+      // get-or-create is the product's "give me the current embed" path — promote the default
+      // ANY deployment to the latest published snapshot. Publish alone does not auto-promote
+      // (other named deployments may pin older versions); opening Embed after republish must.
+      deployment = await db.embedDeployment.update({
+        where: { id: deployment.id },
+        data: { activePageVersionId: page.publishedVersion.id },
+        include: { allowedOrigins: true },
+      })
     }
 
     return reply.send({ data: deployment })
@@ -83,9 +91,21 @@ export async function getOrCreateEmbedDeployment(request: any, reply: any) {
         'ANY',
         [],
       )
+    } else if (deployment.activeAdvertisementVersionId !== latestVersion.id) {
+      deployment = await db.embedDeployment.update({
+        where: { id: deployment.id },
+        data: { activeAdvertisementVersionId: latestVersion.id },
+        include: { allowedOrigins: true },
+      })
     }
 
-    return reply.send({ data: deployment })
+    return reply.send({
+      data: {
+        ...deployment,
+        // Additive for snippet sizing — not yet on EmbedDeployment OpenAPI schema.
+        format: latestVersion.format,
+      },
+    })
   }
 
   throw { statusCode: 400, message: 'Invalid object type' }

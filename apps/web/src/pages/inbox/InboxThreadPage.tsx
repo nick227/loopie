@@ -161,7 +161,7 @@ export function InboxThreadPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-5">
+    <div className="mx-auto w-full space-y-5">
       <PageHeader
         variant="detail"
         title={thread.subject}

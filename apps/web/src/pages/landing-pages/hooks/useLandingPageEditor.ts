@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import {
   useLandingPage,
   useLandingPageTemplate,
@@ -59,6 +59,7 @@ function toApiFields(fields: FormFieldDraft[]) {
 
 export function useLandingPageEditor() {
   const { landingPageId } = useParams<{ landingPageId: string }>()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const {
     data: pageResult,
@@ -144,6 +145,33 @@ export function useLandingPageEditor() {
     setSubmitLabel(form.submitLabel)
     setSuccessMessage(form.successMessage ?? "Thanks — we'll be in touch.")
   }, [formQuery.data?.data])
+
+  // CreateFormPage's own "create inline as part of authoring a page" flow (see its returnTo
+  // comment) sends the new form back as ?formId=... on this exact route — pick it up once, attach
+  // it, and strip the param so a refresh doesn't re-trigger it.
+  const appliedQueryFormId = useRef(false)
+  /* eslint-disable react-hooks/set-state-in-effect -- syncing from the URL (an external system
+     react-router owns) into React state on navigation is exactly the case the rule's own docs
+     carve out; the ref guard makes it a one-shot "subscribe for an update from outside" read, not
+     the "adjust state while rendering" pattern the rule exists to catch. */
+  useEffect(() => {
+    if (appliedQueryFormId.current || !page) return
+    const queryFormId = searchParams.get('formId')
+    if (!queryFormId) return
+    appliedQueryFormId.current = true
+    setFormId(queryFormId)
+    markDirty()
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('formId')
+        return next
+      },
+      { replace: true },
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, searchParams])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // A template switch never touches content — content is canonical and shared across every
   // template, so a slot group the newly-selected template doesn't render simply isn't shown,

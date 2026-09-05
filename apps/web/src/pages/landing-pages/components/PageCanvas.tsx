@@ -5,6 +5,7 @@ import type { FormFieldDraft } from '@/components/forms/FormFieldsEditor'
 import type { AdSlotDraft } from './adSlots'
 import {
   SECTION_TYPE_TO_SLOT_GROUP,
+  sectionAnchorId,
   type LayoutConfig,
   type PageContent,
   type TemplateSection,
@@ -80,7 +81,7 @@ export function PageCanvas({
         const slotGroup = SECTION_TYPE_TO_SLOT_GROUP[section.type]
         const slotContent = slotGroup ? ((content as Record<string, unknown>)[slotGroup] ?? {}) : {}
         return (
-          <div key={section.key}>
+          <div key={section.key} id={sectionAnchorId(section)}>
             {section.type === 'form-embed' ? (
               <CanvasAdBand placement="BEFORE_FORM" slots={slots} onChange={onSlots} />
             ) : null}

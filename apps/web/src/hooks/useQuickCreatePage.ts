@@ -23,9 +23,7 @@ export function useQuickCreatePage() {
       ? templates.find((item) => item.id === templateId)
       : (templates.find(
           (item) =>
-            item.id === 'system-template-lead-gen' ||
-            item.name === 'Sales page' ||
-            item.name === 'Simple Lead Gen',
+            item.id === 'system-template-corporate-professional' || item.name === 'Homepage',
         ) ?? templates[0])
 
     if (!template) {

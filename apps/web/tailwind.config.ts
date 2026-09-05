@@ -59,10 +59,16 @@ export default {
           '0%': { transform: 'translateX(0%)' },
           '100%': { transform: 'translateX(-50%)' },
         },
+        'assistant-in': {
+          '0%': { opacity: '0', transform: 'translateY(4px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       animation: {
         marquee: 'marquee 30s linear infinite',
         'marquee-reverse': 'marquee 30s linear infinite reverse',
+        // Assistant state-to-state transitions — quick and soft, no fake typing/spinner delay.
+        'assistant-in': 'assistant-in 160ms ease-out',
       },
     },
   },

@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/Textarea'
 import { MediaPicker } from '@/components/media/MediaPicker'
 import { useFlatPages } from '@/hooks/useFlatPages'
+import { mediaSrc } from '@/lib/media'
 import { RiverPostMedia, RiverPostHeaderChrome } from '@/components/river/RiverPostPresentation'
 
 type PostMode = 'text' | 'page' | 'ad'
@@ -232,7 +233,7 @@ export function RiverComposerModal({ isOpen, onClose }: { isOpen: boolean; onClo
         {/* Live preview header — the real avatar/name, so this reads as an actual draft of the
             post rather than a bare form. No Follow/overflow controls: nothing to act on yet. */}
         <RiverPostHeaderChrome
-          avatarSrc={business.data?.data?.logoUrl}
+          avatarSrc={mediaSrc(business.data?.data?.logoUrl)}
           name={business.data?.data?.name ?? 'Your business'}
           subtitle="Just now"
         />

@@ -7,10 +7,16 @@ import { ventureTaxonomy, findVentureNode, type TaxonomyNode } from '../taxonomy
 import { goalChoices } from '../goals/goals'
 import { selectPlaybook } from '../playbooks'
 import type { BusinessKnowledge } from '../knowledge/businessKnowledge'
-import type { AssistantChoice, AssistantChoiceStep } from '../types'
+import type { AssistantChoice, AssistantChoiceStep, TeamSizeBand } from '../types'
 
 const toChoices = (nodes: TaxonomyNode[]): AssistantChoice[] =>
   nodes.map((node) => ({ value: node.key, label: node.label }))
+
+const TEAM_SIZE_LABEL: Record<TeamSizeBand, string> = {
+  SOLO: 'Just me',
+  SMALL_TEAM: '2–5 people',
+  ESTABLISHED_TEAM: '6+ people',
+}
 
 export type LearnResult =
   | { done: false; step: AssistantChoiceStep; knownFacts: string[] }
@@ -87,6 +93,27 @@ export function resolveLearnQuestion(knowledge: BusinessKnowledge): LearnResult 
   }
   const goalLabel = goalChoices.find((g) => g.key === knowledge.primaryGoal)?.label
   if (goalLabel) knownFacts.push(goalLabel)
+
+  // Asked once, universally, right after the goal — before any playbook-specific qualification —
+  // so every playbook's step selection already knows it by the time it builds a plan (2026-09-04:
+  // team-appropriate content appears in the very first plan, not behind a later unlock).
+  if (!knowledge.teamSize) {
+    return {
+      done: false,
+      knownFacts,
+      step: {
+        key: 'team_size',
+        heading: 'Team size',
+        choices: [
+          { value: 'SOLO', label: 'Just me' },
+          { value: 'SMALL_TEAM', label: '2–5 people' },
+          { value: 'ESTABLISHED_TEAM', label: '6+ people' },
+        ],
+        writesKnowledge: 'teamSize',
+      },
+    }
+  }
+  knownFacts.push(TEAM_SIZE_LABEL[knowledge.teamSize])
 
   const playbook = selectPlaybook(knowledge.primaryGoal, {
     ventureType: knowledge.ventureType,

@@ -6,8 +6,10 @@ export const SYSTEM_WEBINAR_SIGNUP_TEMPLATE_ID = 'system-template-webinar-signup
 // Second "rich" renderer family alongside Corporate Professional — same {sections:
 // TemplateSection[]} schema shape, same canonical PageContent, its own visual component
 // (apps/web/src/components/landing-pages/templates/WebinarSignup.tsx). The event-details widget
-// (countdown, seats-filled, host, signup form) is one integrated visual block, not a separate
-// form-embed section — the form is threaded in as props, same as every other template.
+// (countdown, seats-filled, host, signup form) is one integrated visual block — the attached
+// Form's fields are threaded into it as props (hasForm/formFields), not rendered as their own DOM
+// section. The 'form' entry below exists purely so the Content tab can show/hide/order it like any
+// other section; it has no independent render node of its own — see the 'form' entry's own comment.
 export const webinarSignupTitle = 'Event signup'
 export const webinarSignupDescription =
   'Live event page with countdown, seat progress, host bio, and a registration form.'
@@ -37,6 +39,11 @@ export const webinarSignupSchema: TemplateSchema = {
         'hostBio',
       ],
     },
+    // Editorial metadata, not an independent render node — the WebinarSignup component renders
+    // the attached Form's fields inside the widget section above (hasForm/formFields props on
+    // EventWidgetSection), never as a standalone block of its own. This entry exists only so the
+    // Content tab can order/hide/delete it consistently with every other section.
+    { key: 'form', type: 'form-embed', order: 1.5, hideable: true, editable: [] },
     {
       key: 'features',
       type: 'feature-grid',

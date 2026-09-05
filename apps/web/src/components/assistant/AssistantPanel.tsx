@@ -4,63 +4,72 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Check, X } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
-  useBusiness,
   useNextAction,
   nextActionQueryKey,
   useCalendarBoard,
   useScheduleGoalIdea,
 } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
-import { Spinner } from '@/components/ui/Spinner'
 import { cn } from '@/lib/utils'
 import { AssistantBusinessInfoStep } from './steps/AssistantBusinessInfoStep'
 import { AssistantLogoStep } from './steps/AssistantLogoStep'
 import { AssistantHomepageCreateStep } from './steps/AssistantHomepageCreateStep'
 import { AssistantPagePublishStep } from './steps/AssistantPagePublishStep'
-import { AssistantCampaignCreateStep } from './steps/AssistantCampaignCreateStep'
-import { AssistantCampaignResumeStep } from './steps/AssistantCampaignResumeStep'
 import { AssistantChoiceStepView } from './steps/AssistantChoiceStepView'
 import { AssistantPlanView } from './steps/AssistantPlanView'
 import { AssistantGrowView } from './steps/AssistantGrowView'
 import { AssistantSignalCard } from './AssistantSignalCard'
 import { AssistantBotMessage } from './AssistantBotMessage'
-import { AssistantEducationDetail } from './AssistantEducationDetail'
-import {
-  STEP_COPY,
-  greeting,
-  pagePublishCardSubtitle,
-  campaignCreateFlowHeadline,
-  type AssistantActionId,
-} from './copy'
-import { EDUCATION_TOPICS, type EducationTopicId } from './education'
+import { AssistantConversationView } from './AssistantConversationView'
+import { STEP_COPY, pagePublishCardSubtitle, type AssistantActionId } from './copy'
 
-// The assistant is a cross-product operator, not a linear onboarding wizard: it inspects real
-// state across Business -> Pages -> Advertising -> (unconditional fallback) Calendar and surfaces
-// the single most valuable next action, always resolving to *something* — there's no "done"
-// sentinel any more. Every action's actual write goes through the same real operation that
-// feature's own UI uses; this panel only decides what to ask and renders the result. See
-// GET /assistant/next-action (apps/server/src/services/AssistantService.ts /
-// apps/server/src/lib/assistantActions.ts) for the priority chain itself.
-type NextAction = NonNullable<ReturnType<typeof useNextAction>['data']>
+// Two wholly independent surfaces (2026-09-04): `action` is the single next thing Loopie wants
+// the user to do or can do for them (Business -> Page -> Advertising -> the active goal cycle's
+// own Learn/Plan/Grow turn, signal-boosted -> Calendar fallback — Learn is the first Action, not
+// a separate concept). `conversation` is a browsable advice/knowledge corpus the user can read for
+// its own sake — never gated by Action state, so a Learn question and a useful business tip
+// render together on Home instead of one hiding the other. `AssistantConversationView` is
+// rendered at a stable position on Home (see HomeView) — it must never remount just because the
+// Action underneath it changed or briefly showed a confirmation, so exploring the corpus isn't
+// interrupted by finishing an unrelated task; only the Action area gets its own per-turn fade
+// transition. Every action's actual write goes through the same real operation that feature's own
+// UI uses; this panel only decides what to show and renders the result. LEARN/ACT/REVIEW/GROW are
+// an internal reasoning model only (see AssistantGoalCycleService) — nothing in this file ever
+// shows a phase name, a step count, or a wizard affordance to the user. See GET
+// /assistant/next-action (apps/server/src/services/AssistantService.ts) for the resolvers.
+type NextActionResponse = NonNullable<ReturnType<typeof useNextAction>['data']>
+type SingleAction = NonNullable<NextActionResponse['action']>
+type Conversation = NonNullable<NextActionResponse['conversation']>
 type Confirmation = { message: string }
 
 const NON_TERMINAL_CONFIRMATION_MS = 1100
 
 function ConfirmationView({ message }: { message: string }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 py-10 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <Check size={22} />
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
+      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <Check size={18} />
       </div>
-      <p className="text-base font-medium text-foreground">{message}</p>
+      <p className="text-sm font-medium text-foreground">{message}</p>
     </div>
   )
 }
 
-// Calendar is the unconditional fallback once Business/Pages/Advertising have nothing left —
-// reuses Calendar's own board read as-is (already prioritized/diversified server-side). Renders
-// directly on Home (no click-through into a Flow screen) since it's already just one card + one
-// button, matching its existing shipped behavior.
+function LoadingState() {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 py-10">
+      <p className="text-xs text-muted-foreground">Checking your business…</p>
+      <div className="w-full max-w-[240px] space-y-2">
+        <div className="h-3 w-2/3 animate-pulse rounded bg-accent" />
+        <div className="h-11 w-full animate-pulse rounded-lg bg-accent" />
+      </div>
+    </div>
+  )
+}
+
+// Calendar is the unconditional fallback once Business/Pages/Advertising have nothing left and
+// the active goal cycle has nothing to say either — reuses Calendar's own board read as-is
+// (already prioritized/diversified server-side).
 function AssistantCalendarCard() {
   const navigate = useNavigate()
   const board = useCalendarBoard()
@@ -77,13 +86,7 @@ function AssistantCalendarCard() {
   }
 
   if (confirmationMessage) return <ConfirmationView message={confirmationMessage} />
-  if (board.isLoading) {
-    return (
-      <div className="py-4">
-        <Spinner size="sm" />
-      </div>
-    )
-  }
+  if (board.isLoading) return <LoadingState />
 
   if (!idea) {
     return (
@@ -102,76 +105,43 @@ function AssistantCalendarCard() {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
-      <p className="text-sm font-semibold text-foreground">{idea.title}</p>
-      {idea.detail ? <p className="mt-0.5 text-xs text-muted-foreground">{idea.detail}</p> : null}
-      <Button onClick={handleAdd} loading={scheduleIdea.isPending} size="sm" className="mt-3">
+    <div className="space-y-3">
+      <AssistantBotMessage heading={idea.title} detail={idea.detail ?? undefined} />
+      <Button onClick={handleAdd} loading={scheduleIdea.isPending} size="sm">
         {STEP_COPY.calendar.actionLabel}
       </Button>
     </div>
   )
 }
 
-function HomeView({
+// The Action zone — a compact "NEXT ACTION" eyebrow above whichever existing rendering fits this
+// action's shape. None of the per-type components change here, only their framing/position.
+function ActionSection({
   action,
-  homepageUrl,
-  businessName,
   onOpenFlow,
-  onSelectEducationTopic,
   onNavigate,
   onSuccess,
 }: {
-  action: NextAction
-  homepageUrl: string | null
-  businessName?: string
+  action: SingleAction
   onOpenFlow: () => void
-  onSelectEducationTopic: (id: EducationTopicId) => void
   onNavigate: (path: string) => void
   onSuccess: (message: string) => void
 }) {
   const actionId = action.actionId
-  const isGoalCycle = action.type === 'GOAL_CYCLE'
-  const isSignal = action.type === 'SIGNAL'
-  const copy = isGoalCycle || isSignal ? null : STEP_COPY[actionId as AssistantActionId]
+  const copy = STEP_COPY[actionId as AssistantActionId]
   const cardSubtitle =
     actionId === 'page_publish' && action.pageName
       ? pagePublishCardSubtitle(action.pageName)
       : copy?.cardSubtitle
 
   return (
-    <div className="flex flex-1 flex-col gap-4 py-4">
-      {/* GOAL_CYCLE/SIGNAL skip the greeting preamble entirely — opening the Assistant should
-          immediately show the most relevant thing, not a welcome paragraph before it. The
-          heading (rendered by each branch below, via AssistantBotMessage) establishes context on
-          its own. */}
-      {!isGoalCycle && !isSignal ? (
-        <div>
-          <p className="text-sm text-muted-foreground">
-            {greeting()}
-            {actionId === 'calendar' ? '.' : '. What are we working on?'}
-          </p>
-          {actionId === 'calendar' ? (
-            <h3 className="mt-1 text-lg font-semibold text-foreground">
-              Nice work — your homepage is live.
-            </h3>
-          ) : businessName ? (
-            <h3 className="mt-1 text-lg font-semibold text-foreground">{businessName}</h3>
-          ) : null}
-          {homepageUrl ? (
-            <a
-              href={homepageUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-1 inline-block text-xs font-medium text-muted-foreground underline underline-offset-2 hover:text-foreground"
-            >
-              View homepage
-            </a>
-          ) : null}
-        </div>
-      ) : null}
+    <div className="space-y-2">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Next action
+      </p>
       {actionId === 'calendar' ? (
         <AssistantCalendarCard />
-      ) : isSignal && action.cycleId && action.signalSummary ? (
+      ) : action.type === 'SIGNAL' && action.cycleId && action.signalSummary ? (
         <AssistantSignalCard
           cycleId={action.cycleId}
           actionId={action.actionId}
@@ -187,7 +157,7 @@ function HomeView({
       ) : actionId === 'build_plan' && action.cycleId && action.plan ? (
         <div className="space-y-4">
           <AssistantBotMessage
-            heading="Your first plan"
+            heading="I built a plan for this."
             detail={`${action.plan.length} steps to get started.`}
           />
           <AssistantPlanView
@@ -212,7 +182,7 @@ function HomeView({
         <button
           type="button"
           onClick={onOpenFlow}
-          className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4 text-left transition-colors hover:border-foreground/20 hover:bg-accent"
+          className="flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-3.5 text-left transition-colors hover:border-primary/40 hover:bg-accent active:scale-[0.99]"
         >
           <div>
             <p className="text-sm font-semibold text-foreground">{copy?.cardTitle}</p>
@@ -221,23 +191,50 @@ function HomeView({
           <ArrowRight size={18} className="shrink-0 text-muted-foreground" />
         </button>
       )}
-      <div className="mt-2 border-t border-border pt-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Learn about Loopie
-        </p>
-        <div className="mt-2 space-y-1">
-          {EDUCATION_TOPICS.map((topic) => (
-            <button
-              key={topic.id}
-              type="button"
-              onClick={() => onSelectEducationTopic(topic.id)}
-              className="block w-full rounded-lg px-2 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
-            >
-              {topic.question}
-            </button>
-          ))}
-        </div>
+    </div>
+  )
+}
+
+function HomeView({
+  action,
+  conversation,
+  confirmation,
+  onOpenFlow,
+  onNavigate,
+  onSuccess,
+}: {
+  action: SingleAction
+  conversation: Conversation | null
+  confirmation: Confirmation | null
+  onOpenFlow: () => void
+  onNavigate: (path: string) => void
+  onSuccess: (message: string) => void
+}) {
+  // Action leads — it's where "a lot of ground to cover" actually gets delivered, one directed
+  // step at a time, so it gets the top spot and the full visual weight. Only this area gets a
+  // per-turn identity/transition — re-keying it (not the whole Home view) re-triggers the quick
+  // fade-in (tailwind.config.ts's `assistant-in` keyframe) on an actual new turn, while
+  // AssistantConversationView below stays mounted and untouched by an action changing or a
+  // confirmation flashing.
+  const actionKey = confirmation
+    ? 'confirmation'
+    : `${action.type}-${action.actionId}-${action.step?.key ?? ''}`
+
+  return (
+    <div className="flex flex-1 flex-col gap-5 py-2">
+      <div key={actionKey} className="animate-assistant-in">
+        {confirmation ? (
+          <ConfirmationView message={confirmation.message} />
+        ) : (
+          <ActionSection
+            action={action}
+            onOpenFlow={onOpenFlow}
+            onNavigate={onNavigate}
+            onSuccess={onSuccess}
+          />
+        )}
       </div>
+      {conversation ? <AssistantConversationView conversation={conversation} /> : null}
     </div>
   )
 }
@@ -246,25 +243,18 @@ function FlowView({
   action,
   confirmation,
   onSuccess,
-  onClose,
 }: {
-  action: NextAction
+  action: SingleAction
   confirmation: Confirmation | null
   onSuccess: (message: string) => void
-  onClose: () => void
 }) {
   if (confirmation) return <ConfirmationView message={confirmation.message} />
 
-  // GOAL_CYCLE/SIGNAL actions never reach Flow — they render directly on Home (see HomeView),
-  // same as Calendar's own card, since Learn/Plan/Grow already read as one self-contained
-  // card/list rather than needing a click-through screen.
   const actionId = action.actionId as AssistantActionId
   const flowHeadline =
     actionId === 'page_publish' && action.pageName
       ? `You have an unpublished page: "${action.pageName}".`
-      : actionId === 'campaign_create' && action.pageName
-        ? campaignCreateFlowHeadline(action.pageName)
-        : STEP_COPY[actionId as keyof typeof STEP_COPY]?.flowHeadline
+      : STEP_COPY[actionId as keyof typeof STEP_COPY]?.flowHeadline
 
   return (
     <div className="flex-1 space-y-4 py-2">
@@ -298,35 +288,21 @@ function FlowView({
           }
         />
       ) : null}
-      {actionId === 'campaign_create' &&
-      action.landingPageId &&
-      action.pageName &&
-      action.pageUrl ? (
-        <AssistantCampaignCreateStep
-          pageName={action.pageName}
-          pageUrl={action.pageUrl}
-          onClose={onClose}
-        />
-      ) : null}
-      {actionId === 'campaign_resume' && action.campaignId ? (
-        <AssistantCampaignResumeStep campaignId={action.campaignId} onClose={onClose} />
-      ) : null}
     </div>
   )
 }
 
 // Non-modal by design: no backdrop, no focus trap, no body-scroll lock — the whole point is that
 // the rest of the app stays usable while this is open. Always mounted (see AssistantLauncher) and
-// slides via a transform, matching MobileNav.tsx's own persistent-DOM slide pattern, rather than
-// mounting/unmounting on every toggle.
+// slides via a transform, matching MobileNavDrawer's own persistent-DOM slide pattern, rather than
+// mounting/unmounting on every toggle. Deliberately narrow (w-96) — an assistant beside the app,
+// not a second workspace.
 export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { data, isLoading, isError } = useNextAction()
-  const business = useBusiness()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const [view, setView] = useState<'home' | 'flow' | 'education'>('home')
+  const [view, setView] = useState<'home' | 'flow'>('home')
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
-  const [educationTopicId, setEducationTopicId] = useState<EducationTopicId | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -342,29 +318,35 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
     if (open) panelRef.current?.focus()
   }, [open])
 
-  // Every open starts at Home — predictable re-orientation rather than resuming wherever the
-  // user last drilled into (also matters after campaign_create/campaign_resume, which close the
-  // panel on navigating away; reopening it should show the fresh next action, not linger on the
-  // flow screen for the action that just completed). Adjusted during render (guarded by a
-  // previous-value comparison), not in an effect — this is React's own recommended pattern for
-  // "reset state when a prop changes" without an extra commit.
+  // Every open re-orients to Home if the user had drilled into Flow — predictable, and matters
+  // after campaign_create/campaign_resume, which close the panel on navigating away (reopening
+  // should show the fresh next action, not linger on the flow screen for the action that just
+  // completed). Conversation itself is untouched by this — it isn't unmounted by open/close at
+  // all (the panel stays mounted throughout, just visually hidden), so whatever the user was
+  // reading is exactly where they left it. Adjusted during render (guarded by a previous-value
+  // comparison), not in an effect — React's own recommended pattern for this.
   const [prevOpen, setPrevOpen] = useState(open)
   if (open !== prevOpen) {
     setPrevOpen(open)
     if (open) {
       setView('home')
       setConfirmation(null)
-      setEducationTopicId(null)
     }
   }
 
-  // Calendar/GOAL_CYCLE/SIGNAL all render directly on Home (see AssistantCalendarCard/HomeView) —
-  // once an auto-advance lands on one of them while the user is still mid-flow, bounce back to
-  // Home so it's actually shown. Same during-render adjustment pattern as above.
+  const action = data?.action ?? null
+
+  // Flow only ever renders an action that opens a real form (business_info/page/advertising) — if
+  // the action changes shape to something that renders directly on Home (Calendar/a goal-cycle
+  // turn/a signal) while the user is still mid-flow, bounce back so it's actually shown. Same
+  // during-render adjustment pattern as above.
   if (
-    (data?.type === 'CALENDAR' || data?.type === 'GOAL_CYCLE' || data?.type === 'SIGNAL') &&
     view === 'flow' &&
-    !confirmation
+    !confirmation &&
+    (!action ||
+      action.type === 'CALENDAR' ||
+      action.type === 'GOAL_CYCLE' ||
+      action.type === 'SIGNAL')
   ) {
     setView('home')
   }
@@ -374,6 +356,8 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
     setConfirmation({ message })
     window.setTimeout(() => setConfirmation(null), NON_TERMINAL_CONFIRMATION_MS)
   }
+
+  const flowKey = `flow-${action?.actionId}`
 
   return createPortal(
     <div
@@ -385,15 +369,15 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
       aria-hidden={!open}
       tabIndex={-1}
       className={cn(
-        'fixed inset-y-0 right-0 z-40 flex w-full flex-col border-l border-border bg-background shadow-2xl transition-[transform,visibility] duration-300 ease-out sm:w-[420px]',
+        'fixed inset-y-0 right-0 z-40 flex w-full flex-col border-l border-border bg-background shadow-2xl transition-[transform,visibility] duration-300 ease-out sm:w-96',
         // `visibility` only actually flips to hidden once the slide-out transition finishes
         // (browsers hold the prior value for `hidden`-bound transitions, unlike `visible`-bound
         // ones, which apply immediately) — so closing still slides out instead of vanishing.
         open ? 'visible translate-x-0' : 'invisible translate-x-full',
       )}
     >
-      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 sm:px-6">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground">
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-3">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Loopie Assistant
         </h2>
         <button
@@ -406,23 +390,19 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
         </button>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-2 sm:px-6">
-        {(view === 'flow' || view === 'education') && !confirmation ? (
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-4">
+        {view === 'flow' && !confirmation ? (
           <button
             type="button"
             onClick={() => setView('home')}
-            className="mb-2 flex items-center gap-1 self-start text-xs font-medium text-muted-foreground hover:text-foreground"
+            className="mb-3 flex items-center gap-1 self-start text-xs font-medium text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeft size={14} /> Assistant Home
+            <ArrowLeft size={14} /> Back
           </button>
         ) : null}
 
-        {confirmation ? (
-          <ConfirmationView message={confirmation.message} />
-        ) : isLoading || !data ? (
-          <div className="flex flex-1 items-center justify-center py-10">
-            <Spinner size="sm" />
-          </div>
+        {isLoading || !data || !action ? (
+          <LoadingState />
         ) : isError ? (
           <div className="flex flex-1 items-center justify-center py-10">
             <p className="text-sm text-destructive">
@@ -431,33 +411,20 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
           </div>
         ) : view === 'home' ? (
           <HomeView
-            action={data}
-            homepageUrl={data.homepageUrl ?? null}
-            businessName={business.data?.data?.name}
+            action={action}
+            conversation={data.conversation}
+            confirmation={confirmation}
             onOpenFlow={() => setView('flow')}
-            onSelectEducationTopic={(id) => {
-              setEducationTopicId(id)
-              setView('education')
-            }}
             onNavigate={(path) => {
               onClose()
               navigate(path)
             }}
             onSuccess={handleSuccess}
           />
-        ) : view === 'education' && educationTopicId ? (
-          <AssistantEducationDetail
-            topicId={educationTopicId}
-            onOpenFlow={() => setView('flow')}
-            onSelectTopic={(id) => setEducationTopicId(id)}
-          />
         ) : (
-          <FlowView
-            action={data}
-            confirmation={confirmation}
-            onSuccess={handleSuccess}
-            onClose={onClose}
-          />
+          <div key={flowKey} className="flex min-h-0 flex-1 flex-col animate-assistant-in">
+            <FlowView action={action} confirmation={confirmation} onSuccess={handleSuccess} />
+          </div>
         )}
       </div>
     </div>,

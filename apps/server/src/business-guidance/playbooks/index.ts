@@ -1,13 +1,30 @@
 // Playbook registry + selection (docs/.../02-feature-analysis.md section 8: "exact venture + goal
 // > business group + goal > trait + goal > generic goal"). A playbook is pure content — no Prisma,
-// no orchestration — steps reference existing GoalIdeaTemplate ids wherever one already matches
-// (see each playbook file's own comment), so Calendar never grows a second task universe.
+// no orchestration.
+//
+// Playbooks are organized into ordered layers (2026-09-04 "operating system, not a bag of tips"
+// pass) rather than one flat, repeated step list — see PlaybookLayerKey below. Each layer's steps
+// reference existing GoalIdeaTemplate ids wherever one already fits, and otherwise a new one added
+// alongside this content (see each playbook file's own comment) — Calendar never grows a second
+// task universe.
 import type { BusinessTrait } from '../taxonomy/traits'
 import type { BusinessKnowledge } from '../knowledge/businessKnowledge'
-import type { AssistantChoiceStep } from '../types'
+import type { AssistantChoiceStep, TeamSizeBand } from '../types'
 import type { GoalTrackingType } from '@prisma/client'
 import { localServiceGetCustomers } from './localServiceGetCustomers'
 import { webDevelopmentGetCustomers } from './webDevelopmentGetCustomers'
+import { designStudioGetCustomers } from './designStudioGetCustomers'
+
+// The operating-system progression every playbook shares. A business works through these in
+// order; "Do more of this" in Grow advances to the next one instead of repeating the last —
+// see AssistantGoalCycleService.resolveNextLayer. Labels are shown in the plan card (real business
+// content structure, unlike LEARN/ACT/REVIEW/GROW, which are never shown).
+export type PlaybookLayerKey =
+  | 'OFFER_AND_FOUNDATION'
+  | 'LEAD_AND_SALES_PROCESS'
+  | 'FULFILLMENT_AND_OPERATIONS'
+  | 'TEAM_AND_DELEGATION'
+  | 'SCALE_AND_SYSTEMS'
 
 export type PlaybookStep = {
   templateId: string
@@ -25,6 +42,21 @@ export type PlaybookStep = {
   // fixed-plan step (e.g. a dynamic "N interested leads" idea used here as a plain reminder) — see
   // CalendarService.scheduleIdea's overrides param.
   trackingTypeOverride?: GoalTrackingType
+  // Only materialize this step when the business actually has this trait (e.g. an
+  // equipment-maintenance step only for EQUIPMENT_HEAVY trades within a shared LOCAL playbook).
+  requiresTrait?: BusinessTrait
+  // Only materialize this step for a business at one of these team sizes (e.g. a "your first hire"
+  // step only for SOLO, a "document your handoff process" step only once there's a team).
+  requiresTeamSize?: TeamSizeBand[]
+}
+
+export type PlaybookLayer = {
+  key: PlaybookLayerKey
+  label: string
+  steps: PlaybookStep[]
+  // Only the last layer — once a business has worked through every layer, "Do more of this" keeps
+  // offering this layer's steps again rather than dead-ending.
+  repeatableOnceReached?: boolean
 }
 
 export type Playbook = {
@@ -35,11 +67,15 @@ export type Playbook = {
   traits?: BusinessTrait[]
   requiredKnowledge: (keyof BusinessKnowledge)[]
   qualificationQuestions: AssistantChoiceStep[]
-  steps: PlaybookStep[]
+  layers: PlaybookLayer[]
   reviewTrigger: { minDaysElapsed: number; minStepsDoneFraction: number }
 }
 
-const playbooks: Playbook[] = [localServiceGetCustomers, webDevelopmentGetCustomers]
+const playbooks: Playbook[] = [
+  localServiceGetCustomers,
+  webDevelopmentGetCustomers,
+  designStudioGetCustomers,
+]
 
 function specificity(
   playbook: Playbook,

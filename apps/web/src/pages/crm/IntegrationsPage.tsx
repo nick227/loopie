@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   useCreateIntegration,
   useCrmCatalog,
@@ -35,7 +36,14 @@ export function IntegrationsPage() {
 
   async function connect(
     provider:
-      'HUBSPOT' | 'SALESFORCE' | 'SHOPIFY' | 'WOOCOMMERCE' | 'WEBHOOK' | 'SQUARE' | 'PIPEDRIVE',
+      | 'HUBSPOT'
+      | 'SALESFORCE'
+      | 'SHOPIFY'
+      | 'WOOCOMMERCE'
+      | 'WEBHOOK'
+      | 'SQUARE'
+      | 'PIPEDRIVE'
+      | 'GOOGLE_SHEETS',
     oauthEnabled?: boolean,
   ) {
     if (oauthEnabled) {
@@ -181,7 +189,20 @@ export function IntegrationsPage() {
                       </Button>
                     </div>
                   ) : null}
-                  {row?.status === 'CONNECTED' && provider.provider !== 'WEBHOOK' ? (
+                  {row?.status === 'CONNECTED' && provider.provider === 'GOOGLE_SHEETS' ? (
+                    <div className="space-y-2">
+                      <p className="text-muted-foreground">
+                        {row.spreadsheetName
+                          ? `Spreadsheet: ${row.spreadsheetName}`
+                          : 'No spreadsheet chosen yet'}
+                      </p>
+                      <Link to={`/integrations/${row.id}/google-sheets`}>
+                        <Button type="button" variant="outline">
+                          Manage spreadsheet
+                        </Button>
+                      </Link>
+                    </div>
+                  ) : row?.status === 'CONNECTED' && provider.provider !== 'WEBHOOK' ? (
                     <Button
                       type="button"
                       disabled={sync.isPending}

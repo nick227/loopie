@@ -42,7 +42,9 @@ const HERO = {
   editable: ['headline', 'body', 'primaryCta'],
 }
 
-const FORM = { key: 'form', type: 'form-embed', hideable: false, editable: [] as string[] }
+// A real, independently-rendered section (CanvasSection's FormEmbedBlock) for this template — not
+// editorial metadata like the rich templates' 'form' entries (see e.g. corporate-professional.ts).
+const FORM = { key: 'form', type: 'form-embed', hideable: true, editable: [] as string[] }
 const FOOTER = { key: 'footer', type: 'footer', hideable: true, editable: ['body'] }
 
 export const SYSTEM_LEAD_GEN_SCHEMA = {
@@ -72,6 +74,11 @@ export const SYSTEM_MEDIA_LEAD_GEN_SCHEMA = {
       hideable: false,
       editable: ['headline', 'media'],
     },
+    // Editorial metadata, not an independent render node — CanvasSplitCapture renders the attached
+    // Form's fields nested inside the split block above (hasForm/formFields props), never as a
+    // standalone section of its own. Exists only so the Content tab can order/hide/delete it like
+    // every other section.
+    { key: 'form', type: 'form-embed', order: 0.5, hideable: true, editable: [] as string[] },
   ],
   themeTokens: [],
   themePresets: PAGE_THEME_PRESETS,

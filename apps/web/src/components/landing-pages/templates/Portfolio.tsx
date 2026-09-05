@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { useRef } from 'react'
+import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion'
+import { ArrowRight, ArrowUpRight, Plus } from 'lucide-react'
 import { CanvasText } from '../../../pages/landing-pages/components/CanvasText'
 import { EditableLinkTrigger } from '../../../pages/landing-pages/components/editable/EditableLinkTrigger'
 import { MediaSlotField } from '../../../pages/landing-pages/components/MediaSlotField'
@@ -7,10 +8,6 @@ import { FormFieldsEditor, type FormFieldDraft } from '@/components/forms/FormFi
 import type {
   PageContent,
   ServiceItem,
-  FeatureItem,
-  TeamMemberItem,
-  LogoItem,
-  TestimonialItem,
   NavLink,
 } from '../../../pages/landing-pages/components/types'
 
@@ -46,17 +43,6 @@ function AddRow({ onClick, label }: { onClick: () => void; label: string }) {
     >
       <Plus className="h-3.5 w-3.5" /> {label}
     </button>
-  )
-}
-
-function Kicker({ children }: { children: React.ReactNode }) {
-  return (
-    <p
-      className="mb-3 text-[11px] font-medium uppercase tracking-[0.3em]"
-      style={{ color: ink(50) }}
-    >
-      {children}
-    </p>
   )
 }
 
@@ -123,12 +109,25 @@ function NavBar({ content, editable, onChange }: SectionProps<'nav'>) {
 function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
   const cta = content?.primaryCta ?? {}
   const media = content?.media ?? {}
-  const onMedia = 'var(--lp-bg)'
-  const onMediaMuted = `color-mix(in srgb, var(--lp-bg) 72%, transparent)`
+
+  const ref = useRef<HTMLElement>(null)
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end start'] })
+  const imageY = useTransform(scrollYProgress, [0, 1], [0, 300])
+  const imageScale = useTransform(scrollYProgress, [0, 1], [1, 1.2])
+  const opacity = useTransform(scrollYProgress, [0, 0.8], [1, 0])
+  const textY = useTransform(scrollYProgress, [0, 1], [0, -150])
+
+  const reducedMotion = useReducedMotion()
+  const isCapture =
+    typeof document !== 'undefined' && document.documentElement.hasAttribute('data-lp-capture')
+  const disableMotion = reducedMotion || isCapture
 
   return (
-    <section className="relative min-h-[70vh] overflow-hidden sm:min-h-[78vh]">
-      <div className="absolute inset-0 [&>div]:h-full [&>div]:min-h-full">
+    <section ref={ref} className="relative h-screen min-h-[800px] overflow-hidden bg-black">
+      <motion.div
+        style={disableMotion ? {} : { y: imageY, scale: imageScale }}
+        className="absolute inset-0 [&>div]:h-full [&>div]:min-h-full opacity-60"
+      >
         {editable ? (
           <MediaSlotField
             kind="IMAGE"
@@ -142,103 +141,132 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
         ) : (
           <div className="h-full w-full" style={{ backgroundColor: ink(12) }} />
         )}
-      </div>
+      </motion.div>
 
       <div
         className="pointer-events-none absolute inset-0"
         style={{
-          background:
-            'linear-gradient(to top, color-mix(in srgb, var(--lp-ink) 88%, transparent) 0%, color-mix(in srgb, var(--lp-ink) 45%, transparent) 42%, transparent 72%), linear-gradient(to right, color-mix(in srgb, var(--lp-ink) 55%, transparent) 0%, transparent 55%)',
+          background: 'radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.8) 100%)',
         }}
       />
 
-      <div className="relative z-10 mx-auto flex min-h-[70vh] max-w-6xl flex-col justify-end px-6 pb-12 pt-28 sm:min-h-[78vh] sm:pb-16 lg:px-8 lg:pb-20">
-        <div className="max-w-2xl text-left">
-          {editable ? (
-            <CanvasText
-              ariaLabel="Hero eyebrow"
-              value={content?.eyebrow ?? ''}
-              onChange={(eyebrow) => onChange({ eyebrow })}
-              placeholder="Eyebrow"
-              className="mb-5 block w-fit text-[11px] font-medium uppercase tracking-[0.3em]"
-              style={{ color: onMediaMuted }}
-            />
-          ) : content?.eyebrow ? (
-            <p
-              className="mb-5 text-[11px] font-medium uppercase tracking-[0.3em]"
-              style={{ color: onMediaMuted }}
-            >
-              {content.eyebrow}
-            </p>
-          ) : null}
+      <motion.div
+        style={disableMotion ? {} : { opacity, y: textY }}
+        className="relative z-10 mx-auto flex h-full flex-col justify-center px-6 text-center sm:px-12 lg:px-20 mix-blend-difference pointer-events-none"
+      >
+        <div className="w-full text-center flex flex-col items-center pointer-events-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+          >
+            {editable ? (
+              <CanvasText
+                ariaLabel="Hero eyebrow"
+                value={content?.eyebrow ?? ''}
+                onChange={(eyebrow) => onChange({ eyebrow })}
+                placeholder="Eyebrow"
+                className="mb-8 block w-fit text-lg font-black uppercase tracking-[0.6em]"
+                style={{ color: '#fff' }}
+              />
+            ) : content?.eyebrow ? (
+              <p
+                className="mb-8 text-lg font-black uppercase tracking-[0.6em]"
+                style={{ color: '#fff' }}
+              >
+                {content.eyebrow}
+              </p>
+            ) : null}
+          </motion.div>
 
-          {editable ? (
-            <CanvasText
-              as="h1"
-              ariaLabel="Hero headline"
-              value={content?.headline ?? ''}
-              onChange={(headline) => onChange({ headline })}
-              placeholder="Headline"
-              style={{ fontFamily: 'var(--lp-heading)', color: onMedia }}
-              className="mb-5 text-left text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl"
-            />
-          ) : (
-            <h1
-              className="mb-5 text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl"
-              style={{ fontFamily: 'var(--lp-heading)', color: onMedia }}
-            >
-              {content?.headline}
-            </h1>
-          )}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {editable ? (
+              <CanvasText
+                as="h1"
+                ariaLabel="Hero headline"
+                value={content?.headline ?? ''}
+                onChange={(headline) => onChange({ headline })}
+                placeholder="Headline"
+                style={{ fontFamily: 'var(--lp-heading)', color: '#fff' }}
+                className="mb-10 text-center text-[15vw] font-black leading-[0.8] tracking-tighter uppercase"
+              />
+            ) : (
+              <h1
+                className="mb-10 text-[15vw] font-black leading-[0.8] tracking-tighter uppercase"
+                style={{ fontFamily: 'var(--lp-heading)', color: '#fff' }}
+              >
+                {content?.headline}
+              </h1>
+            )}
+          </motion.div>
 
-          {editable ? (
-            <CanvasText
-              ariaLabel="Hero body"
-              value={content?.body ?? ''}
-              onChange={(body) => onChange({ body })}
-              multiline
-              placeholder="A short line about the work."
-              style={{ color: onMediaMuted }}
-              className="mb-8 max-w-lg leading-relaxed"
-            />
-          ) : content?.body ? (
-            <p className="mb-8 max-w-lg leading-relaxed" style={{ color: onMediaMuted }}>
-              {content.body}
-            </p>
-          ) : null}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+          >
+            {editable ? (
+              <CanvasText
+                ariaLabel="Hero body"
+                value={content?.body ?? ''}
+                onChange={(body) => onChange({ body })}
+                multiline
+                placeholder="A short line about the work."
+                style={{ color: 'rgba(255,255,255,0.7)' }}
+                className="mb-16 max-w-3xl text-3xl font-medium leading-snug sm:text-4xl"
+              />
+            ) : content?.body ? (
+              <p
+                className="mb-16 max-w-3xl text-3xl font-medium leading-snug sm:text-4xl"
+                style={{ color: 'rgba(255,255,255,0.7)' }}
+              >
+                {content.body}
+              </p>
+            ) : null}
+          </motion.div>
 
-          {editable ? (
-            <EditableLinkTrigger
-              label={cta.label ?? ''}
-              url={cta.url ?? '#contact'}
-              onChange={(next) => onChange({ primaryCta: next })}
-            >
-              <span
-                className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold"
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.6 }}
+          >
+            {editable ? (
+              <EditableLinkTrigger
+                label={cta.label ?? ''}
+                url={cta.url ?? '#contact'}
+                onChange={(next) => onChange({ primaryCta: next })}
+              >
+                <span
+                  className="inline-flex items-center gap-4 px-12 py-6 text-2xl font-bold tracking-widest uppercase transition-transform hover:scale-110 cursor-pointer"
+                  style={{
+                    backgroundColor: '#fff',
+                    color: '#000',
+                    borderRadius: '9999px',
+                  }}
+                >
+                  {cta.label || 'Explore'} <ArrowRight className="h-6 w-6" />
+                </span>
+              </EditableLinkTrigger>
+            ) : cta.label ? (
+              <a
+                href={cta.url}
+                className="inline-flex items-center gap-4 px-12 py-6 text-2xl font-bold tracking-widest uppercase transition-transform hover:scale-110 cursor-pointer no-underline"
                 style={{
-                  backgroundColor: 'var(--lp-primary)',
-                  color: 'var(--lp-on-primary)',
-                  borderRadius: 'var(--lp-radius)',
+                  backgroundColor: '#fff',
+                  color: '#000',
+                  borderRadius: '9999px',
                 }}
               >
-                {cta.label || 'Add a call to action'} <ArrowRight className="h-3.5 w-3.5" />
-              </span>
-            </EditableLinkTrigger>
-          ) : cta.label ? (
-            <a
-              href={cta.url}
-              className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold no-underline"
-              style={{
-                backgroundColor: 'var(--lp-primary)',
-                color: 'var(--lp-on-primary)',
-                borderRadius: 'var(--lp-radius)',
-              }}
-            >
-              {cta.label} <ArrowRight className="h-3.5 w-3.5" />
-            </a>
-          ) : null}
+                {cta.label} <ArrowRight className="h-6 w-6" />
+              </a>
+            ) : null}
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
     </section>
   )
 }
@@ -251,8 +279,12 @@ function ServiceSelectorSection({ content, editable, onChange }: SectionProps<'s
     onChange({ items: items.map((row, idx) => (idx === i ? { ...row, ...patch } : row)) })
   }
   return (
-    <section className="border-t py-24 lg:py-32" style={{ borderColor: ink(10) }}>
-      <div className="mx-auto max-w-6xl px-6 lg:px-8">
+    <section
+      id="services"
+      className="h-screen min-h-[900px] w-full relative flex flex-col justify-center px-6 lg:px-20 bg-black overflow-hidden"
+      style={{ borderColor: ink(10) }}
+    >
+      <div className="absolute top-16 left-6 lg:left-20 z-20 mix-blend-difference pointer-events-none">
         {editable ? (
           <CanvasText
             as="h2"
@@ -260,25 +292,36 @@ function ServiceSelectorSection({ content, editable, onChange }: SectionProps<'s
             value={content?.title ?? ''}
             onChange={(title) => onChange({ title })}
             placeholder="Featured work"
-            style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-            className="mb-16 text-left text-3xl font-medium sm:text-4xl"
+            style={{ fontFamily: 'var(--lp-heading)' }}
+            className="text-left text-sm font-black tracking-[0.4em] uppercase text-white"
           />
         ) : (
           <h2
-            className="mb-16 text-left text-3xl font-medium sm:text-4xl"
-            style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
+            className="text-left text-sm font-black tracking-[0.4em] uppercase text-white"
+            style={{ fontFamily: 'var(--lp-heading)' }}
           >
             {content?.title}
           </h2>
         )}
+      </div>
 
-        <div className="space-y-28">
-          {items.map((service, i) => (
-            <div key={i} className="group relative">
+      <div className="flex w-full h-[80vh] overflow-x-auto snap-x snap-mandatory hide-scrollbar gap-32 lg:gap-64 items-center pl-10 pr-[50vw]">
+        {items.map((service, i) => (
+          <div
+            key={i}
+            className="group relative flex-none w-[75vw] md:w-[45vw] lg:w-[30vw] snap-center h-[60vh] md:h-[70vh]"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0.5 }}
+              whileInView={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full h-full overflow-hidden"
+            >
               {editable ? (
                 <MediaSlotField
                   kind="IMAGE"
                   urlMode
+                  fill
                   fallbackUrl={service.media?.url}
                   onUrlChange={(url) => updateItem(i, { media: { ...service.media, url } })}
                 />
@@ -286,23 +329,26 @@ function ServiceSelectorSection({ content, editable, onChange }: SectionProps<'s
                 <img
                   src={service.media.url}
                   alt={service.media.alt ?? ''}
-                  className="aspect-[16/10] w-full object-cover"
+                  className="w-full h-full object-cover transition-transform duration-[2s] group-hover:scale-110"
                 />
               ) : (
-                <div className="aspect-[16/10] w-full" style={{ backgroundColor: ink(6) }} />
+                <div className="w-full h-full" style={{ backgroundColor: ink(12) }} />
               )}
+            </motion.div>
 
-              <div className="mt-8 max-w-xl text-left">
+            <div className="absolute inset-0 flex flex-col justify-center pointer-events-none z-10 mix-blend-difference">
+              <div className="pointer-events-auto absolute top-1/2 -translate-y-1/2 left-[-10vw] right-[-10vw] flex flex-col items-center text-center">
                 {editable ? (
                   <CanvasText
                     ariaLabel={`Project ${i + 1} label`}
                     value={service.label}
                     onChange={(label) => updateItem(i, { label })}
-                    className="mb-3 block w-fit text-[11px] font-medium uppercase tracking-[0.3em]"
-                    style={{ color: ink(50) }}
+                    className="mb-8 block w-fit text-sm font-bold uppercase tracking-[0.6em] text-white"
                   />
                 ) : (
-                  <Kicker>{service.label}</Kicker>
+                  <p className="mb-8 block w-fit text-sm font-bold uppercase tracking-[0.6em] text-white">
+                    {service.label}
+                  </p>
                 )}
                 {editable ? (
                   <CanvasText
@@ -310,550 +356,61 @@ function ServiceSelectorSection({ content, editable, onChange }: SectionProps<'s
                     ariaLabel={`Project ${i + 1} headline`}
                     value={service.headline ?? ''}
                     onChange={(headline) => updateItem(i, { headline })}
-                    style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-                    className="mb-3 text-2xl font-medium"
+                    style={{ fontFamily: 'var(--lp-heading)' }}
+                    className="mb-12 text-[12vw] md:text-[8vw] font-black text-white leading-[0.85] tracking-tighter uppercase whitespace-nowrap"
                   />
                 ) : (
                   <h3
-                    className="mb-3 text-2xl font-medium"
-                    style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
+                    className="mb-12 text-[12vw] md:text-[8vw] font-black text-white leading-[0.85] tracking-tighter uppercase whitespace-nowrap"
+                    style={{ fontFamily: 'var(--lp-heading)' }}
                   >
                     {service.headline}
                   </h3>
                 )}
-                {editable ? (
-                  <CanvasText
-                    ariaLabel={`Project ${i + 1} description`}
-                    value={service.description ?? ''}
-                    onChange={(description) => updateItem(i, { description })}
-                    multiline
-                    style={{ color: ink(65) }}
-                    className="mb-4 leading-relaxed"
-                  />
-                ) : service.description ? (
-                  <p className="mb-4 leading-relaxed" style={{ color: ink(65) }}>
-                    {service.description}
-                  </p>
-                ) : null}
                 {editable ? (
                   <EditableLinkTrigger
                     label={service.cta?.label ?? ''}
                     url={service.cta?.url ?? '#'}
                     onChange={(next) => updateItem(i, { cta: next })}
                   >
-                    <span
-                      className="inline-flex items-center gap-1.5 text-sm font-medium underline underline-offset-4"
-                      style={{ color: 'var(--lp-ink)' }}
-                    >
-                      {service.cta?.label || 'Add a link'} <ArrowUpRight className="h-3.5 w-3.5" />
+                    <span className="inline-flex items-center gap-4 text-xl font-bold tracking-[0.2em] uppercase text-white hover:text-white/80 transition-colors cursor-pointer">
+                      {service.cta?.label || 'Explore'} <ArrowUpRight className="h-6 w-6" />
                     </span>
                   </EditableLinkTrigger>
                 ) : service.cta?.label ? (
                   <a
                     href={service.cta.url}
-                    className="inline-flex items-center gap-1.5 text-sm font-medium underline underline-offset-4"
-                    style={{ color: 'var(--lp-ink)' }}
+                    className="inline-flex items-center gap-4 text-xl font-bold tracking-[0.2em] uppercase text-white hover:text-white/80 transition-colors no-underline cursor-pointer"
                   >
-                    {service.cta.label} <ArrowUpRight className="h-3.5 w-3.5" />
+                    {service.cta.label} <ArrowUpRight className="h-6 w-6" />
                   </a>
                 ) : null}
               </div>
-
-              {editable ? (
-                <button
-                  type="button"
-                  onClick={() => onChange({ items: items.filter((_, idx) => idx !== i) })}
-                  aria-label="Remove"
-                  className="absolute right-0 top-0 text-xs opacity-0 group-hover:opacity-100"
-                  style={{ color: ink(45) }}
-                >
-                  ×
-                </button>
-              ) : null}
             </div>
-          ))}
-        </div>
 
-        {editable ? (
-          <AddRow
-            label="Add project"
-            onClick={() =>
-              onChange({
-                items: [...items, { id: `project-${items.length}`, label: 'New project' }],
-              })
-            }
-          />
-        ) : null}
-      </div>
-    </section>
-  )
-}
-
-// --- Services — a restrained, quiet 3-column list. No numbering (that's Studio's signature move),
-// no card chrome, just centered title + body. --------------------------------------------------
-
-function FeatureListSection({ content, editable, onChange }: SectionProps<'features'>) {
-  const items = content?.items ?? []
-  function updateItem(i: number, patch: Partial<FeatureItem>) {
-    onChange({ items: items.map((row, idx) => (idx === i ? { ...row, ...patch } : row)) })
-  }
-  return (
-    <section className="border-t py-24" style={{ borderColor: ink(10) }}>
-      <div className="mx-auto max-w-5xl px-6 lg:px-8">
-        <div className="mx-auto mb-16 max-w-xl text-center">
-          {editable ? (
-            <>
-              <CanvasText
-                as="h2"
-                ariaLabel="Services headline"
-                value={content?.headline ?? ''}
-                onChange={(headline) => onChange({ headline })}
-                style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-                className="mx-auto mb-3 text-3xl font-medium sm:text-4xl"
-              />
-              <CanvasText
-                ariaLabel="Services body"
-                value={content?.body ?? ''}
-                onChange={(body) => onChange({ body })}
-                multiline
-                style={{ color: ink(65) }}
-                className="mx-auto leading-relaxed"
-              />
-            </>
-          ) : (
-            <>
-              <h2
-                className="mb-3 text-3xl font-medium sm:text-4xl"
-                style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-              >
-                {content?.headline}
-              </h2>
-              {content?.body ? (
-                <p className="leading-relaxed" style={{ color: ink(65) }}>
-                  {content.body}
-                </p>
-              ) : null}
-            </>
-          )}
-        </div>
-
-        <div className="grid gap-x-10 gap-y-12 sm:grid-cols-3">
-          {items.map((feature, i) => (
-            <div key={i} className="group relative text-center">
-              {editable ? (
-                <>
-                  <CanvasText
-                    as="h3"
-                    ariaLabel={`Service ${i + 1} title`}
-                    value={feature.title}
-                    onChange={(title) => updateItem(i, { title })}
-                    style={{ color: 'var(--lp-ink)' }}
-                    className="mx-auto mb-2 block w-fit text-base font-medium"
-                  />
-                  <CanvasText
-                    ariaLabel={`Service ${i + 1} body`}
-                    value={feature.body}
-                    onChange={(body) => updateItem(i, { body })}
-                    multiline
-                    style={{ color: ink(65) }}
-                    className="mx-auto text-sm leading-relaxed"
-                  />
-                </>
-              ) : (
-                <>
-                  <h3 className="mb-2 text-base font-medium" style={{ color: 'var(--lp-ink)' }}>
-                    {feature.title}
-                  </h3>
-                  <p className="text-sm leading-relaxed" style={{ color: ink(65) }}>
-                    {feature.body}
-                  </p>
-                </>
-              )}
-              {editable ? (
-                <button
-                  type="button"
-                  onClick={() => onChange({ items: items.filter((_, idx) => idx !== i) })}
-                  aria-label="Remove"
-                  className="absolute right-2 top-0 text-xs opacity-0 group-hover:opacity-100"
-                  style={{ color: ink(45) }}
-                >
-                  ×
-                </button>
-              ) : null}
-            </div>
-          ))}
-        </div>
-
-        {editable ? (
-          <div className="text-center">
-            <AddRow
-              label="Add service"
-              onClick={() => onChange({ items: [...items, { title: 'New service', body: '' }] })}
-            />
-          </div>
-        ) : null}
-      </div>
-    </section>
-  )
-}
-
-// --- About — centered, narrow column. One portrait per person, stacked when there's more than
-// one — never forced into a multi-column grid (that's Studio's job). ----------------------------
-
-function TeamSection({ content, editable, onChange }: SectionProps<'team'>) {
-  const items = content?.items ?? []
-  function updateItem(i: number, patch: Partial<TeamMemberItem>) {
-    onChange({ items: items.map((row, idx) => (idx === i ? { ...row, ...patch } : row)) })
-  }
-
-  if (!items.length && !editable) return null
-
-  return (
-    <section className="border-t py-24" style={{ borderColor: ink(10) }}>
-      <div className="mx-auto max-w-2xl px-6 text-center lg:px-8">
-        {editable ? (
-          <>
-            <CanvasText
-              as="h2"
-              ariaLabel="About headline"
-              value={content?.headline ?? ''}
-              onChange={(headline) => onChange({ headline })}
-              style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-              className="mx-auto mb-3 text-3xl font-medium sm:text-4xl"
-            />
-            <CanvasText
-              ariaLabel="About body"
-              value={content?.body ?? ''}
-              onChange={(body) => onChange({ body })}
-              multiline
-              style={{ color: ink(65) }}
-              className="mx-auto mb-16 max-w-md leading-relaxed"
-            />
-          </>
-        ) : (
-          <>
-            <h2
-              className="mb-3 text-3xl font-medium sm:text-4xl"
-              style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-            >
-              {content?.headline}
-            </h2>
-            {content?.body ? (
-              <p className="mx-auto mb-16 max-w-md leading-relaxed" style={{ color: ink(65) }}>
-                {content.body}
-              </p>
-            ) : null}
-          </>
-        )}
-
-        <div className="space-y-16">
-          {items.map((member, i) => (
-            <div key={i} className="group relative mx-auto max-w-sm">
-              {editable ? (
-                <div className="mx-auto mb-5 h-40 w-40 overflow-hidden rounded-full">
-                  <MediaSlotField
-                    kind="IMAGE"
-                    urlMode
-                    fill
-                    fallbackUrl={member.media?.url}
-                    onUrlChange={(url) => updateItem(i, { media: { ...member.media, url } })}
-                  />
-                </div>
-              ) : member.media?.url ? (
-                <img
-                  src={member.media.url}
-                  alt={member.media.alt ?? member.name}
-                  className="mx-auto mb-5 h-40 w-40 rounded-full object-cover"
-                />
-              ) : (
-                <div
-                  className="mx-auto mb-5 h-40 w-40 rounded-full"
-                  style={{ backgroundColor: ink(6) }}
-                />
-              )}
-              {editable ? (
-                <CanvasText
-                  as="h3"
-                  ariaLabel={`Person ${i + 1} name`}
-                  value={member.name}
-                  onChange={(name) => updateItem(i, { name })}
-                  style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-                  className="mx-auto mb-1 block w-fit text-xl font-medium"
-                />
-              ) : (
-                <h3
-                  className="mb-1 text-xl font-medium"
-                  style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-                >
-                  {member.name}
-                </h3>
-              )}
-              {editable ? (
-                <CanvasText
-                  ariaLabel={`Person ${i + 1} role`}
-                  value={member.role ?? ''}
-                  onChange={(role) => updateItem(i, { role })}
-                  className="mx-auto mb-4 block w-fit text-sm"
-                  style={{ color: ink(55) }}
-                />
-              ) : member.role ? (
-                <p className="mb-4 text-sm" style={{ color: ink(55) }}>
-                  {member.role}
-                </p>
-              ) : null}
-              {editable ? (
-                <CanvasText
-                  ariaLabel={`Person ${i + 1} bio`}
-                  value={member.bio ?? ''}
-                  onChange={(bio) => updateItem(i, { bio })}
-                  multiline
-                  className="mx-auto text-sm leading-relaxed"
-                  style={{ color: ink(65) }}
-                />
-              ) : member.bio ? (
-                <p className="text-sm leading-relaxed" style={{ color: ink(65) }}>
-                  {member.bio}
-                </p>
-              ) : null}
-              {editable ? (
-                <button
-                  type="button"
-                  onClick={() => onChange({ items: items.filter((_, idx) => idx !== i) })}
-                  aria-label="Remove"
-                  className="absolute right-0 top-0 text-xs opacity-0 group-hover:opacity-100"
-                  style={{ color: ink(45) }}
-                >
-                  ×
-                </button>
-              ) : null}
-            </div>
-          ))}
-        </div>
-
-        {editable ? (
-          <AddRow
-            label="Add person"
-            onClick={() => onChange({ items: [...items, { name: 'New person' }] })}
-          />
-        ) : null}
-      </div>
-    </section>
-  )
-}
-
-// --- Clients — a quiet, static wrapped row of names. No marquee — too loud for this register. ---
-
-function LogoCloudSection({ content, editable, onChange }: SectionProps<'logos'>) {
-  const items = content?.items ?? []
-  function updateItem(i: number, patch: Partial<LogoItem>) {
-    onChange({ items: items.map((row, idx) => (idx === i ? { ...row, ...patch } : row)) })
-  }
-
-  if (!items.length && !editable) return null
-
-  return (
-    <section className="border-t py-20" style={{ borderColor: ink(10) }}>
-      <div className="mx-auto max-w-4xl px-6 text-center lg:px-8">
-        {editable ? (
-          <CanvasText
-            ariaLabel="Clients title"
-            value={content?.title ?? ''}
-            onChange={(title) => onChange({ title })}
-            placeholder="Featured in"
-            className="mx-auto mb-8 block w-fit text-[11px] font-medium uppercase tracking-[0.3em]"
-            style={{ color: ink(50) }}
-          />
-        ) : content?.title ? (
-          <p
-            className="mb-8 text-[11px] font-medium uppercase tracking-[0.3em]"
-            style={{ color: ink(50) }}
-          >
-            {content.title}
-          </p>
-        ) : null}
-
-        <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-3">
-          {items.map((logo, i) => (
-            <div key={i} className="group relative">
-              {editable ? (
-                <CanvasText
-                  ariaLabel={`Client ${i + 1} name`}
-                  value={logo.name}
-                  onChange={(name) => updateItem(i, { name })}
-                  className="text-sm font-medium opacity-70"
-                  style={{ color: 'var(--lp-ink)' }}
-                />
-              ) : (
-                <span className="text-sm font-medium opacity-60" style={{ color: 'var(--lp-ink)' }}>
-                  {logo.name}
-                </span>
-              )}
-              {editable ? (
-                <button
-                  type="button"
-                  onClick={() => onChange({ items: items.filter((_, idx) => idx !== i) })}
-                  aria-label="Remove"
-                  className="absolute -right-3 -top-2 text-xs opacity-0 group-hover:opacity-100"
-                  style={{ color: ink(45) }}
-                >
-                  ×
-                </button>
-              ) : null}
-            </div>
-          ))}
-        </div>
-
-        {editable ? (
-          <AddRow
-            label="Add logo"
-            onClick={() => onChange({ items: [...items, { name: 'New client' }] })}
-          />
-        ) : null}
-      </div>
-    </section>
-  )
-}
-
-// --- Testimonials — quiet, centered, on the normal page background. Never a full-bleed inverted
-// block — that register is too loud for this template. ------------------------------------------
-
-function TestimonialsSection({ content, editable, onChange }: SectionProps<'testimonials'>) {
-  const items = content?.items ?? []
-  const [index, setIndex] = useState(0)
-  const current = items[Math.min(index, items.length - 1)]
-
-  function updateCurrent(patch: Partial<TestimonialItem>) {
-    onChange({ items: items.map((row, idx) => (idx === index ? { ...row, ...patch } : row)) })
-  }
-
-  if (!items.length && !editable) return null
-
-  return (
-    <section className="border-t py-24" style={{ borderColor: ink(10) }}>
-      <div className="mx-auto max-w-2xl px-6 text-center lg:px-8">
-        {editable ? (
-          <CanvasText
-            ariaLabel="Testimonials headline"
-            value={content?.headline ?? ''}
-            onChange={(headline) => onChange({ headline })}
-            className="mx-auto mb-10 block w-fit text-[11px] font-medium uppercase tracking-[0.3em]"
-            style={{ color: ink(50) }}
-          />
-        ) : content?.headline ? (
-          <p
-            className="mb-10 text-[11px] font-medium uppercase tracking-[0.3em]"
-            style={{ color: ink(50) }}
-          >
-            {content.headline}
-          </p>
-        ) : null}
-
-        {current ? (
-          <>
             {editable ? (
-              <CanvasText
-                ariaLabel={`Testimonial ${index + 1} quote`}
-                value={current.quote}
-                onChange={(quote) => updateCurrent({ quote })}
-                multiline
-                style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-                className="text-xl italic leading-relaxed sm:text-2xl"
-              />
-            ) : (
-              <p
-                className="text-xl italic leading-relaxed sm:text-2xl"
-                style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-              >
-                &quot;{current.quote}&quot;
-              </p>
-            )}
-            <div className="mt-6 flex items-baseline justify-center gap-2 text-sm">
-              {editable ? (
-                <CanvasText
-                  ariaLabel={`Testimonial ${index + 1} author`}
-                  value={current.author}
-                  onChange={(author) => updateCurrent({ author })}
-                  className="font-medium"
-                  style={{ color: 'var(--lp-ink)' }}
-                />
-              ) : (
-                <span className="font-medium" style={{ color: 'var(--lp-ink)' }}>
-                  {current.author}
-                </span>
-              )}
-              {editable ? (
-                <CanvasText
-                  ariaLabel={`Testimonial ${index + 1} role`}
-                  value={current.role ?? ''}
-                  onChange={(role) => updateCurrent({ role })}
-                  style={{ color: ink(55) }}
-                />
-              ) : current.role ? (
-                <span style={{ color: ink(55) }}>{current.role}</span>
-              ) : null}
-            </div>
-          </>
-        ) : null}
-
-        {items.length > 1 ? (
-          <div className="mt-8 flex items-center justify-center gap-4">
-            <button
-              type="button"
-              aria-label="Previous testimonial"
-              onClick={() => setIndex((index - 1 + items.length) % items.length)}
-              style={{ color: ink(45) }}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <div className="flex gap-1.5">
-              {items.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  aria-label={`Show testimonial ${i + 1}`}
-                  onClick={() => setIndex(i)}
-                  className="h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: i === index ? 'var(--lp-ink)' : ink(20) }}
-                />
-              ))}
-            </div>
-            <button
-              type="button"
-              aria-label="Next testimonial"
-              onClick={() => setIndex((index + 1) % items.length)}
-              style={{ color: ink(45) }}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        ) : null}
-
-        {editable ? (
-          <div className="mt-8 flex items-center justify-center gap-4">
-            {current ? (
               <button
                 type="button"
-                onClick={() => {
-                  onChange({ items: items.filter((_, idx) => idx !== index) })
-                  setIndex((i) => Math.max(0, i - 1))
-                }}
-                className="text-xs underline underline-offset-4"
-                style={{ color: ink(55) }}
+                onClick={() => onChange({ items: items.filter((_, idx) => idx !== i) })}
+                aria-label="Remove"
+                className="absolute right-4 top-4 text-xs bg-white text-black p-3 rounded-full opacity-0 group-hover:opacity-100 z-50 transition-opacity"
               >
-                Remove this one
+                ×
               </button>
             ) : null}
-            <button
-              type="button"
-              onClick={() => {
-                onChange({ items: [...items, { quote: '', author: 'New client' }] })
-                setIndex(items.length)
-              }}
-              className="inline-flex items-center gap-1.5 text-xs underline underline-offset-4"
-              style={{ color: ink(55) }}
-            >
-              <Plus className="h-3 w-3" /> Add testimonial
-            </button>
+          </div>
+        ))}
+
+        {editable ? (
+          <div className="flex-none snap-center ml-32">
+            <AddRow
+              label="Add project"
+              onClick={() =>
+                onChange({
+                  items: [...items, { id: `project-${items.length}`, label: 'New project' }],
+                })
+              }
+            />
           </div>
         ) : null}
       </div>
@@ -880,76 +437,113 @@ function ContactSection({
 }) {
   const cta = content?.cta ?? {}
   return (
-    <section id="contact" className="border-t py-24" style={{ borderColor: ink(10) }}>
-      <div className="mx-auto max-w-2xl px-6 text-center lg:px-8">
-        {editable ? (
-          <CanvasText
-            as="h2"
-            ariaLabel="Contact headline"
-            value={content?.headline ?? ''}
-            onChange={(headline) => onChange({ headline })}
-            style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-            className="mx-auto mb-3 text-3xl font-medium sm:text-4xl"
-          />
-        ) : (
-          <h2
-            className="mb-3 text-3xl font-medium sm:text-4xl"
-            style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-          >
-            {content?.headline}
-          </h2>
-        )}
-        {editable ? (
-          <CanvasText
-            ariaLabel="Contact body"
-            value={content?.body ?? ''}
-            onChange={(body) => onChange({ body })}
-            multiline
-            className="mx-auto mb-10 max-w-md leading-relaxed"
-            style={{ color: ink(65) }}
-          />
-        ) : content?.body ? (
-          <p className="mx-auto mb-10 max-w-md leading-relaxed" style={{ color: ink(65) }}>
-            {content.body}
-          </p>
-        ) : null}
-
-        {editable ? (
-          <div className="mb-10">
-            <EditableLinkTrigger
-              label={cta.label ?? ''}
-              url={cta.url ?? '#contact'}
-              onChange={(next) => onChange({ cta: next })}
+    <section
+      id="contact"
+      className="h-screen w-full flex flex-col justify-center border-t relative overflow-hidden bg-black"
+      style={{ borderColor: ink(10) }}
+    >
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.1]"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at center, rgba(255,255,255,0.8) 1px, transparent 1px)',
+          backgroundSize: '40px 40px',
+        }}
+      />
+      <div className="mx-auto w-full max-w-7xl px-6 text-center lg:px-8 relative z-10 flex flex-col items-center">
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: false, amount: 0.5 }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
+        >
+          {editable ? (
+            <CanvasText
+              as="h2"
+              ariaLabel="Contact headline"
+              value={content?.headline ?? ''}
+              onChange={(headline) => onChange({ headline })}
+              style={{ fontFamily: 'var(--lp-heading)' }}
+              className="mb-8 text-[12vw] md:text-[10vw] font-black uppercase tracking-tighter leading-none text-white mix-blend-difference"
+            />
+          ) : (
+            <h2
+              className="mb-8 text-[12vw] md:text-[10vw] font-black uppercase tracking-tighter leading-none text-white mix-blend-difference"
+              style={{ fontFamily: 'var(--lp-heading)' }}
             >
-              <span
-                className="text-sm font-medium underline underline-offset-4"
-                style={{ color: 'var(--lp-ink)' }}
-              >
-                {cta.label || 'Add a call to action'}
-              </span>
-            </EditableLinkTrigger>
-          </div>
-        ) : null}
+              {content?.headline || "LET'S TALK"}
+            </h2>
+          )}
+        </motion.div>
 
-        <div className="mx-auto max-w-sm text-left">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: false, amount: 0.5 }}
+          transition={{ duration: 0.8, delay: 0.2, ease: 'easeOut' }}
+        >
+          {editable ? (
+            <CanvasText
+              ariaLabel="Contact body"
+              value={content?.body ?? ''}
+              onChange={(body) => onChange({ body })}
+              multiline
+              className="mb-16 max-w-3xl text-2xl sm:text-3xl font-medium leading-relaxed text-white/60"
+            />
+          ) : content?.body ? (
+            <p className="mb-16 max-w-3xl text-2xl sm:text-3xl font-medium leading-relaxed text-white/60">
+              {content.body}
+            </p>
+          ) : null}
+
+          {editable ? (
+            <div className="mb-16">
+              <EditableLinkTrigger
+                label={cta.label ?? ''}
+                url={cta.url ?? '#contact'}
+                onChange={(next) => onChange({ cta: next })}
+              >
+                <span className="inline-flex items-center gap-4 px-12 py-6 text-2xl font-bold uppercase tracking-widest transition-transform hover:scale-110 cursor-pointer text-black bg-white rounded-full">
+                  {cta.label || 'Get in Touch'} <ArrowRight className="h-6 w-6" />
+                </span>
+              </EditableLinkTrigger>
+            </div>
+          ) : cta.label ? (
+            <div className="mb-16">
+              <a
+                href={cta.url}
+                className="inline-flex items-center gap-4 px-12 py-6 text-2xl font-bold uppercase tracking-widest transition-transform hover:scale-110 cursor-pointer text-black bg-white rounded-full no-underline"
+              >
+                {cta.label} <ArrowRight className="h-6 w-6" />
+              </a>
+            </div>
+          ) : null}
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: false, amount: 0.5 }}
+          transition={{ duration: 0.8, delay: 0.4, ease: 'easeOut' }}
+          className="mx-auto w-full max-w-md text-left bg-white/10 backdrop-blur-md p-8 rounded-3xl border border-white/20 shadow-2xl"
+        >
           {!hasForm ? (
-            <p className="text-center text-sm" style={{ color: ink(60) }}>
+            <p className="text-center text-sm font-medium text-white/50">
               No reusable form attached. Choose a form above to embed real fields here.
             </p>
           ) : (
-            <>
+            <div className="text-white">
               <FormFieldsEditor fields={formFields} onChange={onFormFields} protectEmail />
               <button
                 type="button"
                 disabled
-                className="mx-auto mt-6 flex items-center justify-center gap-2 text-sm font-medium underline underline-offset-4"
-                style={{ color: 'var(--lp-ink)' }}
+                className="w-full mt-8 flex items-center justify-center gap-2 px-6 py-4 text-sm font-bold uppercase tracking-widest text-black bg-white rounded-full transition-colors hover:bg-white/90"
               >
-                {submitLabel} <ArrowRight className="h-3.5 w-3.5" />
+                {submitLabel} <ArrowRight className="h-4 w-4" />
               </button>
-            </>
+            </div>
           )}
-        </div>
+        </motion.div>
       </div>
     </section>
   )
@@ -1014,34 +608,6 @@ export function Portfolio({
           content={c.services}
           editable={editable}
           onChange={(patch) => slotChange('services', patch)}
-        />
-      )}
-      {!isHidden('features') && (
-        <FeatureListSection
-          content={c.features}
-          editable={editable}
-          onChange={(patch) => slotChange('features', patch)}
-        />
-      )}
-      {!isHidden('team') && (
-        <TeamSection
-          content={c.team}
-          editable={editable}
-          onChange={(patch) => slotChange('team', patch)}
-        />
-      )}
-      {!isHidden('logos') && (
-        <LogoCloudSection
-          content={c.logos}
-          editable={editable}
-          onChange={(patch) => slotChange('logos', patch)}
-        />
-      )}
-      {!isHidden('testimonials') && (
-        <TestimonialsSection
-          content={c.testimonials}
-          editable={editable}
-          onChange={(patch) => slotChange('testimonials', patch)}
         />
       )}
       <ContactSection
