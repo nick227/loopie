@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -7,13 +6,9 @@ import {
   useBusiness,
   useBusinessTeam,
   useCurrentUser,
-  useDisconnectIntegration,
-  useDisconnectPlatformConnection,
   useHomeSummary,
-  useIntegrations,
   useLogout,
   useMyBusinesses,
-  usePlatformConnection,
   useSetActiveBusiness,
 } from '@project/sdk'
 import { ProfilePage } from './ProfilePage'
@@ -23,20 +18,15 @@ vi.mock('@project/sdk', async (importOriginal) => ({
   useBilling: vi.fn(),
   useBusiness: vi.fn(),
   useCurrentUser: vi.fn(),
-  useDisconnectIntegration: vi.fn(),
-  useDisconnectPlatformConnection: vi.fn(),
   useHomeSummary: vi.fn(),
-  useIntegrations: vi.fn(),
   useLogout: vi.fn(),
-  usePlatformConnection: vi.fn(),
   useMyBusinesses: vi.fn(),
   useBusinessTeam: vi.fn(),
   useSetActiveBusiness: vi.fn(),
 }))
 
 describe('ProfilePage', () => {
-  it('shows active permissions and removes access after confirmation', async () => {
-    const disconnect = vi.fn().mockResolvedValue({})
+  it('shows account identity without the permissions ledger', () => {
     vi.mocked(useCurrentUser).mockReturnValue({
       data: {
         data: {
@@ -44,7 +34,7 @@ describe('ProfilePage', () => {
           email: 'owner@example.com',
           businessId: 'business-1',
           businessName: 'Midnight Creative',
-          role: 'ADMIN',
+          platformRole: 'SITE_ADMIN',
           membershipRole: 'OWNER',
           isFounder: true,
           jobTitle: 'Founder',
@@ -114,43 +104,6 @@ describe('ProfilePage', () => {
         },
       },
     } as unknown as ReturnType<typeof useBusiness>)
-    vi.mocked(useIntegrations).mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: { pages: [{ data: [], meta: { hasMore: false, nextCursor: null } }] },
-    } as unknown as ReturnType<typeof useIntegrations>)
-    vi.mocked(usePlatformConnection).mockImplementation(
-      (platform) =>
-        ({
-          isLoading: false,
-          isError: false,
-          data: {
-            data: {
-              platform,
-              status: platform === 'META' ? 'CONNECTED' : 'DISCONNECTED',
-              adAccountId: platform === 'META' ? 'act-42' : null,
-              pageId: null,
-              defaultCountry: 'US',
-              configured: true,
-              capabilities: {
-                oauth: true,
-                mappingFields: [],
-                pushDraft: true,
-                pullSpend: true,
-                activate: true,
-              },
-            },
-          },
-        }) as unknown as ReturnType<typeof usePlatformConnection>,
-    )
-    vi.mocked(useDisconnectPlatformConnection).mockReturnValue({
-      isPending: false,
-      mutateAsync: disconnect,
-    } as unknown as ReturnType<typeof useDisconnectPlatformConnection>)
-    vi.mocked(useDisconnectIntegration).mockReturnValue({
-      isPending: false,
-      mutateAsync: vi.fn(),
-    } as unknown as ReturnType<typeof useDisconnectIntegration>)
     vi.mocked(useLogout).mockReturnValue({
       isPending: false,
       mutateAsync: vi.fn(),
@@ -168,18 +121,12 @@ describe('ProfilePage', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('heading', { name: 'Permissions' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Permissions' })).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Midnight Creative' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'View public profile' })).toHaveAttribute(
       'href',
       '/b/midnight-creative',
     )
     expect(screen.getByRole('heading', { name: 'Your team' })).toBeInTheDocument()
-    expect(screen.getByText('Ad account act-42')).toBeInTheDocument()
-
-    const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Remove access' }))
-    await user.click(screen.getAllByRole('button', { name: 'Remove access' }).at(-1)!)
-    expect(disconnect).toHaveBeenCalledWith('META')
   })
 })

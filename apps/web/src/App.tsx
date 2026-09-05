@@ -287,6 +287,9 @@ const BillingPage = lazy(() =>
 const ProfilePage = lazy(() =>
   import('@/pages/core/ProfilePage').then((m) => ({ default: m.ProfilePage })),
 )
+const PermissionsPage = lazy(() =>
+  import('@/pages/core/PermissionsPage').then((m) => ({ default: m.PermissionsPage })),
+)
 const TeamPage = lazy(() => import('@/pages/team/TeamPage').then((m) => ({ default: m.TeamPage })))
 const TeamMemberPage = lazy(() =>
   import('@/pages/team/TeamMemberPage').then((m) => ({ default: m.TeamMemberPage })),
@@ -310,15 +313,35 @@ import { AuthGuard } from '@/lib/AuthGuard'
 import { ActivityPage } from './pages/activity/ActivityPage'
 import { ErrorBoundary } from '@/components/layout/ErrorBoundary'
 import {
-  RequireRole,
+  RequireMembershipRole,
+  RequirePlatformRole,
   RequireNonAffiliate,
   BusinessDefaultRoute,
   LegacyHomeRoute,
 } from '@/lib/RequireRole'
+import { BusinessAdminLayout } from '@/components/layout/BusinessAdminLayout'
+import { SiteAdminLayout } from '@/components/layout/SiteAdminLayout'
 import { Shell } from '@/components/layout/Shell'
 
 const PlatformsPage = lazy(() =>
   import('@/pages/platforms/PlatformsPage').then((m) => ({ default: m.PlatformsPage })),
+)
+const AdminBusinessesPage = lazy(() =>
+  import('@/pages/admin/AdminBusinessesPage').then((m) => ({ default: m.AdminBusinessesPage })),
+)
+const AdminAuditPage = lazy(() =>
+  import('@/pages/admin/AdminAuditPage').then((m) => ({ default: m.AdminAuditPage })),
+)
+const BusinessAuditPage = lazy(() =>
+  import('@/pages/business/BusinessAuditPage').then((m) => ({ default: m.BusinessAuditPage })),
+)
+const AdminBusinessDetailPage = lazy(() =>
+  import('@/pages/admin/AdminBusinessDetailPage').then((m) => ({
+    default: m.AdminBusinessDetailPage,
+  })),
+)
+const AdminUsersPage = lazy(() =>
+  import('@/pages/admin/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })),
 )
 const AffiliatesPage = lazy(() =>
   import('@/pages/affiliates/AffiliatesPage').then((m) => ({ default: m.AffiliatesPage })),
@@ -410,9 +433,12 @@ export function App() {
               <Route path="/business/setup" element={<BusinessSetupPage />} />
               <Route path="/invitations/:token" element={<AcceptInvitationPage />} />
               <Route element={<Shell />}>
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/team" element={<TeamPage />} />
-                <Route path="/team/members/:userId" element={<TeamMemberPage />} />
+                <Route element={<BusinessAdminLayout />}>
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/permissions" element={<PermissionsPage />} />
+                  <Route path="/team" element={<TeamPage />} />
+                  <Route path="/team/members/:userId" element={<TeamMemberPage />} />
+                </Route>
                 <Route path="/activity" element={<ActivityPage />} />
                 <Route element={<RequireNonAffiliate />}>
                   <Route index element={<BusinessDefaultRoute />} />
@@ -582,77 +608,100 @@ export function App() {
                   <Route path="/inbox" element={<Navigate to="/profile" replace />} />
                   <Route path="/results" element={<ResultsSummaryPage />} />
                   <Route path="/platforms" element={<PlatformsPage />} />
-                  <Route
-                    path="/affiliates"
-                    element={
-                      <RequireRole role="ADMIN">
-                        <AffiliatesPage />
-                      </RequireRole>
-                    }
-                  />
-                  <Route
-                    path="/affiliates/new"
-                    element={
-                      <RequireRole role="ADMIN">
-                        <CreateAffiliatePage />
-                      </RequireRole>
-                    }
-                  />
-                  <Route
-                    path="/affiliates/classes"
-                    element={
-                      <RequireRole role="ADMIN">
-                        <AffiliateClassesPage />
-                      </RequireRole>
-                    }
-                  />
-                  <Route
-                    path="/affiliates/payouts"
-                    element={
-                      <RequireRole role="ADMIN">
-                        <AffiliatePayoutsPage />
-                      </RequireRole>
-                    }
-                  />
-                  <Route
-                    path="/affiliates/:affiliateId"
-                    element={
-                      <RequireRole role="ADMIN">
-                        <AffiliateDetailPage />
-                      </RequireRole>
-                    }
-                  />
-                  <Route
-                    path="/billing"
-                    element={
-                      <RequireRole role="ADMIN">
-                        <BillingPage />
-                      </RequireRole>
-                    }
-                  />
+                  <Route element={<BusinessAdminLayout />}>
+                    <Route
+                      path="/affiliates"
+                      element={
+                        <RequireMembershipRole role="OWNER">
+                          <AffiliatesPage />
+                        </RequireMembershipRole>
+                      }
+                    />
+                    <Route
+                      path="/affiliates/new"
+                      element={
+                        <RequireMembershipRole role="OWNER">
+                          <CreateAffiliatePage />
+                        </RequireMembershipRole>
+                      }
+                    />
+                    <Route
+                      path="/affiliates/classes"
+                      element={
+                        <RequireMembershipRole role="OWNER">
+                          <AffiliateClassesPage />
+                        </RequireMembershipRole>
+                      }
+                    />
+                    <Route
+                      path="/affiliates/payouts"
+                      element={
+                        <RequireMembershipRole role="OWNER">
+                          <AffiliatePayoutsPage />
+                        </RequireMembershipRole>
+                      }
+                    />
+                    <Route
+                      path="/affiliates/:affiliateId"
+                      element={
+                        <RequireMembershipRole role="OWNER">
+                          <AffiliateDetailPage />
+                        </RequireMembershipRole>
+                      }
+                    />
+                    <Route
+                      path="/billing"
+                      element={
+                        <RequireMembershipRole role="OWNER">
+                          <BillingPage />
+                        </RequireMembershipRole>
+                      }
+                    />
+                    <Route
+                      path="/audit"
+                      element={
+                        <RequireMembershipRole role="OWNER">
+                          <BusinessAuditPage />
+                        </RequireMembershipRole>
+                      }
+                    />
+                  </Route>
                 </Route>
                 <Route
                   path="/portal"
                   element={
-                    <RequireRole role="AFFILIATE">
+                    <RequirePlatformRole role="AFFILIATE">
                       <AffiliatePortalHomePage />
-                    </RequireRole>
+                    </RequirePlatformRole>
                   }
                 />
                 <Route
                   path="/portal/team"
                   element={
-                    <RequireRole role="AFFILIATE">
+                    <RequirePlatformRole role="AFFILIATE">
                       <AffiliatePortalTeamPage />
-                    </RequireRole>
+                    </RequirePlatformRole>
                   }
                 />
                 <Route
+                  path="/admin"
+                  element={
+                    <RequirePlatformRole role="SITE_ADMIN">
+                      <SiteAdminLayout />
+                    </RequirePlatformRole>
+                  }
+                >
+                  <Route path="businesses" element={<AdminBusinessesPage />} />
+                  <Route path="businesses/:id" element={<AdminBusinessDetailPage />} />
+                  <Route path="users" element={<AdminUsersPage />} />
+                  <Route path="audit" element={<AdminAuditPage />} />
+                </Route>
+                <Route
                   path="/portal/payouts"
                   element={
-                    <RequireRole role="AFFILIATE">
+                    <RequirePlatformRole role="AFFILIATE">
                       <AffiliatePortalPayoutsPage />
-                    </RequireRole>
+                    </RequirePlatformRole>
                   }
                 />
               </Route>
