@@ -129,7 +129,9 @@ describe('calendar', () => {
       },
     })
 
-    const nextActionAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString()
+    // Stay inside the current local week: on Saturday, +2 days lands in next week and falls
+    // out of getBoard's today/thisWeek buckets (week ends Monday 00:00). +1 day stays visible.
+    const nextActionAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
     const updateRes = await app.inject({
       method: 'PATCH',
       url: `/leads/${lead.id}`,
@@ -673,7 +675,8 @@ describe('calendar', () => {
       },
     })
 
-    const nextActionAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString()
+    // Same week-boundary constraint as the mirror test above — +1 day, not +2.
+    const nextActionAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
     await app.inject({
       method: 'PATCH',
       url: `/leads/${lead.id}`,

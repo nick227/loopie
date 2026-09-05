@@ -1,6 +1,6 @@
 import './env'
 import { db, assertTestDatabaseUrl } from '@project/db'
-import { afterEach } from 'vitest'
+import { afterEach, vi } from 'vitest'
 
 // Hard safety net, not just a config default: this file's afterEach wipes EVERY table, so a
 // misconfigured DATABASE_URL (TEST_DATABASE_URL unset somewhere new, a future vitest.config.ts
@@ -12,6 +12,9 @@ assertTestDatabaseUrl(process.env.DATABASE_URL)
 // LandingPage <-> PublishedPageVersion is a genuine cycle (each has a FK to the other), so
 // LandingPage.publishedVersionId is nulled out before PublishedPageVersion rows are deleted.
 afterEach(async () => {
+  // licensing.test.ts (and any future unit test) can leave Vitest fake timers on; with
+  // singleFork that freezes Date for every later file and hangs real async I/O on timers.
+  vi.useRealTimers()
   await db.payoutItem.deleteMany()
   await db.payout.deleteMany()
   await db.commission.deleteMany()
@@ -129,6 +132,12 @@ afterEach(async () => {
   await db.businessInvitation.deleteMany()
   await db.businessMembership.deleteMany()
   await db.session.deleteMany()
+  // AuditEvent.supportSessionId has no onDelete cascade — must clear before AdminSupportSession
+  // (and before User, though actorUserId does cascade). Skipping this left support-mode tests
+  // failing afterEach with a FK error that then poisoned later files into 15s timeouts.
+  await db.auditEvent.deleteMany()
+  await db.adminSupportSession.deleteMany()
+  await db.businessLicense.deleteMany()
   await db.user.deleteMany()
   await db.platformConnection.deleteMany()
   await db.channelProvider.deleteMany()

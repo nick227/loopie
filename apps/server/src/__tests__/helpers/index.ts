@@ -100,6 +100,16 @@ async function seedTestUsers() {
     ],
     skipDuplicates: true,
   })
+  // setActiveBusiness's test/auth-bypass path mutates User.businessId in place. If a prior
+  // afterEach failed to wipe users (FK ordering), createMany's skipDuplicates would leave that
+  // dirty home-business pointer and every subsequent asAuth(testUserId) call would resolve the
+  // wrong tenant — reset explicitly so seed is authoritative either way.
+  await db.user.update({ where: { id: testUserId }, data: { businessId: testBusinessId } })
+  await db.user.update({
+    where: { id: testOtherUserId },
+    data: { businessId: testOtherBusinessId },
+  })
+  await db.user.update({ where: { id: testShopUserId }, data: { businessId: testBusinessId } })
   // Teams backfill — alice/bob are founders of their home businesses; shop is a member.
   await db.businessMembership.createMany({
     data: [
@@ -158,10 +168,23 @@ export function buildTestApp() {
         // Test auth: accept "Bearer <userId>" directly — no session lookup or bcrypt.
         // Tests are not testing the auth transport; they're testing business logic.
         async bearerAuth(request: any) {
-          const id = request.headers.authorization?.replace('Bearer ', '')
-          if (!id) throw { statusCode: 401, message: 'Unauthorized' }
+          const raw = request.headers.authorization?.replace('Bearer ', '')
+          if (!raw) throw { statusCode: 401, message: 'Unauthorized' }
+          const [id, supportSessionId, sessionId] = raw.split(':')
           const { loadAuthUser } = await import('../../lib/membership')
-          request.user = await loadAuthUser(id)
+          // A fabricated non-empty sessionId here (this used to default to the literal string
+          // 'dummy-session-id') is worse than none: TeamService.setActiveBusiness and admin.ts's
+          // support-session start/end both branch on `if (actor.sessionId)` to decide whether a
+          // real Session row exists to update — a fake truthy id sent every request without a
+          // real `:sessionId` suffix (i.e. every plain asAuth(userId) call) made them always take
+          // the real-session branch and fail with a Prisma P2025 on a row that was never created.
+          // undefined correctly falls through to each service's own documented test/auth-bypass
+          // path (see TeamService.ts's comment) — found via team.test.ts's cross-tenant failures.
+          request.user = await loadAuthUser(id, {
+            id: sessionId || undefined,
+            activeBusinessId: null,
+            supportSessionId: supportSessionId || null,
+          })
         },
       },
       noAdditional: true,
