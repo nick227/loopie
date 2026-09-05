@@ -16,35 +16,35 @@
     "lint": "echo 'no lint configured for server'"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1119.0",
-    "@fastify/cookie": "^9.0.0",
-    "@fastify/cors": "^9.0.0",
-    "@fastify/swagger": "^8.0.0",
-    "@fastify/swagger-ui": "^3.0.0",
-    "@prisma/client": "^5.0.0",
+    "@aws-sdk/client-s3": "^3.1124.0",
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/cors": "^11.3.0",
+    "@fastify/swagger": "^9.8.1",
+    "@fastify/swagger-ui": "^6.1.1",
+    "@prisma/client": "^7.10.0",
     "@project/ad-renderer": "workspace:*",
     "@project/db": "workspace:*",
     "@project/embed-contract": "workspace:*",
     "@project/page-renderer": "workspace:*",
     "@project/sdk": "workspace:*",
-    "bcryptjs": "^2.4.3",
-    "fastify": "^4.0.0",
+    "bcryptjs": "^3.0.3",
+    "fastify": "^5.12.1",
     "fastify-openapi-glue": "^4.0.0",
-    "js-yaml": "^4.0.0",
+    "js-yaml": "^5.4.1",
     "playwright": "^1.45.0",
     "resend": "^6.25.0",
-    "stripe": "^22.5.0"
+    "stripe": "^22.6.1"
   },
   "devDependencies": {
-    "@apidevtools/swagger-parser": "^10.0.0",
-    "@types/bcryptjs": "^2.4.0",
+    "@apidevtools/swagger-parser": "^12.1.0",
+    "@types/bcryptjs": "^3.0.0",
     "@types/js-yaml": "^4.0.0",
-    "@types/node": "^20.0.0",
+    "@types/node": "^26.4.1",
     "ajv": "^8.0.0",
     "ajv-formats": "^3.0.0",
-    "concurrently": "^8.2.2",
-    "tsx": "^4.0.0",
-    "typescript": "^5.0.0",
-    "vitest": "^2.0.0"
+    "concurrently": "^10.0.5",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
   }
 }
