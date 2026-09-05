@@ -51,7 +51,28 @@ export function verifyGoogleAuthState(state: string | undefined) {
   return parsed
 }
 
+/**
+ * Playwright e2e stub — only when GOOGLE_AUTH_E2E_STUB=1 and never in production.
+ * Codes: `e2e-existing` (demo@loopie.app) or `e2e-new:<email>`.
+ */
+function e2eStubIdentity(code: string): GoogleIdentity | null {
+  if (process.env.NODE_ENV === 'production') return null
+  if (process.env.GOOGLE_AUTH_E2E_STUB !== '1') return null
+  if (code === 'e2e-existing') {
+    return { email: 'demo@loopie.app', emailVerified: true, name: 'Demo User' }
+  }
+  if (code.startsWith('e2e-new:')) {
+    const email = code.slice('e2e-new:'.length)
+    if (!email.includes('@')) return null
+    return { email, emailVerified: true, name: 'E2E New User' }
+  }
+  return null
+}
+
 export async function exchangeGoogleAuthCode(code: string): Promise<GoogleIdentity> {
+  const stub = e2eStubIdentity(code)
+  if (stub) return stub
+
   const { clientId, clientSecret, redirectUri } = requireConfig()
   const token = await jsonFetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
