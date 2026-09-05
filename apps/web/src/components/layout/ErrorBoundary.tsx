@@ -5,6 +5,8 @@ import { Card, CardContent } from '@/components/ui/Card'
 interface Props {
   children?: ReactNode
   fallback?: ReactNode
+  /** When this changes while an error is showing, clear the error so the next route can render. */
+  resetKey?: string
 }
 
 interface State {
@@ -47,6 +49,16 @@ export class ErrorBoundary extends Component<Props, State> {
         alreadyTried = true
       }
       if (!alreadyTried) window.location.reload()
+    }
+  }
+
+  public componentDidUpdate(prevProps: Props) {
+    // Reset on navigation without remounting children. Keying this boundary by pathname used to
+    // tear down the previous page on every click, which defeated BrowserRouter's
+    // v7_startTransition (old UI stayed visible while the next lazy chunk loaded) and caused the
+    // first-visit tab flash users were seeing.
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false, error: undefined })
     }
   }
 

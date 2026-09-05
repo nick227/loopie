@@ -1,6 +1,9 @@
 import { LayoutTemplate, Send, Percent, Rows3, Trophy } from 'lucide-react'
 import type { components } from '@project/sdk'
-import { CollectionInsightsPanel } from '@/components/welcome/CollectionInsightsPanel'
+import {
+  CollectionInsightsPanel,
+  CollectionInsightsSkeleton,
+} from '@/components/welcome/CollectionInsightsPanel'
 
 type LandingPage = components['schemas']['LandingPage']
 
@@ -10,7 +13,14 @@ type LandingPage = components['schemas']['LandingPage']
 // best-performing) dominating the space it sat in. Replaced with real aggregate metrics across
 // the whole library instead — the numbers a business actually wants a glance at — plus a text-only
 // "best performer" line naming the actual top page by submissions, not a media card for it.
-export function PagesCollectionInsights({ pages }: { pages: LandingPage[] }) {
+export function PagesCollectionInsights({
+  pages,
+  loading = false,
+}: {
+  pages: LandingPage[]
+  loading?: boolean
+}) {
+  if (loading) return <CollectionInsightsSkeleton />
   if (pages.length === 0) return null
   const live = pages.filter((p) => p.status === 'PUBLISHED')
   const totalSubmissions = pages.reduce((sum, p) => sum + p.submissionCount, 0)

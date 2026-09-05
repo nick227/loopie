@@ -1,6 +1,9 @@
 import { Megaphone, Eye, Target, DollarSign, Trophy } from 'lucide-react'
 import type { components } from '@project/sdk'
-import { CollectionInsightsPanel } from '@/components/welcome/CollectionInsightsPanel'
+import {
+  CollectionInsightsPanel,
+  CollectionInsightsSkeleton,
+} from '@/components/welcome/CollectionInsightsPanel'
 
 type Advertisement = components['schemas']['Advertisement']
 
@@ -18,7 +21,14 @@ function money(value: number) {
 // -picked creative tiles wasn't insight, and it duplicated the row list immediately below it.
 // Real aggregate numbers instead, plus a text-only "top performer" line naming the single best ad
 // by results.
-export function AdsCollectionInsights({ ads }: { ads: Advertisement[] }) {
+export function AdsCollectionInsights({
+  ads,
+  loading = false,
+}: {
+  ads: Advertisement[]
+  loading?: boolean
+}) {
+  if (loading) return <CollectionInsightsSkeleton />
   if (ads.length === 0) return null
   const status = ads.map((a) => ({ ad: a, status: a.status ?? 'DRAFT' }))
   const running = status.filter((a) => a.status === 'RUNNING').length

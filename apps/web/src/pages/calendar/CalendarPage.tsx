@@ -1189,16 +1189,6 @@ export function CalendarPage() {
       : { from: new Date(anchor.getFullYear(), 0, 1), to: new Date(anchor.getFullYear() + 1, 0, 1) }
   const rangeQuery = useCalendarGoalsInRange(range.from.toISOString(), range.to.toISOString())
 
-  if (isLoading) {
-    return (
-      <div className="mx-auto max-w-2xl space-y-4">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-24 w-full" />
-      </div>
-    )
-  }
-
   const board = data?.data
   const today = board?.today ?? []
   const thisWeek = board?.thisWeek ?? []
@@ -1242,6 +1232,7 @@ export function CalendarPage() {
         thisWeek={thisWeek}
         recentlyCompleted={recentlyCompleted}
         ideas={ideas}
+        loading={isLoading}
       />
 
       <PageHeader
@@ -1255,7 +1246,13 @@ export function CalendarPage() {
         <QuickAddTask />
       </PageHeader>
 
-      {view === 'list' ? (
+      {isLoading ? (
+        <div className="space-y-3" aria-hidden="true">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      ) : view === 'list' ? (
         <ListView
           today={today}
           thisWeek={thisWeek}

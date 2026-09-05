@@ -2,7 +2,10 @@ import { useState } from 'react'
 import { Users, UserPlus, UserCheck, DollarSign, Trophy } from 'lucide-react'
 import { useContacts } from '@project/sdk'
 import { useFlatPages } from '@/hooks/useFlatPages'
-import { CollectionInsightsPanel } from '@/components/welcome/CollectionInsightsPanel'
+import {
+  CollectionInsightsPanel,
+  CollectionInsightsSkeleton,
+} from '@/components/welcome/CollectionInsightsPanel'
 
 function money(value: number) {
   return new Intl.NumberFormat('en-US', {
@@ -25,7 +28,8 @@ export function ContactsCollectionInsights() {
   // visit, not something that should shift moment-to-moment as the page sits open.
   const [sevenDaysAgo] = useState(() => Date.now() - 7 * 24 * 60 * 60 * 1000)
 
-  if (query.isLoading || contacts.length === 0) return null
+  if (query.isLoading) return <CollectionInsightsSkeleton />
+  if (contacts.length === 0) return null
   const customers = contacts.filter((c) => c.lifecycleStatus === 'CUSTOMER').length
   const newThisWeek = contacts.filter((c) => new Date(c.createdAt).getTime() >= sevenDaysAgo).length
   const totalRevenue = contacts.reduce((sum, c) => sum + (c.revenue ?? 0), 0)

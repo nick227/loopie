@@ -133,6 +133,11 @@
       slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
+  /* Route enter only — opacity, never translateY (that was causing structure jumps on tab switch). */
+  .page-enter {
+    animation: fade-in 0.18s ease-out forwards;
+  }
+
   .modal-backdrop {
     animation: fade-in 0.2s ease-out forwards;
   }
@@ -150,6 +155,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .animate-in,
+    .page-enter,
     .modal-backdrop,
     .modal-panel,
     .modal-sheet {

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Link, NavLink } from 'react-router-dom'
 import { X, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { prefetchRoute } from '@/lib/routePrefetch'
 
 export type MobileNavItem = {
   to: string
@@ -87,6 +88,8 @@ export function MobileNavDrawer({
               <Link
                 to="/profile"
                 onClick={onClose}
+                onMouseEnter={() => prefetchRoute('/profile')}
+                onFocus={() => prefetchRoute('/profile')}
                 className="mt-0.5 block truncate text-sm font-semibold text-foreground hover:underline"
               >
                 {businessName}
@@ -111,6 +114,8 @@ export function MobileNavDrawer({
                   to={item.to}
                   end={item.end}
                   onClick={onClose}
+                  onMouseEnter={() => prefetchRoute(item.to)}
+                  onFocus={() => prefetchRoute(item.to)}
                   className={({ isActive }) =>
                     cn(
                       'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',

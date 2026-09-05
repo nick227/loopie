@@ -1,6 +1,9 @@
 import { ListChecks, CalendarDays, CheckCircle2, Lightbulb } from 'lucide-react'
 import type { components } from '@project/sdk'
-import { CollectionInsightsPanel } from '@/components/welcome/CollectionInsightsPanel'
+import {
+  CollectionInsightsPanel,
+  CollectionInsightsSkeleton,
+} from '@/components/welcome/CollectionInsightsPanel'
 
 type ScheduledGoal = components['schemas']['ScheduledGoal']
 type GoalIdea = components['schemas']['GoalIdea']
@@ -13,12 +16,15 @@ export function CalendarCollectionInsights({
   thisWeek,
   recentlyCompleted,
   ideas,
+  loading = false,
 }: {
   today: ScheduledGoal[]
   thisWeek: ScheduledGoal[]
   recentlyCompleted: ScheduledGoal[]
   ideas: GoalIdea[]
+  loading?: boolean
 }) {
+  if (loading) return <CollectionInsightsSkeleton />
   return (
     <CollectionInsightsPanel
       stats={[

@@ -103,7 +103,7 @@ export function LandingPagesPage() {
 
   return (
     <div className="space-y-6">
-      <PagesCollectionInsights pages={items} />
+      <PagesCollectionInsights pages={items} loading={isLoading} />
 
       <PageHeader
         variant="list"

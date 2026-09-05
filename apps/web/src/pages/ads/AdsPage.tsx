@@ -104,7 +104,7 @@ export function AdsPage() {
 
   return (
     <div className="space-y-6">
-      <AdsCollectionInsights ads={items} />
+      <AdsCollectionInsights ads={items} loading={isLoading} />
 
       <PageHeader
         variant="list"

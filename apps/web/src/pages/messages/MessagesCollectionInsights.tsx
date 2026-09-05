@@ -1,6 +1,9 @@
 import { Send, Clock, FileText, Users, Radio } from 'lucide-react'
 import type { components } from '@project/sdk'
-import { CollectionInsightsPanel } from '@/components/welcome/CollectionInsightsPanel'
+import {
+  CollectionInsightsPanel,
+  CollectionInsightsSkeleton,
+} from '@/components/welcome/CollectionInsightsPanel'
 
 type Message = components['schemas']['Message']
 
@@ -12,7 +15,14 @@ function messageLabel(message: Message): string {
 // collection — the same icon-tile metrics panel Pages/Advertising/Contacts use. Recipients
 // reached is real, already-computed data (Message.recipientCount, summed across sent messages),
 // not a fabricated open-rate/engagement number no provider in this codebase can back.
-export function MessagesCollectionInsights({ messages }: { messages: Message[] }) {
+export function MessagesCollectionInsights({
+  messages,
+  loading = false,
+}: {
+  messages: Message[]
+  loading?: boolean
+}) {
+  if (loading) return <CollectionInsightsSkeleton />
   const sent = messages.filter((m) => m.status === 'SENT')
   const scheduled = messages.filter((m) => m.status === 'SCHEDULED').length
   const drafts = messages.filter((m) => m.status === 'DRAFT').length

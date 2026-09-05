@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 export type InsightStat = { icon: LucideIcon; value: string; label: string }
 export type InsightHighlight = { icon: LucideIcon; href: string; children: React.ReactNode }
@@ -22,6 +23,28 @@ function StatTile({ icon: Icon, value, label }: InsightStat) {
           {value}
         </p>
         <p className="truncate text-[11px] text-muted-foreground sm:text-xs">{label}</p>
+      </div>
+    </div>
+  )
+}
+
+/** Reserves the insights panel footprint while list data loads — prevents the panel popping in. */
+export function CollectionInsightsSkeleton({ tiles = 4 }: { tiles?: number }) {
+  return (
+    <div
+      className="min-w-0 overflow-hidden rounded-xl border border-border bg-surface p-3 sm:rounded-2xl sm:p-5"
+      aria-hidden="true"
+    >
+      <div className={cn('grid grid-cols-2 gap-3 sm:gap-4', GRID_COLS[tiles] ?? 'sm:grid-cols-4')}>
+        {Array.from({ length: tiles }).map((_, i) => (
+          <div key={i} className="flex min-w-0 items-start gap-2 sm:gap-3">
+            <Skeleton className="h-8 w-8 shrink-0 rounded-full sm:h-10 sm:w-10" />
+            <div className="min-w-0 flex-1 space-y-2 pt-0.5">
+              <Skeleton className="h-5 w-12 sm:h-7" />
+              <Skeleton className="h-3 w-20" />
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )

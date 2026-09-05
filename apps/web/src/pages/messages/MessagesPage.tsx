@@ -46,7 +46,7 @@ export function MessagesPage() {
 
   return (
     <div className="space-y-6">
-      <MessagesCollectionInsights messages={items} />
+      <MessagesCollectionInsights messages={items} loading={query.isLoading} />
 
       <PageHeader
         variant="list"

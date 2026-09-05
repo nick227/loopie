@@ -21,18 +21,30 @@ import { CreateMenu, CreateButtonTrigger } from '@/components/layout/CreateMenu'
 import { MobileNavDrawer, type MobileNavItem } from '@/components/layout/MobileNavDrawer'
 import { SetHeaderTitleContext } from '@/lib/headerContext'
 import { ErrorBoundary } from '@/components/layout/ErrorBoundary'
+import { PageEnter } from '@/components/layout/PageEnter'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { AssistantLauncher } from '@/components/assistant/AssistantLauncher'
+import { prefetchPrimaryRoutes, prefetchRoute } from '@/lib/routePrefetch'
 
-// Keyed by pathname so a page that crashed mid-render gets a clean slate on the next navigation,
-// without forcing Shell itself (header/nav) to remount — scoped to just the routed content, not
-// the whole layout. See App.tsx's own top-level boundary for why it no longer does this.
+// Persistent across navigations so BrowserRouter's v7_startTransition can keep the previous
+// page painted while the next lazy chunk loads. resetKey clears a crashed page on the next
+// route without remounting healthy content (that remount was the first-visit tab flash).
 function RouteContent() {
   const location = useLocation()
   return (
-    <ErrorBoundary key={location.pathname}>
-      <Suspense fallback={<Skeleton className="h-48 w-full" />}>
-        <Outlet />
+    <ErrorBoundary resetKey={location.pathname}>
+      <Suspense
+        fallback={
+          <div className="min-h-[28rem] space-y-4" aria-hidden="true">
+            <Skeleton className="h-10 w-48" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-40 w-full" />
+          </div>
+        }
+      >
+        <PageEnter key={location.pathname}>
+          <Outlet />
+        </PageEnter>
       </Suspense>
     </ErrorBoundary>
   )
@@ -79,6 +91,8 @@ function MessagesButton() {
       type="button"
       aria-label={unreadCount ? `Messages, ${unreadCount} unread` : 'Messages'}
       onClick={() => navigate('/messages')}
+      onMouseEnter={() => prefetchRoute('/messages')}
+      onFocus={() => prefetchRoute('/messages')}
       className="relative hidden h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:flex"
     >
       <Bell size={17} />
@@ -118,6 +132,10 @@ function Header({
     document.title = pageTitle ? `${pageTitle} · Loopie` : 'Loopie'
   }, [pageTitle])
 
+  useEffect(() => {
+    prefetchPrimaryRoutes()
+  }, [])
+
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-14 w-full max-w-[900px] min-w-0 items-center gap-1.5 px-3 sm:gap-2 sm:px-4">
@@ -131,7 +149,12 @@ function Header({
           <Menu size={20} />
         </button>
 
-        <Link to="/calendar" className="flex shrink-0 items-center gap-2 rounded-lg py-1.5 pr-1">
+        <Link
+          to="/calendar"
+          onMouseEnter={() => prefetchRoute('/calendar')}
+          onFocus={() => prefetchRoute('/calendar')}
+          className="flex shrink-0 items-center gap-2 rounded-lg py-1.5 pr-1"
+        >
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Command size={16} />
           </span>
@@ -139,6 +162,8 @@ function Header({
         {/* Active company — always visible (desktop + mobile). Switch companies from Profile → Your team. */}
         <Link
           to="/profile"
+          onMouseEnter={() => prefetchRoute('/profile')}
+          onFocus={() => prefetchRoute('/profile')}
           className="min-w-0 max-w-[8rem] truncate rounded-lg px-1 py-1.5 text-sm font-semibold tracking-tight text-foreground transition-colors hover:bg-accent sm:max-w-[10rem] sm:px-1.5"
         >
           {businessName ?? 'Loopie'}
@@ -153,6 +178,8 @@ function Header({
               key={tab.to}
               to={tab.to}
               end={tab.end}
+              onMouseEnter={() => prefetchRoute(tab.to)}
+              onFocus={() => prefetchRoute(tab.to)}
               className={({ isActive }) =>
                 cn(
                   'shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition-colors',
@@ -185,6 +212,8 @@ function Header({
           <NavLink
             to="/river"
             aria-label="River"
+            onMouseEnter={() => prefetchRoute('/river')}
+            onFocus={() => prefetchRoute('/river')}
             className={({ isActive }) =>
               cn(
                 'relative hidden h-9 w-9 items-center justify-center rounded-full transition-colors md:flex',
@@ -201,6 +230,8 @@ function Header({
             <NavLink
               to="/profile"
               aria-label="Profile"
+              onMouseEnter={() => prefetchRoute('/profile')}
+              onFocus={() => prefetchRoute('/profile')}
               className={({ isActive }) =>
                 cn(
                   'flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border bg-accent transition-colors hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
