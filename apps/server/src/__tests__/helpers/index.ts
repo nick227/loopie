@@ -166,6 +166,8 @@ export function buildTestApp() {
       },
       noAdditional: true,
     } as any)
+    const { registerGoogleSheetsOAuthAlias } = await import('../../handlers/crm')
+    registerGoogleSheetsOAuthAlias(app)
     await app.ready()
   })
 

@@ -24,11 +24,14 @@ const PAGE_SIZE = 250
 const PREVIEW_ROW_CAP = 5000
 
 function requireConfig() {
-  const clientId = process.env.GOOGLE_SHEETS_CLIENT_ID
-  const clientSecret = process.env.GOOGLE_SHEETS_CLIENT_SECRET
+  // Prefer Sheets-specific env; fall back to the shared Google OAuth client already used for login
+  // so one Console client (GOOGLE_CLIENT_ID/SECRET) covers both — redirect must match Console:
+  // {TRACKING_BASE_URL}/v1/integrations/google-sheets/callback
+  const clientId = process.env.GOOGLE_SHEETS_CLIENT_ID || process.env.GOOGLE_CLIENT_ID
+  const clientSecret = process.env.GOOGLE_SHEETS_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET
   const redirectUri =
     process.env.GOOGLE_SHEETS_REDIRECT_URI ??
-    `${process.env.TRACKING_BASE_URL ?? 'http://localhost:3001'}/integrations/GOOGLE_SHEETS/oauth/callback`
+    `${process.env.TRACKING_BASE_URL ?? 'http://localhost:3001'}/v1/integrations/google-sheets/callback`
   if (!clientId || !clientSecret)
     throw { statusCode: 503, message: 'Google Sheets is not configured' }
   return { clientId, clientSecret, redirectUri }
@@ -52,7 +55,10 @@ export const googleSheetsConnector: CrmLiveConnector = {
   capabilities: catalogEntry('GOOGLE_SHEETS')!.capabilities,
   oauth: true,
   configured: () =>
-    Boolean(process.env.GOOGLE_SHEETS_CLIENT_ID && process.env.GOOGLE_SHEETS_CLIENT_SECRET),
+    Boolean(
+      (process.env.GOOGLE_SHEETS_CLIENT_ID || process.env.GOOGLE_CLIENT_ID) &&
+      (process.env.GOOGLE_SHEETS_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET),
+    ),
   authUrl(state) {
     const { clientId, redirectUri } = requireConfig()
     const url = new URL('https://accounts.google.com/o/oauth2/v2/auth')

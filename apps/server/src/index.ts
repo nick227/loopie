@@ -71,6 +71,8 @@ async function main() {
 
   // health check — not in spec, always public
   server.get('/health', async () => ({ status: 'ok' }))
+  const { registerGoogleSheetsOAuthAlias } = await import('./handlers/crm')
+  registerGoogleSheetsOAuthAlias(server)
   server.get('/loopie.js', async (_request, reply) => {
     const body = readFileSync(resolve(__dirname, 'public/loopie.js'), 'utf-8')
     return reply

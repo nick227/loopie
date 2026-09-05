@@ -76,6 +76,15 @@ export async function handleCrmOAuthCallback(request: any, reply: any) {
   return reply.header('Cache-Control', 'no-store').redirect(302, redirectUrl)
 }
 
+/** Console-registered alias — same handler as /integrations/GOOGLE_SHEETS/oauth/callback. */
+export function registerGoogleSheetsOAuthAlias(server: {
+  get: (path: string, handler: (request: any, reply: any) => unknown) => unknown
+}) {
+  server.get('/v1/integrations/google-sheets/callback', async (request: any, reply: any) =>
+    handleCrmOAuthCallback({ params: { provider: 'GOOGLE_SHEETS' }, query: request.query }, reply),
+  )
+}
+
 export async function syncIntegration(request: any, reply: any) {
   const data = await sync.run(request.user.businessId, request.params.integrationId)
   return reply.send({ data })

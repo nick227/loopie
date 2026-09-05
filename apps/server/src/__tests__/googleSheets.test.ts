@@ -8,7 +8,7 @@ const app = buildTestApp()
 const GS_ENV = {
   GOOGLE_SHEETS_CLIENT_ID: 'gs-id',
   GOOGLE_SHEETS_CLIENT_SECRET: 'gs-secret',
-  GOOGLE_SHEETS_REDIRECT_URI: 'http://localhost:3001/integrations/GOOGLE_SHEETS/oauth/callback',
+  GOOGLE_SHEETS_REDIRECT_URI: 'http://localhost:3001/v1/integrations/google-sheets/callback',
   SESSION_SECRET: 'test-session-secret-at-least-32-chars',
   PUBLIC_APP_URL: 'http://localhost:5173',
 }
@@ -93,7 +93,7 @@ describe('Google Sheets CRM integration', () => {
     })
     const callback = await app.inject({
       method: 'GET',
-      url: `/integrations/GOOGLE_SHEETS/oauth/callback?code=abc&state=${encodeURIComponent(state)}`,
+      url: `/v1/integrations/google-sheets/callback?code=abc&state=${encodeURIComponent(state)}`,
     })
     expect(callback.statusCode).toBe(302)
 
@@ -225,7 +225,7 @@ describe('Google Sheets CRM integration', () => {
     })
     await app.inject({
       method: 'GET',
-      url: `/integrations/GOOGLE_SHEETS/oauth/callback?code=abc&state=${encodeURIComponent(state)}`,
+      url: `/v1/integrations/google-sheets/callback?code=abc&state=${encodeURIComponent(state)}`,
     })
 
     // Force the stored token to look already-expired.
@@ -254,5 +254,22 @@ describe('Google Sheets CRM integration', () => {
 
     const persisted = await db.integration.findUniqueOrThrow({ where: { id: row.id } })
     expect(persisted.credentialsEnc).not.toBe(beforeRefresh.credentialsEnc)
+  })
+
+  it('uses shared GOOGLE_CLIENT_* when Sheets-specific env is unset', async () => {
+    vi.stubEnv('GOOGLE_CLIENT_ID', 'shared-id')
+    vi.stubEnv('GOOGLE_CLIENT_SECRET', 'shared-secret')
+    vi.stubEnv('SESSION_SECRET', 'test-session-secret-at-least-32-chars')
+    stubGoogleFetch()
+
+    const start = await app.inject({
+      method: 'GET',
+      url: '/integrations/GOOGLE_SHEETS/oauth/start',
+      headers: asAuth(testUserId),
+    })
+    expect(start.statusCode).toBe(200)
+    const url = start.json().data.url as string
+    expect(url).toContain('client_id=shared-id')
+    expect(url).toContain(encodeURIComponent('/v1/integrations/google-sheets/callback'))
   })
 })
