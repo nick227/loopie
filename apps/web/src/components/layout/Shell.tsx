@@ -136,10 +136,10 @@ function Header({
             <Command size={16} />
           </span>
         </Link>
-        {/* Active company — switch companies from Profile → Your team. */}
+        {/* Active company — always visible (desktop + mobile). Switch companies from Profile → Your team. */}
         <Link
           to="/profile"
-          className="hidden min-w-0 max-w-[10rem] truncate rounded-lg px-1.5 py-1.5 text-sm font-semibold tracking-tight text-foreground transition-colors hover:bg-accent md:inline"
+          className="min-w-0 max-w-[8rem] truncate rounded-lg px-1 py-1.5 text-sm font-semibold tracking-tight text-foreground transition-colors hover:bg-accent sm:max-w-[10rem] sm:px-1.5"
         >
           {businessName ?? 'Loopie'}
         </Link>
