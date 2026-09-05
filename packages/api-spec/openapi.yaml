@@ -269,13 +269,13 @@ components:
     # ---------- Auth ----------
     User:
       type: object
-      required: [id, email, businessId, role, createdAt, membershipRole, isFounder]
+      required: [id, email, businessId, platformRole, createdAt, membershipRole, isFounder]
       properties:
         id: { type: string }
         email: { type: string }
         businessId: { type: string }
         businessName: { type: string }
-        role: { type: string, enum: [USER, ADMIN, AFFILIATE] }
+        platformRole: { type: string, enum: [USER, SITE_ADMIN, AFFILIATE] }
         membershipRole:
           {
             type: string,
@@ -4774,6 +4774,82 @@ components:
         name: { type: string, minLength: 1, maxLength: 100 }
 
 paths:
+  # ---------- Admin ----------
+  /admin/businesses:
+    get:
+      operationId: adminListBusinesses
+      summary: List businesses (Site Admin only)
+      tags: [admin]
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/SearchQuery'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, nextCursor]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name, slug, createdAt, memberCount, ownerName, ownerEmail]
+                      properties:
+                        id: { type: string }
+                        name: { type: string }
+                        slug: { type: string, nullable: true }
+                        createdAt: { type: string, format: date-time }
+                        memberCount: { type: integer }
+                        ownerName: { type: string, nullable: true }
+                        ownerEmail: { type: string, nullable: true }
+                        subscriptionStatus: { type: string, nullable: true }
+                  nextCursor: { type: string, nullable: true }
+
+  /admin/users:
+    get:
+      operationId: adminListUsers
+      summary: List users (Site Admin only)
+      tags: [admin]
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/SearchQuery'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, nextCursor]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, email, platformRole, isVerified, createdAt, businesses]
+                      properties:
+                        id: { type: string }
+                        email: { type: string }
+                        platformRole: { type: string }
+                        isVerified: { type: boolean }
+                        createdAt: { type: string, format: date-time }
+                        lastActiveAt: { type: string, format: date-time, nullable: true }
+                        businesses:
+                          type: array
+                          items:
+                            type: object
+                            required: [id, name, role]
+                            properties:
+                              id: { type: string }
+                              name: { type: string }
+                              role: { type: string }
+                  nextCursor: { type: string, nullable: true }
+
   # ---------- Embed Deployments ----------
   /embed-deployments/get-or-create:
     post:
@@ -5053,6 +5129,48 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AuthResponse' }
+
+  /auth/google:
+    get:
+      operationId: startGoogleAuth
+      summary: Start Google OAuth login/registration
+      security: []
+      tags: [auth]
+      parameters:
+        - in: query
+          name: returnTo
+          schema: { type: string }
+          description: Path on the web app to return to after login (must start with /). New accounts always land on /business/setup.
+      responses:
+        '302':
+          description: Redirects to Google's OAuth consent screen
+          headers:
+            Location: { schema: { type: string } }
+        '503':
+          description: Google login is not configured
+
+  /auth/google/callback:
+    get:
+      operationId: handleGoogleAuthCallback
+      summary: Google OAuth callback
+      security: []
+      tags: [auth]
+      parameters:
+        - in: query
+          name: code
+          schema: { type: string }
+        - in: query
+          name: state
+          schema: { type: string }
+        - in: query
+          name: error
+          schema: { type: string }
+      responses:
+        '302':
+          description: Sets the session cookie and redirects to the web app (or /login on failure)
+          headers:
+            Location: { schema: { type: string } }
+            Set-Cookie: { schema: { type: string } }
 
   /auth/logout:
     post:

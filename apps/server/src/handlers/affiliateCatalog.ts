@@ -16,12 +16,18 @@ export async function createAffiliateClass(request: any, reply: any) {
 
 export async function getAffiliateClass(request: any, reply: any) {
   requireAdmin(request.user)
-  return reply.send({ data: await catalog.getClass(request.user.businessId, request.params.classId) })
+  return reply.send({
+    data: await catalog.getClass(request.user.businessId, request.params.classId),
+  })
 }
 
 export async function updateAffiliateClass(request: any, reply: any) {
   requireAdmin(request.user)
-  const row = await catalog.updateClass(request.user.businessId, request.params.classId, request.body)
+  const row = await catalog.updateClass(
+    request.user.businessId,
+    request.params.classId,
+    request.body,
+  )
   return reply.send({ data: row })
 }
 
@@ -47,6 +53,8 @@ export async function updateAffiliateDeal(request: any, reply: any) {
   return reply.send({ data: row })
 }
 
-function requireAdminOrAffiliateForDeals(user: { role: string }) {
-  if (user.role !== 'ADMIN' && user.role !== 'AFFILIATE') throw { statusCode: 403, message: 'Forbidden' }
+function requireAdminOrAffiliateForDeals(user: { membershipRole: string; platformRole: string }) {
+  if (user.membershipRole !== 'OWNER' && user.platformRole !== 'AFFILIATE') {
+    throw { statusCode: 403, message: 'Forbidden' }
+  }
 }

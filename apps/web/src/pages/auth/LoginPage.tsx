@@ -6,6 +6,7 @@ import { Form } from '@/components/ui/Form'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import type { FieldConfig } from '@/components/ui/Form'
+import { startGoogleAuth } from '@/lib/googleAuth'
 
 const schema = z.object({
   email: z.string().email(),
@@ -66,7 +67,7 @@ export function LoginPage() {
               variant="outline"
               type="button"
               className="w-full"
-              onClick={() => console.log('Google login clicked')}
+              onClick={() => startGoogleAuth(returnTo)}
             >
               <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                 <path

@@ -35,7 +35,9 @@ describe('business landing routes', () => {
   it('uses Calendar as the default destination', () => {
     vi.mocked(useCurrentUser).mockReturnValue({
       isLoading: false,
-      data: { data: { role: 'ADMIN', businessIdentityCompletedAt: '2026-01-01T00:00:00.000Z' } },
+      data: {
+        data: { platformRole: 'USER', businessIdentityCompletedAt: '2026-01-01T00:00:00.000Z' },
+      },
     } as ReturnType<typeof useCurrentUser>)
 
     render(
@@ -53,7 +55,9 @@ describe('business landing routes', () => {
   it('sends the retired Home URL to the combined private profile', () => {
     vi.mocked(useCurrentUser).mockReturnValue({
       isLoading: false,
-      data: { data: { role: 'ADMIN', businessIdentityCompletedAt: '2026-01-01T00:00:00.000Z' } },
+      data: {
+        data: { platformRole: 'USER', businessIdentityCompletedAt: '2026-01-01T00:00:00.000Z' },
+      },
     } as ReturnType<typeof useCurrentUser>)
 
     render(

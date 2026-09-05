@@ -13,6 +13,7 @@ import {
   LayoutTemplate,
   Megaphone,
   Users,
+  Shield,
 } from 'lucide-react'
 import { useCurrentUser, useInboxThreads, useLogout } from '@project/sdk'
 import { AD_CREATIVE_STYLESHEET } from '@project/ad-renderer'
@@ -110,12 +111,14 @@ function Header({
   pageTitle,
   businessName,
   email,
+  platformRole,
   isLoading,
   isAuthenticated,
 }: {
   pageTitle: string | null
   businessName?: string
   email?: string
+  platformRole?: string
   // River is the one route Shell renders outside <AuthGuard/> (see App.tsx) — an anonymous
   // visitor can land here directly, so the trailing action cluster (Create/Bell/Profile, all of
   // which need an authenticated account) has to degrade gracefully instead of assuming `me`
@@ -206,6 +209,25 @@ function Header({
 
           {isAuthenticated ? <AssistantLauncher /> : null}
 
+          {isAuthenticated && platformRole === 'SITE_ADMIN' ? (
+            <NavLink
+              to="/admin/businesses"
+              aria-label="Platform Admin"
+              onMouseEnter={() => prefetchRoute('/admin/businesses')}
+              onFocus={() => prefetchRoute('/admin/businesses')}
+              className={({ isActive }) =>
+                cn(
+                  'relative hidden h-9 w-9 items-center justify-center rounded-full transition-colors md:flex',
+                  isActive
+                    ? 'bg-accent text-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                )
+              }
+            >
+              <Shield size={17} />
+            </NavLink>
+          ) : null}
+
           {/* The one route Shell renders for an anonymous visitor too (River, outside
               <AuthGuard/> — see App.tsx) — always visible on desktop; mobile reaches it via
               the drawer. */}
@@ -268,8 +290,7 @@ export function Shell() {
   const logout = useLogout()
   const navigate = useNavigate()
   const me = useCurrentUser()
-  const role = me.data?.data?.role ?? 'USER'
-  const isAffiliate = role === 'AFFILIATE'
+  const isAffiliate = me.data?.data?.platformRole === 'AFFILIATE'
   const isAuthenticated = Boolean(me.data?.data)
   const landingPageMatch = useMatch('/landing-pages/:landingPageId')
   const isLandingPageEditor =
@@ -382,6 +403,7 @@ export function Shell() {
         pageTitle={pageTitle}
         businessName={me.data?.data?.businessName}
         email={me.data?.data?.email}
+        platformRole={me.data?.data?.platformRole}
         isLoading={me.isLoading}
         isAuthenticated={isAuthenticated}
       />

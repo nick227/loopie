@@ -50,7 +50,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => ({
 describe('Shell profile navigation', () => {
   beforeEach(() => {
     vi.mocked(useCurrentUser).mockReturnValue({
-      data: { data: { email: 'owner@example.com', role: 'ADMIN' } },
+      data: { data: { email: 'owner@example.com', platformRole: 'USER' } },
     } as unknown as ReturnType<typeof useCurrentUser>)
     vi.mocked(useLogout).mockReturnValue({
       mutateAsync: vi.fn(),

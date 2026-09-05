@@ -38,7 +38,8 @@ function roleLabel(role: string | undefined, isFounder?: boolean, membershipRole
   if (isFounder) return 'Founder'
   if (membershipRole === 'OWNER') return 'Owner'
   if (membershipRole === 'MEMBER') return 'Team member'
-  if (role === 'ADMIN') return 'Account owner'
+  if (role === 'SITE_ADMIN') return 'Site administrator'
+  if (membershipRole === 'OWNER') return 'Account owner'
   if (role === 'AFFILIATE') return 'Affiliate'
   return 'Team member'
 }
@@ -275,7 +276,7 @@ export function ProfilePage() {
   const logout = useLogout()
   const navigate = useNavigate()
   const user = me.data?.data
-  const isAffiliate = user?.role === 'AFFILIATE'
+  const isAffiliate = user?.platformRole === 'AFFILIATE'
 
   async function handleLogout() {
     await logout.mutateAsync()
@@ -310,7 +311,7 @@ export function ProfilePage() {
                 {user.email}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                {roleLabel(user.role, user.isFounder, user.membershipRole)} · Member since{' '}
+                {roleLabel(user.platformRole, user.isFounder, user.membershipRole)} · Member since{' '}
                 {new Date(user.createdAt).toLocaleDateString(undefined, {
                   month: 'short',
                   year: 'numeric',
@@ -353,7 +354,7 @@ export function ProfilePage() {
               Sign out
             </Button>
           </section>
-          {user.role === 'ADMIN' ? <BillingSummary /> : null}
+          {user.membershipRole === 'OWNER' ? <BillingSummary /> : null}
         </aside>
       </div>
     </div>

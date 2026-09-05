@@ -228,10 +228,16 @@ describe('public capture and auth', () => {
     })
     expect(res.statusCode).toBe(201)
     expect(res.json().data.email).toBe('hash.me@example.com')
+    expect(res.json().data.platformRole).toBe('USER')
+    expect(res.json().data.membershipRole).toBe('OWNER')
+    expect(res.json().data.isFounder).toBe(true)
 
     const cookie = String(res.headers['set-cookie'] ?? '')
     const raw = cookie.match(/token=([^;]+)/)?.[1]
     expect(raw).toBeTruthy()
+
+    const storedUser = await db.user.findUniqueOrThrow({ where: { email: 'hash.me@example.com' } })
+    expect(storedUser.platformRole).toBe('USER')
 
     const stored = await db.session.findFirst({ where: { user: { email: 'hash.me@example.com' } } })
     expect(stored).toBeTruthy()

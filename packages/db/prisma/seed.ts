@@ -39,7 +39,9 @@ async function main() {
   )
   for (const a of SEED_ACCOUNTS) {
     const tenant = a.businessId === riverside.id ? 'Riverside' : 'Oak Street'
-    console.log(`  ${a.email.padEnd(32)} ${a.role.padEnd(10)} ${tenant.padEnd(12)} ${a.label}`)
+    console.log(
+      `  ${a.email.padEnd(32)} ${a.platformRole.padEnd(15)} ${tenant.padEnd(12)} ${a.label}`,
+    )
   }
   console.log('Seeding complete.')
 }
