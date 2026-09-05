@@ -131,6 +131,7 @@ export function BusinessProfilePage() {
   const showFollow = Boolean(me.data?.data) && !profile.isOwnProfile
 
   async function toggleFollow() {
+    if (!profile) return
     setFollowError(null)
     try {
       if (profile.viewerIsFollowing) await unfollow.mutateAsync(business.id)

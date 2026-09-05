@@ -18,7 +18,7 @@ export function RiverCompanionRail() {
   const { data: adsData } = useAdvertisements({ limit: 3 })
   const { data: activityData } = useActivityStream({ limit: 5 })
 
-  const adsCount = adsData?.meta?.totalCount ?? 0
+  const adsCount = adsData?.data?.length ?? 0
 
   const readyToShare = [
     ...(landingPagesData?.pages?.[0]?.data ?? []).map((p: LandingPage) => ({
