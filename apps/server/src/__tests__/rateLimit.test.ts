@@ -110,8 +110,8 @@ describe('publicRateLimit plugin', () => {
     delete process.env.VITEST // the hook no-ops entirely under VITEST — see publicRateLimit.ts
     const app = Fastify()
     app.addHook('onRequest', publicRateLimit)
-    app.post('/attribution/form-submit', async () => ({ ok: true }))
-    app.get('/health', async () => ({ ok: true }))
+    app.post('/attribution/form-submit', () => ({ ok: true }))
+    app.get('/health', () => ({ ok: true }))
     await app.ready()
 
     const ip = '203.0.113.1' // TEST-NET-3, distinct per test run's bucket key

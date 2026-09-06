@@ -79,7 +79,7 @@ export class PlatformConnectionService {
     return this._load(businessId, platform, connector)
   }
 
-  async startOAuth(businessId: string, platformRaw: string, returnPath?: string) {
+  startOAuth(businessId: string, platformRaw: string, returnPath?: string) {
     const platform = asPlatform(platformRaw)
     const connector = getConnector(platform)
     if (!connector.capabilities.oauth)

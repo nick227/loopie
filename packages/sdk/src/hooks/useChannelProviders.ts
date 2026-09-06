@@ -16,7 +16,7 @@ export function useChannelProviders(params?: { channel?: Channel }) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
   })
@@ -31,7 +31,7 @@ export function useCreateChannelProvider() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['channel-providers'] }),
@@ -50,13 +50,13 @@ export function useUpdateChannelProvider() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['channel-providers'] })
+      void queryClient.invalidateQueries({ queryKey: ['channel-providers'] })
       // A rename propagates implicitly to every interaction referencing it.
-      queryClient.invalidateQueries({ queryKey: ['contact'] })
+      void queryClient.invalidateQueries({ queryKey: ['contact'] })
     },
   })
 }

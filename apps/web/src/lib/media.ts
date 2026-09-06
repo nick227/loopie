@@ -51,3 +51,21 @@ export const PLACEMENT_LABEL: Record<string, string> = {
   STORY: '9:16 Story',
   LANDSCAPE: '16:9 Landscape',
 }
+
+export const MEDIA_TYPES = ['IMAGE', 'VIDEO', 'AUDIO', 'TEXT'] as const
+export type MediaTypeFilter = (typeof MEDIA_TYPES)[number] | ''
+
+// Pulls a hero/media slot's image URL out of a LandingPage's raw `content` blob — used as the
+// list-view thumbnail fallback whenever there's no cached screenshot yet (see PagePreviewThumb).
+export function thumbUrl(content: unknown): string | null {
+  if (!content || typeof content !== 'object') return null
+  const c = content as Record<string, unknown>
+  for (const group of ['hero', 'media'] as const) {
+    const slot = c[group]
+    if (!slot || typeof slot !== 'object') continue
+    const media = (slot as { media?: { url?: unknown }; url?: unknown }).media ?? slot
+    const url = (media as { url?: unknown }).url
+    if (typeof url === 'string' && url) return url
+  }
+  return null
+}

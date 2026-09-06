@@ -22,7 +22,7 @@ export function AssistantLauncher() {
         type="button"
         aria-label={hasNextAction ? 'Loopie Assistant, a next step is ready' : 'Loopie Assistant'}
         onClick={() => setOpen(true)}
-        className="relative flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        className="relative hidden md:flex flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
       >
         <Bot size={18} />
         {hasNextAction ? (

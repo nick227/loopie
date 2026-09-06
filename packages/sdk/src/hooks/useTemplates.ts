@@ -27,11 +27,13 @@ export function useTemplates(params?: { channel?: string; limit?: number }) {
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
       const client = getApiClient()
-      const result = await client.GET('/templates', { params: { query: { ...params, cursor: pageParam } as any } })
+      const result = await client.GET('/templates', {
+        params: { query: { ...params, cursor: pageParam } as any },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
@@ -43,11 +45,13 @@ export function useTemplate(templateId: string) {
     queryKey: ['template', templateId],
     queryFn: async () => {
       const client = getApiClient()
-      const result = await client.GET('/templates/{templateId}', { params: { path: { templateId } } })
+      const result = await client.GET('/templates/{templateId}', {
+        params: { path: { templateId } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!templateId,
@@ -63,7 +67,7 @@ export function useCreateTemplate() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['templates', 'list'] }),
@@ -75,16 +79,19 @@ export function useUpdateTemplate() {
   return useMutation({
     mutationFn: async ({ templateId, ...body }: UpdateTemplateInput) => {
       const client = getApiClient()
-      const result = await client.PATCH('/templates/{templateId}', { params: { path: { templateId } }, body })
+      const result = await client.PATCH('/templates/{templateId}', {
+        params: { path: { templateId } },
+        body,
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['templates', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['template', variables.templateId] })
+      void queryClient.invalidateQueries({ queryKey: ['templates', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['template', variables.templateId] })
     },
   })
 }
@@ -94,10 +101,12 @@ export function useDeleteTemplate() {
   return useMutation({
     mutationFn: async (templateId: string) => {
       const client = getApiClient()
-      const result = await client.DELETE('/templates/{templateId}', { params: { path: { templateId } } })
+      const result = await client.DELETE('/templates/{templateId}', {
+        params: { path: { templateId } },
+      })
       const err = result.error
       const status = result.response.status
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['templates', 'list'] }),
   })

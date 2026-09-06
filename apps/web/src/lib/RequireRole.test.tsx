@@ -14,8 +14,8 @@ describe('RequireNonAffiliate', () => {
     vi.mocked(useCurrentUser).mockReturnValue({
       isLoading: false,
       isError: false,
-      data: { data: { role: 'AFFILIATE' } },
-    } as ReturnType<typeof useCurrentUser>)
+      data: { data: { platformRole: 'AFFILIATE' } },
+    } as unknown as ReturnType<typeof useCurrentUser>)
     render(
       <MemoryRouter initialEntries={['/contacts']}>
         <Routes>
@@ -38,7 +38,7 @@ describe('business landing routes', () => {
       data: {
         data: { platformRole: 'USER', businessIdentityCompletedAt: '2026-01-01T00:00:00.000Z' },
       },
-    } as ReturnType<typeof useCurrentUser>)
+    } as unknown as ReturnType<typeof useCurrentUser>)
 
     render(
       <MemoryRouter initialEntries={['/']}>
@@ -58,7 +58,7 @@ describe('business landing routes', () => {
       data: {
         data: { platformRole: 'USER', businessIdentityCompletedAt: '2026-01-01T00:00:00.000Z' },
       },
-    } as ReturnType<typeof useCurrentUser>)
+    } as unknown as ReturnType<typeof useCurrentUser>)
 
     render(
       <MemoryRouter initialEntries={['/home']}>

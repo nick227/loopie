@@ -242,7 +242,7 @@ const MediaYoutubeBlock = ({ content, set }: CanvasBlockProps) => {
 }
 
 // Registry mapping section types to their respective React components
-export const BLOCK_REGISTRY: Record<string, React.FC<CanvasBlockProps>> = {
+const BLOCK_REGISTRY: Record<string, React.FC<CanvasBlockProps>> = {
   hero: HeroBlock,
   'feature-grid': FeatureGridBlock,
   'form-embed': FormEmbedBlock,

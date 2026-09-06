@@ -79,7 +79,7 @@ export function useCampaignFunding(campaignId: string) {
 }
 
 function invalidateFinance(queryClient: ReturnType<typeof useQueryClient>) {
-  queryClient.invalidateQueries({ queryKey: ['finance'] })
+  void queryClient.invalidateQueries({ queryKey: ['finance'] })
 }
 
 export function useRecordClientFunding() {

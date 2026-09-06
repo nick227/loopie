@@ -51,7 +51,7 @@ export function useCreateAdvertisement() {
       return unwrap(await client.POST('/advertisements', { body: input }))
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['advertisements'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements'] })
     },
   })
 }
@@ -69,8 +69,8 @@ export function useUpdateAdvertisement() {
       )
     },
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['advertisements'] })
-      queryClient.invalidateQueries({ queryKey: ['advertisements', id] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements', id] })
     },
   })
 }
@@ -87,7 +87,7 @@ export function useDeleteAdvertisement() {
       )
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['advertisements'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements'] })
     },
   })
 }
@@ -113,8 +113,8 @@ export function usePublishAdvertisement() {
       )
     },
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['advertisements'] })
-      queryClient.invalidateQueries({ queryKey: ['advertisements', id] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements', id] })
     },
   })
 }
@@ -152,13 +152,13 @@ export function useCreateAdRun() {
       )
     },
     onSuccess: (_, { advertisementId }) => {
-      queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
       // A run mutation changes the parent Advertisement's own derived status/spend/destinations
       // aggregate too (advertisementSummary.ts, computed server-side from live runs) — without
       // this, the Advertising collection and Inbox's Running card read stale for up to the query
       // client's 30s staleTime after Back. Same bug class found and fixed on the Pages side
       // (usePublishLandingPage, packages/sdk/src/hooks/useLandingPages.ts).
-      queryClient.invalidateQueries({ queryKey: ['advertisements'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements'] })
     },
   })
 }
@@ -167,7 +167,7 @@ export function useUpdateAdRun() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({
-      advertisementId,
+      advertisementId: _advertisementId,
       runId,
       ...input
     }: UpdateAdRunInput & { advertisementId: string; runId: string }) => {
@@ -180,13 +180,13 @@ export function useUpdateAdRun() {
       )
     },
     onSuccess: (_, { advertisementId }) => {
-      queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
       // A run mutation changes the parent Advertisement's own derived status/spend/destinations
       // aggregate too (advertisementSummary.ts, computed server-side from live runs) — without
       // this, the Advertising collection and Inbox's Running card read stale for up to the query
       // client's 30s staleTime after Back. Same bug class found and fixed on the Pages side
       // (usePublishLandingPage, packages/sdk/src/hooks/useLandingPages.ts).
-      queryClient.invalidateQueries({ queryKey: ['advertisements'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements'] })
     },
   })
 }
@@ -194,7 +194,13 @@ export function useUpdateAdRun() {
 export function usePauseAdRun() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ advertisementId, runId }: { advertisementId: string; runId: string }) => {
+    mutationFn: async ({
+      advertisementId: _advertisementId,
+      runId,
+    }: {
+      advertisementId: string
+      runId: string
+    }) => {
       const client = getApiClient()
       return unwrap(
         await client.POST('/ad-runs/{adRunId}/pause', {
@@ -203,13 +209,13 @@ export function usePauseAdRun() {
       )
     },
     onSuccess: (_, { advertisementId }) => {
-      queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
       // A run mutation changes the parent Advertisement's own derived status/spend/destinations
       // aggregate too (advertisementSummary.ts, computed server-side from live runs) — without
       // this, the Advertising collection and Inbox's Running card read stale for up to the query
       // client's 30s staleTime after Back. Same bug class found and fixed on the Pages side
       // (usePublishLandingPage, packages/sdk/src/hooks/useLandingPages.ts).
-      queryClient.invalidateQueries({ queryKey: ['advertisements'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements'] })
     },
   })
 }
@@ -217,7 +223,13 @@ export function usePauseAdRun() {
 export function useResumeAdRun() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ advertisementId, runId }: { advertisementId: string; runId: string }) => {
+    mutationFn: async ({
+      advertisementId: _advertisementId,
+      runId,
+    }: {
+      advertisementId: string
+      runId: string
+    }) => {
       const client = getApiClient()
       return unwrap(
         await client.POST('/ad-runs/{adRunId}/resume', {
@@ -226,13 +238,13 @@ export function useResumeAdRun() {
       )
     },
     onSuccess: (_, { advertisementId }) => {
-      queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
       // A run mutation changes the parent Advertisement's own derived status/spend/destinations
       // aggregate too (advertisementSummary.ts, computed server-side from live runs) — without
       // this, the Advertising collection and Inbox's Running card read stale for up to the query
       // client's 30s staleTime after Back. Same bug class found and fixed on the Pages side
       // (usePublishLandingPage, packages/sdk/src/hooks/useLandingPages.ts).
-      queryClient.invalidateQueries({ queryKey: ['advertisements'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements'] })
     },
   })
 }
@@ -240,7 +252,13 @@ export function useResumeAdRun() {
 export function useEndAdRun() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ advertisementId, runId }: { advertisementId: string; runId: string }) => {
+    mutationFn: async ({
+      advertisementId: _advertisementId,
+      runId,
+    }: {
+      advertisementId: string
+      runId: string
+    }) => {
       const client = getApiClient()
       return unwrap(
         await client.POST('/ad-runs/{adRunId}/end', {
@@ -249,13 +267,13 @@ export function useEndAdRun() {
       )
     },
     onSuccess: (_, { advertisementId }) => {
-      queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
       // A run mutation changes the parent Advertisement's own derived status/spend/destinations
       // aggregate too (advertisementSummary.ts, computed server-side from live runs) — without
       // this, the Advertising collection and Inbox's Running card read stale for up to the query
       // client's 30s staleTime after Back. Same bug class found and fixed on the Pages side
       // (usePublishLandingPage, packages/sdk/src/hooks/useLandingPages.ts).
-      queryClient.invalidateQueries({ queryKey: ['advertisements'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements'] })
     },
   })
 }
@@ -264,7 +282,7 @@ export function useUpdateAdRunBudget() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({
-      advertisementId,
+      advertisementId: _advertisementId,
       runId,
       dailyBudget,
     }: {
@@ -281,13 +299,13 @@ export function useUpdateAdRunBudget() {
       )
     },
     onSuccess: (_, { advertisementId }) => {
-      queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
       // A run mutation changes the parent Advertisement's own derived status/spend/destinations
       // aggregate too (advertisementSummary.ts, computed server-side from live runs) — without
       // this, the Advertising collection and Inbox's Running card read stale for up to the query
       // client's 30s staleTime after Back. Same bug class found and fixed on the Pages side
       // (usePublishLandingPage, packages/sdk/src/hooks/useLandingPages.ts).
-      queryClient.invalidateQueries({ queryKey: ['advertisements'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements'] })
     },
   })
 }
@@ -296,7 +314,7 @@ export function useUpdateAdRunSchedule() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({
-      advertisementId,
+      advertisementId: _advertisementId,
       runId,
       startDate,
       endDate,
@@ -315,13 +333,13 @@ export function useUpdateAdRunSchedule() {
       )
     },
     onSuccess: (_, { advertisementId }) => {
-      queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
       // A run mutation changes the parent Advertisement's own derived status/spend/destinations
       // aggregate too (advertisementSummary.ts, computed server-side from live runs) — without
       // this, the Advertising collection and Inbox's Running card read stale for up to the query
       // client's 30s staleTime after Back. Same bug class found and fixed on the Pages side
       // (usePublishLandingPage, packages/sdk/src/hooks/useLandingPages.ts).
-      queryClient.invalidateQueries({ queryKey: ['advertisements'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements'] })
     },
   })
 }
@@ -330,7 +348,7 @@ export function useUpdateAdRunTargeting() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({
-      advertisementId,
+      advertisementId: _advertisementId,
       runId,
       country,
       locationNote,
@@ -351,13 +369,13 @@ export function useUpdateAdRunTargeting() {
       )
     },
     onSuccess: (_, { advertisementId }) => {
-      queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
       // A run mutation changes the parent Advertisement's own derived status/spend/destinations
       // aggregate too (advertisementSummary.ts, computed server-side from live runs) — without
       // this, the Advertising collection and Inbox's Running card read stale for up to the query
       // client's 30s staleTime after Back. Same bug class found and fixed on the Pages side
       // (usePublishLandingPage, packages/sdk/src/hooks/useLandingPages.ts).
-      queryClient.invalidateQueries({ queryKey: ['advertisements'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements'] })
     },
   })
 }
@@ -366,7 +384,7 @@ export function useReplaceAdRunCreative() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({
-      advertisementId,
+      advertisementId: _advertisementId,
       runId,
       idempotencyKey,
     }: {
@@ -383,13 +401,13 @@ export function useReplaceAdRunCreative() {
       )
     },
     onSuccess: (_, { advertisementId }) => {
-      queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
       // A run mutation changes the parent Advertisement's own derived status/spend/destinations
       // aggregate too (advertisementSummary.ts, computed server-side from live runs) — without
       // this, the Advertising collection and Inbox's Running card read stale for up to the query
       // client's 30s staleTime after Back. Same bug class found and fixed on the Pages side
       // (usePublishLandingPage, packages/sdk/src/hooks/useLandingPages.ts).
-      queryClient.invalidateQueries({ queryKey: ['advertisements'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements'] })
     },
   })
 }
@@ -398,7 +416,7 @@ export function useReplaceAdRunDestination() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({
-      advertisementId,
+      advertisementId: _advertisementId,
       runId,
       destinationLandingPageId,
       idempotencyKey,
@@ -417,13 +435,13 @@ export function useReplaceAdRunDestination() {
       )
     },
     onSuccess: (_, { advertisementId }) => {
-      queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
       // A run mutation changes the parent Advertisement's own derived status/spend/destinations
       // aggregate too (advertisementSummary.ts, computed server-side from live runs) — without
       // this, the Advertising collection and Inbox's Running card read stale for up to the query
       // client's 30s staleTime after Back. Same bug class found and fixed on the Pages side
       // (usePublishLandingPage, packages/sdk/src/hooks/useLandingPages.ts).
-      queryClient.invalidateQueries({ queryKey: ['advertisements'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements'] })
     },
   })
 }
@@ -431,7 +449,13 @@ export function useReplaceAdRunDestination() {
 export function useSyncAdRun() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ advertisementId, runId }: { advertisementId: string; runId: string }) => {
+    mutationFn: async ({
+      advertisementId: _advertisementId,
+      runId,
+    }: {
+      advertisementId: string
+      runId: string
+    }) => {
       const client = getApiClient()
       return unwrap(
         await client.POST('/ad-runs/{adRunId}/sync', {
@@ -440,13 +464,13 @@ export function useSyncAdRun() {
       )
     },
     onSuccess: (_, { advertisementId }) => {
-      queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements', advertisementId, 'runs'] })
       // A run mutation changes the parent Advertisement's own derived status/spend/destinations
       // aggregate too (advertisementSummary.ts, computed server-side from live runs) — without
       // this, the Advertising collection and Inbox's Running card read stale for up to the query
       // client's 30s staleTime after Back. Same bug class found and fixed on the Pages side
       // (usePublishLandingPage, packages/sdk/src/hooks/useLandingPages.ts).
-      queryClient.invalidateQueries({ queryKey: ['advertisements'] })
+      void queryClient.invalidateQueries({ queryKey: ['advertisements'] })
     },
   })
 }

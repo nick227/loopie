@@ -4,8 +4,9 @@ import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { CanvasText } from '../../../../pages/landing-pages/components/CanvasText'
 import type { TestimonialItem } from '../../../../pages/landing-pages/components/types'
 import { Eyebrow, type SectionProps } from './shared'
-import { ColorWash, FrameInner, SnapPanel, useMotionPanel, washForIndex } from './SnapPanel'
-import { useStudioMotionDisabled } from './motion'
+import { ColorWash, FrameInner, SnapPanel } from './SnapPanel'
+import { useStudioMotionDisabled, useMotionPanel } from './motion'
+import { washForIndex } from './tokens'
 
 /**
  * Frame gesture: quote letter-spacing tightens from open tracking into readable

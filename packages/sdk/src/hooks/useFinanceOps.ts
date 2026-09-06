@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { getApiClient, ApiError } from '../client'
 
 function invalidateFinance(queryClient: ReturnType<typeof useQueryClient>) {
-  queryClient.invalidateQueries({ queryKey: ['finance'] })
+  void queryClient.invalidateQueries({ queryKey: ['finance'] })
 }
 
 export function useAuthorizeCampaignBudget() {

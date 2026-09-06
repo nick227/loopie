@@ -6,7 +6,9 @@ export function dollarsToMinor(dollars: number): number {
 }
 
 export function formatUsd(amountMinor: number): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amountMinor / 100)
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(
+    amountMinor / 100,
+  )
 }
 
 export function formatBps(bps: number | null | undefined): string {
@@ -20,4 +22,9 @@ export function formatDollars(amount: number): string {
 
 export function newIdempotencyKey(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`
+}
+
+export function rateLabel(bps: number | null | undefined, rule: string) {
+  if (rule === 'FIXED') return 'Fixed'
+  return formatBps(bps)
 }

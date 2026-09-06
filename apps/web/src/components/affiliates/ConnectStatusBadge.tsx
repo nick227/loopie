@@ -1,19 +1,4 @@
-export function connectStatusLabel(status: string) {
-  if (status === 'ONBOARDING') return 'Onboarding'
-  if (status === 'READY') return 'Ready'
-  if (status === 'RESTRICTED') return 'Restricted'
-  return 'Not connected'
-}
-
-export function payoutQueueLabel(
-  openPayoutStatus: string | null | undefined,
-  payableMinor: number,
-) {
-  if (openPayoutStatus === 'PENDING') return 'Sending'
-  if (openPayoutStatus === 'TRANSFERRED') return 'Transferred'
-  if (payableMinor > 0) return 'Payable'
-  return null
-}
+import { connectStatusLabel } from '@/lib/affiliateSplit'
 
 // Tint-pair pill, same convention as AdRow/PageRow's status pills — ready is a positive/success
 // state, restricted is worth a second look (warning), onboarding is in-progress (info), and an

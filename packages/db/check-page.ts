@@ -1,4 +1,5 @@
 import { db } from './src/client'
+import type { Prisma } from '@prisma/client'
 async function main() {
   const business = await db.business.findFirst()
   if (!business) return console.log('No business found')
@@ -7,7 +8,11 @@ async function main() {
     where: { id: 'system-template-corporate-professional' },
   })
 
-  console.log('TEMPLATE HAS BLOCKS?', !!(template?.schema as any)?.blocks)
+  type SchemaWithBlocks = { blocks?: unknown[] }
+  console.log(
+    'TEMPLATE HAS BLOCKS?',
+    !!(template?.schema as unknown as SchemaWithBlocks | undefined)?.blocks,
+  )
 
   const page = await db.landingPage.create({
     data: {
@@ -15,12 +20,13 @@ async function main() {
       templateId: 'system-template-corporate-professional',
       name: 'Test Page',
       slug: 'test-page-' + Date.now(),
-      content: template?.schema as any,
+      content: template?.schema as Prisma.InputJsonValue,
     },
   })
 
-  console.log('CREATED PAGE HAS BLOCKS?', !!(page.content as any)?.blocks)
-  console.log('NUM BLOCKS:', (page.content as any)?.blocks?.length)
+  const content = page.content as unknown as SchemaWithBlocks
+  console.log('CREATED PAGE HAS BLOCKS?', !!content?.blocks)
+  console.log('NUM BLOCKS:', content?.blocks?.length)
 }
 main()
   .catch(console.error)

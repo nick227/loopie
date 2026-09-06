@@ -29,7 +29,7 @@ async function createTemplate() {
 
 describe('page thumbnail cache', () => {
   beforeEach(() => {
-    setCapturePageThumbnail(async () => ({
+    setCapturePageThumbnail(() => ({
       buffer: Buffer.from(
         '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAGfAP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAQUCf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Bf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Bf//Z',
         'base64',
@@ -187,7 +187,7 @@ describe('page thumbnail cache', () => {
   })
 
   it('processPending marks FAILED when capture throws', async () => {
-    setCapturePageThumbnail(async () => {
+    setCapturePageThumbnail(() => {
       throw new Error('browser missing')
     })
     const template = await createTemplate()
@@ -223,7 +223,7 @@ describe('page thumbnail cache', () => {
   })
 
   it('list re-enqueues FAILED only after the retry window', async () => {
-    setCapturePageThumbnail(async () => {
+    setCapturePageThumbnail(() => {
       throw new Error('browser missing')
     })
     const template = await createTemplate()
@@ -317,7 +317,7 @@ describe('page thumbnail cache', () => {
     // Simulate a late worker finishing v12 after v13 is already live.
     await new PageThumbnailService().processOne(
       (await db.pageThumbnail.findUniqueOrThrow({ where: { publishedVersionId: v12 } })).id,
-      async () => ({
+      () => ({
         buffer: Buffer.from('late-v12'),
         mimeType: 'image/jpeg',
         widthPx: 640,

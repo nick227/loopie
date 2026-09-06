@@ -36,7 +36,7 @@ export async function disconnectPlatformConnection(
   return reply.send({ data })
 }
 
-export async function startPlatformOAuth(
+export function startPlatformOAuth(
   request: {
     user: { businessId: string }
     params: { platform: string }
@@ -44,7 +44,7 @@ export async function startPlatformOAuth(
   },
   reply: { send: (body: unknown) => unknown },
 ) {
-  const data = await platformService.startOAuth(
+  const data = platformService.startOAuth(
     request.user.businessId,
     request.params.platform,
     request.query.returnPath,

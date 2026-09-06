@@ -112,7 +112,7 @@ export const woocommerceConnector: CrmLiveConnector = {
   authUrl() {
     throw { statusCode: 400, message: 'WooCommerce uses read-only API keys' }
   },
-  async exchangeCode() {
+  exchangeCode() {
     throw { statusCode: 400, message: 'WooCommerce uses read-only API keys' }
   },
   async listContacts(consumerKey, cursor, opts) {

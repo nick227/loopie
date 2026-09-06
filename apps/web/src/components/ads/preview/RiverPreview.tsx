@@ -1,5 +1,6 @@
 import type { AdPreviewDraft } from './types'
-import { AdPreviewMedia, truncate } from './shared'
+import { AdPreviewMedia } from './shared'
+import { truncate } from './previewHelpers'
 
 export function RiverPreview({ advertisement }: { advertisement: AdPreviewDraft }) {
   const cta = advertisement.ctaLabel.trim() || 'Learn More'

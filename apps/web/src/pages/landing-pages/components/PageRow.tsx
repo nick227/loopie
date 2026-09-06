@@ -19,19 +19,6 @@ const STATUS_TONE: Record<string, UniversalRowAccent> = {
   ARCHIVED: 'neutral',
 }
 
-export function thumbUrl(content: LandingPage['content']): string | null {
-  if (!content || typeof content !== 'object') return null
-  const c = content as Record<string, unknown>
-  for (const group of ['hero', 'media'] as const) {
-    const slot = c[group]
-    if (!slot || typeof slot !== 'object') continue
-    const media = (slot as { media?: { url?: unknown }; url?: unknown }).media ?? slot
-    const url = (media as { url?: unknown }).url
-    if (typeof url === 'string' && url) return url
-  }
-  return null
-}
-
 // The one-line performance takeaway a business actually wants at a glance — real data only,
 // never a manufactured metric. `isBestPerformer` is decided by the caller across the whole
 // collection (same computation PagesCollectionInsights already does), so at most one row ever

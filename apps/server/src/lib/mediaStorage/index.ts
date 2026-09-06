@@ -1,7 +1,6 @@
 import { randomUUID } from 'crypto'
 import type { FastifyInstance } from 'fastify'
 import {
-  BODY_LIMIT_BYTES,
   EXT_BY_MIME,
   MAX_BYTES,
   assertSafeKey,
@@ -78,7 +77,7 @@ export async function saveThumbnailFile(input: { sourceChecksum: string; buffer:
   }
 }
 
-export async function registerUploadStatic(server: FastifyInstance) {
+export function registerUploadStatic(server: FastifyInstance) {
   server.get('/uploads/:filename', async (request, reply) => {
     const filename = (request.params as { filename: string }).filename
     assertSafeKey(filename)

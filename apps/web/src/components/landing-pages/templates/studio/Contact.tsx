@@ -3,8 +3,9 @@ import { CanvasText } from '../../../../pages/landing-pages/components/CanvasTex
 import { EditableLinkTrigger } from '../../../../pages/landing-pages/components/editable/EditableLinkTrigger'
 import { FormFieldsEditor, type FormFieldDraft } from '@/components/forms/FormFieldsEditor'
 import { SolidCta, type SectionProps } from './shared'
-import { ColorWash, FrameInner, SnapPanel, useMotionPanel, washForIndex } from './SnapPanel'
-import { BODY, TITLE } from './tokens'
+import { ColorWash, FrameInner, SnapPanel } from './SnapPanel'
+import { useMotionPanel } from './motion'
+import { BODY, TITLE, washForIndex } from './tokens'
 
 /**
  * Closing frame: rising color wash behind the inquiry form (same ColorWash

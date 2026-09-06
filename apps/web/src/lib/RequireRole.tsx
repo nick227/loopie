@@ -3,13 +3,41 @@ import { Navigate, Outlet } from 'react-router-dom'
 import { ApiError, useCurrentUser } from '@project/sdk'
 import { PageSpinner } from '@/components/ui/Spinner'
 
-export function RequireRole({ role, children }: { role: string | string[]; children: ReactNode }) {
+export function RequirePlatformRole({
+  role,
+  children,
+}: {
+  role: string | string[]
+  children: ReactNode
+}) {
   const me = useCurrentUser()
   if (me.isLoading) return <PageSpinner />
-  const current = me.data?.data?.role
+  const current = me.data?.data?.platformRole
   if (!current) return <Navigate to="/login" replace />
   const allowed = Array.isArray(role) ? role.includes(current) : current === role
   if (!allowed) return <Navigate to={current === 'AFFILIATE' ? '/portal' : '/calendar'} replace />
+  return children
+}
+
+export function RequireMembershipRole({
+  role,
+  children,
+}: {
+  role: string | string[]
+  children: ReactNode
+}) {
+  const me = useCurrentUser()
+  if (me.isLoading) return <PageSpinner />
+  const current = me.data?.data?.membershipRole
+  if (!current) return <Navigate to="/login" replace />
+  const allowed = Array.isArray(role) ? role.includes(current) : current === role
+  if (!allowed)
+    return (
+      <Navigate
+        to={me.data?.data?.platformRole === 'AFFILIATE' ? '/portal' : '/calendar'}
+        replace
+      />
+    )
   return children
 }
 
@@ -25,14 +53,14 @@ export function RequireNonAffiliate() {
       </p>
     )
   }
-  if (me.data?.data?.role === 'AFFILIATE') return <Navigate to="/portal" replace />
+  if (me.data?.data?.platformRole === 'AFFILIATE') return <Navigate to="/portal" replace />
   return <Outlet />
 }
 
 function useBusinessDestination(destination: '/calendar' | '/profile') {
   const me = useCurrentUser()
   if (me.isLoading) return <PageSpinner />
-  if (me.data?.data?.role === 'AFFILIATE') return <Navigate to="/portal" replace />
+  if (me.data?.data?.platformRole === 'AFFILIATE') return <Navigate to="/portal" replace />
   // First-login step 0 (docs/strategy/03-product-principles.md) — a business that has never
   // saved its identity lands on setup instead of Inbox. A one-time nudge, not a hard gate: once
   // saved, businessIdentityCompletedAt never goes back to null, and nothing else in the app

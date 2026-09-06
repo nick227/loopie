@@ -1,6 +1,13 @@
-import { db, trackBaseClick, withSid, clickRedirectUrl } from '@project/db'
+import { db, trackBaseClick, withSid, type LayoutConfig } from '@project/db'
+import type { Prisma } from '@prisma/client'
 import crypto from 'crypto'
-import { renderLandingPageHtml, type FormSnapshot } from '@project/page-renderer'
+import {
+  renderLandingPageHtml,
+  type FormSnapshot,
+  type TemplateSchema,
+  type PageTheme,
+  type AdSlotEmbedItem,
+} from '@project/page-renderer'
 import { renderAdCreativeDocument } from '@project/ad-renderer'
 import { buildAdCreativeInput } from '../lib/adCreativeInput'
 
@@ -22,7 +29,7 @@ export class EmbedServingService {
     let normalizedOrigin = origin
     try {
       normalizedOrigin = new URL(origin).origin
-    } catch (e) {
+    } catch {
       // Invalid origin
     }
 
@@ -146,14 +153,16 @@ export class EmbedServingService {
 
       return renderLandingPageHtml({
         pageName: 'Landing Page', // In a real scenario, this would come from a title in the payload or landingPage table
-        templateSchema: (pageVersion.schemaSnapshot as any) ?? {},
+        templateSchema: (pageVersion.schemaSnapshot as unknown as TemplateSchema) ?? {},
         content: pageVersion.content,
-        theme: (pageVersion.theme as any) ?? {},
-        layoutConfig: (pageVersion.layoutConfig as any) ?? {},
+        theme: (pageVersion.theme as unknown as PageTheme) ?? {},
+        layoutConfig: (pageVersion.layoutConfig as unknown as LayoutConfig) ?? {},
         form: pageVersion.formSnapshot as unknown as FormSnapshot,
         submitActionUrl: `/v1/embed/${publicId}/submit?instanceId=${instance.id}`,
         sessionToken: undefined, // Embeds might not use standard sessions for form submits out of the box in this slice
-        adSlots: (pageVersion.adSlotSnapshot as any) ?? [],
+        adSlots:
+          (pageVersion.adSlotSnapshot as unknown as
+            { placement: string; context?: string; items: AdSlotEmbedItem[] }[] | null) ?? [],
         injectedHeadScripts,
       })
     }
@@ -355,7 +364,7 @@ export class EmbedServingService {
     return { redirectUrl, sessionId: sidToken }
   }
 
-  async recordSubmission(publicId: string, instanceId: string, data: any) {
+  async recordSubmission(publicId: string, instanceId: string, data: Record<string, unknown>) {
     const deployment = await db.embedDeployment.findUnique({
       where: { publicId },
       include: { activePageVersion: true, landingPage: true },
@@ -377,13 +386,13 @@ export class EmbedServingService {
     }
 
     // Validate using the frozen snapshot
-    const formSnapshot = deployment.activePageVersion.formSnapshot as any
+    const formSnapshot = deployment.activePageVersion.formSnapshot as unknown as FormSnapshot | null
     if (!formSnapshot || !formSnapshot.fields) {
       throw { statusCode: 400, message: 'Form snapshot is missing on published page' }
     }
 
     // Required fields check and data sanitization
-    const cleanData: Record<string, any> = {}
+    const cleanData: Record<string, unknown> = {}
     for (const field of formSnapshot.fields) {
       if (field.required && !data[field.fieldKey]) {
         throw {
@@ -410,7 +419,7 @@ export class EmbedServingService {
           embedDeploymentId: deployment.id,
           embedVersionId: deployment.activePageVersion!.id,
           embedInstanceId: instanceId,
-          data: cleanData,
+          data: cleanData as Prisma.InputJsonValue,
         },
       })
 

@@ -35,7 +35,7 @@ export function useLandingPageTemplates(params?: { limit?: number }) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
@@ -53,7 +53,7 @@ export function useLandingPageTemplate(templateId: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!templateId,
@@ -72,7 +72,7 @@ export function useLandingPages(params?: { status?: string; limit?: number }) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
@@ -90,7 +90,7 @@ export function useLandingPage(landingPageId: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!landingPageId,
@@ -108,7 +108,7 @@ export function useLandingPageVersions(landingPageId: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!landingPageId,
@@ -126,7 +126,7 @@ export function useExportLandingPage(landingPageId: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!landingPageId,
@@ -144,7 +144,7 @@ export function useLandingPagePerformance(landingPageId: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!landingPageId,
@@ -160,7 +160,7 @@ export function useCreateLandingPage() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['landingPages', 'list'] }),
@@ -179,14 +179,16 @@ export function useUpdateLandingPage() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['landingPages', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['landingPage', variables.landingPageId] })
+      void queryClient.invalidateQueries({ queryKey: ['landingPages', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['landingPage', variables.landingPageId] })
       if (variables.templateId) {
-        queryClient.invalidateQueries({ queryKey: ['landingPageTemplate', variables.templateId] })
+        void queryClient.invalidateQueries({
+          queryKey: ['landingPageTemplate', variables.templateId],
+        })
       }
     },
   })
@@ -202,7 +204,7 @@ export function useDeleteLandingPage() {
       })
       const err = result.error
       const status = result.response.status
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['landingPages', 'list'] }),
   })
@@ -219,17 +221,17 @@ export function usePublishLandingPage() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, landingPageId) => {
-      queryClient.invalidateQueries({ queryKey: ['landingPage', landingPageId] })
-      queryClient.invalidateQueries({ queryKey: ['landingPage', landingPageId, 'versions'] })
+      void queryClient.invalidateQueries({ queryKey: ['landingPage', landingPageId] })
+      void queryClient.invalidateQueries({ queryKey: ['landingPage', landingPageId, 'versions'] })
       // Inbox's Running "Pages" doorway and the Pages collection both read this same query key —
       // without this, a page that just went live reads stale (still "Draft") for up to
       // queryClient's 30s staleTime on Back to either surface. Found while wiring the Pages
       // reference-implementation acceptance flow (docs/strategy/03-product-principles.md).
-      queryClient.invalidateQueries({ queryKey: ['landingPages', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['landingPages', 'list'] })
     },
   })
 }
@@ -249,8 +251,8 @@ export function useRefreshLandingPageThumbnail() {
       return data!
     },
     onSuccess: (_data, landingPageId) => {
-      queryClient.invalidateQueries({ queryKey: ['landingPage', landingPageId] })
-      queryClient.invalidateQueries({ queryKey: ['landingPages', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['landingPage', landingPageId] })
+      void queryClient.invalidateQueries({ queryKey: ['landingPages', 'list'] })
     },
   })
 }
@@ -287,9 +289,9 @@ export function useReplaceLandingPageAdSlots(landingPageId: string) {
       return data!
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['landingPage', landingPageId] })
-      queryClient.invalidateQueries({ queryKey: ['landingPages', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['landingPage', landingPageId, 'export'] })
+      void queryClient.invalidateQueries({ queryKey: ['landingPage', landingPageId] })
+      void queryClient.invalidateQueries({ queryKey: ['landingPages', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['landingPage', landingPageId, 'export'] })
     },
   })
 }

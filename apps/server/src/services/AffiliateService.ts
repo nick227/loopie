@@ -3,7 +3,7 @@ import { db } from '@project/db'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { isUniqueConflict } from '../lib/prismaError'
 import { dealPolicyFromRow } from '../lib/affiliateRates'
-import type { AuthedUser } from '../lib/affiliateRoles'
+import type { AuthUser } from '../lib/membership'
 import {
   affiliateInclude,
   assertDealWithinClassCaps,
@@ -22,7 +22,7 @@ function randomPassword(): string {
 }
 
 export class AffiliateService {
-  async list(user: AuthedUser, opts: { cursor?: string; limit?: number }) {
+  async list(user: AuthUser, opts: { cursor?: string; limit?: number }) {
     const limit = normalizeLimit(opts.limit)
     const cursor = decodeCursor(opts.cursor)
     const AND: object[] = []
@@ -34,8 +34,10 @@ export class AffiliateService {
         ],
       })
     }
-    if (user.role === 'AFFILIATE') {
-      const me = await db.affiliate.findFirst({ where: { userId: user.id, businessId: user.businessId } })
+    if (user.platformRole === 'AFFILIATE') {
+      const me = await db.affiliate.findFirst({
+        where: { userId: user.id, businessId: user.businessId },
+      })
       if (!me) throw { statusCode: 404, message: 'Affiliate not found' }
       AND.push({ OR: [{ id: me.id }, { managerId: me.id }] })
     }
@@ -48,11 +50,20 @@ export class AffiliateService {
     const hasMore = affiliates.length > limit
     const items = hasMore ? affiliates.slice(0, limit) : affiliates
     const last = items[items.length - 1]
-    const nextCursor = hasMore && last ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id }) : null
-    return { data: await withFrozenMoney(user.businessId, items.map((row) => toAffiliateDTO(row))), meta: { hasMore, nextCursor } }
+    const nextCursor =
+      hasMore && last
+        ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
+        : null
+    return {
+      data: await withFrozenMoney(
+        user.businessId,
+        items.map((row) => toAffiliateDTO(row)),
+      ),
+      meta: { hasMore, nextCursor },
+    }
   }
 
-  async me(user: AuthedUser) {
+  async me(user: AuthUser) {
     const row = await db.affiliate.findFirst({
       where: { userId: user.id, businessId: user.businessId },
       include: affiliateInclude,
@@ -61,7 +72,7 @@ export class AffiliateService {
     return (await withFrozenMoney(user.businessId, [toAffiliateDTO(row)]))[0]
   }
 
-  async get(user: AuthedUser, affiliateId: string) {
+  async get(user: AuthUser, affiliateId: string) {
     const row = await findAffiliate(user.businessId, affiliateId)
     await this._assertCanView(user, row)
     return (await withFrozenMoney(user.businessId, [toAffiliateDTO(row)]))[0]
@@ -77,24 +88,33 @@ export class AffiliateService {
     let initialPassword: string | undefined
     let userId: string | undefined
     if (data.createLogin) {
-      if (!data.email) throw { statusCode: 400, message: 'email is required when createLogin is true' }
+      if (!data.email)
+        throw { statusCode: 400, message: 'email is required when createLogin is true' }
       initialPassword = randomPassword()
       const user = await db.user.create({
         data: {
           email: data.email as string,
           passwordHash: await bcrypt.hash(initialPassword, 12),
           businessId,
-          role: 'AFFILIATE',
+          platformRole: 'AFFILIATE',
         },
       })
       userId = user.id
     }
 
     if (data.referralCode) {
-      const clash = await db.affiliate.findUnique({ where: { referralCode: data.referralCode as string } })
+      const clash = await db.affiliate.findUnique({
+        where: { referralCode: data.referralCode as string },
+      })
       if (clash) throw { statusCode: 409, message: 'Referral code already in use' }
-        const row = await this._createRow(businessId, data, data.referralCode as string, userId, dealId)
-        return this._view(businessId, row, initialPassword ? { initialPassword } : undefined)
+      const row = await this._createRow(
+        businessId,
+        data,
+        data.referralCode as string,
+        userId,
+        dealId,
+      )
+      return this._view(businessId, row, initialPassword ? { initialPassword } : undefined)
     }
 
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -108,18 +128,23 @@ export class AffiliateService {
     throw { statusCode: 500, message: 'Could not generate a unique referral code' }
   }
 
-  async update(user: AuthedUser, affiliateId: string, data: Record<string, unknown>) {
+  async update(user: AuthUser, affiliateId: string, data: Record<string, unknown>) {
     const existing = await findAffiliate(user.businessId, affiliateId)
-    if (user.role === 'AFFILIATE') {
-      const me = await db.affiliate.findFirst({ where: { userId: user.id, businessId: user.businessId } })
+    if (user.platformRole === 'AFFILIATE') {
+      const me = await db.affiliate.findFirst({
+        where: { userId: user.id, businessId: user.businessId },
+      })
       if (!me || existing.managerId !== me.id) throw { statusCode: 403, message: 'Forbidden' }
-      if (Object.keys(data).some((key) => key !== 'dealId')) {
-        throw { statusCode: 403, message: 'Managers can only assign a deal' }
-      }
+      throw { statusCode: 403, message: 'Admin only' }
+    } else if (user.membershipRole !== 'OWNER' && user.platformRole !== 'SITE_ADMIN') {
+      throw { statusCode: 403, message: 'Forbidden' }
     }
-    if (data.dealId) await this._assertAssignableDeal(user.businessId, existing.classId, data.dealId as string)
+    if (data.dealId)
+      await this._assertAssignableDeal(user.businessId, existing.classId, data.dealId as string)
     if (data.classId) {
-      const cls = await db.affiliateClass.findFirst({ where: { id: data.classId as string, businessId: user.businessId } })
+      const cls = await db.affiliateClass.findFirst({
+        where: { id: data.classId as string, businessId: user.businessId },
+      })
       if (!cls) throw { statusCode: 404, message: 'Affiliate class not found' }
     }
     if (data.managerId) {
@@ -138,10 +163,18 @@ export class AffiliateService {
         ...(data.classId !== undefined ? { classId: data.classId as string } : {}),
         ...(data.dealId !== undefined ? { dealId: data.dealId as string | null } : {}),
         ...(data.managerId !== undefined ? { managerId: data.managerId as string | null } : {}),
-        ...(data.affiliateRateOverrideBps !== undefined ? { affiliateRateOverrideBps: data.affiliateRateOverrideBps as number | null } : {}),
-        ...(data.managerShareOverrideBps !== undefined ? { managerShareOverrideBps: data.managerShareOverrideBps as number | null } : {}),
-        ...(data.destinationLandingPageId !== undefined ? { destinationLandingPageId: data.destinationLandingPageId as string | null } : {}),
-        ...(data.destinationUrl !== undefined ? { destinationUrl: data.destinationUrl as string | null } : {}),
+        ...(data.affiliateRateOverrideBps !== undefined
+          ? { affiliateRateOverrideBps: data.affiliateRateOverrideBps as number | null }
+          : {}),
+        ...(data.managerShareOverrideBps !== undefined
+          ? { managerShareOverrideBps: data.managerShareOverrideBps as number | null }
+          : {}),
+        ...(data.destinationLandingPageId !== undefined
+          ? { destinationLandingPageId: data.destinationLandingPageId as string | null }
+          : {}),
+        ...(data.destinationUrl !== undefined
+          ? { destinationUrl: data.destinationUrl as string | null }
+          : {}),
       },
     })
     return this._view(user.businessId, row)
@@ -232,9 +265,15 @@ export class AffiliateService {
     assertDealWithinClassCaps(cls, dealPolicyFromRow(deal))
   }
 
-  private async _assertCanView(user: AuthedUser, row: { id: string; managerId: string | null; userId: string | null }) {
-    if (user.role === 'ADMIN') return
-    const me = await db.affiliate.findFirst({ where: { userId: user.id, businessId: user.businessId } })
-    if (!me || (row.id !== me.id && row.managerId !== me.id)) throw { statusCode: 403, message: 'Forbidden' }
+  private async _assertCanView(
+    user: AuthUser,
+    row: { id: string; managerId: string | null; userId: string | null },
+  ) {
+    if (user.membershipRole === 'OWNER') return
+    const me = await db.affiliate.findFirst({
+      where: { userId: user.id, businessId: user.businessId },
+    })
+    if (!me || (row.id !== me.id && row.managerId !== me.id))
+      throw { statusCode: 403, message: 'Forbidden' }
   }
 }

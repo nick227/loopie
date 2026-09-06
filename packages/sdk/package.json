@@ -9,7 +9,7 @@
   "scripts": {
     "generate": "tsx scripts/generate.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "echo 'no lint configured for @project/sdk'",
+    "lint": "eslint 'src/**/*.ts' 'scripts/**/*.ts' --report-unused-disable-directives --max-warnings 0",
     "test": "echo 'no tests for @project/sdk'"
   },
   "dependencies": {

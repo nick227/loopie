@@ -2,14 +2,7 @@ import { useRiverPosts } from '@project/sdk'
 import type { components } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { DestinationIntentRow, PageRunRow, PaidRunRow } from '@/components/ads/AdDestinationRow'
-import type { AdOrder } from '@/lib/adOrder'
-import {
-  PAID_TARGETS,
-  pageIdFromKey,
-  pageKey,
-  paidTargetByKey,
-  runDestinationKey,
-} from '@/lib/adPreview'
+import { PAID_TARGETS, pageKey, runDestinationKey } from '@/lib/adPreview'
 
 type AdRun = components['schemas']['AdRun'] & { orderSnapshot?: unknown }
 type LandingPage = {
@@ -338,40 +331,4 @@ export function AdDestinations({
       ) : null}
     </div>
   )
-}
-
-export function selectedPageTargets(selected: string[], supersedesRunId?: string): PublishTarget[] {
-  const pages: PublishTarget[] = []
-  for (const key of selected) {
-    const id = pageIdFromKey(key)
-    if (id) {
-      pages.push({
-        platform: 'LOOPIE',
-        placement: 'PAGE',
-        budget: 0,
-        destinationLandingPageId: id,
-        supersedesRunId,
-      })
-    }
-  }
-  return pages
-}
-
-export function paidOrderTarget(
-  key: string,
-  order: AdOrder,
-  supersedesRunId?: string,
-): PublishTarget | null {
-  const row = paidTargetByKey(key)
-  if (!row) return null
-  return {
-    platform: row.platform,
-    placement: row.placement,
-    budget: order.dailyBudget,
-    startDate: order.startDate,
-    endDate: order.endDate || undefined,
-    destinationLandingPageId: order.destinationLandingPageId || undefined,
-    orderSnapshot: { ...order, where: row.where },
-    supersedesRunId,
-  }
 }

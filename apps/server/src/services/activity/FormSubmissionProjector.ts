@@ -1,4 +1,4 @@
-import { ActivitySourceKind, ActivityAttentionState, AttentionItemState } from '@prisma/client'
+import { ActivitySourceKind, ActivityAttentionState } from '@prisma/client'
 import { BaseProjector, ProjectionData } from './BaseProjector'
 
 export class FormSubmissionProjector {

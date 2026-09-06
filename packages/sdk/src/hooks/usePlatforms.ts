@@ -130,7 +130,7 @@ export function usePushDeployment(campaignId: string) {
       return data!
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['campaign', campaignId, 'deployments'] })
+      void queryClient.invalidateQueries({ queryKey: ['campaign', campaignId, 'deployments'] })
     },
   })
 }

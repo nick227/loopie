@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { renderLandingPageHtml } from '../renderLandingPage'
+import type { RenderForm } from '../renderLandingPageSections'
 
 describe('renderLandingPageHtml', () => {
   it('renders deterministically for the same snapshot payload', () => {
@@ -9,7 +10,7 @@ describe('renderLandingPageHtml', () => {
       content: { 'hero-1': { headline: 'Hello World' } },
       theme: { colorText: '#000' },
       layoutConfig: {},
-      form: null as any,
+      form: null as unknown as RenderForm,
       submitActionUrl: '/submit',
       adSlots: [],
       injectedHeadScripts: '<script>console.log("ready")</script>',

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { getApiClient, ApiError } from '../client'
 
 function throwIfError(result: { error?: unknown; response: { status: number }; data?: unknown }) {
@@ -13,7 +13,9 @@ export function useAffiliateClasses(params?: { limit?: number }) {
     queryKey: ['affiliate-classes', params],
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
-      const result = await getApiClient().GET('/affiliate-classes', { params: { query: { ...params, cursor: pageParam } } })
+      const result = await getApiClient().GET('/affiliate-classes', {
+        params: { query: { ...params, cursor: pageParam } },
+      })
       return throwIfError(result) as NonNullable<typeof result.data>
     },
     getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
@@ -25,7 +27,9 @@ export function useAffiliateDeals(params?: { limit?: number }) {
     queryKey: ['affiliate-deals', params],
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
-      const result = await getApiClient().GET('/affiliate-deals', { params: { query: { ...params, cursor: pageParam } } })
+      const result = await getApiClient().GET('/affiliate-deals', {
+        params: { query: { ...params, cursor: pageParam } },
+      })
       return throwIfError(result) as NonNullable<typeof result.data>
     },
     getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
@@ -35,7 +39,11 @@ export function useAffiliateDeals(params?: { limit?: number }) {
 export function useCreateAffiliateClass() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (body: { name: string; maxAffiliateRateBps: number; maxManagerShareBps: number }) => {
+    mutationFn: async (body: {
+      name: string
+      maxAffiliateRateBps: number
+      maxManagerShareBps: number
+    }) => {
       const result = await getApiClient().POST('/affiliate-classes', { body })
       return throwIfError(result) as NonNullable<typeof result.data>
     },
@@ -46,9 +54,18 @@ export function useCreateAffiliateClass() {
 export function useUpdateAffiliateClass() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (body: { classId: string; name?: string; maxAffiliateRateBps?: number; maxManagerShareBps?: number; defaultDealId?: string | null }) => {
+    mutationFn: async (body: {
+      classId: string
+      name?: string
+      maxAffiliateRateBps?: number
+      maxManagerShareBps?: number
+      defaultDealId?: string | null
+    }) => {
       const { classId, ...payload } = body
-      const result = await getApiClient().PATCH('/affiliate-classes/{classId}', { params: { path: { classId } }, body: payload })
+      const result = await getApiClient().PATCH('/affiliate-classes/{classId}', {
+        params: { path: { classId } },
+        body: payload,
+      })
       return throwIfError(result) as NonNullable<typeof result.data>
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['affiliate-classes'] }),
@@ -88,7 +105,10 @@ export function useUpdateAffiliateDeal() {
       isActive?: boolean
     }) => {
       const { dealId, ...payload } = body
-      const result = await getApiClient().PATCH('/affiliate-deals/{dealId}', { params: { path: { dealId } }, body: payload })
+      const result = await getApiClient().PATCH('/affiliate-deals/{dealId}', {
+        params: { path: { dealId } },
+        body: payload,
+      })
       return throwIfError(result) as NonNullable<typeof result.data>
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['affiliate-deals'] }),

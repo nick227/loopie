@@ -3,6 +3,7 @@ import { Plus, Trash2, GripVertical } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
+import { toFieldKey, emptyField } from '@/lib/formFields'
 
 export type FormFieldDraft = {
   label: string
@@ -25,18 +26,6 @@ const FIELD_TYPES: FormFieldDraft['type'][] = [
   'CHECKBOX',
   'HIDDEN',
 ]
-
-export function toFieldKey(label: string): string {
-  return label
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-}
-
-export function emptyField(): FormFieldDraft {
-  return { label: '', fieldKey: '', type: 'TEXT', required: false, options: '', defaultValue: '' }
-}
 
 interface FormFieldsEditorProps {
   fields: FormFieldDraft[]

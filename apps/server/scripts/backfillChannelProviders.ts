@@ -8,6 +8,7 @@
 //
 // Usage: DATABASE_URL=... pnpm --filter server exec tsx scripts/backfillChannelProviders.ts
 import { db } from '@project/db'
+import type { InteractionType, Channel } from '@prisma/client'
 import { seedChannelProviders } from '../src/lib/channelProviders'
 
 async function main() {
@@ -17,7 +18,7 @@ async function main() {
   }
   const providerCount = await db.channelProvider.count()
 
-  const TYPE_CHANNEL: Record<string, string> = {
+  const TYPE_CHANNEL: Partial<Record<InteractionType, Channel>> = {
     EMAIL_SENT: 'EMAIL',
     TEXT_SENT: 'TEXT',
     SOCIAL_POST_SENT: 'SOCIAL',
@@ -31,8 +32,8 @@ async function main() {
   let updated = 0
   for (const [type, channel] of Object.entries(TYPE_CHANNEL)) {
     const result = await db.interaction.updateMany({
-      where: { type: type as any, channel: null },
-      data: { channel: channel as any },
+      where: { type: type as InteractionType, channel: null },
+      data: { channel: channel as Channel },
     })
     updated += result.count
   }

@@ -2,7 +2,6 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { db, issueSid } from '@project/db'
 import { LandingPageSubmissionService } from '../services/LandingPageSubmissionService'
 import { LandingPageService } from '../services/LandingPageService'
-import { ContactService } from '../services/ContactService'
 import { randomUUID } from 'crypto'
 
 const submissionService = new LandingPageSubmissionService()

@@ -6,11 +6,8 @@ import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
-import {
-  FormFieldsEditor,
-  emptyField,
-  type FormFieldDraft,
-} from '@/components/forms/FormFieldsEditor'
+import { FormFieldsEditor, type FormFieldDraft } from '@/components/forms/FormFieldsEditor'
+import { emptyField } from '@/lib/formFields'
 
 export function CreateFormPage() {
   const navigate = useNavigate()

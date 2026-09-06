@@ -12,7 +12,6 @@
 // needed, rewrite it to be read-only (compute and print the legacy -> AdRun mapping, no .update
 // calls at all) before it's ever executed against loopie_test or the shared loopie database.
 import { db } from '@project/db'
-import { Prisma } from '@project/db'
 
 async function migrate() {
   console.log('Starting Legacy Finance Migration...')

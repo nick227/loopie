@@ -1,3 +1,6 @@
+import type { AdOrder } from '@/lib/adOrder'
+import type { PublishTarget } from '@/components/ads/AdDestinations'
+
 export type PaidTarget = {
   key: 'META_FEED' | 'GOOGLE_DISPLAY' | 'GOOGLE_YOUTUBE'
   platform: 'META' | 'GOOGLE'
@@ -62,4 +65,40 @@ export function runDestinationKey(run: {
   if (run.platform === 'GOOGLE') return 'GOOGLE_DISPLAY'
   if (run.platform === 'META') return 'META_FEED'
   return `${run.platform}_${run.placement ?? 'FEED'}`
+}
+
+export function selectedPageTargets(selected: string[], supersedesRunId?: string): PublishTarget[] {
+  const pages: PublishTarget[] = []
+  for (const key of selected) {
+    const id = pageIdFromKey(key)
+    if (id) {
+      pages.push({
+        platform: 'LOOPIE',
+        placement: 'PAGE',
+        budget: 0,
+        destinationLandingPageId: id,
+        supersedesRunId,
+      })
+    }
+  }
+  return pages
+}
+
+export function paidOrderTarget(
+  key: string,
+  order: AdOrder,
+  supersedesRunId?: string,
+): PublishTarget | null {
+  const row = paidTargetByKey(key)
+  if (!row) return null
+  return {
+    platform: row.platform,
+    placement: row.placement,
+    budget: order.dailyBudget,
+    startDate: order.startDate,
+    endDate: order.endDate || undefined,
+    destinationLandingPageId: order.destinationLandingPageId || undefined,
+    orderSnapshot: { ...order, where: row.where },
+    supersedesRunId,
+  }
 }

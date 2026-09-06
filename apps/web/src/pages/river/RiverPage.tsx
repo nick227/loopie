@@ -134,7 +134,7 @@ export function RiverPage() {
         </p>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+      <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 relative">
         <div className="w-full flex-1 max-w-[520px] px-4 sm:px-0">
           <div className="snap-start">
             {viewerRecognized ? (
@@ -209,10 +209,8 @@ export function RiverPage() {
           ) : null}
         </div>
 
-        <div className="hidden lg:block w-[320px] shrink-0">
-          <div className="sticky top-6">
-            <RiverCompanionRail />
-          </div>
+        <div className="hidden lg:block w-[320px] shrink-0 self-start sticky top-20">
+          <RiverCompanionRail />
         </div>
       </div>
     </div>

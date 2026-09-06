@@ -55,7 +55,7 @@ function timeoutErr() {
 async function serveApp() {
   const app = Fastify()
   app.setErrorHandler((error, request, reply) => mapErrorToReply(error, reply, request.log))
-  await registerUploadStatic(app)
+  registerUploadStatic(app)
   return app
 }
 

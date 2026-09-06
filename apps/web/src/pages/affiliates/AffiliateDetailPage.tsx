@@ -15,7 +15,8 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { formatBps, formatUsd } from '@/lib/money'
 import { ConnectStatusBadge } from '@/components/affiliates/ConnectStatusBadge'
-import { SetUpPayoutsButton, useConnectReturn } from '@/components/affiliates/SetUpPayoutsButton'
+import { SetUpPayoutsButton } from '@/components/affiliates/SetUpPayoutsButton'
+import { useConnectReturn } from '@/hooks/useConnectReturn'
 
 export function AffiliateDetailPage() {
   const { affiliateId } = useParams<{ affiliateId: string }>()

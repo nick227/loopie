@@ -277,7 +277,7 @@ export class PageThumbnailService {
     if (row.kind === 'SYSTEM_LAYOUT' && row.systemKey) {
       return this.htmlForSystemLayout(row.systemKey)
     }
-    throw new Error(`Unsupported thumbnail kind ${row.kind}`)
+    throw Object.assign(new Error(`Unsupported thumbnail kind ${row.kind}`), { statusCode: 500 })
   }
 
   private async htmlForPublishedVersion(publishedVersionId: string) {
@@ -317,11 +317,15 @@ export class PageThumbnailService {
 
   private async htmlForSystemLayout(systemKey: string) {
     const [templateId, themePresetId] = systemKey.split(':')
-    if (!templateId || !themePresetId) throw new Error(`Invalid systemKey ${systemKey}`)
+    if (!templateId || !themePresetId) {
+      throw Object.assign(new Error(`Invalid systemKey ${systemKey}`), { statusCode: 500 })
+    }
     await ensureSystemTemplates(db)
     const template = await db.landingPageTemplate.findUniqueOrThrow({ where: { id: templateId } })
     const preset = PAGE_THEME_PRESETS.find((p) => p.id === themePresetId)
-    if (!preset) throw new Error(`Unknown theme preset ${themePresetId}`)
+    if (!preset) {
+      throw Object.assign(new Error(`Unknown theme preset ${themePresetId}`), { statusCode: 500 })
+    }
     const content = systemStarterContent(template)
     return renderLandingPageHtml({
       pageName: template.name,

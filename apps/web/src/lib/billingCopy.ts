@@ -5,6 +5,13 @@ export type BillingSnapshot = {
   configured: boolean
   planName: string
   planPriceLabel?: string | null
+  license?: {
+    isEntitled: boolean
+    status: string
+    startsAt: string
+    endsAt: string | null
+    source: string
+  }
 }
 
 export function toBillingSnapshot(
@@ -17,6 +24,7 @@ export function toBillingSnapshot(
     configured: row.configured === true,
     planName: row.planName ?? 'LOOPIE',
     planPriceLabel: row.planPriceLabel,
+    license: row.license,
   }
 }
 

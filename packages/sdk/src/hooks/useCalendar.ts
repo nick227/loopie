@@ -15,7 +15,7 @@ export function useCalendarBoard(utcOffsetMinutes = -new Date().getTimezoneOffse
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
   })
@@ -25,7 +25,7 @@ export function useCalendarBoard(utcOffsetMinutes = -new Date().getTimezoneOffse
 // mutation from either surface needs to refresh both, since they're two projections of the same
 // ScheduledGoal rows.
 function invalidateBoard(queryClient: ReturnType<typeof useQueryClient>) {
-  queryClient.invalidateQueries({ queryKey: ['calendar'] })
+  void queryClient.invalidateQueries({ queryKey: ['calendar'] })
 }
 
 // The Calendar (Week/Month) views' own read — an arbitrary, navigable date range, unlike
@@ -39,7 +39,7 @@ export function useCalendarGoalsInRange(from: string, to: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
   })
@@ -54,7 +54,7 @@ export function useCreateGoalIdea() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => invalidateBoard(queryClient),
@@ -83,7 +83,7 @@ export function useScheduleGoalIdea() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => invalidateBoard(queryClient),
@@ -101,7 +101,7 @@ export function useDismissGoalIdea() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => invalidateBoard(queryClient),
@@ -129,7 +129,7 @@ export function useUpdateScheduledGoal() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => invalidateBoard(queryClient),

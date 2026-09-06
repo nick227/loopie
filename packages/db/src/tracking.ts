@@ -1,4 +1,5 @@
 import { db, resolveVisitorSid } from './client'
+import type { Platform } from '@prisma/client'
 
 export function withSid(url: string, sid: string): string {
   const u = new URL(url)
@@ -59,7 +60,7 @@ export async function trackBaseClick({
   sourceEmbedDeploymentId?: string | null
   sourceEmbedVersionId?: string | null
   sourceEmbedInstanceId?: string | null
-  platform?: any
+  platform?: Platform
   sessionId?: string
   clickId?: string | null
   onRecord?: () => Promise<void>

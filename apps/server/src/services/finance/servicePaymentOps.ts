@@ -4,7 +4,7 @@ import { toPaymentDTO, toRefundDTO } from '../../lib/finance/dto'
 import { balancedPair, postLedger, replayOnConflict } from '../../lib/finance/ledger'
 import { requireIdempotencyKey, requireMoney } from '../../lib/finance/money'
 import type { ServicePaymentInput, ServiceRefundInput } from '../../lib/finance/types'
-import { reverseTransaction } from './fundingOps'
+import { reverseTransactionInTx } from './fundingOps'
 
 export async function recordServicePayment(businessId: string, input: ServicePaymentInput) {
   const { amountMinor, currency, idempotencyKey } = requireMoney(input)
@@ -69,23 +69,25 @@ export async function refundServicePayment(businessId: string, input: ServiceRef
   const payment = await db.payment.findFirst({ where: { id: input.paymentId, businessId } })
   if (!payment) throw { statusCode: 404, message: 'Payment not found' }
   try {
-    const reversal = await reverseTransaction(businessId, {
-      transactionId: payment.ledgerTransactionId,
-      idempotencyKey: input.idempotencyKey,
-      reason: input.reason,
-    })
-    const refund = await db.refund.create({
-      data: {
-        businessId,
-        paymentId: payment.id,
-        amountMinor: payment.amountMinor,
-        currency: payment.currency,
-        reason: input.reason,
+    return await db.$transaction(async (tx) => {
+      const reversal = await reverseTransactionInTx(tx, businessId, {
+        transactionId: payment.ledgerTransactionId,
         idempotencyKey: input.idempotencyKey,
-        ledgerTransactionId: reversal.id,
-      },
+        reason: input.reason,
+      })
+      const refund = await tx.refund.create({
+        data: {
+          businessId,
+          paymentId: payment.id,
+          amountMinor: payment.amountMinor,
+          currency: payment.currency,
+          reason: input.reason,
+          idempotencyKey: input.idempotencyKey,
+          ledgerTransactionId: reversal.id,
+        },
+      })
+      return toRefundDTO(refund)
     })
-    return toRefundDTO(refund)
   } catch (err) {
     return replayOnConflict(err, async () => {
       const row = await db.refund.findUnique({

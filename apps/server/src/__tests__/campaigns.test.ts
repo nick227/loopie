@@ -2,13 +2,13 @@
 // Run `pnpm test:generate` to add stubs for new routes.
 // Both test users are pre-seeded: use testOtherUserId for cross-user permission tests.
 import { describe, it, expect } from 'vitest'
-import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId } from './helpers'
+import { buildTestApp, asAuth, validateResponse, testUserId } from './helpers'
 
 const app = buildTestApp()
 const createdIds: Record<string, string> = { default: '00000000-0000-0000-0000-000000000001' }
 
 describe('campaigns API', () => {
-  it('runs CRUD lifecycle', async (ctx) => {
+  it('runs CRUD lifecycle', async () => {
     const errors: Error[] = []
 
     // createCampaign

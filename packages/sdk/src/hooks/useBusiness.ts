@@ -13,7 +13,7 @@ export function useBusiness() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
   })
@@ -28,7 +28,7 @@ export function useUpdateBusiness() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     // Awaited (not fire-and-forget): callers that navigate right after a successful save — see

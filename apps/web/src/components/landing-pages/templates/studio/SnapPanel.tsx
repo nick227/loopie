@@ -1,5 +1,5 @@
-import { forwardRef, type ReactNode, useRef } from 'react'
-import { motion, useScroll, useTransform, type MotionValue } from 'framer-motion'
+import { forwardRef, type ReactNode } from 'react'
+import { motion, useTransform, type MotionValue } from 'framer-motion'
 import { useStudioMotionDisabled } from './motion'
 import { FRAME } from './tokens'
 
@@ -90,29 +90,13 @@ export function ColorWash({
  * via FrameInner so type always tracks the surface under it (theme-safe even
  * when primary ≈ ink, as in Shopfront / Workshop).
  */
-export function washForIndex(i: number, tone: Tone = 'bg'): { color: WashColor; edge: WashEdge } {
-  const edges: WashEdge[] = ['bottom', 'left', 'top', 'right', 'bottom']
-  const byTone: Record<Tone, WashColor[]> = {
-    bg: ['primary', 'ink'],
-    card: ['primary', 'ink'],
-    clear: ['primary', 'ink'],
-    ink: ['primary', 'bg'],
-    primary: ['ink', 'bg'],
-  }
-  const colors = byTone[tone]
-  return {
-    color: colors[i % colors.length]!,
-    edge: edges[i % edges.length]!,
-  }
-}
-
 function mixReadableColor(fromVar: string, toVar: string, t: number): string {
   const pct = Math.max(0, Math.min(1, t))
   return `color-mix(in srgb, var(${fromVar}) ${(1 - pct) * 100}%, var(${toVar}) ${pct * 100}%)`
 }
 
 /** Crossfade type from tone foreground → wash foreground as the wash fills. */
-export function useWashReadableColor(
+function useWashReadableColor(
   progress: MotionValue<number>,
   tone: Tone,
   wash: WashColor,
@@ -191,18 +175,4 @@ export function FrameInner({
     )
   }
   return <div className={`relative z-10 ${FRAME} ${className}`}>{children}</div>
-}
-
-export function useFrameProgress(ref: React.RefObject<HTMLElement | null>): MotionValue<number> {
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ['start end', 'end start'],
-  })
-  return scrollYProgress
-}
-
-export function useMotionPanel() {
-  const ref = useRef<HTMLElement>(null)
-  const progress = useFrameProgress(ref)
-  return { ref, progress }
 }

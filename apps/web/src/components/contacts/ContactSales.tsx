@@ -5,17 +5,9 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useFlatPages } from '@/hooks/useFlatPages'
 import { LEAD_STAGE_LABEL } from '@/lib/leadStages'
+import { SOURCE_TYPE_LABEL } from '@/lib/sourceTypes'
 
 type ContactSale = components['schemas']['ContactSale']
-
-const SOURCE_LABEL: Record<ContactSale['sourceType'], string> = {
-  MESSAGE: 'Message',
-  DEPLOYMENT: 'Ad campaign',
-  AD_RUN: 'Ad',
-  AD_UNIT: 'LOOPIE ad',
-  MANUAL: 'Manual',
-  IMPORT: 'Imported',
-}
 
 function money(value: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
@@ -57,7 +49,7 @@ function SaleRow({ sale }: { sale: ContactSale }) {
           ) : null}
         </div>
         <p className="truncate text-xs text-muted-foreground">
-          {saleDate(sale.date)} · {SOURCE_LABEL[sale.sourceType] ?? sale.sourceType}
+          {saleDate(sale.date)} · {SOURCE_TYPE_LABEL[sale.sourceType] ?? sale.sourceType}
           {sale.productOrService ? ` · ${sale.productOrService}` : ''}
         </p>
       </div>

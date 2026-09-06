@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { UniversalRow } from '@/components/ui/UniversalRow'
 import {
   billingActionError,
   checkoutReturnMessage,
@@ -61,7 +62,7 @@ export function BillingPage() {
                 }
               }}
             >
-              Manage billing
+              Open Stripe portal
             </Button>
           ) : (
             <Button
@@ -75,11 +76,35 @@ export function BillingPage() {
                 }
               }}
             >
-              Subscribe
+              Subscribe via Stripe
             </Button>
           )}
         </CardContent>
       </Card>
+
+      {data?.license && (
+        <Card>
+          <CardContent className="py-4 space-y-4">
+            <h3 className="text-sm font-semibold tracking-tight">License</h3>
+            <UniversalRow
+              title="Status"
+              subtitle={data.license.status}
+              trailing={
+                <span className="text-sm font-medium">
+                  {data.license.isEntitled ? 'Active' : 'Not Entitled'}
+                </span>
+              }
+            />
+            <UniversalRow
+              title="Expiration"
+              subtitle={
+                data.license.endsAt ? new Date(data.license.endsAt).toLocaleDateString() : 'Never'
+              }
+            />
+            <UniversalRow title="Source" subtitle={data.license.source} />
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

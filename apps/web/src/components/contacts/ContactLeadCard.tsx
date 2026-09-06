@@ -41,7 +41,7 @@ const LOGGABLE_TYPES: {
   { value: 'FOLLOW_UP', label: 'Follow-up' },
 ]
 
-function LogActivityButton({ contactId }: { contactId: string }) {
+export function LogActivityButton({ contactId }: { contactId: string }) {
   const [open, setOpen] = useState(false)
   const [type, setType] = useState<(typeof LOGGABLE_TYPES)[number]['value']>('CALL_LOGGED')
   const [providerName, setProviderName] = useState('')
@@ -137,7 +137,7 @@ function LogActivityButton({ contactId }: { contactId: string }) {
   )
 }
 
-function StatusSelect({ leadId, stage }: { leadId: string; stage: LeadStage }) {
+export function StatusSelect({ leadId, stage }: { leadId: string; stage: LeadStage }) {
   const update = useUpdateLead()
 
   async function onChange(next: LeadStage) {
@@ -167,7 +167,13 @@ function StatusSelect({ leadId, stage }: { leadId: string; stage: LeadStage }) {
   )
 }
 
-function ActivityCheckboxes({ leadId, activity }: { leadId: string; activity: LeadActivity }) {
+export function ActivityCheckboxes({
+  leadId,
+  activity,
+}: {
+  leadId: string
+  activity: LeadActivity
+}) {
   const update = useUpdateLead()
   const [pending, setPending] = useState<keyof LeadActivity | null>(null)
 
@@ -208,7 +214,7 @@ function ActivityCheckboxes({ leadId, activity }: { leadId: string; activity: Le
   )
 }
 
-function NextAction({
+export function NextAction({
   leadId,
   note,
   at,

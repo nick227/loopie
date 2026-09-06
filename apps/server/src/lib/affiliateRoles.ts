@@ -1,13 +1,14 @@
-export type AuthedUser = { id: string; businessId: string; role: string }
+import { AuthUser } from './membership'
 
-export function requireAdmin(user: AuthedUser) {
-  if (user.role !== 'ADMIN') throw { statusCode: 403, message: 'Admin only' }
+export function requireAdmin(user: AuthUser) {
+  if (user.membershipRole !== 'OWNER') throw { statusCode: 403, message: 'Admin only' }
 }
 
-export function requireAdminOrAffiliate(user: AuthedUser) {
-  if (user.role !== 'ADMIN' && user.role !== 'AFFILIATE') throw { statusCode: 403, message: 'Forbidden' }
+export function requireAdminOrAffiliate(user: AuthUser) {
+  if (user.membershipRole !== 'OWNER' && user.platformRole !== 'AFFILIATE')
+    throw { statusCode: 403, message: 'Forbidden' }
 }
 
-export function requireAffiliate(user: AuthedUser) {
-  if (user.role !== 'AFFILIATE') throw { statusCode: 403, message: 'Affiliate only' }
+export function requireAffiliate(user: AuthUser) {
+  if (user.platformRole !== 'AFFILIATE') throw { statusCode: 403, message: 'Affiliate only' }
 }

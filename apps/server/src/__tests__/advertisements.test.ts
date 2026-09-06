@@ -3,14 +3,7 @@
 // Both test users are pre-seeded: use testOtherUserId for cross-user permission tests.
 import { describe, it, expect } from 'vitest'
 import { db } from '@project/db'
-import {
-  buildTestApp,
-  asAuth,
-  validateResponse,
-  testUserId,
-  testBusinessId,
-  testOtherUserId,
-} from './helpers'
+import { buildTestApp, asAuth, validateResponse, testUserId, testBusinessId } from './helpers'
 import { saveMediaFile } from '../lib/mediaStorage'
 
 const app = buildTestApp()
@@ -22,7 +15,7 @@ const PNG_1X1 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
 
 describe('advertisements API', () => {
-  it('runs CRUD lifecycle', async (ctx) => {
+  it('runs CRUD lifecycle', async () => {
     const errors: Error[] = []
 
     const saved = await saveMediaFile({ mimeType: 'image/png', data: PNG_1X1 })

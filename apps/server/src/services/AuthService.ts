@@ -26,6 +26,8 @@ export function toUserDTO(
         membershipRole?: string
         isFounder?: boolean
         jobTitle?: string | null
+        isSupportMode?: boolean
+        supportSessionId?: string | null
       },
 ) {
   return {
@@ -40,6 +42,8 @@ export function toUserDTO(
     subscriptionStatus: user.business.subscriptionStatus,
     businessIdentityCompletedAt: user.business.identityCompletedAt?.toISOString() ?? null,
     createdAt: user.createdAt.toISOString(),
+    isSupportMode: ('isSupportMode' in user && user.isSupportMode) || false,
+    supportSessionId: ('supportSessionId' in user ? user.supportSessionId : null) ?? null,
   }
 }
 

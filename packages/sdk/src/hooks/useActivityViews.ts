@@ -10,7 +10,7 @@ export function useActivitySavedViews() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!.data
     },
   })
@@ -19,17 +19,17 @@ export function useActivitySavedViews() {
 export function useCreateActivitySavedView() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (body: { name: string; filters: Record<string, any> }) => {
+    mutationFn: async (body: { name: string; filters: Record<string, string> }) => {
       const client = getApiClient()
       const result = await client.POST('/activity/views', { body })
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['activity', 'views'] })
+      void queryClient.invalidateQueries({ queryKey: ['activity', 'views'] })
     },
   })
 }
@@ -46,11 +46,11 @@ export function useUpdateActivitySavedView() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['activity', 'views'] })
+      void queryClient.invalidateQueries({ queryKey: ['activity', 'views'] })
     },
   })
 }
@@ -65,11 +65,11 @@ export function useDeleteActivitySavedView() {
       })
       const err = result.error
       const status = result.response.status
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return true
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['activity', 'views'] })
+      void queryClient.invalidateQueries({ queryKey: ['activity', 'views'] })
     },
   })
 }

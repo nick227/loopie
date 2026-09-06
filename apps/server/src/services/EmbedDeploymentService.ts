@@ -1,5 +1,4 @@
 import { db } from '@project/db'
-import type { Prisma } from '@prisma/client'
 import crypto from 'crypto'
 
 export class EmbedDeploymentService {

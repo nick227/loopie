@@ -514,8 +514,12 @@ export class LandingPageService {
       console.error('Failed to project page publication', err)
     }
 
-    const { CalendarService } = await import('./CalendarService')
-    await new CalendarService().completePagePublishGoals(result.page.businessId)
+    try {
+      const { CalendarService } = await import('./CalendarService')
+      await new CalendarService().completePagePublishGoals(result.page.businessId)
+    } catch (err) {
+      console.error('Failed to complete Calendar page-publish goals', err)
+    }
 
     if (result.version.checksum) {
       try {

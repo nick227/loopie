@@ -1,0 +1,26 @@
+import { useEffect, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { useCreateAffiliateConnectOnboarding, useSyncAffiliateConnect } from '@project/sdk'
+
+export function useConnectReturn(affiliateId: string) {
+  const [params, setParams] = useSearchParams()
+  const onboard = useCreateAffiliateConnectOnboarding()
+  const sync = useSyncAffiliateConnect()
+  const ran = useRef(false)
+
+  useEffect(() => {
+    const flag = params.get('connect')
+    if (!affiliateId || !flag || ran.current) return
+    ran.current = true
+    if (flag === 'refresh') {
+      onboard.mutateAsync(affiliateId).then((result) => window.location.assign(result.data.url))
+      return
+    }
+    if (flag === 'return') {
+      sync.mutateAsync(affiliateId).then(() => {
+        params.delete('connect')
+        setParams(params, { replace: true })
+      })
+    }
+  }, [affiliateId, onboard, params, setParams, sync])
+}

@@ -12,7 +12,7 @@ export function useNextAction() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!.data
     },
   })
@@ -34,7 +34,7 @@ export function useAnswerAssistantLearnQuestion() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!.data
     },
     onSuccess: () => invalidateNextAction(queryClient),
@@ -50,7 +50,7 @@ export function useScheduleAssistantPlan() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!.data
     },
     onSuccess: () => invalidateNextAction(queryClient),
@@ -70,7 +70,7 @@ export function useReviewAssistantGoalCycle() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!.data
     },
     onSuccess: () => invalidateNextAction(queryClient),
@@ -89,7 +89,7 @@ export function useGrowAssistantGoalCycle() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!.data
     },
     onSuccess: () => invalidateNextAction(queryClient),
@@ -104,7 +104,7 @@ export function useDismissAssistantSignal() {
       const result = await client.POST('/assistant/goal-cycle/dismiss-signal', { body })
       const err = result.error
       const status = result.response.status
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return result.data!.data
     },
     onSuccess: () => invalidateNextAction(queryClient),

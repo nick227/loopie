@@ -26,7 +26,7 @@ const META_ENV = {
 }
 
 function json(data: unknown, status = 200) {
-  return { ok: status < 400, json: async () => data }
+  return { ok: status < 400, json: () => data }
 }
 
 function mockGraph(
@@ -37,7 +37,7 @@ function mockGraph(
     issues?: string[]
   } = {},
 ) {
-  vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+  vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
     const method = init?.method ?? 'GET'
     if (url.includes('/adimages')) return json({ images: { 'pixel.png': { hash: 'imghash' } } })

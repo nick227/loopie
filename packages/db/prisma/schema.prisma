@@ -164,11 +164,19 @@ model Business {
   // Teams / multi-company (2026-09-03) — Business remains the tenant; membership grants access.
   memberships BusinessMembership[]
   invitations BusinessInvitation[]
+
+  license              BusinessLicense?
+  auditEvents          AuditEvent[]
+  adminSupportSessions AdminSupportSession[]
+
+  platformAffiliateAttribution BusinessAffiliateAttribution?
+  membershipPayments           MembershipPayment[]
+  houseAds                     HouseAd[]
 }
 
-enum UserRole {
+enum UserPlatformRole {
   USER
-  ADMIN
+  SITE_ADMIN
   AFFILIATE
 }
 
@@ -223,23 +231,26 @@ model BusinessInvitation {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
+  id           String           @id @default(cuid())
+  email        String           @unique
   passwordHash String
   // Legacy home-business FK — still written on register; authorization prefers
   // Session.activeBusinessId + BusinessMembership. Kept until every reader migrates.
   businessId   String
-  role         UserRole  @default(USER)
-  isVerified   Boolean   @default(false)
+  platformRole UserPlatformRole @default(USER)
+  isVerified   Boolean          @default(false)
   suspendedAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
   deletedAt    DateTime?
 
-  business    Business             @relation(fields: [businessId], references: [id])
-  memberships BusinessMembership[]
-  sessions    Session[]
-  affiliate   Affiliate?
+  business             Business              @relation(fields: [businessId], references: [id])
+  memberships          BusinessMembership[]
+  sessions             Session[]
+  affiliate            Affiliate?
+  auditEvents          AuditEvent[]
+  adminSupportSessions AdminSupportSession[]
+  platformAffiliate    PlatformAffiliate?
 
   @@index([businessId])
 }
@@ -251,13 +262,34 @@ model Session {
   // Active company for this session. Null on pre-Teams rows — bearerAuth falls back to
   // User.businessId then validates/creates membership.
   activeBusinessId String?
+  supportSessionId String?
   expiresAt        DateTime
   createdAt        DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user           User                 @relation(fields: [userId], references: [id])
+  supportSession AdminSupportSession? @relation(fields: [supportSessionId], references: [id])
 
   @@index([token])
   @@index([userId])
+  @@index([supportSessionId])
+}
+
+model AdminSupportSession {
+  id              String    @id @default(cuid())
+  siteAdminUserId String
+  businessId      String
+  reason          String
+  startedAt       DateTime  @default(now())
+  expiresAt       DateTime
+  endedAt         DateTime?
+
+  siteAdmin   User         @relation(fields: [siteAdminUserId], references: [id])
+  business    Business     @relation(fields: [businessId], references: [id])
+  sessions    Session[]
+  auditEvents AuditEvent[]
+
+  @@index([siteAdminUserId])
+  @@index([businessId])
 }
 
 // ---------- Contact / Audience ----------
@@ -827,6 +859,7 @@ model Advertisement {
   embedDeployments       EmbedDeployment[]
   riverPosts             RiverPost[]
   adSlotAssignments      LandingPageAdSlotAssignment[]
+  houseAds               HouseAd[]
 
   @@index([businessId])
   @@index([businessId, deletedAt])
@@ -1821,7 +1854,7 @@ model PublishedPageVersion {
 
   formSubmissions FormSubmission[]
   riverPosts      RiverPost[]
-  thumbnail              PageThumbnail?
+  thumbnail       PageThumbnail?
 
   @@unique([landingPageId, version])
   @@index([landingPageId])
@@ -3441,4 +3474,253 @@ model AssistantGoalCycle {
   goals    ScheduledGoal[]
 
   @@index([businessId, status])
+}
+
+enum BusinessLicenseStatus {
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+}
+
+enum BusinessLicenseSource {
+  MANUAL
+  PROMO
+  STRIPE
+}
+
+model BusinessLicense {
+  id              String                @id @default(cuid())
+  businessId      String                @unique
+  status          BusinessLicenseStatus @default(ACTIVE)
+  startsAt        DateTime              @default(now())
+  endsAt          DateTime?
+  source          BusinessLicenseSource @default(MANUAL)
+  grantedByUserId String?
+  note            String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model AuditEvent {
+  id                String           @id @default(cuid())
+  businessId        String?
+  actorUserId       String
+  actorPlatformRole UserPlatformRole
+  action            String
+  resourceType      String
+  resourceId        String?
+  metadata          Json             @default("{}")
+  supportSessionId  String?
+  createdAt         DateTime         @default(now())
+
+  business       Business?            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  actor          User                 @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
+  supportSession AdminSupportSession? @relation(fields: [supportSessionId], references: [id])
+
+  @@index([businessId, createdAt])
+  @@index([createdAt])
+  @@index([supportSessionId])
+}
+
+// ---------- Platform-Scoped Affiliate Models ----------
+
+model PlatformAffiliateClass {
+  id            String   @id @default(cuid())
+  name          String
+  defaultDealId String?  @unique
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  defaultDeal PlatformAffiliateDeal?  @relation("PlatformClassDefaultDeal", fields: [defaultDealId], references: [id])
+  deals       PlatformAffiliateDeal[] @relation("PlatformDealClass")
+  affiliates  PlatformAffiliate[]
+}
+
+model PlatformAffiliateDeal {
+  id                 String             @id @default(cuid())
+  classId            String?
+  name               String
+  commissionRuleType CommissionRuleType @default(PERCENTAGE)
+  affiliateRateBps   Int?
+  managerShareBps    Int
+  isActive           Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  class                        PlatformAffiliateClass?        @relation("PlatformDealClass", fields: [classId], references: [id])
+  defaultForClasses            PlatformAffiliateClass[]       @relation("PlatformClassDefaultDeal")
+  affiliates                   PlatformAffiliate[]
+  BusinessAffiliateAttribution BusinessAffiliateAttribution[]
+}
+
+model PlatformAffiliate {
+  id                       String   @id @default(cuid())
+  name                     String
+  email                    String?
+  referralCode             String   @unique
+  classId                  String?
+  dealId                   String?
+  managerId                String?
+  userId                   String?  @unique
+  affiliateRateOverrideBps Int?
+  managerShareOverrideBps  Int?
+  stripeConnectAccountId   String?  @unique
+  stripePayoutsEnabled     Boolean  @default(false)
+  isActive                 Boolean  @default(true)
+  createdAt                DateTime @default(now())
+
+  class                   PlatformAffiliateClass?        @relation(fields: [classId], references: [id])
+  deal                    PlatformAffiliateDeal?         @relation(fields: [dealId], references: [id])
+  manager                 PlatformAffiliate?             @relation("PlatformAffiliateManager", fields: [managerId], references: [id])
+  downline                PlatformAffiliate[]            @relation("PlatformAffiliateManager")
+  user                    User?                          @relation(fields: [userId], references: [id])
+  attributions            BusinessAffiliateAttribution[] @relation("AttributionAffiliate")
+  managerAttributions     BusinessAffiliateAttribution[] @relation("AttributionManager")
+  earningsAsBeneficiary   PlatformAffiliateEarning[]     @relation("Beneficiary")
+  earningsAsSource        PlatformAffiliateEarning[]     @relation("Source")
+  PlatformAffiliatePayout PlatformAffiliatePayout[]
+}
+
+model BusinessAffiliateAttribution {
+  id                 String   @id @default(cuid())
+  businessId         String   @unique
+  affiliateId        String
+  affiliateDealId    String
+  affiliateRateBps   Int
+  managerAffiliateId String?
+  managerShareBps    Int?
+  attributedAt       DateTime @default(now())
+
+  business         Business              @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  affiliate        PlatformAffiliate     @relation("AttributionAffiliate", fields: [affiliateId], references: [id])
+  affiliateDeal    PlatformAffiliateDeal @relation(fields: [affiliateDealId], references: [id])
+  managerAffiliate PlatformAffiliate?    @relation("AttributionManager", fields: [managerAffiliateId], references: [id])
+
+  @@index([affiliateId])
+}
+
+enum PlatformEarningType {
+  DIRECT
+  MANAGER_OVERRIDE
+}
+
+enum PlatformEarningStatus {
+  PENDING
+  PAYABLE
+  PAID
+  REVERSED
+}
+
+model MembershipPayment {
+  id              String   @id @default(cuid())
+  businessId      String
+  amountMinor     Int
+  currency        String   @default("USD")
+  stripeInvoiceId String?  @unique
+  stripeChargeId  String?  @unique
+  settledAt       DateTime @default(now())
+
+  business Business                   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  earnings PlatformAffiliateEarning[]
+}
+
+model PlatformAffiliateEarning {
+  id                     String                @id @default(cuid())
+  membershipPaymentId    String
+  beneficiaryAffiliateId String
+  sourceAffiliateId      String
+  type                   PlatformEarningType
+  baseAmountMinor        Int
+  rateBps                Int
+  amountMinor            Int
+  status                 PlatformEarningStatus @default(PENDING)
+  payoutId               String?
+  reversesEarningId      String?               @unique
+  createdAt              DateTime              @default(now())
+
+  membershipPayment    MembershipPayment         @relation(fields: [membershipPaymentId], references: [id], onDelete: Cascade)
+  beneficiaryAffiliate PlatformAffiliate         @relation("Beneficiary", fields: [beneficiaryAffiliateId], references: [id])
+  sourceAffiliate      PlatformAffiliate         @relation("Source", fields: [sourceAffiliateId], references: [id])
+  payout               PlatformAffiliatePayout?  @relation(fields: [payoutId], references: [id])
+  reversesEarning      PlatformAffiliateEarning? @relation("Reversal", fields: [reversesEarningId], references: [id])
+  reversedBy           PlatformAffiliateEarning? @relation("Reversal")
+
+  @@index([beneficiaryAffiliateId, status])
+}
+
+model PlatformAffiliatePayout {
+  id               String       @id @default(cuid())
+  affiliateId      String
+  totalAmountMinor Int
+  currency         String       @default("USD")
+  status           PayoutStatus @default(PENDING)
+  stripeTransferId String?      @unique
+  stripePayoutId   String?      @unique
+  createdAt        DateTime     @default(now())
+
+  affiliate PlatformAffiliate          @relation(fields: [affiliateId], references: [id])
+  earnings  PlatformAffiliateEarning[]
+}
+
+// ---------- House Ads ----------
+
+enum HouseAdType {
+  WORDPRESS_EMBED
+  INTERNAL
+}
+
+enum HouseAdPlacementZone {
+  HOUSE_AD
+}
+
+model HouseAd {
+  id          String       @id @default(cuid())
+  businessId  String?
+  name            String
+  type            HouseAdType
+  advertisementId String?
+  advertisement   Advertisement? @relation(fields: [advertisementId], references: [id])
+  scriptUrl       String?      // for WORDPRESS_EMBED
+  imageUrl    String?      // for INTERNAL
+  targetUrl   String?      // for INTERNAL
+  startDate   DateTime?
+  endDate     DateTime?
+  weight      Int          @default(1)
+  status      AdStatus     @default(ACTIVE)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  business    Business?    @relation(fields: [businessId], references: [id])
+  placements  HouseAdPlacement[]
+  metrics     HouseAdMetric[]
+
+  @@index([businessId])
+}
+
+model HouseAdPlacement {
+  id         String               @id @default(cuid())
+  houseAdId  String
+  zone       HouseAdPlacementZone
+  createdAt  DateTime             @default(now())
+
+  houseAd    HouseAd  @relation(fields: [houseAdId], references: [id], onDelete: Cascade)
+
+  @@unique([houseAdId, zone])
+  @@index([zone])
+}
+
+model HouseAdMetric {
+  id          String               @id @default(cuid())
+  houseAdId   String
+  zone        HouseAdPlacementZone
+  impressions Int                  @default(0)
+  clicks      Int                  @default(0)
+  date        DateTime             @db.Date
+
+  houseAd     HouseAd  @relation(fields: [houseAdId], references: [id], onDelete: Cascade)
+
+  @@unique([houseAdId, zone, date])
 }

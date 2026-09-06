@@ -24,11 +24,11 @@ const META_ENV = {
 }
 
 function json(data: unknown, status = 200) {
-  return { ok: status < 400, json: async () => data }
+  return { ok: status < 400, json: () => data }
 }
 
 function mockGraph() {
-  vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+  vi.stubGlobal('fetch', (input: RequestInfo | URL) => {
     const url = String(input)
     if (url.includes('/adimages')) return json({ images: { 'pixel.png': { hash: 'imghash' } } })
     // pushDraft resolves a real locationNote via Meta's own ad-geolocation search before sending

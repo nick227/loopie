@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest'
 import { randomUUID } from 'crypto'
 import { buildTestApp, asAuth, testUserId, testBusinessId } from './helpers'
-import { db, issueSid, verifySid } from '@project/db'
+import { db, verifySid } from '@project/db'
 
 const app = buildTestApp()
 

@@ -1,8 +1,6 @@
 import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/Input'
-
-export const MEDIA_TYPES = ['IMAGE', 'VIDEO', 'AUDIO', 'TEXT'] as const
-export type MediaTypeFilter = (typeof MEDIA_TYPES)[number] | ''
+import { MEDIA_TYPES, type MediaTypeFilter } from '@/lib/media'
 
 export function MediaToolbar({
   q,

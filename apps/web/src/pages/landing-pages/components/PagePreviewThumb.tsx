@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { LayoutTemplate } from 'lucide-react'
 import type { components } from '@project/sdk'
-import { mediaSrc } from '@/lib/media'
-import { thumbUrl } from './PageRow'
+import { mediaSrc, thumbUrl } from '@/lib/media'
 
 type LandingPage = components['schemas']['LandingPage']
 

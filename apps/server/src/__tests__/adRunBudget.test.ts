@@ -26,13 +26,13 @@ const META_ENV = {
 type GraphCall = { url: string; method: string; body: string }
 
 function json(data: unknown, status = 200) {
-  return { ok: status < 400, json: async () => data }
+  return { ok: status < 400, json: () => data }
 }
 
 function mockGraph(opts: { failBudgetUpdate?: boolean; effectiveDailyBudgetCents?: number } = {}) {
   const calls: GraphCall[] = []
   let currentBudgetCents = 2500
-  vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+  vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
     const method = init?.method ?? 'GET'
     const body = typeof init?.body === 'string' ? init.body : ''

@@ -7,9 +7,9 @@ import { GalleryAddButton } from '../../../../pages/landing-pages/components/edi
 import type { GalleryItem } from '../../../../pages/landing-pages/components/types'
 import { mediaSrc } from '@/lib/media'
 import { SectionHeader, type SectionProps } from './shared'
-import { ColorWash, FrameInner, SnapPanel, useMotionPanel, washForIndex } from './SnapPanel'
-import { useStudioMotionDisabled } from './motion'
-import { ink } from './tokens'
+import { ColorWash, FrameInner, SnapPanel } from './SnapPanel'
+import { useStudioMotionDisabled, useMotionPanel } from './motion'
+import { ink, washForIndex } from './tokens'
 
 function useResolvedGallerySrc(item: GalleryItem | undefined): string | null {
   const assetQuery = useAsset(item?.assetId ?? '')

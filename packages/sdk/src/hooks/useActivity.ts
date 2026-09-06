@@ -24,7 +24,7 @@ export function useActivityStream(params?: {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     getNextPageParam: (lastPage) => lastPage.meta?.nextCursor ?? undefined,
@@ -40,7 +40,7 @@ export function useActivityCheckpoint() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     // Poll every 30 seconds by default for the checkpoint
@@ -59,7 +59,7 @@ export function useActivityItem(activityId: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!activityId,
@@ -86,12 +86,12 @@ export function useUpdateAttentionItem() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['activity', 'stream'] })
-      queryClient.invalidateQueries({ queryKey: ['activity'] })
+      void queryClient.invalidateQueries({ queryKey: ['activity', 'stream'] })
+      void queryClient.invalidateQueries({ queryKey: ['activity'] })
     },
   })
 }

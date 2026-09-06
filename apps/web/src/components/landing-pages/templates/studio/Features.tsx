@@ -2,9 +2,9 @@ import { motion, useTransform, type MotionValue } from 'framer-motion'
 import { CanvasText } from '../../../../pages/landing-pages/components/CanvasText'
 import type { FeatureItem } from '../../../../pages/landing-pages/components/types'
 import { AddRow, SectionHeader, type SectionProps } from './shared'
-import { ColorWash, FrameInner, SnapPanel, useMotionPanel, washForIndex } from './SnapPanel'
-import { useStudioMotionDisabled } from './motion'
-import { BODY } from './tokens'
+import { ColorWash, FrameInner, SnapPanel } from './SnapPanel'
+import { useStudioMotionDisabled, useMotionPanel } from './motion'
+import { BODY, washForIndex } from './tokens'
 
 /**
  * Frame gesture: process steps — the index numeral shrinks from display-scale

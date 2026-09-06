@@ -8,7 +8,6 @@ import {
   Bell,
   Waves,
   Command,
-  Menu,
   CalendarDays,
   LayoutTemplate,
   Megaphone,
@@ -94,7 +93,7 @@ function MessagesButton() {
       onClick={() => navigate('/messages')}
       onMouseEnter={() => prefetchRoute('/messages')}
       onFocus={() => prefetchRoute('/messages')}
-      className="relative hidden h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:flex"
+      className="relative flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:flex"
     >
       <Bell size={17} />
       {unreadCount ? (
@@ -147,21 +146,12 @@ function Header({
           aria-label="Open menu"
           aria-expanded={navOpen}
           onClick={() => setNavOpen(true)}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
-        >
-          <Menu size={20} />
-        </button>
-
-        <Link
-          to="/calendar"
-          onMouseEnter={() => prefetchRoute('/calendar')}
-          onFocus={() => prefetchRoute('/calendar')}
-          className="flex shrink-0 items-center gap-2 rounded-lg py-1.5 pr-1"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Command size={16} />
           </span>
-        </Link>
+        </button>
         {/* Active company — always visible (desktop + mobile). Switch companies from Profile → Your team. */}
         <Link
           to="/profile"
@@ -217,7 +207,7 @@ function Header({
               onFocus={() => prefetchRoute('/admin/businesses')}
               className={({ isActive }) =>
                 cn(
-                  'relative hidden h-9 w-9 items-center justify-center rounded-full transition-colors md:flex',
+                  'relative flex  h-9 w-9 items-center justify-center rounded-full transition-colors md:flex',
                   isActive
                     ? 'bg-accent text-foreground'
                     : 'text-muted-foreground hover:bg-accent hover:text-foreground',
@@ -238,7 +228,7 @@ function Header({
             onFocus={() => prefetchRoute('/river')}
             className={({ isActive }) =>
               cn(
-                'relative hidden h-9 w-9 items-center justify-center rounded-full transition-colors md:flex',
+                'relative flex  h-9 w-9 items-center justify-center rounded-full transition-colors md:flex',
                 isActive
                   ? 'bg-accent text-foreground'
                   : 'text-muted-foreground hover:bg-accent hover:text-foreground',
@@ -391,8 +381,11 @@ export function Shell() {
     )
   }
 
+  // overflow-x-clip (not hidden): clips horizontal spill without creating a scroll
+  // container. overflow-x-hidden forces overflow-y to compute non-visible and breaks
+  // position:sticky for every descendant (header + River companion rail).
   return (
-    <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
+    <div className="min-h-screen overflow-x-clip bg-background text-foreground">
       {/* Mounted once, app-wide — Ad Designer's live preview and River's AD post rendering both
           inject the shared @project/ad-renderer fragment via dangerouslySetInnerHTML and rely on
           this being present exactly once (see CLAUDE.md's Ad Designer "CRITICAL RENDERING

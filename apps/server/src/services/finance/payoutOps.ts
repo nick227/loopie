@@ -4,7 +4,7 @@ import { toCommissionDTO, toPayoutDTO } from '../../lib/finance/dtoEntities'
 import { balancedPair, postLedger, replayOnConflict } from '../../lib/finance/ledger'
 import { requireIdempotencyKey, requireMoney } from '../../lib/finance/money'
 import type { CreateCommissionInput, CreatePayoutInput } from '../../lib/finance/types'
-import { reverseTransaction } from './fundingOps'
+import { reverseTransactionInTx } from './fundingOps'
 
 export async function createCommission(businessId: string, input: CreateCommissionInput) {
   const { amountMinor, currency, idempotencyKey } = requireMoney(input)
@@ -129,16 +129,34 @@ export async function reverseCommission(
   if (!commission.ledgerTransactionId) {
     throw { statusCode: 409, message: 'Commission has no posted transaction to reverse' }
   }
-  await reverseTransaction(businessId, {
-    transactionId: commission.ledgerTransactionId,
-    idempotencyKey,
-    reason,
+  // Same idempotency short-circuit reverseTransaction itself uses, checked up front so a retry
+  // after a partial failure doesn't try to re-post the reversal inside the transaction below.
+  const existingReversal = await db.ledgerTransaction.findUnique({
+    where: { businessId_idempotencyKey: { businessId, idempotencyKey } },
   })
-  const updated = await db.commission.update({
-    where: { id: commission.id },
-    data: { status: 'REVERSED' },
-  })
-  return toCommissionDTO(updated)
+  if (existingReversal) {
+    const current = await db.commission.findFirst({ where: { id: commissionId, businessId } })
+    return toCommissionDTO(current ?? commission)
+  }
+  try {
+    return await db.$transaction(async (tx) => {
+      await reverseTransactionInTx(tx, businessId, {
+        transactionId: commission.ledgerTransactionId!,
+        idempotencyKey,
+        reason,
+      })
+      const updated = await tx.commission.update({
+        where: { id: commission.id },
+        data: { status: 'REVERSED' },
+      })
+      return toCommissionDTO(updated)
+    })
+  } catch (err) {
+    return replayOnConflict(err, async () => {
+      const row = await db.commission.findFirst({ where: { id: commissionId, businessId } })
+      return row ? toCommissionDTO(row) : null
+    })
+  }
 }
 
 export async function validateCommissionsForPayout(

@@ -4,6 +4,7 @@ import { db } from '@project/db'
 import { normalizeEmail } from '../lib/identityResolution'
 import type { AuthUser } from '../lib/membership'
 import { ensureHomeMembership, loadAuthUser } from '../lib/membership'
+import { emitAuditEvent, AuditActions, AuditResourceTypes } from '../lib/audit'
 
 const INVITE_TTL_MS = 14 * 24 * 60 * 60 * 1000
 
@@ -162,6 +163,15 @@ export class TeamService {
         expiresAt: new Date(Date.now() + INVITE_TTL_MS),
       },
     })
+
+    await emitAuditEvent({
+      actor,
+      action: AuditActions.MEMBER_INVITED,
+      resourceType: AuditResourceTypes.BUSINESS_MEMBERSHIP,
+      businessId: actor.businessId,
+      metadata: { email, role, jobTitle },
+    })
+
     return toInvitationDTO(row)
   }
 
@@ -217,6 +227,22 @@ export class TeamService {
       }
       return row
     })
+
+    if (Object.keys(memberData).length > 0) {
+      await emitAuditEvent({
+        actor,
+        action: AuditActions.MEMBER_ROLE_CHANGED,
+        resourceType: AuditResourceTypes.BUSINESS_MEMBERSHIP,
+        resourceId: membership.id,
+        businessId: actor.businessId,
+        metadata: {
+          userId,
+          updates: memberData,
+          previousRole: membership.role,
+        },
+      })
+    }
+
     return toMemberDTO(updated)
   }
 
@@ -246,6 +272,15 @@ export class TeamService {
         where: { userId, activeBusinessId: actor.businessId },
         data: { activeBusinessId: null },
       })
+    })
+
+    await emitAuditEvent({
+      actor,
+      action: AuditActions.MEMBER_REMOVED,
+      resourceType: AuditResourceTypes.BUSINESS_MEMBERSHIP,
+      resourceId: membership.id,
+      businessId: actor.businessId,
+      metadata: { userId },
     })
   }
 

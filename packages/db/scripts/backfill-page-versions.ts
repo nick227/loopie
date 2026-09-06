@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-import { canonicalJson } from '../../embed-contract/src/canonical'
+import { canonicalJson, type JsonValue } from '../../embed-contract/src/canonical'
 import crypto from 'crypto'
 
 const prisma = new PrismaClient()
@@ -23,7 +23,7 @@ async function main() {
       formatVersion: version.formatVersion,
     }
 
-    const canonicalStr = canonicalJson(payload as any)
+    const canonicalStr = canonicalJson(payload as unknown as JsonValue)
     const hash = crypto.createHash('sha256').update(canonicalStr, 'utf-8').digest('hex')
 
     await prisma.publishedPageVersion.update({

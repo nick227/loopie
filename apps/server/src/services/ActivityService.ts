@@ -1,10 +1,13 @@
 import { db } from '@project/db'
+import type { ActivityItem, AttentionItem } from '@prisma/client'
 import { normalizeLimit } from '../lib/pagination'
 
 type ActivityCursorPayload = {
   occurredAt: string
   id: string
 }
+
+type ActivityWithAttention = ActivityItem & { attentionItem: AttentionItem | null }
 
 function encodeActivityCursor(payload: ActivityCursorPayload) {
   return Buffer.from(JSON.stringify(payload)).toString('base64url')
@@ -19,13 +22,81 @@ function decodeActivityCursor(cursor?: string): ActivityCursorPayload | null {
   }
 }
 
+function toAttentionDTO(attentionItem: AttentionItem) {
+  return {
+    id: attentionItem.id,
+    state: attentionItem.state,
+    assigneeId: attentionItem.assigneeId,
+    priority: attentionItem.priority,
+    dueAt: attentionItem.dueAt?.toISOString() ?? null,
+    snoozedUntil: attentionItem.snoozedUntil?.toISOString() ?? null,
+  }
+}
+
+function toActivityDTO(item: ActivityWithAttention) {
+  return {
+    id: item.id,
+    businessId: item.businessId,
+    taxonomyVersion: item.taxonomyVersion,
+    type: item.type,
+    occurredAt: item.occurredAt.toISOString(),
+    observedAt: item.observedAt.toISOString(),
+    projectedAt: item.projectedAt.toISOString(),
+    storyId: item.storyId,
+    source: {
+      kind: item.sourceKind,
+      id: item.sourceRecordId,
+      label: item.sourceLabel,
+      accountId: item.sourceAccountId,
+    },
+    actor: {
+      kind: item.actorKind,
+      id: item.actorId,
+      label: item.actorLabel,
+    },
+    status: item.status,
+    attention: item.attention,
+    summary: item.summary,
+    detail: item.detail,
+    references: {
+      personId: item.personId,
+      leadId: item.leadId,
+      adId: item.adId,
+      runId: item.runId,
+      pageId: item.pageId,
+      formId: item.formId,
+      messageId: item.messageId,
+      broadcastId: item.broadcastId,
+      saleId: item.saleId,
+    },
+    aggregation: item.aggregation,
+    // OpenAPI requires an array; projectors often leave this null.
+    actions: Array.isArray(item.actions) ? item.actions : [],
+    attentionItem: item.attentionItem ? toAttentionDTO(item.attentionItem) : null,
+  }
+}
+
 export class ActivityService {
-  async getActivityStream(businessId: string, query: any) {
+  async getActivityStream(
+    businessId: string,
+    query: {
+      source?: string
+      type?: string
+      personId?: string
+      adId?: string
+      pageId?: string
+      status?: string
+      needsAction?: boolean | string
+      since?: string
+      until?: string
+      cursor?: string
+      limit?: number
+    },
+  ) {
     const limit = normalizeLimit(query.limit, 100, 20)
     const cursorPayload = decodeActivityCursor(query.cursor)
 
-    // Build where clause
-    const where: any = { businessId }
+    const where: Record<string, unknown> = { businessId }
 
     if (query.source) where.sourceKind = query.source
     if (query.type) where.type = query.type
@@ -33,8 +104,18 @@ export class ActivityService {
     if (query.adId) where.adId = query.adId
     if (query.pageId) where.pageId = query.pageId
     if (query.status) where.status = query.status
-    if (query.since) where.occurredAt = { ...where.occurredAt, gte: new Date(query.since) }
-    if (query.until) where.occurredAt = { ...where.occurredAt, lte: new Date(query.until) }
+    if (query.since) {
+      where.occurredAt = {
+        ...((where.occurredAt as object) ?? {}),
+        gte: new Date(query.since),
+      }
+    }
+    if (query.until) {
+      where.occurredAt = {
+        ...((where.occurredAt as object) ?? {}),
+        lte: new Date(query.until),
+      }
+    }
 
     if (query.needsAction === true || query.needsAction === 'true') {
       where.attentionItem = {
@@ -59,45 +140,7 @@ export class ActivityService {
 
     const hasMore = items.length > limit
     const results = hasMore ? items.slice(0, -1) : items
-
-    const mappedResults = results.map((item) => ({
-      id: item.id,
-      businessId: item.businessId,
-      taxonomyVersion: item.taxonomyVersion,
-      type: item.type,
-      occurredAt: item.occurredAt.toISOString(),
-      observedAt: item.observedAt.toISOString(),
-      projectedAt: item.projectedAt.toISOString(),
-      storyId: item.storyId,
-      source: {
-        kind: item.sourceKind,
-        id: item.sourceRecordId,
-        label: item.sourceLabel,
-        accountId: item.sourceAccountId,
-      },
-      actor: {
-        kind: item.actorKind,
-        id: item.actorId,
-        label: item.actorLabel,
-      },
-      attention: item.attention,
-      summary: item.summary,
-      detail: item.detail,
-      references: {
-        personId: item.personId,
-        leadId: item.leadId,
-        adId: item.adId,
-        runId: item.runId,
-        pageId: item.pageId,
-        formId: item.formId,
-        messageId: item.messageId,
-        broadcastId: item.broadcastId,
-        saleId: item.saleId,
-      },
-      aggregation: item.aggregation,
-      actions: item.actions,
-      attentionItem: item.attentionItem,
-    }))
+    const mappedResults = results.map(toActivityDTO)
 
     const lastResult = results[results.length - 1]
     const nextCursor =
@@ -110,7 +153,7 @@ export class ActivityService {
 
     return {
       data: mappedResults,
-      nextCursor,
+      meta: { hasMore, nextCursor },
     }
   }
 
@@ -154,47 +197,19 @@ export class ActivityService {
       throw { statusCode: 404, message: 'Activity not found' }
     }
 
-    return {
-      id: item.id,
-      businessId: item.businessId,
-      taxonomyVersion: item.taxonomyVersion,
-      type: item.type,
-      occurredAt: item.occurredAt.toISOString(),
-      observedAt: item.observedAt.toISOString(),
-      projectedAt: item.projectedAt.toISOString(),
-      storyId: item.storyId,
-      source: {
-        kind: item.sourceKind,
-        id: item.sourceRecordId,
-        label: item.sourceLabel,
-        accountId: item.sourceAccountId,
-      },
-      actor: {
-        kind: item.actorKind,
-        id: item.actorId,
-        label: item.actorLabel,
-      },
-      attention: item.attention,
-      summary: item.summary,
-      detail: item.detail,
-      references: {
-        personId: item.personId,
-        leadId: item.leadId,
-        adId: item.adId,
-        runId: item.runId,
-        pageId: item.pageId,
-        formId: item.formId,
-        messageId: item.messageId,
-        broadcastId: item.broadcastId,
-        saleId: item.saleId,
-      },
-      aggregation: item.aggregation,
-      actions: item.actions,
-      attentionItem: item.attentionItem,
-    }
+    return toActivityDTO(item)
   }
 
-  async updateAttentionItem(businessId: string, attentionId: string, data: any) {
+  async updateAttentionItem(
+    businessId: string,
+    attentionId: string,
+    data: {
+      state?: string
+      assigneeId?: string | null
+      priority?: string
+      snoozedUntil?: string | null
+    },
+  ) {
     const attentionItem = await db.attentionItem.findUnique({
       where: { id: attentionId },
       include: { activityItem: true },
@@ -204,8 +219,12 @@ export class ActivityService {
       throw { statusCode: 404, message: 'Attention item not found' }
     }
 
-    // Only allow updating specific fields
-    const updateData: any = {}
+    const updateData: {
+      state?: string
+      assigneeId?: string | null
+      priority?: string
+      snoozedUntil?: Date | null
+    } = {}
     if (data.state !== undefined) updateData.state = data.state
     if (data.assigneeId !== undefined) updateData.assigneeId = data.assigneeId
     if (data.priority !== undefined) updateData.priority = data.priority
@@ -217,6 +236,6 @@ export class ActivityService {
       data: updateData,
     })
 
-    return updated
+    return toAttentionDTO(updated)
   }
 }

@@ -1,7 +1,14 @@
+import type { Prisma } from '@prisma/client'
 import { db } from '@project/db'
 import { ensureChartOfAccounts } from '../../lib/finance/accounts'
 import { toPaymentDTO, toRefundDTO, toTransactionDTO } from '../../lib/finance/dto'
-import { accountBalanceMinor, balancedPair, invertEntries, postLedger, replayOnConflict } from '../../lib/finance/ledger'
+import {
+  accountBalanceMinor,
+  balancedPair,
+  invertEntries,
+  postLedger,
+  replayOnConflict,
+} from '../../lib/finance/ledger'
 import { requireMoney } from '../../lib/finance/money'
 import type { CreditInput, FundingInput, RefundInput, ReverseInput } from '../../lib/finance/types'
 
@@ -91,17 +98,23 @@ export async function issueRefund(businessId: string, input: RefundInput) {
       if (input.paymentId) {
         const payment = await tx.payment.findFirst({ where: { id: input.paymentId, businessId } })
         if (!payment) throw { statusCode: 404, message: 'Payment not found' }
-        if (payment.currency !== currency) throw { statusCode: 409, message: 'Refund currency must match the payment' }
+        if (payment.currency !== currency)
+          throw { statusCode: 409, message: 'Refund currency must match the payment' }
       }
       const chart = await ensureChartOfAccounts(tx, businessId, currency)
       const available = await accountBalanceMinor(tx, businessId, chart.CLIENT_AD_FUNDS.id)
-      if (available < amountMinor) throw { statusCode: 409, message: 'Insufficient client funds to refund' }
+      if (available < amountMinor)
+        throw { statusCode: 409, message: 'Insufficient client funds to refund' }
       const posted = await postLedger(tx, {
         businessId,
         currency,
         type: 'REFUND',
         idempotencyKey,
-        metadata: { reason: input.reason ?? null, paymentId: input.paymentId ?? null, ...input.metadata },
+        metadata: {
+          reason: input.reason ?? null,
+          paymentId: input.paymentId ?? null,
+          ...input.metadata,
+        },
         entries: balancedPair(chart.CLIENT_AD_FUNDS.id, chart.LOOPIE_CASH.id, amountMinor),
       })
       const refund = await tx.refund.create({
@@ -133,6 +146,33 @@ export async function issueRefund(businessId: string, input: RefundInput) {
   }
 }
 
+// Split out from reverseTransaction so a caller that needs the reversal to be atomic with its own
+// additional writes (see payoutOps.ts's reverseCommission) can run this inside its own
+// db.$transaction instead of nesting one Prisma transaction inside another.
+export async function reverseTransactionInTx(
+  tx: Prisma.TransactionClient,
+  businessId: string,
+  input: ReverseInput,
+) {
+  const original = await tx.ledgerTransaction.findFirst({
+    where: { id: input.transactionId, businessId },
+    include: { entries: true, reversedBy: true },
+  })
+  if (!original) throw { statusCode: 404, message: 'Transaction not found' }
+  if (original.reversedBy) throw { statusCode: 409, message: 'Transaction already reversed' }
+  const posted = await postLedger(tx, {
+    businessId,
+    currency: original.currency,
+    type: 'REVERSAL',
+    idempotencyKey: input.idempotencyKey,
+    reversesTransactionId: original.id,
+    metadata: { reason: input.reason ?? null, reverses: original.id },
+    campaignId: original.entries.find((entry) => entry.campaignId)?.campaignId,
+    entries: invertEntries(original.entries),
+  })
+  return toTransactionDTO(posted)
+}
+
 export async function reverseTransaction(businessId: string, input: ReverseInput) {
   const existing = await db.ledgerTransaction.findUnique({
     where: { businessId_idempotencyKey: { businessId, idempotencyKey: input.idempotencyKey } },
@@ -140,25 +180,7 @@ export async function reverseTransaction(businessId: string, input: ReverseInput
   })
   if (existing) return toTransactionDTO(existing)
   try {
-    return await db.$transaction(async (tx) => {
-      const original = await tx.ledgerTransaction.findFirst({
-        where: { id: input.transactionId, businessId },
-        include: { entries: true, reversedBy: true },
-      })
-      if (!original) throw { statusCode: 404, message: 'Transaction not found' }
-      if (original.reversedBy) throw { statusCode: 409, message: 'Transaction already reversed' }
-      const posted = await postLedger(tx, {
-        businessId,
-        currency: original.currency,
-        type: 'REVERSAL',
-        idempotencyKey: input.idempotencyKey,
-        reversesTransactionId: original.id,
-        metadata: { reason: input.reason ?? null, reverses: original.id },
-        campaignId: original.entries.find((entry) => entry.campaignId)?.campaignId,
-        entries: invertEntries(original.entries),
-      })
-      return toTransactionDTO(posted)
-    })
+    return await db.$transaction((tx) => reverseTransactionInTx(tx, businessId, input))
   } catch (err) {
     return replayOnConflict(err, async () => {
       const row = await db.ledgerTransaction.findUnique({

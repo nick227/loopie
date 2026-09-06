@@ -1,5 +1,6 @@
 import type { AdPreviewDraft } from './types'
-import { AdPreviewMedia, destinationHost, truncate } from './shared'
+import { AdPreviewMedia } from './shared'
+import { destinationHost, truncate } from './previewHelpers'
 
 export function GoogleDisplayPreview({ advertisement }: { advertisement: AdPreviewDraft }) {
   const host = destinationHost(advertisement.destinationUrl) ?? 'example.com'

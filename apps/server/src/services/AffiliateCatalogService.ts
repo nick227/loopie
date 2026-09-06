@@ -42,11 +42,12 @@ function pageArgs(businessId: string, opts: { cursor?: string; limit?: number })
   }
 }
 
-async function paginate<T extends { createdAt: Date; id: string }>(rows: T[], limit: number) {
+function paginate<T extends { createdAt: Date; id: string }>(rows: T[], limit: number) {
   const hasMore = rows.length > limit
   const items = hasMore ? rows.slice(0, limit) : rows
   const last = items[items.length - 1]
-  const nextCursor = hasMore && last ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id }) : null
+  const nextCursor =
+    hasMore && last ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id }) : null
   return { items, meta: { hasMore, nextCursor } }
 }
 
@@ -54,11 +55,14 @@ export class AffiliateCatalogService {
   async listClasses(businessId: string, opts: { cursor?: string; limit?: number }) {
     const args = pageArgs(businessId, opts)
     const { limit, ...query } = args
-    const { items, meta } = await paginate(await db.affiliateClass.findMany(query), limit)
+    const { items, meta } = paginate(await db.affiliateClass.findMany(query), limit)
     return { data: items.map(toClassDTO), meta }
   }
 
-  async createClass(businessId: string, data: { name: string; maxAffiliateRateBps: number; maxManagerShareBps: number }) {
+  async createClass(
+    businessId: string,
+    data: { name: string; maxAffiliateRateBps: number; maxManagerShareBps: number },
+  ) {
     const row = await db.affiliateClass.create({
       data: {
         businessId,
@@ -77,19 +81,30 @@ export class AffiliateCatalogService {
   async updateClass(
     businessId: string,
     classId: string,
-    data: { name?: string; maxAffiliateRateBps?: number; maxManagerShareBps?: number; defaultDealId?: string | null },
+    data: {
+      name?: string
+      maxAffiliateRateBps?: number
+      maxManagerShareBps?: number
+      defaultDealId?: string | null
+    },
   ) {
     await this._findClass(businessId, classId)
     if (data.defaultDealId) {
-      const deal = await db.affiliateDeal.findFirst({ where: { id: data.defaultDealId, businessId } })
+      const deal = await db.affiliateDeal.findFirst({
+        where: { id: data.defaultDealId, businessId },
+      })
       if (!deal) throw { statusCode: 404, message: 'Deal not found' }
     }
     const row = await db.affiliateClass.update({
       where: { id: classId },
       data: {
         ...(data.name !== undefined ? { name: data.name } : {}),
-        ...(data.maxAffiliateRateBps !== undefined ? { maxAffiliateRateBps: data.maxAffiliateRateBps } : {}),
-        ...(data.maxManagerShareBps !== undefined ? { maxManagerShareBps: data.maxManagerShareBps } : {}),
+        ...(data.maxAffiliateRateBps !== undefined
+          ? { maxAffiliateRateBps: data.maxAffiliateRateBps }
+          : {}),
+        ...(data.maxManagerShareBps !== undefined
+          ? { maxManagerShareBps: data.maxManagerShareBps }
+          : {}),
         ...(data.defaultDealId !== undefined ? { defaultDealId: data.defaultDealId } : {}),
       },
     })
@@ -99,7 +114,7 @@ export class AffiliateCatalogService {
   async listDeals(businessId: string, opts: { cursor?: string; limit?: number }) {
     const args = pageArgs(businessId, opts)
     const { limit, ...query } = args
-    const { items, meta } = await paginate(await db.affiliateDeal.findMany(query), limit)
+    const { items, meta } = paginate(await db.affiliateDeal.findMany(query), limit)
     return { data: items.map(toDealDTO), meta }
   }
 
@@ -135,10 +150,18 @@ export class AffiliateCatalogService {
         ...(data.name !== undefined ? { name: data.name as string } : {}),
         ...(data.classId !== undefined ? { classId: data.classId as string | null } : {}),
         ...rule,
-        ...(data.managerShareBps !== undefined ? { managerShareBps: data.managerShareBps as number } : {}),
-        ...(data.eligibilityWindowDays !== undefined ? { eligibilityWindowDays: data.eligibilityWindowDays as number | null } : {}),
-        ...(data.payoutThresholdMinor !== undefined ? { payoutThresholdMinor: data.payoutThresholdMinor as number | null } : {}),
-        ...(data.payoutCadence !== undefined ? { payoutCadence: data.payoutCadence as 'MANUAL' | 'WEEKLY' | 'MONTHLY' } : {}),
+        ...(data.managerShareBps !== undefined
+          ? { managerShareBps: data.managerShareBps as number }
+          : {}),
+        ...(data.eligibilityWindowDays !== undefined
+          ? { eligibilityWindowDays: data.eligibilityWindowDays as number | null }
+          : {}),
+        ...(data.payoutThresholdMinor !== undefined
+          ? { payoutThresholdMinor: data.payoutThresholdMinor as number | null }
+          : {}),
+        ...(data.payoutCadence !== undefined
+          ? { payoutCadence: data.payoutCadence as 'MANUAL' | 'WEEKLY' | 'MONTHLY' }
+          : {}),
         ...(data.isActive !== undefined ? { isActive: data.isActive as boolean } : {}),
       },
     })

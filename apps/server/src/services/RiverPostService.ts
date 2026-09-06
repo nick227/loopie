@@ -2,7 +2,7 @@ import { db, absoluteMediaUrl } from '@project/db'
 import type { Prisma } from '@prisma/client'
 import type { AdCreativeInput } from '@project/ad-renderer'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
-import { riverPostUrl, riverPostClickUrl, PUBLIC_SERVER_URL, hostedPageUrl } from '../lib/urls'
+import { riverPostUrl, riverPostClickUrl, PUBLIC_SERVER_URL } from '../lib/urls'
 import { requireAssets } from '../lib/ownership'
 import { fetchLinkPreview } from '../lib/linkPreview'
 

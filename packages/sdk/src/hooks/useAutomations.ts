@@ -3,11 +3,29 @@ import { getApiClient, ApiError } from '../client'
 
 type CreateAutomationInput = {
   name: string
-  trigger: 'MESSAGE_SENT' | 'CONTACT_REPLIES' | 'LEAD_CREATED' | 'LEAD_STATUS_CHANGED' | 'SALE_RECORDED' | 'DATE_REACHED'
+  trigger:
+    | 'MESSAGE_SENT'
+    | 'CONTACT_REPLIES'
+    | 'LEAD_CREATED'
+    | 'LEAD_STATUS_CHANGED'
+    | 'SALE_RECORDED'
+    | 'DATE_REACHED'
   waitDays?: number
-  condition?: 'HAS_REPLIED' | 'HAS_NOT_REPLIED' | 'LEAD_STILL_OPEN' | 'LEAD_REACHED_STAGE' | 'CUSTOMER_STATUS' | 'CHANNEL_ELIGIBILITY'
+  condition?:
+    | 'HAS_REPLIED'
+    | 'HAS_NOT_REPLIED'
+    | 'LEAD_STILL_OPEN'
+    | 'LEAD_REACHED_STAGE'
+    | 'CUSTOMER_STATUS'
+    | 'CHANNEL_ELIGIBILITY'
   conditionValue?: Record<string, unknown>
-  action: 'SEND_EMAIL' | 'SEND_TEXT' | 'CREATE_REMINDER' | 'CHANGE_LEAD_STATUS' | 'NOTIFY_USER' | 'STOP_SEQUENCE'
+  action:
+    | 'SEND_EMAIL'
+    | 'SEND_TEXT'
+    | 'CREATE_REMINDER'
+    | 'CHANGE_LEAD_STATUS'
+    | 'NOTIFY_USER'
+    | 'STOP_SEQUENCE'
   actionTemplateId?: string
   actionValue?: Record<string, unknown>
 }
@@ -25,11 +43,13 @@ export function useAutomations(params?: { limit?: number }) {
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
       const client = getApiClient()
-      const result = await client.GET('/automations', { params: { query: { ...params, cursor: pageParam } } })
+      const result = await client.GET('/automations', {
+        params: { query: { ...params, cursor: pageParam } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
@@ -41,11 +61,13 @@ export function useAutomation(automationId: string) {
     queryKey: ['automation', automationId],
     queryFn: async () => {
       const client = getApiClient()
-      const result = await client.GET('/automations/{automationId}', { params: { path: { automationId } } })
+      const result = await client.GET('/automations/{automationId}', {
+        params: { path: { automationId } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!automationId,
@@ -57,11 +79,13 @@ export function useAutomationLogs(automationId: string) {
     queryKey: ['automation', automationId, 'logs'],
     queryFn: async () => {
       const client = getApiClient()
-      const result = await client.GET('/automations/{automationId}/logs', { params: { path: { automationId } } })
+      const result = await client.GET('/automations/{automationId}/logs', {
+        params: { path: { automationId } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!automationId,
@@ -77,7 +101,7 @@ export function useCreateAutomation() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['automations', 'list'] }),
@@ -89,16 +113,19 @@ export function useUpdateAutomation() {
   return useMutation({
     mutationFn: async ({ automationId, ...body }: UpdateAutomationInput) => {
       const client = getApiClient()
-      const result = await client.PATCH('/automations/{automationId}', { params: { path: { automationId } }, body })
+      const result = await client.PATCH('/automations/{automationId}', {
+        params: { path: { automationId } },
+        body,
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['automations', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['automation', variables.automationId] })
+      void queryClient.invalidateQueries({ queryKey: ['automations', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['automation', variables.automationId] })
     },
   })
 }
@@ -108,16 +135,18 @@ export function usePauseAutomation() {
   return useMutation({
     mutationFn: async (automationId: string) => {
       const client = getApiClient()
-      const result = await client.POST('/automations/{automationId}/pause', { params: { path: { automationId } } })
+      const result = await client.POST('/automations/{automationId}/pause', {
+        params: { path: { automationId } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, automationId) => {
-      queryClient.invalidateQueries({ queryKey: ['automations', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['automation', automationId] })
+      void queryClient.invalidateQueries({ queryKey: ['automations', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['automation', automationId] })
     },
   })
 }
@@ -127,16 +156,18 @@ export function useResumeAutomation() {
   return useMutation({
     mutationFn: async (automationId: string) => {
       const client = getApiClient()
-      const result = await client.POST('/automations/{automationId}/resume', { params: { path: { automationId } } })
+      const result = await client.POST('/automations/{automationId}/resume', {
+        params: { path: { automationId } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, automationId) => {
-      queryClient.invalidateQueries({ queryKey: ['automations', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['automation', automationId] })
+      void queryClient.invalidateQueries({ queryKey: ['automations', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['automation', automationId] })
     },
   })
 }

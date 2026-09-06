@@ -5,16 +5,9 @@ import { EditableLinkTrigger } from '../../../../pages/landing-pages/components/
 import { MediaSlotField } from '../../../../pages/landing-pages/components/MediaSlotField'
 import type { ServiceItem } from '../../../../pages/landing-pages/components/types'
 import { AddRow, Eyebrow, SectionHeader, type SectionProps } from './shared'
-import {
-  ColorWash,
-  FrameInner,
-  SnapPanel,
-  useMotionPanel,
-  washForIndex,
-  type Tone,
-} from './SnapPanel'
-import { useStudioMotionDisabled } from './motion'
-import { BODY, TITLE } from './tokens'
+import { ColorWash, FrameInner, SnapPanel, type Tone } from './SnapPanel'
+import { useStudioMotionDisabled, useMotionPanel } from './motion'
+import { BODY, TITLE, washForIndex } from './tokens'
 
 const TONES: Tone[] = ['bg', 'ink', 'primary']
 

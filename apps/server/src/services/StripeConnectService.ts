@@ -1,11 +1,11 @@
 import { db } from '@project/db'
-import type { AuthedUser } from '../lib/affiliateRoles'
+import type { AuthUser } from '../lib/membership'
 import { connectFieldsFromAccount } from '../lib/connectStatus'
 import { appBaseUrl, getStripe, stripeConfigured } from '../lib/stripe'
 import { affiliateInclude, findAffiliate, toAffiliateDTO, withFrozenMoney } from './affiliateDto'
 
 export class StripeConnectService {
-  async createOnboardingLink(user: AuthedUser, affiliateId: string) {
+  async createOnboardingLink(user: AuthUser, affiliateId: string) {
     const affiliate = await this._load(user, affiliateId)
     if (!stripeConfigured()) throw { statusCode: 503, message: 'Stripe is not configured' }
     const stripe = getStripe()
@@ -20,10 +20,11 @@ export class StripeConnectService {
     return { url: link.url }
   }
 
-  async sync(user: AuthedUser, affiliateId: string) {
+  async sync(user: AuthUser, affiliateId: string) {
     const affiliate = await this._load(user, affiliateId)
     if (!stripeConfigured()) throw { statusCode: 503, message: 'Stripe is not configured' }
-    if (!affiliate.stripeConnectAccountId) throw { statusCode: 409, message: 'No Connect account for this affiliate' }
+    if (!affiliate.stripeConnectAccountId)
+      throw { statusCode: 409, message: 'No Connect account for this affiliate' }
     const account = await getStripe().accounts.retrieve(affiliate.stripeConnectAccountId)
     const view = await this.applyAccount(account)
     if (!view) throw { statusCode: 404, message: 'Affiliate not found' }
@@ -62,19 +63,27 @@ export class StripeConnectService {
     }
   }
 
-  private async _load(user: AuthedUser, affiliateId: string) {
+  private async _load(user: AuthUser, affiliateId: string) {
     const affiliate = await findAffiliate(user.businessId, affiliateId)
-    if (user.role === 'ADMIN') return affiliate
-    if (user.role === 'AFFILIATE' && affiliate.userId === user.id) return affiliate
+    if (user.platformRole === 'SITE_ADMIN') return affiliate
+    if (user.membershipRole === 'OWNER') return affiliate
+    if (user.platformRole === 'AFFILIATE' && affiliate.userId === user.id) return affiliate
     throw { statusCode: 403, message: 'Forbidden' }
   }
 
   private async _ensureAccount(
     stripe: ReturnType<typeof getStripe>,
-    affiliate: { id: string; businessId: string; name: string; email: string | null; stripeConnectAccountId: string | null },
+    affiliate: {
+      id: string
+      businessId: string
+      name: string
+      email: string | null
+      stripeConnectAccountId: string | null
+    },
   ) {
     if (affiliate.stripeConnectAccountId) return affiliate.stripeConnectAccountId
-    if (!affiliate.email) throw { statusCode: 409, message: 'Affiliate email is required to set up payouts' }
+    if (!affiliate.email)
+      throw { statusCode: 409, message: 'Affiliate email is required to set up payouts' }
     const account = await stripe.accounts.create({
       type: 'express',
       email: affiliate.email,
@@ -90,9 +99,9 @@ export class StripeConnectService {
     return account.id
   }
 
-  private _urls(user: AuthedUser, affiliateId: string) {
+  private _urls(user: AuthUser, affiliateId: string) {
     const base = appBaseUrl()
-    if (user.role === 'AFFILIATE') {
+    if (user.platformRole === 'AFFILIATE') {
       return {
         returnTo: `${base}/portal/payouts?connect=return`,
         refresh: `${base}/portal/payouts?connect=refresh`,

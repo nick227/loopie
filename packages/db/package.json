@@ -7,7 +7,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "typecheck": "tsc --noEmit",
-    "lint": "echo 'no lint configured for @project/db'",
+    "lint": "eslint 'src/**/*.ts' 'prisma/**/*.ts' 'scripts/**/*.ts' '*.ts' --report-unused-disable-directives --max-warnings 0",
     "test": "echo 'no tests for @project/db'"
   },
   "dependencies": {

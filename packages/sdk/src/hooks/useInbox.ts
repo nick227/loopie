@@ -41,8 +41,8 @@ export function useMarkInboxThreadRead() {
       )
     },
     onSuccess: (_, threadId) => {
-      queryClient.invalidateQueries({ queryKey: ['inbox', 'threads'] })
-      queryClient.invalidateQueries({ queryKey: ['inbox', 'threads', threadId] })
+      void queryClient.invalidateQueries({ queryKey: ['inbox', 'threads'] })
+      void queryClient.invalidateQueries({ queryKey: ['inbox', 'threads', threadId] })
     },
   })
 }
@@ -60,8 +60,8 @@ export function useReplyToInboxThread() {
       )
     },
     onSuccess: (_, { threadId }) => {
-      queryClient.invalidateQueries({ queryKey: ['inbox', 'threads'] })
-      queryClient.invalidateQueries({ queryKey: ['inbox', 'threads', threadId] })
+      void queryClient.invalidateQueries({ queryKey: ['inbox', 'threads'] })
+      void queryClient.invalidateQueries({ queryKey: ['inbox', 'threads', threadId] })
     },
   })
 }

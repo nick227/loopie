@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
 import {
   useBusinessTeam,
   useInviteTeamMember,
@@ -62,12 +61,6 @@ export function TeamPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <div>
-        <Link
-          to="/profile"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft size={14} /> Profile
-        </Link>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">Team</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Add people by their Loopie login email. Job role is a label; access is Owner or Member.

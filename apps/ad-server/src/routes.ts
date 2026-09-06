@@ -61,7 +61,7 @@ export function registerRoutes(server: FastifyInstance) {
         .header('Cache-Control', 'public, max-age=31536000')
         .type('application/javascript')
         .send(content)
-    } catch (e) {
+    } catch {
       reply.code(404).send('Not found')
     }
   })
@@ -69,7 +69,7 @@ export function registerRoutes(server: FastifyInstance) {
   // Authorize and issue bootstrap token
   server.post('/v1/embeds/:publicId/authorize', async (request, reply) => {
     const { publicId } = request.params as { publicId: string }
-    const { url, referrer } = request.body as { url: string; referrer?: string }
+    const { url } = request.body as { url: string; referrer?: string }
     const origin = url ? new URL(url).origin : request.headers.origin || ''
     const data = await embedServingService.getBootstrapMetadata(publicId, origin)
     reply
@@ -94,15 +94,18 @@ export function registerRoutes(server: FastifyInstance) {
   })
 
   // Redeem token for instance
-  server.post('/v1/embed-instances/redeem', async (request, reply) => {
-    const { publicId } = request.query as { publicId: string } // Or in body, but let's assume it's part of identity
+  server.post('/v1/embed-instances/redeem', async (_request, reply) => {
     // Implement token redemption (currently handled partially in renderIframe or impression)
     reply.header('Access-Control-Allow-Origin', '*').code(200).send({ success: true })
   })
 
   // Embed Events
   server.post('/v1/embed-events', async (request, reply) => {
-    const { publicId, instanceId, eventType } = request.body as any
+    const { publicId, instanceId, eventType } = request.body as {
+      publicId: string
+      instanceId: string
+      eventType: string
+    }
     if (eventType === 'ad_impression' || eventType === 'page_viewed') {
       await embedServingService.recordImpression(publicId, instanceId)
     }
@@ -119,16 +122,17 @@ export function registerRoutes(server: FastifyInstance) {
   server.post('/v1/embed/:publicId/submit', async (request, reply) => {
     const { publicId } = request.params as { publicId: string }
     const { instanceId } = request.query as { instanceId: string }
-    const { data } = request.body as { data: any }
+    const { data } = request.body as { data: Record<string, unknown> }
     if (!instanceId) {
       return reply.code(400).send({ error: 'instanceId is required' })
     }
     try {
       await embedServingService.recordSubmission(publicId, instanceId, data)
       reply.header('Access-Control-Allow-Origin', '*').code(200).send({ success: true })
-    } catch (error: any) {
-      if (error.message && error.message.includes('Validation failed')) {
-        return reply.code(400).send({ error: error.message })
+    } catch (error) {
+      const message = (error as { message?: string }).message
+      if (message && message.includes('Validation failed')) {
+        return reply.code(400).send({ error: message })
       }
       throw error
     }

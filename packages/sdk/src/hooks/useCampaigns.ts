@@ -58,7 +58,7 @@ export function useCampaigns(params?: { status?: string; limit?: number }) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
@@ -76,7 +76,7 @@ export function useCampaign(campaignId: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!campaignId,
@@ -94,7 +94,7 @@ export function useCampaignPerformance(campaignId: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!campaignId,
@@ -112,7 +112,7 @@ export function useDeployments(campaignId: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!campaignId,
@@ -132,7 +132,7 @@ export function useDeployment(deploymentId: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!deploymentId,
@@ -148,7 +148,7 @@ export function useCreateCampaign() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaigns', 'list'] }),
@@ -167,17 +167,19 @@ export function useUpdateCampaign() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['campaigns', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['campaign', variables.campaignId] })
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({ queryKey: ['campaigns', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['campaign', variables.campaignId] })
+      void queryClient.invalidateQueries({
         queryKey: ['finance', 'campaign-funding', variables.campaignId],
       })
-      queryClient.invalidateQueries({ queryKey: ['campaign', variables.campaignId, 'deployments'] })
-      queryClient.invalidateQueries({ queryKey: ['adUnits', 'list'] })
+      void queryClient.invalidateQueries({
+        queryKey: ['campaign', variables.campaignId, 'deployments'],
+      })
+      void queryClient.invalidateQueries({ queryKey: ['adUnits', 'list'] })
     },
   })
 }
@@ -193,12 +195,12 @@ export function usePauseCampaign() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, campaignId) => {
-      queryClient.invalidateQueries({ queryKey: ['campaigns', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['campaign', campaignId] })
+      void queryClient.invalidateQueries({ queryKey: ['campaigns', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['campaign', campaignId] })
     },
   })
 }
@@ -214,12 +216,12 @@ export function useResumeCampaign() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, campaignId) => {
-      queryClient.invalidateQueries({ queryKey: ['campaigns', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['campaign', campaignId] })
+      void queryClient.invalidateQueries({ queryKey: ['campaigns', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['campaign', campaignId] })
     },
   })
 }
@@ -235,12 +237,12 @@ export function useEndCampaign() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, campaignId) => {
-      queryClient.invalidateQueries({ queryKey: ['campaigns', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['campaign', campaignId] })
+      void queryClient.invalidateQueries({ queryKey: ['campaigns', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['campaign', campaignId] })
     },
   })
 }
@@ -256,7 +258,7 @@ export function useDuplicateCampaign() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaigns', 'list'] }),
@@ -275,11 +277,13 @@ export function useCreateDeployment() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['campaign', variables.campaignId, 'deployments'] })
+      void queryClient.invalidateQueries({
+        queryKey: ['campaign', variables.campaignId, 'deployments'],
+      })
     },
   })
 }
@@ -296,15 +300,15 @@ export function useUpdateDeployment() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, variables) => {
       // Deployment lists are cached per-campaign; without the campaignId in scope here, the
       // caller (which does have it, from useParams) should invalidate ['campaign', id,
       // 'deployments'] itself after a successful mutation.
-      queryClient.invalidateQueries({ queryKey: ['campaigns', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['deployment', variables.deploymentId] })
+      void queryClient.invalidateQueries({ queryKey: ['campaigns', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['deployment', variables.deploymentId] })
     },
   })
 }

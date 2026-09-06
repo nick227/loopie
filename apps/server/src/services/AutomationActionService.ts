@@ -45,9 +45,17 @@ export class AutomationActionService {
         return
       }
       case 'CHANGE_LEAD_STATUS': {
-        if (!run.leadId) throw new Error('CHANGE_LEAD_STATUS has no lead context to update')
+        if (!run.leadId) {
+          throw Object.assign(new Error('CHANGE_LEAD_STATUS has no lead context to update'), {
+            statusCode: 400,
+          })
+        }
         const stage = (automation.actionValue as { stage?: string } | null)?.stage
-        if (!stage) throw new Error('CHANGE_LEAD_STATUS actionValue.stage is missing')
+        if (!stage) {
+          throw Object.assign(new Error('CHANGE_LEAD_STATUS actionValue.stage is missing'), {
+            statusCode: 400,
+          })
+        }
         const current = await db.lead.findUnique({ where: { id: run.leadId } })
         const closesNow = isClosedStage(stage) && !current?.closedAt
         await db.lead.update({

@@ -85,8 +85,8 @@ export function useUpdateAsset(assetId: string) {
       return data!
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['assets', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['asset', assetId] })
+      void queryClient.invalidateQueries({ queryKey: ['assets', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['asset', assetId] })
     },
   })
 }

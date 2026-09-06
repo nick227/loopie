@@ -1,5 +1,5 @@
 import { db } from '@project/db'
-import { MAX_AD_SLOTS, asPlacement, asContext, toSlotDTO, type AdSlotInput } from '../lib/adSlots'
+import { MAX_AD_SLOTS, asPlacement, asContext, type AdSlotInput } from '../lib/adSlots'
 import { LandingPageService } from './LandingPageService'
 
 const pages = new LandingPageService()

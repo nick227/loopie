@@ -58,7 +58,7 @@ export function useSendBusinessProfileMessage() {
       )
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inbox', 'threads'] })
+      void queryClient.invalidateQueries({ queryKey: ['inbox', 'threads'] })
     },
   })
 }
@@ -80,8 +80,8 @@ export function usePinRiverPost() {
       // regular "Latest" list while pinned, that list's own membership) — simplest correct
       // response is to refetch both rather than hand-patch two different query shapes for
       // something this infrequent.
-      queryClient.invalidateQueries({ queryKey: ['businessProfile'] })
-      queryClient.invalidateQueries({ queryKey: ['riverFeed'] })
+      void queryClient.invalidateQueries({ queryKey: ['businessProfile'] })
+      void queryClient.invalidateQueries({ queryKey: ['riverFeed'] })
     },
   })
 }
@@ -99,8 +99,8 @@ export function useUnpinRiverPost() {
       )
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['businessProfile'] })
-      queryClient.invalidateQueries({ queryKey: ['riverFeed'] })
+      void queryClient.invalidateQueries({ queryKey: ['businessProfile'] })
+      void queryClient.invalidateQueries({ queryKey: ['riverFeed'] })
     },
   })
 }

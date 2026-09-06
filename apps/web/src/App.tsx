@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { SupportModeBanner } from '@/components/layout/SupportModeBanner'
 import { CreativeToAd, CreativeEditToAd } from '@/pages/ads/CreativeRedirects'
 const RegisterPage = lazy(() =>
   import('@/pages/auth/RegisterPage').then((m) => ({ default: m.RegisterPage })),
@@ -249,6 +250,62 @@ const FormPage = lazy(() => import('@/pages/forms/FormPage').then((m) => ({ defa
 const UpdateFormPage = lazy(() =>
   import('@/pages/forms/UpdateFormPage').then((m) => ({ default: m.UpdateFormPage })),
 )
+const PlatformAffiliateLayout = lazy(() =>
+  import('@/pages/platform-affiliates/PlatformAffiliateLayout').then((m) => ({
+    default: m.PlatformAffiliateLayout,
+  })),
+)
+const PlatformAffiliateOverviewPage = lazy(() =>
+  import('@/pages/platform-affiliates/PlatformAffiliateOverviewPage').then((m) => ({
+    default: m.PlatformAffiliateOverviewPage,
+  })),
+)
+const PlatformAffiliateClientsPage = lazy(() =>
+  import('@/pages/platform-affiliates/PlatformAffiliateClientsPage').then((m) => ({
+    default: m.PlatformAffiliateClientsPage,
+  })),
+)
+const PlatformAffiliateEarningsPage = lazy(() =>
+  import('@/pages/platform-affiliates/PlatformAffiliateEarningsPage').then((m) => ({
+    default: m.PlatformAffiliateEarningsPage,
+  })),
+)
+const PlatformAffiliatePayoutsPage = lazy(() =>
+  import('@/pages/platform-affiliates/PlatformAffiliatePayoutsPage').then((m) => ({
+    default: m.PlatformAffiliatePayoutsPage,
+  })),
+)
+const PlatformAffiliateTermsPage = lazy(() =>
+  import('@/pages/platform-affiliates/PlatformAffiliateTermsPage').then((m) => ({
+    default: m.PlatformAffiliateTermsPage,
+  })),
+)
+const PlatformAffiliateMyAffiliatesPage = lazy(() =>
+  import('@/pages/platform-affiliates/PlatformAffiliateMyAffiliatesPage').then((m) => ({
+    default: m.PlatformAffiliateMyAffiliatesPage,
+  })),
+)
+
+const AdminPlatformAffiliatesPage = lazy(() =>
+  import('@/pages/admin/AdminPlatformAffiliatesPage').then((m) => ({
+    default: m.AdminPlatformAffiliatesPage,
+  })),
+)
+const AdminPlatformRatesPage = lazy(() =>
+  import('@/pages/admin/AdminPlatformRatesPage').then((m) => ({
+    default: m.AdminPlatformRatesPage,
+  })),
+)
+const AdminPlatformCommissionsPage = lazy(() =>
+  import('@/pages/admin/AdminPlatformCommissionsPage').then((m) => ({
+    default: m.AdminPlatformCommissionsPage,
+  })),
+)
+const AdminPlatformPayoutsPage = lazy(() =>
+  import('@/pages/admin/AdminPlatformPayoutsPage').then((m) => ({
+    default: m.AdminPlatformPayoutsPage,
+  })),
+)
 const AdUnitsPage = lazy(() =>
   import('@/pages/ad-units/AdUnitsPage').then((m) => ({ default: m.AdUnitsPage })),
 )
@@ -343,6 +400,9 @@ const AdminBusinessDetailPage = lazy(() =>
 const AdminUsersPage = lazy(() =>
   import('@/pages/admin/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })),
 )
+const AdminHouseAdsPage = lazy(() =>
+  import('@/pages/admin/AdminHouseAdsPage').then((m) => ({ default: m.AdminHouseAdsPage })),
+)
 const AffiliatesPage = lazy(() =>
   import('@/pages/affiliates/AffiliatesPage').then((m) => ({ default: m.AffiliatesPage })),
 )
@@ -366,21 +426,6 @@ const AffiliatePayoutsPage = lazy(() =>
     default: m.AffiliatePayoutsPage,
   })),
 )
-const AffiliatePortalHomePage = lazy(() =>
-  import('@/pages/affiliates/AffiliatePortalHomePage').then((m) => ({
-    default: m.AffiliatePortalHomePage,
-  })),
-)
-const AffiliatePortalTeamPage = lazy(() =>
-  import('@/pages/affiliates/AffiliatePortalTeamPage').then((m) => ({
-    default: m.AffiliatePortalTeamPage,
-  })),
-)
-const AffiliatePortalPayoutsPage = lazy(() =>
-  import('@/pages/affiliates/AffiliatePortalPayoutsPage').then((m) => ({
-    default: m.AffiliatePortalPayoutsPage,
-  })),
-)
 
 // Plain BrowserRouter/Routes (not a data router) does no scroll management on its own — a normal
 // SPA navigation otherwise leaves window.scrollY wherever it was. Start each destination at the
@@ -396,6 +441,7 @@ function ScrollToTop() {
 export function App() {
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <SupportModeBanner />
       {/* Not keyed by pathname: Shell (rendered as a nested <Route element={<Shell />}>) must stay
           mounted across navigation so the persistent header/nav don't tear down and rebuild on
           every click. Per-route crash recovery and lazy-chunk loading states are now scoped inside
@@ -668,22 +714,6 @@ export function App() {
                   </Route>
                 </Route>
                 <Route
-                  path="/portal"
-                  element={
-                    <RequirePlatformRole role="AFFILIATE">
-                      <AffiliatePortalHomePage />
-                    </RequirePlatformRole>
-                  }
-                />
-                <Route
-                  path="/portal/team"
-                  element={
-                    <RequirePlatformRole role="AFFILIATE">
-                      <AffiliatePortalTeamPage />
-                    </RequirePlatformRole>
-                  }
-                />
-                <Route
                   path="/admin"
                   element={
                     <RequirePlatformRole role="SITE_ADMIN">
@@ -694,16 +724,39 @@ export function App() {
                   <Route path="businesses" element={<AdminBusinessesPage />} />
                   <Route path="businesses/:id" element={<AdminBusinessDetailPage />} />
                   <Route path="users" element={<AdminUsersPage />} />
+                  <Route path="house-ads" element={<AdminHouseAdsPage />} />
                   <Route path="audit" element={<AdminAuditPage />} />
                 </Route>
+                {/* Platform Affiliates */}
                 <Route
-                  path="/portal/payouts"
+                  path="/platform-affiliates"
                   element={
                     <RequirePlatformRole role="AFFILIATE">
-                      <AffiliatePortalPayoutsPage />
+                      <PlatformAffiliateLayout />
                     </RequirePlatformRole>
                   }
-                />
+                >
+                  <Route index element={<PlatformAffiliateOverviewPage />} />
+                  <Route path="clients" element={<PlatformAffiliateClientsPage />} />
+                  <Route path="earnings" element={<PlatformAffiliateEarningsPage />} />
+                  <Route path="payouts" element={<PlatformAffiliatePayoutsPage />} />
+                  <Route path="terms" element={<PlatformAffiliateTermsPage />} />
+                  <Route path="managers" element={<PlatformAffiliateMyAffiliatesPage />} />
+                </Route>
+
+                <Route
+                  path="/admin/platform-affiliates"
+                  element={
+                    <RequirePlatformRole role="SITE_ADMIN">
+                      <SiteAdminLayout />
+                    </RequirePlatformRole>
+                  }
+                >
+                  <Route index element={<AdminPlatformAffiliatesPage />} />
+                  <Route path="rates" element={<AdminPlatformRatesPage />} />
+                  <Route path="commissions" element={<AdminPlatformCommissionsPage />} />
+                  <Route path="payouts" element={<AdminPlatformPayoutsPage />} />
+                </Route>
               </Route>
             </Route>
 

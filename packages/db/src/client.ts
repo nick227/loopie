@@ -1,10 +1,11 @@
 import { PrismaClient } from '@prisma/client'
+export type * from '@prisma/client'
 
 declare global {
   // `var` is required here, not stylistic — global augmentation only attaches to the actual
   // global object via `var`; `let`/`const` would create a block-scoped binding `global.__db`
   // can't see. Standard Prisma singleton-across-hot-reloads pattern.
-  // eslint-disable-next-line no-var
+
   var __db: PrismaClient | undefined
 }
 

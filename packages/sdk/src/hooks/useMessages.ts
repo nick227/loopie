@@ -30,7 +30,7 @@ export function useMessages(params?: { status?: string; channel?: string; limit?
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
@@ -46,7 +46,7 @@ export function useMessage(messageId: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!messageId,
@@ -64,7 +64,7 @@ export function useMessagePerformance(messageId: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!messageId,
@@ -80,7 +80,7 @@ export function useCreateMessage() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['messages', 'list'] }),
@@ -99,12 +99,12 @@ export function useUpdateMessage() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['messages', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['message', variables.messageId] })
+      void queryClient.invalidateQueries({ queryKey: ['messages', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['message', variables.messageId] })
     },
   })
 }
@@ -119,7 +119,7 @@ export function useDeleteMessage() {
       })
       const err = result.error
       const status = result.response.status
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['messages', 'list'] }),
   })
@@ -136,12 +136,12 @@ export function useSendMessage() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, messageId) => {
-      queryClient.invalidateQueries({ queryKey: ['messages', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['message', messageId] })
+      void queryClient.invalidateQueries({ queryKey: ['messages', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['message', messageId] })
     },
   })
 }
@@ -162,7 +162,7 @@ export function useTestSendMessage() {
       })
       const err = result.error
       const status = result.response.status
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
     },
   })
 }

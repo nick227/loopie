@@ -16,14 +16,17 @@ import type { AdPreviewPlacement } from '@/components/ads/preview/types'
 import {
   AdDestinations,
   RIVER_DESTINATION_KEY,
-  paidOrderTarget,
-  selectedPageTargets,
   type PublishTarget,
 } from '@/components/ads/AdDestinations'
 import { useFlatPages } from '@/hooks/useFlatPages'
 import type { AdOrder } from '@/lib/adOrder'
 import { parseOrderSnapshot } from '@/lib/adOrder'
-import { paidTargetByKey, runDestinationKey } from '@/lib/adPreview'
+import {
+  paidTargetByKey,
+  runDestinationKey,
+  paidOrderTarget,
+  selectedPageTargets,
+} from '@/lib/adPreview'
 import { EmbedModal } from '@/components/shared/EmbedModal'
 
 type AdRun = components['schemas']['AdRun']

@@ -1,5 +1,5 @@
 import { db } from '@project/db'
-import type { Automation, AutomationRun, Contact, Lead } from '@prisma/client'
+import type { AutomationRun } from '@prisma/client'
 
 import { AutomationConditionService } from './AutomationConditionService'
 import { AutomationActionService } from './AutomationActionService'

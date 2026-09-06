@@ -24,7 +24,7 @@ const META_ENV = {
 }
 
 function json(data: unknown, status = 200) {
-  return { ok: status < 400, json: async () => data }
+  return { ok: status < 400, json: () => data }
 }
 
 type SyncMockOpts = {
@@ -39,7 +39,7 @@ type SyncMockOpts = {
 }
 
 function mockGraph(opts: SyncMockOpts = {}) {
-  vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+  vi.stubGlobal('fetch', (input: RequestInfo | URL) => {
     const url = String(input)
     if (url.includes('/adimages')) return json({ images: { 'pixel.png': { hash: 'imghash' } } })
     if (url.includes('/campaigns')) return json({ id: 'camp_ext' })

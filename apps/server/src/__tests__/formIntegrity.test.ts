@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { db, issueSid } from '@project/db'
 import { LandingPageSubmissionService } from '../services/LandingPageSubmissionService'
 import { processEmbedOutbox } from '../services/activity/EmbedProjectionWorker'
@@ -8,9 +8,7 @@ import { snapshotForm } from '@project/page-renderer'
 describe('Form Integrity', () => {
   let businessId: string
   let landingPageId: string
-  let formId: string
   let embedDeploymentId: string
-  let embedInstanceId: string
 
   const submissionService = new LandingPageSubmissionService()
 
@@ -27,7 +25,6 @@ describe('Form Integrity', () => {
         },
       },
     })
-    formId = form.id
 
     const template = await db.landingPageTemplate.create({
       data: { businessId, name: 'Test Template', schema: { blocks: [] } },
@@ -80,7 +77,7 @@ describe('Form Integrity', () => {
     })
     embedDeploymentId = deployment.id
 
-    const instance = await db.embedInstance.create({
+    await db.embedInstance.create({
       data: {
         id: randomUUID(),
         objectType: 'PAGE',
@@ -91,7 +88,6 @@ describe('Form Integrity', () => {
         authorizedOrigin: 'https://example.com',
       },
     })
-    embedInstanceId = instance.id
   })
 
   it('validates idempotencyKey and deduplicates submissions', async () => {

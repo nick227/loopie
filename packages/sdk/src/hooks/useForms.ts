@@ -31,11 +31,13 @@ export function useForms(params?: { limit?: number }) {
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
       const client = getApiClient()
-      const result = await client.GET('/forms', { params: { query: { ...params, cursor: pageParam } } })
+      const result = await client.GET('/forms', {
+        params: { query: { ...params, cursor: pageParam } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
@@ -51,7 +53,7 @@ export function useForm(formId: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!formId,
@@ -62,7 +64,11 @@ export function useForm(formId: string) {
 // and `order: number` (no `?`) in the generated request type, despite both having a schema
 // default. Fill them in here so callers can omit them.
 function withFieldDefaults(fields: FormFieldInput[]) {
-  return fields.map((f, index) => ({ ...f, required: f.required ?? false, order: f.order ?? index }))
+  return fields.map((f, index) => ({
+    ...f,
+    required: f.required ?? false,
+    order: f.order ?? index,
+  }))
 }
 
 export function useCreateForm() {
@@ -70,11 +76,13 @@ export function useCreateForm() {
   return useMutation({
     mutationFn: async (body: CreateFormInput) => {
       const client = getApiClient()
-      const result = await client.POST('/forms', { body: { ...body, fields: withFieldDefaults(body.fields) } })
+      const result = await client.POST('/forms', {
+        body: { ...body, fields: withFieldDefaults(body.fields) },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['forms', 'list'] }),
@@ -93,12 +101,12 @@ export function useUpdateForm() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['forms', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['form', variables.formId] })
+      void queryClient.invalidateQueries({ queryKey: ['forms', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['form', variables.formId] })
     },
   })
 }
@@ -111,7 +119,7 @@ export function useDeleteForm() {
       const result = await client.DELETE('/forms/{formId}', { params: { path: { formId } } })
       const err = result.error
       const status = result.response.status
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['forms', 'list'] }),
   })

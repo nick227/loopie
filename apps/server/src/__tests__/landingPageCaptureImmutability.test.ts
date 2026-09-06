@@ -4,7 +4,7 @@
 // submissions against.
 import { describe, it, expect } from 'vitest'
 import { randomUUID } from 'crypto'
-import { buildTestApp, asAuth, testUserId, testBusinessId } from './helpers'
+import { buildTestApp, asAuth, testUserId } from './helpers'
 import { db, issueSid } from '@project/db'
 
 const app = buildTestApp()

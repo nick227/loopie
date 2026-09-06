@@ -47,7 +47,7 @@ export function useContacts(params?: {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
@@ -63,7 +63,7 @@ export function useContact(contactId: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!contactId,
@@ -81,7 +81,7 @@ export function useContactInteractions(contactId: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!contactId,
@@ -108,7 +108,7 @@ export function useCreateContact() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contacts', 'list'] }),
@@ -139,12 +139,12 @@ export function useImportContacts() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contacts'] })
-      queryClient.invalidateQueries({ queryKey: ['crm', 'catalog'] })
+      void queryClient.invalidateQueries({ queryKey: ['contacts'] })
+      void queryClient.invalidateQueries({ queryKey: ['crm', 'catalog'] })
     },
   })
 }
@@ -161,12 +161,12 @@ export function useUpdateContact() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['contacts', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['contact', variables.contactId] })
+      void queryClient.invalidateQueries({ queryKey: ['contacts', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['contact', variables.contactId] })
     },
   })
 }
@@ -181,7 +181,7 @@ export function useDeleteContact() {
       })
       const err = result.error
       const status = result.response.status
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contacts', 'list'] }),
   })
@@ -199,7 +199,7 @@ export function useContactNotes(contactId: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
@@ -219,7 +219,7 @@ export function useCreateContactNote() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, variables) =>
@@ -249,7 +249,7 @@ export function useUpdateContactNote() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, variables) =>
@@ -267,7 +267,7 @@ export function useDeleteContactNote() {
       })
       const err = result.error
       const status = result.response.status
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
     },
     onSuccess: (_data, variables) =>
       queryClient.invalidateQueries({ queryKey: ['contact', variables.contactId, 'notes'] }),
@@ -286,7 +286,7 @@ export function useContactSales(contactId: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
@@ -308,7 +308,7 @@ export function useContactTags(params?: { q?: string }) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
   })
@@ -323,7 +323,7 @@ export function useCreateContactTag() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contact-tags'] }),
@@ -349,16 +349,16 @@ export function useUpdateContactTag() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contact-tags'] })
+      void queryClient.invalidateQueries({ queryKey: ['contact-tags'] })
       // A rename/recolor updates every contact wearing this tag implicitly — the individual
       // contact/list caches read the tag's name/color off the embedded tagRefs, so they need
       // invalidating too, not just the catalog list.
-      queryClient.invalidateQueries({ queryKey: ['contacts', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['contact'] })
+      void queryClient.invalidateQueries({ queryKey: ['contacts', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['contact'] })
     },
   })
 }
@@ -383,13 +383,13 @@ export function useAssignContactTag() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['contact', variables.contactId] })
-      queryClient.invalidateQueries({ queryKey: ['contacts', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['contact-tags'] })
+      void queryClient.invalidateQueries({ queryKey: ['contact', variables.contactId] })
+      void queryClient.invalidateQueries({ queryKey: ['contacts', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['contact-tags'] })
     },
   })
 }
@@ -404,12 +404,12 @@ export function useUnassignContactTag() {
       })
       const err = result.error
       const status = result.response.status
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['contact', variables.contactId] })
-      queryClient.invalidateQueries({ queryKey: ['contacts', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['contact-tags'] })
+      void queryClient.invalidateQueries({ queryKey: ['contact', variables.contactId] })
+      void queryClient.invalidateQueries({ queryKey: ['contacts', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['contact-tags'] })
     },
   })
 }

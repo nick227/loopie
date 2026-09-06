@@ -24,7 +24,7 @@ export function useCreatives(params?: { limit?: number }) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
@@ -42,7 +42,7 @@ export function useCreative(creativeId: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!creativeId,
@@ -58,7 +58,7 @@ export function useCreateCreative() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['creatives', 'list'] }),
@@ -80,12 +80,13 @@ export function useUpdateCreative() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['creatives', 'list'] })
-      if (result.data?.id) queryClient.invalidateQueries({ queryKey: ['creative', result.data.id] })
+      void queryClient.invalidateQueries({ queryKey: ['creatives', 'list'] })
+      if (result.data?.id)
+        void queryClient.invalidateQueries({ queryKey: ['creative', result.data.id] })
     },
   })
 }
@@ -100,7 +101,7 @@ export function useDeleteCreative() {
       })
       const err = result.error
       const status = result.response.status
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['creatives', 'list'] }),
   })

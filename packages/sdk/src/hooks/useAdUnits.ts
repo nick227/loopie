@@ -24,11 +24,13 @@ export function useAdUnits(params?: { campaignId?: string; limit?: number }) {
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
       const client = getApiClient()
-      const result = await client.GET('/ad-units', { params: { query: { ...params, cursor: pageParam } } })
+      const result = await client.GET('/ad-units', {
+        params: { query: { ...params, cursor: pageParam } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
@@ -44,7 +46,7 @@ export function useAdUnit(adUnitId: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!adUnitId,
@@ -60,7 +62,7 @@ export function useCreateAdUnit() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['adUnits', 'list'] }),
@@ -72,16 +74,19 @@ export function useUpdateAdUnit() {
   return useMutation({
     mutationFn: async ({ adUnitId, ...body }: UpdateAdUnitInput) => {
       const client = getApiClient()
-      const result = await client.PATCH('/ad-units/{adUnitId}', { params: { path: { adUnitId } }, body })
+      const result = await client.PATCH('/ad-units/{adUnitId}', {
+        params: { path: { adUnitId } },
+        body,
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['adUnits', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['adUnit', variables.adUnitId] })
+      void queryClient.invalidateQueries({ queryKey: ['adUnits', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['adUnit', variables.adUnitId] })
     },
   })
 }

@@ -29,6 +29,7 @@ export * from './tracking'
 export * from './capabilities'
 export * from './activity'
 export * from './activityViews'
+export * from './admin'
 export * from './inbox'
 export * from './embedDeployments'
 export * from './channelProviders'
@@ -36,3 +37,13 @@ export * from './businessProfile'
 export * from './river'
 export * from './assistant'
 export * from './assistantGoalCycle'
+export * from './platformAffiliates'
+export {
+  adminListHouseAds,
+  adminSearchAdvertisements,
+  adminCreateHouseAd,
+  adminUpdateHouseAd,
+  adminDeleteHouseAd,
+  serveHouseAd,
+  trackHouseAdMetric,
+} from './houseAds'

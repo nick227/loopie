@@ -13,7 +13,7 @@
     "seed:activity-backfill": "tsx --env-file=../../.env scripts/backfillSeedActivity.ts",
     "thumbs:regen-defaults": "tsx --env-file=../../.env scripts/regenDefaultThumbnails.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "echo 'no lint configured for server'"
+    "lint": "eslint 'src/**/*.ts' 'scripts/**/*.ts' --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1119.0",

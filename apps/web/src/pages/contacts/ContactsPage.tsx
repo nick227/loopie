@@ -23,6 +23,7 @@ import { ArrowRight, Check, Link2, List, Plus, RefreshCw, UploadCloud } from 'lu
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { ExportImportActions } from '@/components/ui/ExportImportActions'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Modal } from '@/components/ui/Modal'
 import { SearchFilterBar } from '@/components/ui/SearchFilterBar'
@@ -810,9 +811,12 @@ export function ContactsPage() {
         secondaryActions={
           <>
             <ConnectIntegrationsButton />
-            <Button variant="outline" onClick={() => setImportOpen(true)}>
-              Import
-            </Button>
+            <ExportImportActions
+              onImportCsv={() => setImportOpen(true)}
+              onImportGoogleSheets={() => setImportOpen(true)}
+              onExportCsv={() => alert('Export CSV')}
+              onExportGoogleSheets={() => alert('Export Google Sheets')}
+            />
           </>
         }
         primaryAction={

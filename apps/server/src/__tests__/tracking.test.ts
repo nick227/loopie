@@ -8,7 +8,7 @@ const app = buildTestApp()
 const createdIds: Record<string, string> = { default: '00000000-0000-0000-0000-000000000001' }
 
 describe('tracking API', () => {
-  it('runs CRUD lifecycle', async (ctx) => {
+  it('runs CRUD lifecycle', async () => {
     const errors: Error[] = []
     // Skipped trackLoopieEvent because payload could not be generated
 

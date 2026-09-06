@@ -1,11 +1,11 @@
 import { db } from '@project/db'
 import { findAffiliate } from './affiliateDto'
-import type { AuthedUser } from '../lib/affiliateRoles'
+import type { AuthUser } from '../lib/membership'
 
 export class AffiliateEarningsService {
-  async get(user: AuthedUser, affiliateId: string) {
+  async get(user: AuthUser, affiliateId: string) {
     const row = await findAffiliate(user.businessId, affiliateId)
-    if (user.role !== 'ADMIN') {
+    if (user.membershipRole !== 'OWNER') {
       const me = await db.affiliate.findFirst({
         where: { userId: user.id, businessId: user.businessId },
       })

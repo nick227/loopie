@@ -39,7 +39,9 @@ export function useAffiliates(params?: { limit?: number }) {
     queryKey: ['affiliates', 'list', params],
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
-      const result = await getApiClient().GET('/affiliates', { params: { query: { ...params, cursor: pageParam } } })
+      const result = await getApiClient().GET('/affiliates', {
+        params: { query: { ...params, cursor: pageParam } },
+      })
       return throwIfError(result) as NonNullable<typeof result.data>
     },
     getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
@@ -50,7 +52,9 @@ export function useAffiliate(affiliateId: string) {
   return useQuery({
     queryKey: ['affiliate', affiliateId],
     queryFn: async () => {
-      const result = await getApiClient().GET('/affiliates/{affiliateId}', { params: { path: { affiliateId } } })
+      const result = await getApiClient().GET('/affiliates/{affiliateId}', {
+        params: { path: { affiliateId } },
+      })
       return throwIfError(result) as NonNullable<typeof result.data>
     },
     enabled: !!affiliateId,
@@ -71,7 +75,9 @@ export function useAffiliateEarnings(affiliateId: string) {
   return useQuery({
     queryKey: ['affiliate', affiliateId, 'earnings'],
     queryFn: async () => {
-      const result = await getApiClient().GET('/affiliates/{affiliateId}/earnings', { params: { path: { affiliateId } } })
+      const result = await getApiClient().GET('/affiliates/{affiliateId}/earnings', {
+        params: { path: { affiliateId } },
+      })
       return throwIfError(result) as NonNullable<typeof result.data>
     },
     enabled: !!affiliateId,
@@ -93,12 +99,15 @@ export function useUpdateAffiliate() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ affiliateId, ...body }: UpdateAffiliateInput) => {
-      const result = await getApiClient().PATCH('/affiliates/{affiliateId}', { params: { path: { affiliateId } }, body })
+      const result = await getApiClient().PATCH('/affiliates/{affiliateId}', {
+        params: { path: { affiliateId } },
+        body,
+      })
       return throwIfError(result) as NonNullable<typeof result.data>
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['affiliates'] })
-      queryClient.invalidateQueries({ queryKey: ['affiliate', variables.affiliateId] })
+      void queryClient.invalidateQueries({ queryKey: ['affiliates'] })
+      void queryClient.invalidateQueries({ queryKey: ['affiliate', variables.affiliateId] })
     },
   })
 }
@@ -107,12 +116,14 @@ export function usePauseAffiliate() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (affiliateId: string) => {
-      const result = await getApiClient().POST('/affiliates/{affiliateId}/pause', { params: { path: { affiliateId } } })
+      const result = await getApiClient().POST('/affiliates/{affiliateId}/pause', {
+        params: { path: { affiliateId } },
+      })
       return throwIfError(result) as NonNullable<typeof result.data>
     },
     onSuccess: (_data, affiliateId) => {
-      queryClient.invalidateQueries({ queryKey: ['affiliates'] })
-      queryClient.invalidateQueries({ queryKey: ['affiliate', affiliateId] })
+      void queryClient.invalidateQueries({ queryKey: ['affiliates'] })
+      void queryClient.invalidateQueries({ queryKey: ['affiliate', affiliateId] })
     },
   })
 }
@@ -121,12 +132,14 @@ export function useResumeAffiliate() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (affiliateId: string) => {
-      const result = await getApiClient().POST('/affiliates/{affiliateId}/resume', { params: { path: { affiliateId } } })
+      const result = await getApiClient().POST('/affiliates/{affiliateId}/resume', {
+        params: { path: { affiliateId } },
+      })
       return throwIfError(result) as NonNullable<typeof result.data>
     },
     onSuccess: (_data, affiliateId) => {
-      queryClient.invalidateQueries({ queryKey: ['affiliates'] })
-      queryClient.invalidateQueries({ queryKey: ['affiliate', affiliateId] })
+      void queryClient.invalidateQueries({ queryKey: ['affiliates'] })
+      void queryClient.invalidateQueries({ queryKey: ['affiliate', affiliateId] })
     },
   })
 }

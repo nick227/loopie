@@ -12,7 +12,6 @@ import * as security from './plugins/security'
 import { mapErrorToReply } from './plugins/errorHandler'
 import { publicRateLimit } from './plugins/publicRateLimit'
 import { BODY_LIMIT_BYTES, registerUploadStatic } from './lib/mediaStorage'
-import { db, cleanupExpiredRateLimitBuckets } from '@project/db'
 
 const server = Fastify({ logger: true, bodyLimit: BODY_LIMIT_BYTES })
 
@@ -70,7 +69,7 @@ async function main() {
   } as any)
 
   // health check — not in spec, always public
-  server.get('/health', async () => ({ status: 'ok' }))
+  server.get('/health', () => ({ status: 'ok' }))
   const { registerGoogleSheetsOAuthAlias } = await import('./handlers/crm')
   registerGoogleSheetsOAuthAlias(server)
   server.get('/loopie.js', async (_request, reply) => {
@@ -81,7 +80,7 @@ async function main() {
       .type('application/javascript')
       .send(body)
   })
-  await registerUploadStatic(server)
+  registerUploadStatic(server)
 
   await server.register(async (stripeApp) => {
     stripeApp.addContentTypeParser(
@@ -123,8 +122,8 @@ async function main() {
     process.exit(0)
   }
 
-  process.once('SIGINT', shutdown)
-  process.once('SIGTERM', shutdown)
+  process.once('SIGINT', () => void shutdown())
+  process.once('SIGTERM', () => void shutdown())
 }
 
 main().catch((err) => {

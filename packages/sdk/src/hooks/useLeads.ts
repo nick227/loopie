@@ -31,7 +31,7 @@ export function useLeads(params?: { stage?: string; sourceType?: string; limit?:
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
@@ -49,7 +49,7 @@ export function useLeadQueue() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
   })
@@ -66,7 +66,7 @@ export function useLeadInsights() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
   })
@@ -81,7 +81,7 @@ export function useLead(leadId: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!leadId,
@@ -97,16 +97,16 @@ export function useUpdateLead() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['leads', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['leads', 'queue'] })
-      queryClient.invalidateQueries({ queryKey: ['lead', variables.leadId] })
+      void queryClient.invalidateQueries({ queryKey: ['leads', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['leads', 'queue'] })
+      void queryClient.invalidateQueries({ queryKey: ['lead', variables.leadId] })
       // The lead card lives on GET /contacts/{id} (currentLead) — no contactId in scope here, so
       // invalidate broadly, same as useUpdateContactTag's rename-propagation case.
-      queryClient.invalidateQueries({ queryKey: ['contact'] })
+      void queryClient.invalidateQueries({ queryKey: ['contact'] })
     },
   })
 }
@@ -137,13 +137,15 @@ export function useLogContactActivity() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['contact', variables.contactId] })
-      queryClient.invalidateQueries({ queryKey: ['contact', variables.contactId, 'interactions'] })
-      queryClient.invalidateQueries({ queryKey: ['leads', 'queue'] })
+      void queryClient.invalidateQueries({ queryKey: ['contact', variables.contactId] })
+      void queryClient.invalidateQueries({
+        queryKey: ['contact', variables.contactId, 'interactions'],
+      })
+      void queryClient.invalidateQueries({ queryKey: ['leads', 'queue'] })
     },
   })
 }

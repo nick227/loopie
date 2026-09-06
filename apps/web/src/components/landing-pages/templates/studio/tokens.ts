@@ -1,3 +1,5 @@
+import type { Tone, WashColor, WashEdge } from './SnapPanel'
+
 export const TOKEN_DEFAULTS = {
   primaryColor: '#FF2D6A',
   onPrimaryColor: '#FFFFFF',
@@ -24,3 +26,25 @@ export const TITLE =
 export const LABEL = 'text-[11px] font-semibold uppercase tracking-[0.22em]'
 
 export const BODY = 'text-base leading-relaxed sm:text-[1.05rem]'
+
+/**
+ * Deterministic wash color/edge for the i-th ColorWash on a panel of the given tone — cycles
+ * through each tone's two-color pairing and a fixed edge rotation so consecutive washes never
+ * repeat the same color or edge, via FrameInner so type always tracks the surface under it
+ * (theme-safe even when primary ≈ ink, as in Shopfront / Workshop).
+ */
+export function washForIndex(i: number, tone: Tone = 'bg'): { color: WashColor; edge: WashEdge } {
+  const edges: WashEdge[] = ['bottom', 'left', 'top', 'right', 'bottom']
+  const byTone: Record<Tone, WashColor[]> = {
+    bg: ['primary', 'ink'],
+    card: ['primary', 'ink'],
+    clear: ['primary', 'ink'],
+    ink: ['primary', 'bg'],
+    primary: ['ink', 'bg'],
+  }
+  const colors = byTone[tone]
+  return {
+    color: colors[i % colors.length]!,
+    edge: edges[i % edges.length]!,
+  }
+}

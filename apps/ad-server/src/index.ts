@@ -27,7 +27,7 @@ async function main() {
 
   registerRoutes(server)
 
-  server.get('/health', async () => ({ status: 'ok' }))
+  server.get('/health', () => ({ status: 'ok' }))
 
   // Sweeps expired RateLimitBucket rows (see publicRateLimit.ts) — shared with apps/server, safe
   // to run from either or both processes. No queue/worker infra exists anywhere in this repo, so
@@ -56,8 +56,8 @@ async function main() {
     process.exit(0)
   }
 
-  process.once('SIGINT', shutdown)
-  process.once('SIGTERM', shutdown)
+  process.once('SIGINT', () => void shutdown())
+  process.once('SIGTERM', () => void shutdown())
 }
 
 main().catch((err) => {

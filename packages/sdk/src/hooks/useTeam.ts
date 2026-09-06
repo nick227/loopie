@@ -1,6 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
 import { getApiClient, ApiError } from '../client'
-import type { components } from '../generated/types'
+import type { components, operations } from '../generated/types'
 
 export type MyBusiness = components['schemas']['MyBusiness']
 export type TeamMember = components['schemas']['TeamMember']
@@ -72,7 +72,7 @@ export function useInviteTeamMember() {
       return data!
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['business', 'team'] })
+      void queryClient.invalidateQueries({ queryKey: ['business', 'team'] })
     },
   })
 }
@@ -93,8 +93,8 @@ export function useUpdateTeamMember() {
       return data!
     },
     onSuccess: (_data, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['business', 'team'] })
-      queryClient.invalidateQueries({ queryKey: ['business', 'team', 'member', vars.userId] })
+      void queryClient.invalidateQueries({ queryKey: ['business', 'team'] })
+      void queryClient.invalidateQueries({ queryKey: ['business', 'team', 'member', vars.userId] })
     },
   })
 }
@@ -112,7 +112,7 @@ export function useRemoveTeamMember() {
       if (err) throw new ApiError(status, (err as { error: string }).error)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['business', 'team'] })
+      void queryClient.invalidateQueries({ queryKey: ['business', 'team'] })
     },
   })
 }
@@ -171,5 +171,32 @@ export function useAcceptInvitation() {
       await queryClient.cancelQueries()
       queryClient.clear()
     },
+  })
+}
+
+type ListTeamAuditEventsQuery = operations['listTeamAuditEvents']['parameters']['query']
+
+export function useListTeamAuditEvents(query: ListTeamAuditEventsQuery = {}, options?: any) {
+  return useInfiniteQuery({
+    queryKey: ['team', 'audit', query],
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam }) => {
+      const client = getApiClient()
+      const result = await client.GET('/business/team/audit', {
+        params: {
+          query: {
+            ...query,
+            cursor: pageParam,
+          } as any,
+        },
+      })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
+      return data!
+    },
+    getNextPageParam: (lastPage: any) => lastPage.nextCursor ?? undefined,
+    ...options,
   })
 }

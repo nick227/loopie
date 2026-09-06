@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import type { AddMediaInput } from '@/components/media/AddMediaForm'
 import { MediaGrid } from '@/components/media/MediaGrid'
 import { MediaUploadBar } from '@/components/media/MediaUploadBar'
-import { MEDIA_TYPES, type MediaTypeFilter } from '@/components/media/MediaToolbar'
+import { MEDIA_TYPES, type MediaTypeFilter } from '@/lib/media'
 import { useFlatPages } from '@/hooks/useFlatPages'
 
 type AssetType = (typeof MEDIA_TYPES)[number]

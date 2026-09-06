@@ -18,7 +18,7 @@ const HS_ENV = {
 }
 
 function json(data: unknown, status = 200) {
-  return { ok: status < 400, status, json: async () => data }
+  return { ok: status < 400, status, json: () => data }
 }
 
 function enableCrm() {
@@ -45,7 +45,7 @@ describe('HubSpot and Shopify connectors', () => {
   it('WooCommerce previews and imports registered plus guest customers and their orders', async () => {
     enableCrm()
     let syncVersion = 1
-    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+    vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       expect(init?.headers).toMatchObject({
         Authorization: expect.stringMatching(/^Basic /),
@@ -235,7 +235,7 @@ describe('HubSpot and Shopify connectors', () => {
 
   it('HubSpot OAuth callback stores a sealed token and sync pulls contacts then a won deal', async () => {
     enableCrm()
-    vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+    vi.stubGlobal('fetch', (input: RequestInfo | URL) => {
       const url = String(input)
       if (url.includes('/oauth/v1/token')) {
         return json({ access_token: 'HS_TOKEN', refresh_token: 'HS_REFRESH', expires_in: 3600 })
@@ -328,7 +328,7 @@ describe('HubSpot and Shopify connectors', () => {
 
   it('Shopify OAuth requires a shop and sync materializes an order as a Sale', async () => {
     enableCrm()
-    vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+    vi.stubGlobal('fetch', (input: RequestInfo | URL) => {
       const url = String(input)
       if (url.includes('/admin/oauth/access_token')) return json({ access_token: 'SH_TOKEN' })
       if (url.includes('/customers.json')) {
@@ -404,7 +404,7 @@ describe('HubSpot and Shopify connectors', () => {
 
   it('a mid-sync failure marks the ImportJob FAILED with a persisted error, not stuck PENDING, and keeps the page progress already made', async () => {
     enableCrm()
-    vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+    vi.stubGlobal('fetch', (input: RequestInfo | URL) => {
       const url = String(input)
       if (url.includes('/admin/oauth/access_token')) return json({ access_token: 'SH_TOKEN' })
       if (url.includes('/customers.json')) {

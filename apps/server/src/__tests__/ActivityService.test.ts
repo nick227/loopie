@@ -64,7 +64,9 @@ describe('ActivityService', () => {
   test('getActivityStream returns paginated results', async () => {
     const result = await service.getActivityStream(businessId, { limit: 1 })
     expect(result.data.length).toBe(1)
-    expect(result.nextCursor).toBeDefined()
+    expect(result.meta.hasMore).toBe(true)
+    expect(result.meta.nextCursor).toBeDefined()
+    expect(result.data[0]!.actions).toEqual([])
 
     // The latest item should be the form submission (11:00 is later than 10:00)
     expect(result.data[0]!.type).toBe('FORM_SUBMISSION')
@@ -72,11 +74,12 @@ describe('ActivityService', () => {
     // Fetch next page
     const page2 = await service.getActivityStream(businessId, {
       limit: 1,
-      cursor: result.nextCursor,
+      cursor: result.meta.nextCursor ?? undefined,
     })
     expect(page2.data.length).toBe(1)
     expect(page2.data[0]!.type).toBe('LEAD_CREATED')
-    expect(page2.nextCursor).toBeNull() // No more items
+    expect(page2.meta.hasMore).toBe(false)
+    expect(page2.meta.nextCursor).toBeNull()
   })
 
   test('getActivityStream filters by needsAction', async () => {

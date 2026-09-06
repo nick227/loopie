@@ -147,9 +147,9 @@ export function useSyncIntegration() {
       return data!
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['integrations', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['crm', 'catalog'] })
-      queryClient.invalidateQueries({ queryKey: ['contacts'] })
+      void queryClient.invalidateQueries({ queryKey: ['integrations', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['crm', 'catalog'] })
+      void queryClient.invalidateQueries({ queryKey: ['contacts'] })
     },
   })
 }
@@ -212,14 +212,14 @@ export function useResolveContactMatch() {
       return data!
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['contact-matches'] })
+      void queryClient.invalidateQueries({ queryKey: ['contact-matches'] })
       // Resolving a match links an ExternalContactRecord onto this Contact (ContactMatchService
       // #resolve) — its `records`/provenance change, which the Contacts collection's synced-
       // source badge and the Contact entity's "Linked systems" card both read. Same stale-query
       // class found and fixed on the Pages/Advertising side (usePublishLandingPage,
       // useAdvertisements.ts's run mutations).
-      queryClient.invalidateQueries({ queryKey: ['contacts'] })
-      queryClient.invalidateQueries({ queryKey: ['contact', variables.contactId] })
+      void queryClient.invalidateQueries({ queryKey: ['contacts'] })
+      void queryClient.invalidateQueries({ queryKey: ['contact', variables.contactId] })
     },
   })
 }

@@ -5,7 +5,8 @@ import { useAffiliateEarnings, useMarkCommissionPayable, useCreatePayout } from 
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
 import { CommissionLedger } from '@/components/affiliates/CommissionLedger'
-import { ConnectStatusBadge, payoutQueueLabel } from '@/components/affiliates/ConnectStatusBadge'
+import { ConnectStatusBadge } from '@/components/affiliates/ConnectStatusBadge'
+import { payoutQueueLabel } from '@/lib/affiliateSplit'
 import { formatUsd, newIdempotencyKey } from '@/lib/money'
 
 export function OwedRow({

@@ -8,7 +8,6 @@
 import {
   DEFAULT_PAGE_FAVICON_URL,
   normalizeLegacyPageContent,
-  type PageContent,
   type LayoutConfig,
 } from '@project/db'
 import {
@@ -28,7 +27,7 @@ type TemplateSection = {
   editable?: string[]
 }
 
-type TemplateSchema = {
+export type TemplateSchema = {
   renderer?:
     | 'standard'
     | 'corporate-professional'
@@ -41,7 +40,7 @@ type TemplateSchema = {
   themeTokens?: string[]
 }
 
-type PageTheme = Record<string, string> | null | undefined
+export type PageTheme = Record<string, string> | null | undefined
 
 function renderFormHtml(
   form: RenderForm,

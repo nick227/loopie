@@ -60,7 +60,12 @@ export class ActivityProjectionService {
           break
         }
         default:
-          throw new Error(`Unknown sourceRecordType for projection: ${sourceRecordType}`)
+          throw Object.assign(
+            new Error(`Unknown sourceRecordType for projection: ${sourceRecordType}`),
+            {
+              statusCode: 500,
+            },
+          )
       }
     } catch (err: any) {
       console.error(`Failed to project ${sourceRecordType} ${sourceRecordId}`, err)

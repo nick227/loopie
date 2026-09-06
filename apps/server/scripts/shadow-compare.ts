@@ -86,8 +86,9 @@ async function runOne(pair: Pair): Promise<RunResult> {
       pair.adRunId,
     )
     return { label, runAt, ok: true, ...report }
-  } catch (err: any) {
-    return { label, runAt, ok: false, error: err?.message ?? String(err), readyForCutover: false }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { label, runAt, ok: false, error: message, readyForCutover: false }
   }
 }
 

@@ -10,9 +10,9 @@ function throwIfError(result: { error?: unknown; response: { status: number }; d
 }
 
 function invalidateAffiliate(queryClient: ReturnType<typeof useQueryClient>, affiliateId: string) {
-  queryClient.invalidateQueries({ queryKey: ['affiliates'] })
-  queryClient.invalidateQueries({ queryKey: ['affiliate', affiliateId] })
-  queryClient.invalidateQueries({ queryKey: ['affiliate', 'me'] })
+  void queryClient.invalidateQueries({ queryKey: ['affiliates'] })
+  void queryClient.invalidateQueries({ queryKey: ['affiliate', affiliateId] })
+  void queryClient.invalidateQueries({ queryKey: ['affiliate', 'me'] })
 }
 
 export function useCreateAffiliateConnectOnboarding() {

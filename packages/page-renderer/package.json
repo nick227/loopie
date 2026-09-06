@@ -9,7 +9,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "lint": "echo 'no lint configured for @project/page-renderer'"
+    "lint": "eslint 'src/**/*.ts' --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
     "@project/ad-renderer": "workspace:*",

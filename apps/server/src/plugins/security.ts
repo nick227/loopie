@@ -20,6 +20,7 @@ export async function resolveSessionUser(token: string | undefined) {
   return loadAuthUser(session.userId, {
     id: session.id,
     activeBusinessId: session.activeBusinessId,
+    supportSessionId: session.supportSessionId,
   })
 }
 
@@ -46,5 +47,6 @@ export async function bearerAuth(request: any, _reply: any, _params: any) {
   request.user = await loadAuthUser(session.userId, {
     id: session.id,
     activeBusinessId: session.activeBusinessId,
+    supportSessionId: session.supportSessionId,
   })
 }

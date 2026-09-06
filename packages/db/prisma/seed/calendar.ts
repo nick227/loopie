@@ -1,4 +1,5 @@
 import { db } from '../../src/client'
+import type { Prisma } from '@prisma/client'
 import {
   STATIC_GOAL_IDEA_TEMPLATES,
   DYNAMIC_GOAL_IDEA_TEMPLATES,
@@ -12,11 +13,11 @@ function templateFields(seed: GoalIdeaTemplateSeed) {
     ideaType: seed.ideaType,
     subjectType: seed.subjectType,
     stage: seed.stage,
-    requiresTemplateIds: seed.requiresTemplateIds as any,
+    requiresTemplateIds: seed.requiresTemplateIds as Prisma.InputJsonValue,
     actionType: seed.action ? 'NAVIGATE' : null,
     actionTarget: seed.action?.target ?? null,
     actionLabel: seed.action?.label ?? null,
-    businessTypes: seed.businessTypes as any,
+    businessTypes: seed.businessTypes as Prisma.InputJsonValue,
     defaultHorizon: seed.defaultHorizon,
     defaultEstimateMinutes: seed.defaultEstimateMinutes,
     trackingType: seed.trackingType,

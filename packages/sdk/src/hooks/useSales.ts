@@ -23,7 +23,7 @@ export function useSales(params?: { limit?: number }) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
@@ -39,7 +39,7 @@ export function useSale(saleId: string) {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!saleId,
@@ -55,12 +55,12 @@ export function useCreateSale() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sales', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['leads', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['sales', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['leads', 'list'] })
     },
   })
 }
@@ -77,13 +77,13 @@ export function useReverseSale() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['sales', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['sale', variables.saleId] })
-      queryClient.invalidateQueries({ queryKey: ['leads', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['sales', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['sale', variables.saleId] })
+      void queryClient.invalidateQueries({ queryKey: ['leads', 'list'] })
     },
   })
 }

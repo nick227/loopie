@@ -17,11 +17,11 @@ const META_ENV = {
 }
 
 function json(data: unknown, status = 200) {
-  return { ok: status < 400, json: async () => data }
+  return { ok: status < 400, json: () => data }
 }
 
 function mockGraph() {
-  vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+  vi.stubGlobal('fetch', (input: RequestInfo | URL) => {
     const url = String(input)
     if (url.includes('/me/adaccounts')) {
       return json({

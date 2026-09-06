@@ -4,6 +4,109 @@
  */
 
 export interface paths {
+  '/admin/businesses': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List businesses (Site Admin only) */
+    get: operations['adminListBusinesses']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/admin/users': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List users (Site Admin only) */
+    get: operations['adminListUsers']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/admin/businesses/{businessId}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get a single business with license (Site Admin only) */
+    get: operations['adminGetBusiness']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/admin/businesses/{businessId}/license': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /** Update a business license (Site Admin only) */
+    put: operations['adminUpdateBusinessLicense']
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/admin/support-session': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Start a support session acting as a tenant OWNER */
+    post: operations['adminStartSupportSession']
+    /** End an active support session */
+    delete: operations['adminEndSupportSession']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/admin/audit': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List all audit events globally (Site Admin only) */
+    get: operations['adminListAuditEvents']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/embed-deployments/get-or-create': {
     parameters: {
       query?: never
@@ -176,6 +279,40 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/auth/google': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Start Google OAuth login/registration */
+    get: operations['startGoogleAuth']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/auth/google/callback': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Google OAuth callback */
+    get: operations['handleGoogleAuthCallback']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/auth/logout': {
     parameters: {
       query?: never
@@ -275,6 +412,23 @@ export interface paths {
      * @description OWNER-only. Creates a pending invitation bound to the email. If that email already has a Loopie account they can accept while logged in; otherwise they register first then accept. Access role is OWNER or MEMBER; jobTitle is a display label only.
      */
     post: operations['inviteTeamMember']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/business/team/audit': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List audit events for the active business */
+    get: operations['listTeamAuditEvents']
+    put?: never
+    post?: never
     delete?: never
     options?: never
     head?: never
@@ -1604,8 +1758,8 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    /** Current user's affiliate record */
-    get: operations['getMyAffiliate']
+    /** Get my platform affiliate */
+    get: operations['getMyPlatformAffiliate']
     put?: never
     post?: never
     delete?: never
@@ -3631,6 +3785,285 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/admin/platform-affiliates': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List platform affiliates */
+    get: operations['listPlatformAffiliates']
+    put?: never
+    /** Create platform affiliate */
+    post: operations['createPlatformAffiliate']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/admin/platform-affiliates/{id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get platform affiliate */
+    get: operations['getPlatformAffiliate']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /** Update platform affiliate */
+    patch: operations['updatePlatformAffiliate']
+    trace?: never
+  }
+  '/admin/platform-affiliate-deals': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List platform affiliate deals */
+    get: operations['listPlatformDeals']
+    put?: never
+    /** Create platform affiliate deal */
+    post: operations['createPlatformDeal']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/admin/platform-affiliate-classes': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List platform affiliate classes */
+    get: operations['listPlatformClasses']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/admin/businesses/{businessId}/platform-attribution': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get business platform affiliate attribution */
+    get: operations['getBusinessAttribution']
+    put?: never
+    /** Set business platform affiliate attribution */
+    post: operations['setBusinessAttribution']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/affiliates/me/overview': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get affiliate overview */
+    get: operations['getPlatformAffiliateOverview']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/affiliates/me/clients': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get affiliate clients */
+    get: operations['getPlatformAffiliateClients']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/admin/platform-affiliate-payouts': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List payouts */
+    get: operations['adminListPlatformAffiliatePayouts']
+    put?: never
+    /** Create payout */
+    post: operations['adminCreatePlatformAffiliatePayout']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/admin/platform-affiliate-payouts/{id}/settle': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /** Settle payout manually */
+    patch: operations['adminSettlePlatformAffiliatePayout']
+    trace?: never
+  }
+  '/admin/platform-affiliate-earnings/money-flow': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get the entire money flow ledger for platform affiliates */
+    get: operations['adminGetMoneyFlowLedger']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/admin/platform-affiliate-earnings/payable-summary': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get payable earnings grouped by affiliate */
+    get: operations['adminGetPayableEarningsSummary']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/admin/house-ads/search-advertisements': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Search live public user advertisements */
+    get: operations['adminSearchAdvertisements']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/admin/house-ads': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List house ads */
+    get: operations['adminListHouseAds']
+    put?: never
+    /** Create a house ad */
+    post: operations['adminCreateHouseAd']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/admin/house-ads/{id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /** Update a house ad */
+    put: operations['adminUpdateHouseAd']
+    post?: never
+    /** Delete a house ad */
+    delete: operations['adminDeleteHouseAd']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/house-ads/serve': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get an active house ad for a zone */
+    get: operations['serveHouseAd']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/house-ads/{id}/track': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Track an impression or click for a house ad */
+    post: operations['trackHouseAdMetric']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
 }
 export type webhooks = Record<string, never>
 export interface components {
@@ -3654,13 +4087,28 @@ export interface components {
       error: string
       code?: string
     }
+    AuditEvent: {
+      id: string
+      businessId?: string | null
+      businessName?: string | null
+      actorUserId: string
+      actorEmail: string
+      /** @enum {string} */
+      actorPlatformRole: 'USER' | 'SITE_ADMIN' | 'AFFILIATE'
+      action: string
+      resourceType: string
+      resourceId?: string | null
+      metadata: Record<string, never>
+      /** Format: date-time */
+      createdAt: string
+    }
     User: {
       id: string
       email: string
       businessId: string
       businessName?: string
       /** @enum {string} */
-      role: 'USER' | 'ADMIN' | 'AFFILIATE'
+      platformRole: 'USER' | 'SITE_ADMIN' | 'AFFILIATE'
       /**
        * @description Active-company access role from BusinessMembership (OWNER administers team; MEMBER has normal product access).
        * @enum {string}
@@ -3677,6 +4125,9 @@ export interface components {
       businessIdentityCompletedAt?: string | null
       /** Format: date-time */
       createdAt: string
+      /** @description True while a SITE_ADMIN is acting on this business through an active support session (see AdminSupportSession) — the frontend uses this to show the Support Mode banner. */
+      isSupportMode?: boolean
+      supportSessionId?: string | null
     }
     RegisterInput: {
       /** Format: email */
@@ -3966,6 +4417,15 @@ export interface components {
       planName: string
       /** @description Human-readable price from the Stripe Price, e.g. $29.00 / month. */
       planPriceLabel?: string | null
+      license: {
+        isEntitled: boolean
+        status: string
+        /** Format: date-time */
+        startsAt: string
+        /** Format: date-time */
+        endsAt?: string | null
+        source: string
+      }
     }
     CheckoutSession: {
       url: string
@@ -6731,7 +7191,14 @@ export interface components {
     ActivityType:
       | 'FORM_SUBMISSION'
       | 'LEAD_CREATED'
+      | 'LEAD_STATUS_CHANGED'
       | 'AD_RUN_FAILED'
+      | 'AD_RUN_STATE_CHANGED'
+      | 'PAGE_PUBLISHED'
+      | 'SALE_RECORDED'
+      | 'SALE_REVERSED'
+      | 'AUTOMATION_COMPLETED'
+      | 'AUTOMATION_FAILED'
       | 'MESSAGE_REPLY'
       | 'STATUS_CHANGE'
       | 'PUBLISH'
@@ -6830,6 +7297,45 @@ export interface components {
     UpdateActivitySavedViewInput: {
       name: string
     }
+    PlatformAffiliatePayout: {
+      id: string
+      affiliateId: string
+      totalAmountMinor: number
+      currency: string
+      status: string
+      /** Format: date-time */
+      createdAt: string
+    }
+    HouseAd: {
+      id: string
+      name: string
+      /** @enum {string} */
+      type: 'WORDPRESS_EMBED' | 'INTERNAL'
+      advertisementId?: string | null
+      advertisement?: {
+        id?: string
+        name?: string
+        businessId?: string
+        primaryText?: string | null
+      } | null
+      scriptUrl?: string | null
+      imageUrl?: string | null
+      targetUrl?: string | null
+      /** Format: date-time */
+      startDate?: string | null
+      /** Format: date-time */
+      endDate?: string | null
+      weight: number
+      /** @enum {string} */
+      status: 'ACTIVE' | 'PAUSED'
+      /** Format: date-time */
+      createdAt: string
+      /** Format: date-time */
+      updatedAt: string
+      placements?: {
+        zone?: string
+      }[]
+    }
   }
   responses: never
   parameters: {
@@ -6892,6 +7398,254 @@ export interface components {
 }
 export type $defs = Record<string, never>
 export interface operations {
+  adminListBusinesses: {
+    parameters: {
+      query?: {
+        limit?: components['parameters']['Limit']
+        /** @description Opaque cursor returned by the previous page. */
+        cursor?: components['parameters']['Cursor']
+        q?: components['parameters']['SearchQuery']
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: {
+              id: string
+              name: string
+              slug: string | null
+              /** Format: date-time */
+              createdAt: string
+              memberCount: number
+              ownerName: string | null
+              ownerEmail: string | null
+              subscriptionStatus?: string | null
+            }[]
+            nextCursor: string | null
+          }
+        }
+      }
+    }
+  }
+  adminListUsers: {
+    parameters: {
+      query?: {
+        limit?: components['parameters']['Limit']
+        /** @description Opaque cursor returned by the previous page. */
+        cursor?: components['parameters']['Cursor']
+        q?: components['parameters']['SearchQuery']
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: {
+              id: string
+              email: string
+              platformRole: string
+              isVerified: boolean
+              /** Format: date-time */
+              createdAt: string
+              /** Format: date-time */
+              lastActiveAt?: string | null
+              businesses: {
+                id: string
+                name: string
+                role: string
+              }[]
+            }[]
+            nextCursor: string | null
+          }
+        }
+      }
+    }
+  }
+  adminGetBusiness: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        businessId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: {
+              id: string
+              name: string
+              slug: string | null
+              /** Format: date-time */
+              createdAt: string
+              memberCount: number
+              ownerName: string | null
+              ownerEmail: string | null
+              subscriptionStatus?: string | null
+              license: {
+                isEntitled: boolean
+                status: string
+                /** Format: date-time */
+                startsAt: string
+                /** Format: date-time */
+                endsAt?: string | null
+                source: string
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  adminUpdateBusinessLicense: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        businessId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @enum {string} */
+          status: 'ACTIVE' | 'EXPIRED' | 'SUSPENDED'
+          /** Format: date-time */
+          endsAt?: string | null
+          /** @enum {string} */
+          source: 'MANUAL' | 'PROMO' | 'STRIPE'
+          note?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: {
+              isEntitled: boolean
+              status: string
+              /** Format: date-time */
+              startsAt: string
+              /** Format: date-time */
+              endsAt?: string | null
+              source: string
+            }
+          }
+        }
+      }
+    }
+  }
+  adminStartSupportSession: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          businessId: string
+          reason: string
+        }
+      }
+    }
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: {
+              supportSessionId: string
+            }
+          }
+        }
+      }
+    }
+  }
+  adminEndSupportSession: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            success: boolean
+          }
+        }
+      }
+    }
+  }
+  adminListAuditEvents: {
+    parameters: {
+      query?: {
+        limit?: components['parameters']['Limit']
+        /** @description Opaque cursor returned by the previous page. */
+        cursor?: components['parameters']['Cursor']
+        businessId?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['AuditEvent'][]
+            nextCursor: string | null
+          }
+        }
+      }
+    }
+  }
   getOrCreateEmbedDeployment: {
     parameters: {
       query?: never
@@ -7221,6 +7975,59 @@ export interface operations {
       }
     }
   }
+  startGoogleAuth: {
+    parameters: {
+      query?: {
+        /** @description Path on the web app to return to after login (must start with /). New accounts always land on /business/setup. */
+        returnTo?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Redirects to Google's OAuth consent screen */
+      302: {
+        headers: {
+          Location?: string
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Google login is not configured */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  handleGoogleAuthCallback: {
+    parameters: {
+      query?: {
+        code?: string
+        state?: string
+        error?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Sets the session cookie and redirects to the web app (or /login on failure) */
+      302: {
+        headers: {
+          Location?: string
+          'Set-Cookie'?: string
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
   logout: {
     parameters: {
       query?: never
@@ -7348,6 +8155,33 @@ export interface operations {
         content: {
           'application/json': {
             data: components['schemas']['TeamInvitation']
+          }
+        }
+      }
+    }
+  }
+  listTeamAuditEvents: {
+    parameters: {
+      query?: {
+        limit?: components['parameters']['Limit']
+        /** @description Opaque cursor returned by the previous page. */
+        cursor?: components['parameters']['Cursor']
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['AuditEvent'][]
+            nextCursor: string | null
           }
         }
       }
@@ -10189,7 +11023,7 @@ export interface operations {
       }
     }
   }
-  getMyAffiliate: {
+  getMyPlatformAffiliate: {
     parameters: {
       query?: never
       header?: never
@@ -10198,15 +11032,13 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Affiliate */
+      /** @description OK */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': {
-            data?: components['schemas']['Affiliate']
-          }
+          'application/json': Record<string, never>
         }
       }
     }
@@ -13834,6 +14666,598 @@ export interface operations {
             data: components['schemas']['CheckoutSession']
           }
         }
+      }
+    }
+  }
+  listPlatformAffiliates: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': Record<string, never>
+        }
+      }
+    }
+  }
+  createPlatformAffiliate: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': Record<string, never>
+      }
+    }
+    responses: {
+      /** @description Created */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': Record<string, never>
+        }
+      }
+    }
+  }
+  getPlatformAffiliate: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': Record<string, never>
+        }
+      }
+    }
+  }
+  updatePlatformAffiliate: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': Record<string, never>
+      }
+    }
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': Record<string, never>
+        }
+      }
+    }
+  }
+  listPlatformDeals: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': Record<string, never>
+        }
+      }
+    }
+  }
+  createPlatformDeal: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': Record<string, never>
+      }
+    }
+    responses: {
+      /** @description Created */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': Record<string, never>
+        }
+      }
+    }
+  }
+  listPlatformClasses: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': Record<string, never>
+        }
+      }
+    }
+  }
+  getBusinessAttribution: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        businessId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': Record<string, never>
+        }
+      }
+    }
+  }
+  setBusinessAttribution: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        businessId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': Record<string, never>
+      }
+    }
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': Record<string, never>
+        }
+      }
+    }
+  }
+  getPlatformAffiliateOverview: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: {
+              clients: number
+              activeLicenses: number
+              membershipRevenueMinor: number
+              pendingEarningsMinor: number
+              payableEarningsMinor: number
+              paidEarningsMinor: number
+            }
+          }
+        }
+      }
+    }
+  }
+  getPlatformAffiliateClients: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor returned by the previous page. */
+        cursor?: components['parameters']['Cursor']
+        limit?: components['parameters']['Limit']
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: {
+              id: string
+              name: string
+              licenseState: string
+              /** Format: date-time */
+              attributedAt: string
+              directRateBps: number
+              membershipRevenueMinor: number
+              cumulativeEarningsMinor: number
+            }[]
+            nextCursor?: string | null
+          }
+        }
+      }
+    }
+  }
+  adminListPlatformAffiliatePayouts: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor returned by the previous page. */
+        cursor?: components['parameters']['Cursor']
+        limit?: components['parameters']['Limit']
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['PlatformAffiliatePayout'][]
+            nextCursor?: string | null
+          }
+        }
+      }
+    }
+  }
+  adminCreatePlatformAffiliatePayout: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          affiliateId: string
+          earningIds: string[]
+        }
+      }
+    }
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['PlatformAffiliatePayout']
+          }
+        }
+      }
+    }
+  }
+  adminSettlePlatformAffiliatePayout: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['PlatformAffiliatePayout']
+          }
+        }
+      }
+    }
+  }
+  adminGetMoneyFlowLedger: {
+    parameters: {
+      query?: {
+        cursor?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: {
+              aggregates?: {
+                membershipRevenueMinor?: number
+                affiliateEarningsMinor?: number
+                managerOverridesMinor?: number
+                payableLiabilityMinor?: number
+                pendingPayoutTotalMinor?: number
+                paidTotalMinor?: number
+              } | null
+              payments?: Record<string, never>[]
+            }
+            nextCursor?: string | null
+          }
+        }
+      }
+    }
+  }
+  adminGetPayableEarningsSummary: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: {
+              affiliateId: string
+              affiliateName: string
+              totalAmountMinor: number
+              earningIds: string[]
+            }[]
+          }
+        }
+      }
+    }
+  }
+  adminSearchAdvertisements: {
+    parameters: {
+      query?: {
+        query?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: {
+              id: string
+              name: string
+              businessId: string
+              primaryText?: string | null
+              business?: {
+                id?: string
+                name?: string
+              }
+            }[]
+          }
+        }
+      }
+    }
+  }
+  adminListHouseAds: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['HouseAd'][]
+          }
+        }
+      }
+    }
+  }
+  adminCreateHouseAd: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': Record<string, never>
+      }
+    }
+    responses: {
+      /** @description Created */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['HouseAd']
+          }
+        }
+      }
+    }
+  }
+  adminUpdateHouseAd: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': Record<string, never>
+      }
+    }
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['HouseAd']
+          }
+        }
+      }
+    }
+  }
+  adminDeleteHouseAd: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  serveHouseAd: {
+    parameters: {
+      query: {
+        zone: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['HouseAd'] | null
+          }
+        }
+      }
+    }
+  }
+  trackHouseAdMetric: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          zone: string
+          /** @enum {string} */
+          type: 'view' | 'click'
+        }
+      }
+    }
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
       }
     }
   }

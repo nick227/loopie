@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { db, verifySid } from '@project/db'
+import { db } from '@project/db'
 import { LandingPageService } from '../../../server/src/services/LandingPageService'
 import { EmbedServingService } from '../services/EmbedServingService'
 import { EmbedDeploymentService } from '../../../server/src/services/EmbedDeploymentService'
@@ -57,9 +57,8 @@ describe('Page EmbedServingService', () => {
     try {
       await embedService.getBootstrapMetadata(strictDep.publicId, 'https://hacker.com')
       expect.unreachable('Should have thrown')
-    } catch (e: any) {
-      expect(e.statusCode).toBe(403)
-      expect(e.message).toBe('Origin not allowed')
+    } catch (e) {
+      expect(e).toMatchObject({ statusCode: 403, message: 'Origin not allowed' })
     }
 
     // 3. ANY origin -> bootstrap/render succeeds
@@ -100,9 +99,8 @@ describe('Page EmbedServingService', () => {
     try {
       await embedService.renderIframe(dep.publicId, nonce)
       expect.unreachable('Should have thrown')
-    } catch (e: any) {
-      expect(e.statusCode).toBe(401)
-      expect(e.message).toBe('Invalid or expired nonce')
+    } catch (e) {
+      expect(e).toMatchObject({ statusCode: 401, message: 'Invalid or expired nonce' })
     }
 
     // Exactly one EmbedInstance exists
@@ -129,6 +127,7 @@ describe('Page EmbedServingService', () => {
     expect(meta.nonce).toBeDefined()
 
     const html = await embedService.renderIframe(dep.publicId, meta.nonce)
+    expect(html).toContain('<!doctype html>')
     const instances = await db.embedInstance.findMany({ where: { embedDeploymentId: dep.id } })
     expect(instances.length).toBe(1)
     const instanceId = instances[0]!.id

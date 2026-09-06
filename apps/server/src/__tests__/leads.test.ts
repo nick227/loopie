@@ -2,17 +2,17 @@
 // Run `pnpm test:generate` to add stubs for new routes.
 // Both test users are pre-seeded: use testOtherUserId for cross-user permission tests.
 import { describe, it, expect } from 'vitest'
-import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId } from './helpers'
+import { buildTestApp, asAuth, validateResponse, testUserId } from './helpers'
 
 const app = buildTestApp()
 const createdIds: Record<string, string> = { default: '00000000-0000-0000-0000-000000000001' }
 
 describe('leads API', () => {
-  it('runs CRUD lifecycle', async (ctx) => {
+  it('runs CRUD lifecycle', async () => {
     const errors: Error[] = []
 
     // listLeads
-    
+
     // listLeads - auth check
     try {
       if (!'/leads'.includes('{') || createdIds['leads']) {
@@ -32,7 +32,10 @@ describe('leads API', () => {
           // payload: {},
         })
         if (reslistLeads.statusCode !== 200) {
-          console.error('listLeads failed with ' + reslistLeads.statusCode, reslistLeads.json().message || reslistLeads.json())
+          console.error(
+            'listLeads failed with ' + reslistLeads.statusCode,
+            reslistLeads.json().message || reslistLeads.json(),
+          )
         }
         expect(reslistLeads.statusCode).toBe(200)
         await validateResponse('listLeads', 200, reslistLeads.json())
@@ -42,11 +45,14 @@ describe('leads API', () => {
     }
 
     // getLead
-    
+
     // getLead - auth check
     try {
       if (!'/leads/{leadId}'.includes('{') || createdIds['leads']) {
-        const resgetLeadAuth = await app.inject({ method: 'GET', url: `/leads/${createdIds['leads'] || '00000000-0000-0000-0000-000000000001'}` })
+        const resgetLeadAuth = await app.inject({
+          method: 'GET',
+          url: `/leads/${createdIds['leads'] || '00000000-0000-0000-0000-000000000001'}`,
+        })
         expect(resgetLeadAuth.statusCode).toBe(401)
       }
     } catch (e: any) {
@@ -62,7 +68,10 @@ describe('leads API', () => {
           // payload: {},
         })
         if (resgetLead.statusCode !== 200) {
-          console.error('getLead failed with ' + resgetLead.statusCode, resgetLead.json().message || resgetLead.json())
+          console.error(
+            'getLead failed with ' + resgetLead.statusCode,
+            resgetLead.json().message || resgetLead.json(),
+          )
         }
         expect(resgetLead.statusCode).toBe(200)
         await validateResponse('getLead', 200, resgetLead.json())
@@ -72,11 +81,14 @@ describe('leads API', () => {
     }
 
     // updateLead
-    
+
     // updateLead - auth check
     try {
       if (!'/leads/{leadId}'.includes('{') || createdIds['leads']) {
-        const resupdateLeadAuth = await app.inject({ method: 'PATCH', url: `/leads/${createdIds['leads'] || '00000000-0000-0000-0000-000000000001'}` })
+        const resupdateLeadAuth = await app.inject({
+          method: 'PATCH',
+          url: `/leads/${createdIds['leads'] || '00000000-0000-0000-0000-000000000001'}`,
+        })
         expect(resupdateLeadAuth.statusCode).toBe(401)
       }
     } catch (e: any) {
@@ -92,7 +104,10 @@ describe('leads API', () => {
           payload: {},
         })
         if (resupdateLead.statusCode !== 200) {
-          console.error('updateLead failed with ' + resupdateLead.statusCode, resupdateLead.json().message || resupdateLead.json())
+          console.error(
+            'updateLead failed with ' + resupdateLead.statusCode,
+            resupdateLead.json().message || resupdateLead.json(),
+          )
         }
         expect(resupdateLead.statusCode).toBe(200)
         await validateResponse('updateLead', 200, resupdateLead.json())
@@ -101,7 +116,7 @@ describe('leads API', () => {
       errors.push(new Error('updateLead failed: ' + e.message))
     }
     if (errors.length > 0) {
-      throw new Error('Lifecycle failed:\n' + errors.map(e => e.message).join('\n'))
+      throw new Error('Lifecycle failed:\n' + errors.map((e) => e.message).join('\n'))
     }
   })
 })

@@ -32,11 +32,9 @@ function formatRelativeTime(dateStr: string) {
 }
 
 // Repetitive/automated event types worth collapsing into a rollup when several land in the same
-// hour for the same source — the real ActivityType enum (packages/api-spec/openapi.yaml) has no
-// page-view/ad-click feed items (those live in PageView/AttributionEvent, not Activity), so SYNC
-// (repeated CRM/integration syncs) and AUTOMATION_EXECUTION (repeated automation runs) are the
-// two types that actually get noisy in practice.
-const NOISY_TYPES: ActivityType[] = ['SYNC', 'AUTOMATION_EXECUTION']
+// hour for the same source — page-view/ad-click feed items live in PageView/AttributionEvent, not
+// Activity. Automation completions and ad-run state flips are the noisy ones that actually ship.
+const NOISY_TYPES: ActivityType[] = ['AUTOMATION_COMPLETED', 'AD_RUN_STATE_CHANGED']
 
 type ActivityItem = components['schemas']['ActivityItem']
 type ActivityType = ActivityItem['type']

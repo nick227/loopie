@@ -7,7 +7,7 @@ import { processEmbedOutbox } from './services/activity/EmbedProjectionWorker'
 import { runDueGoalReminders } from './services/CalendarReminderService'
 import { processPendingPageThumbnails } from './services/PageThumbnailService'
 
-async function main() {
+function main() {
   console.log('Worker started. Initializing pollers...')
 
   if (process.env.NODE_ENV !== 'test') {
@@ -74,11 +74,8 @@ async function main() {
     process.exit(0)
   }
 
-  process.once('SIGINT', shutdown)
-  process.once('SIGTERM', shutdown)
+  process.once('SIGINT', () => void shutdown())
+  process.once('SIGTERM', () => void shutdown())
 }
 
-main().catch((err) => {
-  console.error('[Worker] Fatal error:', err)
-  process.exit(1)
-})
+main()

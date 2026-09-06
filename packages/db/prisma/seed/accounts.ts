@@ -1,5 +1,5 @@
 import { db } from '../../src/client'
-import type { User, UserRole } from '@prisma/client'
+import type { User, UserPlatformRole } from '@prisma/client'
 
 export const SEED_PASSWORD = 'password123'
 
@@ -8,7 +8,7 @@ export const OAK_ID = 'demo-business-oak'
 
 export type SeedAccount = {
   email: string
-  role: UserRole
+  platformRole: UserPlatformRole
   businessId: string
   label: string
   suspended?: boolean
@@ -21,7 +21,7 @@ export type SeedAccount = {
 export const SEED_ACCOUNTS: SeedAccount[] = [
   {
     email: 'demo@loopie.app',
-    role: 'ADMIN',
+    platformRole: 'SITE_ADMIN',
     businessId: RIVERSIDE_ID,
     label: 'owner — campaigns, affiliates, billing',
     memberRole: 'OWNER',
@@ -30,7 +30,7 @@ export const SEED_ACCOUNTS: SeedAccount[] = [
   },
   {
     email: 'shop@loopie.app',
-    role: 'USER',
+    platformRole: 'USER',
     businessId: RIVERSIDE_ID,
     label: 'staff — campaigns/messages only',
     memberRole: 'MEMBER',
@@ -38,7 +38,7 @@ export const SEED_ACCOUNTS: SeedAccount[] = [
   },
   {
     email: 'marketer@loopie.app',
-    role: 'USER',
+    platformRole: 'USER',
     businessId: RIVERSIDE_ID,
     label: 'second staff login',
     memberRole: 'MEMBER',
@@ -46,7 +46,7 @@ export const SEED_ACCOUNTS: SeedAccount[] = [
   },
   {
     email: 'suspended@loopie.app',
-    role: 'USER',
+    platformRole: 'USER',
     businessId: RIVERSIDE_ID,
     label: 'login returns 403',
     suspended: true,
@@ -55,7 +55,7 @@ export const SEED_ACCOUNTS: SeedAccount[] = [
   },
   {
     email: 'affiliate@loopie.app',
-    role: 'AFFILIATE',
+    platformRole: 'AFFILIATE',
     businessId: RIVERSIDE_ID,
     label: 'Jordan — independent field rep',
     memberRole: 'MEMBER',
@@ -63,7 +63,7 @@ export const SEED_ACCOUNTS: SeedAccount[] = [
   },
   {
     email: 'manager@loopie.app',
-    role: 'AFFILIATE',
+    platformRole: 'AFFILIATE',
     businessId: RIVERSIDE_ID,
     label: 'Casey — manager with a downline',
     memberRole: 'MEMBER',
@@ -71,7 +71,7 @@ export const SEED_ACCOUNTS: SeedAccount[] = [
   },
   {
     email: 'downline@loopie.app',
-    role: 'AFFILIATE',
+    platformRole: 'AFFILIATE',
     businessId: RIVERSIDE_ID,
     label: 'Riley — reports to Casey',
     memberRole: 'MEMBER',
@@ -79,7 +79,7 @@ export const SEED_ACCOUNTS: SeedAccount[] = [
   },
   {
     email: 'paused-affiliate@loopie.app',
-    role: 'AFFILIATE',
+    platformRole: 'AFFILIATE',
     businessId: RIVERSIDE_ID,
     label: 'Taylor — paused, cannot earn',
     memberRole: 'MEMBER',
@@ -87,7 +87,7 @@ export const SEED_ACCOUNTS: SeedAccount[] = [
   },
   {
     email: 'oak@loopie.app',
-    role: 'ADMIN',
+    platformRole: 'SITE_ADMIN',
     businessId: OAK_ID,
     label: 'second-tenant owner',
     memberRole: 'OWNER',
@@ -96,7 +96,7 @@ export const SEED_ACCOUNTS: SeedAccount[] = [
   },
   {
     email: 'oak-shop@loopie.app',
-    role: 'USER',
+    platformRole: 'USER',
     businessId: OAK_ID,
     label: 'second-tenant staff',
     memberRole: 'MEMBER',
@@ -104,7 +104,7 @@ export const SEED_ACCOUNTS: SeedAccount[] = [
   },
   {
     email: 'oak-affiliate@loopie.app',
-    role: 'AFFILIATE',
+    platformRole: 'AFFILIATE',
     businessId: OAK_ID,
     label: 'Sam — other-tenant affiliate',
     memberRole: 'MEMBER',
@@ -143,6 +143,28 @@ export async function seedBusinessesAndUsers(passwordHash: string) {
     },
   })
 
+  // Seed active licenses (100 years for dev environments)
+  const endsAt = new Date()
+  endsAt.setFullYear(endsAt.getFullYear() + 100)
+
+  await db.businessLicense.upsert({
+    where: { businessId: RIVERSIDE_ID },
+    update: { status: 'ACTIVE', endsAt, source: 'MANUAL' },
+    create: {
+      businessId: RIVERSIDE_ID,
+      status: 'ACTIVE',
+      endsAt,
+      source: 'MANUAL',
+      note: 'Dev Seed',
+    },
+  })
+
+  await db.businessLicense.upsert({
+    where: { businessId: OAK_ID },
+    update: { status: 'ACTIVE', endsAt, source: 'MANUAL' },
+    create: { businessId: OAK_ID, status: 'ACTIVE', endsAt, source: 'MANUAL', note: 'Dev Seed' },
+  })
+
   const users: Record<string, User> = {}
   for (const spec of SEED_ACCOUNTS) {
     users[spec.email] = await upsertUser(spec, passwordHash)
@@ -166,7 +188,7 @@ async function upsertUser(spec: SeedAccount, passwordHash: string) {
   const user = await db.user.upsert({
     where: { email: spec.email },
     update: {
-      role: spec.role,
+      platformRole: spec.platformRole,
       passwordHash,
       businessId: spec.businessId,
       suspendedAt,
@@ -177,13 +199,13 @@ async function upsertUser(spec: SeedAccount, passwordHash: string) {
       email: spec.email,
       passwordHash,
       businessId: spec.businessId,
-      role: spec.role,
+      platformRole: spec.platformRole,
       isVerified: true,
       suspendedAt,
     },
   })
 
-  const memberRole = spec.memberRole ?? (spec.role === 'USER' ? 'MEMBER' : 'OWNER')
+  const memberRole = spec.memberRole ?? (spec.platformRole === 'USER' ? 'MEMBER' : 'OWNER')
   const isFounder = spec.isFounder ?? false
   await db.businessMembership.upsert({
     where: { userId_businessId: { userId: user.id, businessId: spec.businessId } },

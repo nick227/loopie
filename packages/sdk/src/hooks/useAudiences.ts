@@ -20,11 +20,13 @@ export function useAudiences(params?: { limit?: number }) {
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
       const client = getApiClient()
-      const result = await client.GET('/audiences', { params: { query: { ...params, cursor: pageParam } } })
+      const result = await client.GET('/audiences', {
+        params: { query: { ...params, cursor: pageParam } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
@@ -36,11 +38,13 @@ export function useAudience(audienceId: string) {
     queryKey: ['audience', audienceId],
     queryFn: async () => {
       const client = getApiClient()
-      const result = await client.GET('/audiences/{audienceId}', { params: { path: { audienceId } } })
+      const result = await client.GET('/audiences/{audienceId}', {
+        params: { path: { audienceId } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!audienceId,
@@ -52,11 +56,13 @@ export function useAudienceContacts(audienceId: string) {
     queryKey: ['audience', audienceId, 'contacts'],
     queryFn: async () => {
       const client = getApiClient()
-      const result = await client.GET('/audiences/{audienceId}/contacts', { params: { path: { audienceId } } })
+      const result = await client.GET('/audiences/{audienceId}/contacts', {
+        params: { path: { audienceId } },
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     enabled: !!audienceId,
@@ -72,7 +78,7 @@ export function useCreateAudience() {
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['audiences', 'list'] }),
@@ -84,16 +90,19 @@ export function useUpdateAudience() {
   return useMutation({
     mutationFn: async ({ audienceId, ...body }: UpdateAudienceInput) => {
       const client = getApiClient()
-      const result = await client.PATCH('/audiences/{audienceId}', { params: { path: { audienceId } }, body })
+      const result = await client.PATCH('/audiences/{audienceId}', {
+        params: { path: { audienceId } },
+        body,
+      })
       const err = result.error
       const status = result.response.status
       const data = result.data
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['audiences', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['audience', variables.audienceId] })
+      void queryClient.invalidateQueries({ queryKey: ['audiences', 'list'] })
+      void queryClient.invalidateQueries({ queryKey: ['audience', variables.audienceId] })
     },
   })
 }
@@ -103,10 +112,12 @@ export function useDeleteAudience() {
   return useMutation({
     mutationFn: async (audienceId: string) => {
       const client = getApiClient()
-      const result = await client.DELETE('/audiences/{audienceId}', { params: { path: { audienceId } } })
+      const result = await client.DELETE('/audiences/{audienceId}', {
+        params: { path: { audienceId } },
+      })
       const err = result.error
       const status = result.response.status
-      if (err) throw new ApiError(status, (err as any).error)
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['audiences', 'list'] }),
   })

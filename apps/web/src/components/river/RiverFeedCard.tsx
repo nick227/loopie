@@ -17,8 +17,8 @@ import {
   RiverPostMedia,
   RiverPostHeaderChrome,
   AdCreativeVisual,
-  useIsPortrait,
 } from '@/components/river/RiverPostPresentation'
+import { useIsPortrait } from '@/hooks/useIsPortrait'
 
 const CommentSheet = lazy(() =>
   import('@/components/river/CommentSheet').then((m) => ({ default: m.CommentSheet })),
@@ -209,7 +209,7 @@ function stageTextSizeClass(length: number) {
 function StageTextFrame({ body }: { body: string }) {
   return (
     <div className={cn(STAGE_FRAME_SIZE_CLASS, 'overflow-y-auto bg-muted/40')}>
-      <div className="flex w-full items-center justify-center p-8">
+      <div className="flex w-full items-center justify-center p-8 h-full">
         <p
           className={cn(
             'whitespace-pre-wrap text-center font-medium leading-snug text-foreground',
@@ -658,7 +658,7 @@ export function RiverFeedCard({
         style={stageStyle}
         className="flex my-4 flex-col mx-auto snap-start relative w-full max-w-[480px] rounded-2xl border border-border bg-card overflow-hidden"
       >
-        <div className="px-5 pt-5 pb-3 shrink-0">{authorRow}</div>
+        <div className="px-2 pt-5 pb-3 shrink-0">{authorRow}</div>
 
         <div className="river-card-content flex flex-col">
           {isTextOnly ? (

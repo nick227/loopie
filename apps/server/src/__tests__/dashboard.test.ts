@@ -2,17 +2,17 @@
 // Run `pnpm test:generate` to add stubs for new routes.
 // Both test users are pre-seeded: use testOtherUserId for cross-user permission tests.
 import { describe, it, expect } from 'vitest'
-import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId } from './helpers'
+import { buildTestApp, asAuth, validateResponse, testUserId } from './helpers'
 
 const app = buildTestApp()
 const createdIds: Record<string, string> = { default: '00000000-0000-0000-0000-000000000001' }
 
 describe('dashboard API', () => {
-  it('runs CRUD lifecycle', async (ctx) => {
+  it('runs CRUD lifecycle', async () => {
     const errors: Error[] = []
 
     // getHomeSummary
-    
+
     // getHomeSummary - auth check
     try {
       if (!'/home'.includes('{') || createdIds['home']) {
@@ -32,7 +32,10 @@ describe('dashboard API', () => {
           // payload: {},
         })
         if (resgetHomeSummary.statusCode !== 200) {
-          console.error('getHomeSummary failed with ' + resgetHomeSummary.statusCode, resgetHomeSummary.json().message || resgetHomeSummary.json())
+          console.error(
+            'getHomeSummary failed with ' + resgetHomeSummary.statusCode,
+            resgetHomeSummary.json().message || resgetHomeSummary.json(),
+          )
         }
         expect(resgetHomeSummary.statusCode).toBe(200)
         await validateResponse('getHomeSummary', 200, resgetHomeSummary.json())
@@ -42,7 +45,7 @@ describe('dashboard API', () => {
     }
 
     // getResultsSummary
-    
+
     // getResultsSummary - auth check
     try {
       if (!'/results'.includes('{') || createdIds['results']) {
@@ -62,7 +65,10 @@ describe('dashboard API', () => {
           // payload: {},
         })
         if (resgetResultsSummary.statusCode !== 200) {
-          console.error('getResultsSummary failed with ' + resgetResultsSummary.statusCode, resgetResultsSummary.json().message || resgetResultsSummary.json())
+          console.error(
+            'getResultsSummary failed with ' + resgetResultsSummary.statusCode,
+            resgetResultsSummary.json().message || resgetResultsSummary.json(),
+          )
         }
         expect(resgetResultsSummary.statusCode).toBe(200)
         await validateResponse('getResultsSummary', 200, resgetResultsSummary.json())
@@ -71,7 +77,7 @@ describe('dashboard API', () => {
       errors.push(new Error('getResultsSummary failed: ' + e.message))
     }
     if (errors.length > 0) {
-      throw new Error('Lifecycle failed:\n' + errors.map(e => e.message).join('\n'))
+      throw new Error('Lifecycle failed:\n' + errors.map((e) => e.message).join('\n'))
     }
   })
 })

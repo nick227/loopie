@@ -8,6 +8,8 @@ export type AuthUser = User & {
   jobTitle: string | null
   /** Session id when resolved via bearerAuth — used to switch active company. */
   sessionId?: string
+  supportSessionId?: string
+  isSupportMode?: boolean
 }
 
 type Tx = Prisma.TransactionClient | typeof db
@@ -27,10 +29,18 @@ export async function ensureHomeMembership(tx: Tx, user: User): Promise<Business
     select: { id: true },
   })
   // First membership for a company without a founder becomes founder+OWNER.
-  // Otherwise map legacy User.role: ADMIN/AFFILIATE → OWNER, USER → MEMBER.
+  // Otherwise map legacy User.platformRole: SITE_ADMIN → OWNER, everything else → MEMBER.
+  // AFFILIATE deliberately excluded (fixed 2026-09-05, affiliateAccess.test.ts): an affiliate
+  // login's User.businessId is the real business they're attached to, not a synthetic one of
+  // their own — mapping AFFILIATE to OWNER here silently made every affiliate login an OWNER of
+  // that real business for any check gated on membershipRole alone (requireAdmin,
+  // requireBusinessOwner), including affiliate-catalog writes that requireAdmin is supposed to
+  // reserve for real business owners. Every legitimate affiliate self-service check elsewhere
+  // already gates on platformRole === 'AFFILIATE' directly, never on membershipRole, so this
+  // costs affiliates nothing they actually use.
   const isFounder = !founderExists
   const role: BusinessMemberRole =
-    isFounder || user.role === 'ADMIN' || user.role === 'AFFILIATE' ? 'OWNER' : 'MEMBER'
+    isFounder || user.platformRole === 'SITE_ADMIN' ? 'OWNER' : 'MEMBER'
 
   return tx.businessMembership.create({
     data: {
@@ -79,12 +89,41 @@ export async function resolveActiveBusinessId(
 
 export async function loadAuthUser(
   userId: string,
-  session?: { id: string; activeBusinessId: string | null },
+  session?: { id?: string; activeBusinessId: string | null; supportSessionId?: string | null },
 ): Promise<AuthUser> {
   const user = await db.user.findUniqueOrThrow({
     where: { id: userId },
     include: { business: true },
   })
+
+  // If Site Admin has an active support session, they act as OWNER of that business.
+  if (session?.supportSessionId && user.platformRole === 'SITE_ADMIN') {
+    const supportSession = await db.adminSupportSession.findUnique({
+      where: { id: session.supportSessionId },
+    })
+
+    if (
+      supportSession &&
+      supportSession.siteAdminUserId === user.id &&
+      !supportSession.endedAt &&
+      supportSession.expiresAt > new Date()
+    ) {
+      const business = await db.business.findUniqueOrThrow({
+        where: { id: supportSession.businessId },
+      })
+      return {
+        ...user,
+        businessId: business.id,
+        business,
+        membershipRole: 'OWNER',
+        isFounder: false,
+        jobTitle: 'Site Admin',
+        sessionId: session.id,
+        supportSessionId: supportSession.id,
+        isSupportMode: true,
+      }
+    }
+  }
 
   const { businessId, membership } = await resolveActiveBusinessId(
     db,
@@ -105,5 +144,17 @@ export async function loadAuthUser(
     isFounder: membership.isFounder,
     jobTitle: membership.jobTitle,
     sessionId: session?.id,
+  }
+}
+
+export function requireBusinessOwner(user: AuthUser) {
+  if (user.membershipRole !== 'OWNER') {
+    throw { statusCode: 403, message: 'Business owner only' }
+  }
+}
+
+export function requireSiteAdmin(user: AuthUser) {
+  if (user.platformRole !== 'SITE_ADMIN') {
+    throw { statusCode: 403, message: 'Site admin only' }
   }
 }

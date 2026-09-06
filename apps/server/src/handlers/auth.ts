@@ -44,11 +44,11 @@ export async function logout(request: any, reply: any) {
   return reply.send({ data: null })
 }
 
-export async function getCurrentUser(request: any, reply: any) {
+export function getCurrentUser(request: any, reply: any) {
   return reply.send({ data: toUserDTO(request.user) })
 }
 
-export async function startGoogleAuth(
+export function startGoogleAuth(
   request: { query: { returnTo?: string } },
   reply: {
     header: (name: string, value: string) => { redirect: (code: number, url: string) => unknown }

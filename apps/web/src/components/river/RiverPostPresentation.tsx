@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Avatar } from '@/components/ui/Avatar'
 import { mediaSrc } from '@/lib/media'
 import { cn } from '@/lib/utils'
+import { useIsPortrait } from '@/hooks/useIsPortrait'
 import { renderAdCreativeFragment, type AdCreativeInput } from '@project/ad-renderer'
 
 // Pure presentational River-post pieces — no dependency on RiverFeedItem or any server shape,
@@ -12,17 +13,6 @@ import { renderAdCreativeFragment, type AdCreativeInput } from '@project/ad-rend
 // directly, so "what you compose" and "what gets posted" can never visually drift apart.
 
 export const RIVER_MEDIA_MAX_HEIGHT_CLASS = 'max-h-[320px] sm:max-h-[480px]'
-
-export function useIsPortrait(url: string | undefined) {
-  const [portrait, setPortrait] = useState(false)
-  useEffect(() => {
-    if (!url) return
-    const img = new Image()
-    img.onload = () => setPortrait(img.naturalHeight > img.naturalWidth)
-    img.src = url
-  }, [url])
-  return portrait
-}
 
 export function RiverPostMedia({
   images,

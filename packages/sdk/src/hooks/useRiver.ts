@@ -45,7 +45,7 @@ export function useCreateRiverPost() {
       return unwrap(await client.POST('/river/posts', { body: input }))
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['riverPosts'] })
+      void queryClient.invalidateQueries({ queryKey: ['riverPosts'] })
     },
   })
 }
@@ -62,7 +62,7 @@ export function useDeleteRiverPost() {
       )
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['riverPosts'] })
+      void queryClient.invalidateQueries({ queryKey: ['riverPosts'] })
     },
   })
 }
@@ -295,7 +295,7 @@ export function useCreateRiverComment() {
       )
     },
     onSuccess: (_result, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['riverComments', variables.riverPostId] })
+      void queryClient.invalidateQueries({ queryKey: ['riverComments', variables.riverPostId] })
       updateRiverFeedCache(queryClient, (item) =>
         item.id === variables.riverPostId
           ? { ...item, metrics: { ...item.metrics, comments: item.metrics.comments + 1 } }
@@ -317,7 +317,7 @@ export function useDeleteRiverComment() {
       )
     },
     onSuccess: (_result, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['riverComments', variables.riverPostId] })
+      void queryClient.invalidateQueries({ queryKey: ['riverComments', variables.riverPostId] })
       updateRiverFeedCache(queryClient, (item) =>
         item.id === variables.riverPostId
           ? {

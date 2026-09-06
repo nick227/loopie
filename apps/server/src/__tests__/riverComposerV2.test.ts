@@ -89,7 +89,7 @@ async function createPublishedPage(userId: string) {
 function mockFetchHtml(html: string) {
   vi.stubGlobal(
     'fetch',
-    async () => new Response(html, { status: 200, headers: { 'content-type': 'text/html' } }),
+    () => new Response(html, { status: 200, headers: { 'content-type': 'text/html' } }),
   )
 }
 
@@ -159,7 +159,7 @@ describe('River composer v2', () => {
     expect(res.json().data.linkPreviewTitle).toBe('Great Article')
     expect(res.json().data.linkPreviewDescription).toBe('A real description')
 
-    vi.stubGlobal('fetch', async () => {
+    vi.stubGlobal('fetch', () => {
       throw new Error('network unreachable')
     })
     const failing = await app.inject({
@@ -183,7 +183,7 @@ describe('River composer v2', () => {
       'Composer SSRF Author',
     )
     let fetchCalled = false
-    vi.stubGlobal('fetch', async () => {
+    vi.stubGlobal('fetch', () => {
       fetchCalled = true
       throw new Error('should never be called')
     })
