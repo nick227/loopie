@@ -14,11 +14,11 @@
   "dependencies": {
     "@project/ad-renderer": "workspace:*",
     "@project/db": "workspace:*",
-    "@prisma/client": "^5.0.0"
+    "@prisma/client": "^7.10.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
-    "vitest": "^2.0.0"
+    "@types/node": "^26.4.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
   }
 }
