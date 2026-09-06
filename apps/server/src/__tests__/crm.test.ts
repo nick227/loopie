@@ -10,7 +10,7 @@ const createdIds: Record<string, string> = { default: '00000000-0000-0000-0000-0
 describe('crm API', () => {
   it('runs CRUD lifecycle', async () => {
     const errors: Error[] = []
-    vi.stubGlobal('fetch', () => ({ ok: true, status: 200, json: () => [] }))
+    vi.stubGlobal('fetch', async () => ({ ok: true, status: 200, json: async () => [] }))
 
     // createIntegration
 

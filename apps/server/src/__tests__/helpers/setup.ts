@@ -85,6 +85,10 @@ afterEach(async () => {
   await db.campaignAdRun.deleteMany()
   await db.adRun.deleteMany()
   await db.mediaOrderRevision.deleteMany()
+  // HouseAd references Advertisement/Business — must go before both are deleted below.
+  await db.houseAdMetric.deleteMany()
+  await db.houseAdPlacement.deleteMany()
+  await db.houseAd.deleteMany()
   await db.advertisement.deleteMany()
   await db.affiliateClass.updateMany({ data: { defaultDealId: null } })
   await db.affiliate.deleteMany()
@@ -137,6 +141,18 @@ afterEach(async () => {
   await db.auditEvent.deleteMany()
   await db.adminSupportSession.deleteMany()
   await db.businessLicense.deleteMany()
+  // Platform-scoped affiliate models — membershipPayment cascades its earnings, but the
+  // earning->payout and affiliate self-refs (manager) and the class<->deal cycle don't cascade,
+  // and PlatformAffiliate.userId must be cleared before User is deleted below.
+  await db.membershipPayment.deleteMany()
+  await db.platformAffiliateEarning.deleteMany()
+  await db.platformAffiliatePayout.deleteMany()
+  await db.businessAffiliateAttribution.deleteMany()
+  await db.platformAffiliate.updateMany({ data: { managerId: null } })
+  await db.platformAffiliate.deleteMany()
+  await db.platformAffiliateClass.updateMany({ data: { defaultDealId: null } })
+  await db.platformAffiliateDeal.deleteMany()
+  await db.platformAffiliateClass.deleteMany()
   await db.user.deleteMany()
   await db.platformConnection.deleteMany()
   await db.channelProvider.deleteMany()

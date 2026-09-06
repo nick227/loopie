@@ -20,18 +20,18 @@ function mockGoogleIdentity(opts: {
   /** Extra fields that must never become roles */
   extra?: Record<string, unknown>
 }) {
-  vi.stubGlobal('fetch', (input: RequestInfo | URL) => {
+  vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
     const url = String(input)
     if (url.includes('oauth2.googleapis.com/token')) {
       return {
         ok: true,
-        json: () => ({ access_token: 'access-token', expires_in: 3600 }),
+        json: async () => ({ access_token: 'access-token', expires_in: 3600 }),
       }
     }
     if (url.includes('openidconnect.googleapis.com/v1/userinfo')) {
       return {
         ok: true,
-        json: () => ({
+        json: async () => ({
           email: opts.email,
           email_verified: opts.emailVerified ?? true,
           name: opts.name ?? 'Pat Example',
@@ -39,7 +39,7 @@ function mockGoogleIdentity(opts: {
         }),
       }
     }
-    return { ok: false, json: () => ({ error: 'unexpected' }) }
+    return { ok: false, json: async () => ({ error: 'unexpected' }) }
   })
 }
 

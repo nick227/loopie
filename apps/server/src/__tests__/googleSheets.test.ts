@@ -14,7 +14,7 @@ const GS_ENV = {
 }
 
 function json(data: unknown, status = 200) {
-  return { ok: status < 400, status, json: () => data }
+  return { ok: status < 400, status, json: async () => data }
 }
 
 function enableGoogleSheets() {
@@ -31,7 +31,7 @@ const DATA_ROWS = [
 ]
 
 function stubGoogleFetch() {
-  vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
+  vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
     const method = init?.method ?? 'GET'
     if (url.includes('oauth2.googleapis.com/token')) {

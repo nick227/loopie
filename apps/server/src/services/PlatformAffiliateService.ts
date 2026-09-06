@@ -308,7 +308,7 @@ export class PlatformAffiliateService {
           by: ['status', 'type'],
           _sum: { amountMinor: true },
         }),
-        db.platformAffiliatePayout.groupBy({ by: ['status'], _sum: { amountMinor: true } }),
+        db.platformAffiliatePayout.groupBy({ by: ['status'], _sum: { totalAmountMinor: true } }),
       ])
 
       const membershipRevenueMinor = revenueResult._sum.amountMinor ?? 0
@@ -324,8 +324,9 @@ export class PlatformAffiliateService {
       }
 
       const pendingPayoutTotalMinor =
-        payoutsResult.find((p) => p.status === 'PENDING')?._sum.amountMinor ?? 0
-      const paidTotalMinor = payoutsResult.find((p) => p.status === 'PAID')?._sum.amountMinor ?? 0
+        payoutsResult.find((p) => p.status === 'PENDING')?._sum.totalAmountMinor ?? 0
+      const paidTotalMinor =
+        payoutsResult.find((p) => p.status === 'PAID')?._sum.totalAmountMinor ?? 0
 
       aggregates = {
         membershipRevenueMinor,
