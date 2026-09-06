@@ -29,15 +29,17 @@ async function createTemplate() {
 
 describe('page thumbnail cache', () => {
   beforeEach(() => {
-    setCapturePageThumbnail(() => ({
-      buffer: Buffer.from(
-        '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAGfAP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAQUCf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Bf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Bf//Z',
-        'base64',
-      ),
-      mimeType: 'image/jpeg',
-      widthPx: 640,
-      heightPx: 400,
-    }))
+    setCapturePageThumbnail(() =>
+      Promise.resolve({
+        buffer: Buffer.from(
+          '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAGfAP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAQUCf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Bf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Bf//Z',
+          'base64',
+        ),
+        mimeType: 'image/jpeg',
+        widthPx: 640,
+        heightPx: 400,
+      }),
+    )
   })
 
   afterEach(() => {
@@ -317,12 +319,13 @@ describe('page thumbnail cache', () => {
     // Simulate a late worker finishing v12 after v13 is already live.
     await new PageThumbnailService().processOne(
       (await db.pageThumbnail.findUniqueOrThrow({ where: { publishedVersionId: v12 } })).id,
-      () => ({
-        buffer: Buffer.from('late-v12'),
-        mimeType: 'image/jpeg',
-        widthPx: 640,
-        heightPx: 400,
-      }),
+      () =>
+        Promise.resolve({
+          buffer: Buffer.from('late-v12'),
+          mimeType: 'image/jpeg',
+          widthPx: 640,
+          heightPx: 400,
+        }),
     )
     expect(await db.pageThumbnail.findUnique({ where: { publishedVersionId: v12 } })).toBeNull()
 

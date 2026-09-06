@@ -1,5 +1,5 @@
 import { db } from '@project/db'
-import type { ActivityItem, AttentionItem } from '@prisma/client'
+import type { ActivityItem, AttentionItem, AttentionItemState } from '@prisma/client'
 import { normalizeLimit } from '../lib/pagination'
 
 type ActivityCursorPayload = {
@@ -220,12 +220,12 @@ export class ActivityService {
     }
 
     const updateData: {
-      state?: string
+      state?: AttentionItemState
       assigneeId?: string | null
       priority?: string
       snoozedUntil?: Date | null
     } = {}
-    if (data.state !== undefined) updateData.state = data.state
+    if (data.state !== undefined) updateData.state = data.state as AttentionItemState
     if (data.assigneeId !== undefined) updateData.assigneeId = data.assigneeId
     if (data.priority !== undefined) updateData.priority = data.priority
     if (data.snoozedUntil !== undefined)

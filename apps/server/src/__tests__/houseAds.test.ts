@@ -77,7 +77,7 @@ describe('HouseAdService', () => {
 
     const metrics = await db.houseAdMetric.findMany({ where: { houseAdId: ad.id } })
     expect(metrics.length).toBe(1)
-    expect(metrics[0].impressions).toBe(2)
-    expect(metrics[0].clicks).toBe(1)
+    expect(metrics[0]!.impressions).toBe(2)
+    expect(metrics[0]!.clicks).toBe(1)
   })
 })
