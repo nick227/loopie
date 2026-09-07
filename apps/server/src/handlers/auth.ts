@@ -61,25 +61,34 @@ export function startGoogleAuth(
 }
 
 export async function handleGoogleAuthCallback(
-  request: { query: { code?: string; state?: string; error?: string } },
+  request: {
+    query: { code?: string; state?: string; error?: string }
+    log?: { error: (obj: unknown, msg?: string) => unknown }
+  },
   reply: {
     setCookie: (name: string, value: string, opts: typeof COOKIE) => unknown
     header: (name: string, value: string) => { redirect: (code: number, url: string) => unknown }
   },
 ) {
-  const fail = (reason: string) => {
+  const fail = (reason: string, detail?: unknown) => {
+    if (detail !== undefined) {
+      const log = request.log?.error?.bind(request.log) ?? console.error
+      log({ reason, detail }, 'google_auth_failed')
+    }
     const dest = new URL('/login', appBaseUrl())
     dest.searchParams.set('error', reason)
     return reply.header('Cache-Control', 'no-store').redirect(302, dest.toString())
   }
 
   try {
-    if (request.query.error || !request.query.code) return fail('google_auth_failed')
+    if (request.query.error || !request.query.code)
+      return fail('google_auth_failed', { stage: 'query', queryError: request.query.error })
     const parsed = verifyGoogleAuthState(request.query.state)
-    if (!parsed) return fail('google_auth_failed')
+    if (!parsed) return fail('google_auth_failed', { stage: 'state' })
 
     const identity = await exchangeGoogleAuthCode(request.query.code)
-    if (!identity.emailVerified || !identity.email) return fail('google_auth_failed')
+    if (!identity.emailVerified || !identity.email)
+      return fail('google_auth_failed', { stage: 'identity', identity })
 
     const { token, isNewUser } = await authService.loginOrRegisterWithGoogle({
       email: identity.email,
@@ -90,7 +99,7 @@ export async function handleGoogleAuthCallback(
     const nextPath = isNewUser ? '/business/setup' : safeReturnPath(parsed.returnPath, '/')
     const dest = new URL(nextPath, appBaseUrl())
     return reply.header('Cache-Control', 'no-store').redirect(302, dest.toString())
-  } catch {
-    return fail('google_auth_failed')
+  } catch (err) {
+    return fail('google_auth_failed', { stage: 'exception', err: String(err) })
   }
 }
