@@ -52,17 +52,20 @@ export class AuthService {
     const email = normalizeEmail(data.email)
     if (!email) throw { statusCode: 400, message: 'Email is required' }
     const hash = await bcrypt.hash(data.password, 12)
-    const user = await this.createAccountWithBusiness(email, hash, data.businessName)
-    const session = await this._createSession(user.id, user.businessId)
+    const { user, token, sessionId } = await this.createAccountWithBusiness(
+      email,
+      hash,
+      data.businessName,
+    )
     return {
       user: toUserDTO({
         ...user,
         membershipRole: 'OWNER' as const,
         isFounder: true,
         jobTitle: 'Founder',
-        sessionId: session.id,
+        sessionId,
       }),
-      token: session.token,
+      token,
       isNewUser: true as const,
     }
   }
@@ -133,22 +136,30 @@ export class AuthService {
 
     const hash = await bcrypt.hash(randomBytes(32).toString('base64url'), 12)
     const businessName = placeholderBusinessName(data.displayName, email)
-    const user = await this.createAccountWithBusiness(email, hash, businessName)
-    const session = await this._createSession(user.id, user.businessId)
+    const { user, token, sessionId } = await this.createAccountWithBusiness(
+      email,
+      hash,
+      businessName,
+    )
     return {
       user: toUserDTO({
         ...user,
         membershipRole: 'OWNER' as const,
         isFounder: true,
         jobTitle: 'Founder',
-        sessionId: session.id,
+        sessionId,
       }),
-      token: session.token,
+      token,
       isNewUser: true as const,
     }
   }
 
-  /** Shared bootstrap: User (platformRole USER) + Business + founder OWNER membership. */
+  /**
+   * Shared bootstrap: User (platformRole USER) + Business + founder OWNER membership + Session,
+   * all in one transaction — a crash partway through (e.g. a later write failing) must never
+   * leave a "ghost" account that exists but was never handed a session, since the next login
+   * attempt would then see it as an existing user and skip onboarding entirely.
+   */
   async createAccountWithBusiness(email: string, passwordHash: string, businessName: string) {
     return db.$transaction(async (tx) => {
       const slug = await nextUniqueBusinessSlug(tx, businessName)
@@ -175,7 +186,16 @@ export class AuthService {
         businessName: created.business.name,
       })
       await seedChannelProviders(tx, created.businessId)
-      return created
+      const token = randomSessionToken()
+      const session = await tx.session.create({
+        data: {
+          userId: created.id,
+          token: hashSessionToken(token),
+          activeBusinessId: created.businessId,
+          expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+        },
+      })
+      return { user: created, token, sessionId: session.id }
     })
   }
 
