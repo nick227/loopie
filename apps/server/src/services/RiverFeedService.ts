@@ -77,10 +77,9 @@ export function toRiverFeedItem(card: RiverFeedCard): RiverFeedItem {
     cta: card.cta ?? undefined,
     clickUrl: card.hasClickThrough ? riverPostClickUrl(card.id) : undefined,
     pageInfo: card.pageInfo ?? undefined,
-    // The creative's own fragment renders its own <a href> (see RiverFeedCard.tsx) — point it at
-    // River's tracked click redirect, same as every other River click, not the raw destination.
+    // Keep the authored destination, including any River-level CTA override.
     adCreative: card.adCreative
-      ? { ...card.adCreative, clickUrl: card.hasClickThrough ? riverPostClickUrl(card.id) : null }
+      ? { ...card.adCreative, clickUrl: card.cta?.url ?? card.adCreative.clickUrl }
       : undefined,
     metrics: { reactions: card.reactionCount, comments: card.commentCount },
     viewer:

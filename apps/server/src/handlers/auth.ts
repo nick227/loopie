@@ -25,6 +25,18 @@ function safeReturnPath(raw: string | undefined, fallback: string) {
   return fallback
 }
 
+/** Removes only `ref` from a path's query string, preserving every other param — the referral
+ * code is a signup-time-only concern smuggled through the OAuth state's returnPath and must never
+ * leak into the app, but any other deep-link param (e.g. `?tab=budget`) belongs to the caller. */
+function stripRefParam(path: string): string {
+  const [base, query] = path.split('?')
+  if (!query) return path
+  const params = new URLSearchParams(query)
+  params.delete('ref')
+  const rest = params.toString()
+  return rest ? `${base}?${rest}` : (base ?? path)
+}
+
 export async function register(request: any, reply: any) {
   const { user, token } = await authService.register(request.body)
   reply.setCookie('token', token, COOKIE)
@@ -90,13 +102,16 @@ export async function handleGoogleAuthCallback(
     if (!identity.emailVerified || !identity.email)
       return fail('google_auth_failed', { stage: 'identity', identity })
 
+    const referralCode = new URLSearchParams(parsed.returnPath.split('?')[1] ?? '').get('ref')
     const { token, isNewUser } = await authService.loginOrRegisterWithGoogle({
       email: identity.email,
       displayName: identity.name,
+      referralCode,
     })
     reply.setCookie('token', token, COOKIE)
 
-    const nextPath = isNewUser ? '/business/setup' : safeReturnPath(parsed.returnPath, '/')
+    const returnPathWithoutRef = stripRefParam(parsed.returnPath)
+    const nextPath = isNewUser ? '/business/setup' : safeReturnPath(returnPathWithoutRef, '/')
     const dest = new URL(nextPath, appBaseUrl())
     return reply.header('Cache-Control', 'no-store').redirect(302, dest.toString())
   } catch (err) {

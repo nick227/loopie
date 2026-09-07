@@ -22,7 +22,7 @@ async function getNextAction() {
     headers: asAuth(testUserId),
   })
   expect(res.statusCode).toBe(200)
-  return res.json().data as { action: any; conversation: any }
+  return res.json().data as { action: any; actions: any[]; conversation: any }
 }
 
 describe('getNextAction', () => {
@@ -30,6 +30,13 @@ describe('getNextAction', () => {
     // --- Conversation resolves independently from the very first read: even a fresh business
     // with nothing set yet has real generic advice to read, unrelated to setup-chain progress. ---
     let next = await getNextAction()
+    expect(next.actions).toHaveLength(3)
+    expect(next.actions[0]).toEqual(next.action)
+    expect(next.actions.map((item: any) => item.actionId)).toEqual([
+      'business_info',
+      'business_logo',
+      'homepage_create',
+    ])
     expect(next.conversation.insights.length).toBeGreaterThan(0)
     expect(next.conversation.insights.map((i: any) => i.id)).toContain(next.conversation.featuredId)
 

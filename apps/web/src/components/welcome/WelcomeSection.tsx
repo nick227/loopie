@@ -2,7 +2,6 @@ import { useHomeSummary } from '@project/sdk'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { BusinessIdentityHeader } from './BusinessIdentityHeader'
 import { ResultsPanel } from './ResultsPanel'
-import { AddSomethingRow } from './AddSomethingRow'
 
 // Home's own dashboard — no longer repeated on Pages/Advertising/Contacts/Messages (each of those
 // now has its own scoped CollectionInsightsPanel instead; see PagesCollectionInsights.tsx and
@@ -48,8 +47,6 @@ export function WelcomeSection() {
   return (
     <div className="space-y-6 pb-8">
       <ResultsPanel weeklyResults={home.weeklyResults} />
-
-      <AddSomethingRow />
 
       <BusinessIdentityHeader />
     </div>

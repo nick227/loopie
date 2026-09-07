@@ -309,6 +309,10 @@ describe('River composer v2', () => {
     })
     const postId = res.json().data.id as string
 
+    const feedRes = await app.inject({ method: 'GET', url: '/river/feed?limit=100' })
+    const item = feedRes.json().items.find((candidate: { id: string }) => candidate.id === postId)
+    expect(item.cta).toEqual({ label: 'Claim offer', url: 'https://example.com/cta-wins' })
+
     const clickRes = await app.inject({ method: 'GET', url: `/river/posts/${postId}/click` })
     expect(clickRes.statusCode).toBe(302)
     // CTA takes precedence over the AD's own destinationUrl (https://example.com/composer-ad-offer).

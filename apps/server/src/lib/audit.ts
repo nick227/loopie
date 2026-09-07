@@ -10,19 +10,28 @@ export const AuditActions = {
   MEMBER_ROLE_CHANGED: 'MEMBER_ROLE_CHANGED',
   MEMBER_REMOVED: 'MEMBER_REMOVED',
   PLATFORM_ROLE_CHANGED: 'PLATFORM_ROLE_CHANGED',
+  AFFILIATE_ATTRIBUTION_CREATED: 'AFFILIATE_ATTRIBUTION_CREATED',
+  AFFILIATE_ATTRIBUTION_REASSIGNED: 'AFFILIATE_ATTRIBUTION_REASSIGNED',
 } as const
 
 export const AuditResourceTypes = {
   BUSINESS_LICENSE: 'BUSINESS_LICENSE',
   BUSINESS_MEMBERSHIP: 'BUSINESS_MEMBERSHIP',
   USER: 'USER',
+  PLATFORM_AFFILIATE_ATTRIBUTION: 'PLATFORM_AFFILIATE_ATTRIBUTION',
 } as const
 
 export type AuditAction = (typeof AuditActions)[keyof typeof AuditActions]
 export type AuditResourceType = (typeof AuditResourceTypes)[keyof typeof AuditResourceTypes]
 
+/** The minimal actor shape emitAuditEvent actually reads — narrower than the full AuthUser so
+ * callers without a complete membership-resolved user (e.g. a just-registered account, before its
+ * membership/business context is assembled) can still attribute an audit event to themselves. */
+export type AuditActor = Pick<AuthUser, 'id' | 'platformRole'> &
+  Partial<Pick<AuthUser, 'supportSessionId'>>
+
 type EmitAuditEventArgs = {
-  actor: AuthUser
+  actor: AuditActor
   action: AuditAction | string
   resourceType: AuditResourceType | string
   resourceId?: string

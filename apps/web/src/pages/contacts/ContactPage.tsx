@@ -251,7 +251,7 @@ export function ContactPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              <span className="flex min-w-0 items-center gap-1.5">
+              <span className="flex min-w-0 items-center gap-1.5 truncate">
                 <Mail size={13} className="shrink-0" />
                 <InlineField
                   type="email"

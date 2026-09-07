@@ -49,7 +49,12 @@ export function useRegister() {
   return useMutation({
     // Body shape matches RegisterInput in openapi.yaml — businessName, not username/displayName,
     // since LOOPIE has one Business per account rather than a public username/profile.
-    mutationFn: async (body: { email: string; password: string; businessName: string }) => {
+    mutationFn: async (body: {
+      email: string
+      password: string
+      businessName: string
+      referralCode?: string
+    }) => {
       const client = getApiClient()
       const result = await client.POST('/auth/register', { body })
       const err = result.error

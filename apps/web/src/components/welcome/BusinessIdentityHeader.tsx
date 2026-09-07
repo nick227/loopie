@@ -36,7 +36,7 @@ export function BusinessIdentityHeader() {
                 tagline: data.tagline ?? null,
                 address: data.address ?? null,
               }}
-              submitLabel="Save changes"
+              submitLabel="Save"
             />
           </div>
         </div>

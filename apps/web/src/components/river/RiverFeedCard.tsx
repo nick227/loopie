@@ -44,10 +44,7 @@ function Media({ item }: { item: RiverFeedItem }) {
   const media = item.media ?? []
   const video = media.find((m) => m.type === 'VIDEO')?.url
   const images = media.filter((m) => m.type === 'IMAGE').map((m) => m.url)
-  // The media *is* the shared artifact for an AD/SPONSORED post — clickable, badged, distinct
-  // from a native photo someone just posted. Not applied to a TEXT post that happens to have both
-  // media and a linkUrl — LinkPreview already owns that click affordance, and wrapping the photo
-  // too would just be two things pointing at the same place.
+  // Promotional media keeps its Ad badge; navigation belongs to the CTA.
   const isAdCreative = item.type === 'AD' || item.type === 'SPONSORED'
 
   // A real Ad Designer creative (format set) renders through the shared renderer, in its own
@@ -70,15 +67,7 @@ function Media({ item }: { item: RiverFeedItem }) {
     </span>
   ) : undefined
 
-  const visual = <RiverPostMedia images={images} video={video} badge={badge} />
-
-  return isAdCreative && item.clickUrl ? (
-    <a href={item.clickUrl} target="_blank" rel="noopener noreferrer" className="block">
-      {visual}
-    </a>
-  ) : (
-    visual
-  )
+  return <RiverPostMedia images={images} video={video} badge={badge} />
 }
 
 // The bottom-of-card caption line — bold business name + post body, inline like Instagram's own
@@ -163,13 +152,14 @@ function CtaRow({ item }: { item: RiverFeedItem }) {
   // CTA per its ctaPlacement preset (see AdCreativeVisual/StageFrame above) — same reasoning.
   if (item.type === 'PAGE') return null
   if (item.adCreative) return null
-  if (!item.clickUrl) return null
+  const href = item.cta?.url
+  if (!href) return null
   const label =
     item.cta?.label ?? (item.type === 'AD' || item.type === 'SPONSORED' ? 'Learn more' : null)
   if (!label) return null
   return (
     <div className="">
-      <a href={item.clickUrl} target="_blank" rel="noopener noreferrer" className="block">
+      <a href={href} target="_blank" rel="noopener noreferrer" className="block">
         <Button variant="outline" size="sm" className="w-full sm:w-auto">
           {label}
         </Button>
@@ -344,7 +334,7 @@ function StageFrame({ item }: { item: RiverFeedItem }) {
     </div>
   )
 
-  const clickable = (isAdCreative || item.type === 'PAGE') && item.clickUrl
+  const clickable = !video && images.length === 0 && item.type === 'PAGE' && item.clickUrl
   return clickable ? (
     <a href={item.clickUrl!} target="_blank" rel="noopener noreferrer" className="block w-full">
       {frame}

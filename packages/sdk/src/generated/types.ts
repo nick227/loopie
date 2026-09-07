@@ -4,6 +4,54 @@
  */
 
 export interface paths {
+  '/site-inquiries': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: operations['createSiteInquiry']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/admin/site-inbox': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['adminListSiteInquiries']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/admin/site-inbox/subscription': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put: operations['adminSetSiteInboxSubscription']
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/admin/businesses': {
     parameters: {
       query?: never
@@ -3849,6 +3897,58 @@ export interface paths {
     /** List platform affiliate classes */
     get: operations['listPlatformClasses']
     put?: never
+    /** Create platform affiliate class */
+    post: operations['createPlatformClass']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/admin/platform-affiliate-classes/{id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /** Update platform affiliate class (e.g. attach a default deal) */
+    patch: operations['updatePlatformClass']
+    trace?: never
+  }
+  '/admin/platform-affiliate-classes/{id}/default': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /** Mark a platform affiliate class as the default for newly-registered users */
+    patch: operations['setDefaultPlatformClass']
+    trace?: never
+  }
+  '/admin/platform-affiliate-attributions': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List all business-to-affiliate referral attributions */
+    get: operations['listPlatformAffiliateAttributions']
+    put?: never
     post?: never
     delete?: never
     options?: never
@@ -3900,6 +4000,23 @@ export interface paths {
     }
     /** Get affiliate clients */
     get: operations['getPlatformAffiliateClients']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/affiliates/me/ledger': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get my platform affiliate personal payout ledger */
+    get: operations['getMyPlatformAffiliateLedger']
     put?: never
     post?: never
     delete?: never
@@ -4134,6 +4251,7 @@ export interface components {
       email: string
       password: string
       businessName: string
+      referralCode?: string
     }
     LoginInput: {
       /** Format: email */
@@ -4286,8 +4404,12 @@ export interface components {
       type: 'text' | 'textarea' | 'url' | 'email' | 'phone'
       required: boolean
     }
-    /** @description Two wholly independent slots (2026-09-04) — GET /assistant/next-action's actual response shape. `action` is the single next executable/decidable thing Loopie wants the user to do or can do for them (the cross-product priority chain: Business -> Page -> Advertising -> the active goal cycle's own Learn/Plan/Grow turn, signal-boosted -> Calendar fallback; Learn is explicitly the first Action, not a separate concept). `conversation` is a browsable advice/knowledge corpus — ongoing business advice the user can read for its own sake, never gated by Action state, so a Learn question and a useful business tip render together instead of one winner-take-all slot. */
+    /**
+     * @description Up to three available actions in priority order, plus independent business advice.
+     *     `action` is the first entry for compatibility with existing clients.
+     */
     AssistantNextActionDTO: {
+      actions: components['schemas']['AssistantActionDTO'][]
       action: components['schemas']['AssistantActionDTO'] | null
       conversation: components['schemas']['AssistantConversationDTO'] | null
     }
@@ -7398,6 +7520,100 @@ export interface components {
 }
 export type $defs = Record<string, never>
 export interface operations {
+  createSiteInquiry: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          name: string
+          /** Format: email */
+          email: string
+          message: string
+          /** Format: uuid */
+          submissionKey: string
+        }
+      }
+    }
+    responses: {
+      /** @description Inquiry received and stored in the shared site inbox */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            received: boolean
+          }
+        }
+      }
+    }
+  }
+  adminListSiteInquiries: {
+    parameters: {
+      query?: {
+        cursor?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Shared site inbox and the current staff member's email preference */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            emailNotifications: boolean
+            nextCursor: string | null
+            data: {
+              id: string
+              name: string
+              email: string
+              message: string
+              /** Format: date-time */
+              createdAt: string
+            }[]
+          }
+        }
+      }
+    }
+  }
+  adminSetSiteInboxSubscription: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          enabled: boolean
+        }
+      }
+    }
+    responses: {
+      /** @description Email preference saved */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            enabled: boolean
+          }
+        }
+      }
+    }
+  }
   adminListBusinesses: {
     parameters: {
       query?: {
@@ -11038,7 +11254,9 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': Record<string, never>
+          'application/json': {
+            data: unknown
+          }
         }
       }
     }
@@ -14684,7 +14902,9 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': Record<string, never>
+          'application/json': {
+            data: unknown
+          }
         }
       }
     }
@@ -14698,7 +14918,15 @@ export interface operations {
     }
     requestBody: {
       content: {
-        'application/json': Record<string, never>
+        'application/json': {
+          name: string
+          email?: string | null
+          referralCode?: string
+          classId?: string | null
+          dealId?: string | null
+          managerId?: string | null
+          userId?: string | null
+        }
       }
     }
     responses: {
@@ -14708,7 +14936,9 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': Record<string, never>
+          'application/json': {
+            data: unknown
+          }
         }
       }
     }
@@ -14730,7 +14960,9 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': Record<string, never>
+          'application/json': {
+            data: unknown
+          }
         }
       }
     }
@@ -14746,7 +14978,16 @@ export interface operations {
     }
     requestBody: {
       content: {
-        'application/json': Record<string, never>
+        'application/json': {
+          name?: string
+          email?: string | null
+          classId?: string | null
+          dealId?: string | null
+          managerId?: string | null
+          affiliateRateOverrideBps?: number | null
+          managerShareOverrideBps?: number | null
+          isActive?: boolean
+        }
       }
     }
     responses: {
@@ -14756,7 +14997,9 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': Record<string, never>
+          'application/json': {
+            data: unknown
+          }
         }
       }
     }
@@ -14776,7 +15019,9 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': Record<string, never>
+          'application/json': {
+            data: unknown
+          }
         }
       }
     }
@@ -14790,7 +15035,12 @@ export interface operations {
     }
     requestBody: {
       content: {
-        'application/json': Record<string, never>
+        'application/json': {
+          name: string
+          classId?: string | null
+          affiliateRateBps?: number | null
+          managerShareBps: number
+        }
       }
     }
     responses: {
@@ -14800,7 +15050,9 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': Record<string, never>
+          'application/json': {
+            data: unknown
+          }
         }
       }
     }
@@ -14820,7 +15072,114 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': Record<string, never>
+          'application/json': {
+            data: unknown
+          }
+        }
+      }
+    }
+  }
+  createPlatformClass: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          name: string
+          defaultDealId?: string
+        }
+      }
+    }
+    responses: {
+      /** @description Created */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: unknown
+          }
+        }
+      }
+    }
+  }
+  updatePlatformClass: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          defaultDealId?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: unknown
+          }
+        }
+      }
+    }
+  }
+  setDefaultPlatformClass: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: unknown
+          }
+        }
+      }
+    }
+  }
+  listPlatformAffiliateAttributions: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: unknown
+          }
         }
       }
     }
@@ -14842,7 +15201,9 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': Record<string, never>
+          'application/json': {
+            data: unknown
+          }
         }
       }
     }
@@ -14858,7 +15219,11 @@ export interface operations {
     }
     requestBody: {
       content: {
-        'application/json': Record<string, never>
+        'application/json': {
+          affiliateId: string
+          /** @description Required to reassign an attribution after the business has already been billed. Ignored when there is no existing attribution or no billing yet. */
+          force?: boolean
+        }
       }
     }
     responses: {
@@ -14868,7 +15233,9 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': Record<string, never>
+          'application/json': {
+            data: unknown
+          }
         }
       }
     }
@@ -14931,6 +15298,44 @@ export interface operations {
               directRateBps: number
               membershipRevenueMinor: number
               cumulativeEarningsMinor: number
+            }[]
+            nextCursor?: string | null
+          }
+        }
+      }
+    }
+  }
+  getMyPlatformAffiliateLedger: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor returned by the previous page. */
+        cursor?: components['parameters']['Cursor']
+        limit?: components['parameters']['Limit']
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: {
+              id: string
+              businessId: string
+              businessName: string
+              clientPaymentMinor: number
+              type: string
+              rateBps: number
+              amountMinor: number
+              status: string
+              /** Format: date-time */
+              createdAt: string
             }[]
             nextCursor?: string | null
           }

@@ -23,20 +23,7 @@ import { AssistantBotMessage } from './AssistantBotMessage'
 import { AssistantConversationView } from './AssistantConversationView'
 import { STEP_COPY, pagePublishCardSubtitle, type AssistantActionId } from './copy'
 
-// Two wholly independent surfaces (2026-09-04): `action` is the single next thing Loopie wants
-// the user to do or can do for them (Business -> Page -> Advertising -> the active goal cycle's
-// own Learn/Plan/Grow turn, signal-boosted -> Calendar fallback — Learn is the first Action, not
-// a separate concept). `conversation` is a browsable advice/knowledge corpus the user can read for
-// its own sake — never gated by Action state, so a Learn question and a useful business tip
-// render together on Home instead of one hiding the other. `AssistantConversationView` is
-// rendered at a stable position on Home (see HomeView) — it must never remount just because the
-// Action underneath it changed or briefly showed a confirmation, so exploring the corpus isn't
-// interrupted by finishing an unrelated task; only the Action area gets its own per-turn fade
-// transition. Every action's actual write goes through the same real operation that feature's own
-// UI uses; this panel only decides what to show and renders the result. LEARN/ACT/REVIEW/GROW are
-// an internal reasoning model only (see AssistantGoalCycleService) — nothing in this file ever
-// shows a phase name, a step count, or a wizard affordance to the user. See GET
-// /assistant/next-action (apps/server/src/services/AssistantService.ts) for the resolvers.
+// Available actions and independent business advice share the assistant home.
 type NextActionResponse = NonNullable<ReturnType<typeof useNextAction>['data']>
 type SingleAction = NonNullable<NextActionResponse['action']>
 type Conversation = NonNullable<NextActionResponse['conversation']>
@@ -136,11 +123,19 @@ function ActionSection({
 
   return (
     <div className="space-y-2">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-        Next action
-      </p>
       {actionId === 'calendar' ? (
         <AssistantCalendarCard />
+      ) : action.type === 'ADVERTISING' ? (
+        <Button
+          size="sm"
+          onClick={() =>
+            onNavigate(action.campaignId ? `/campaigns/${action.campaignId}` : '/campaigns/new')
+          }
+        >
+          {action.campaignId
+            ? 'Finish setting up your campaign'
+            : `Promote ${action.pageName ?? 'your page'}`}
+        </Button>
       ) : action.type === 'SIGNAL' && action.cycleId && action.signalSummary ? (
         <AssistantSignalCard
           cycleId={action.cycleId}
@@ -196,47 +191,59 @@ function ActionSection({
 }
 
 function HomeView({
-  action,
+  actions,
   conversation,
   confirmation,
   onOpenFlow,
   onNavigate,
   onSuccess,
 }: {
-  action: SingleAction
+  actions: SingleAction[]
   conversation: Conversation | null
   confirmation: Confirmation | null
-  onOpenFlow: () => void
+  onOpenFlow: (action: SingleAction) => void
   onNavigate: (path: string) => void
   onSuccess: (message: string) => void
 }) {
-  // Action leads — it's where "a lot of ground to cover" actually gets delivered, one directed
-  // step at a time, so it gets the top spot and the full visual weight. Only this area gets a
-  // per-turn identity/transition — re-keying it (not the whole Home view) re-triggers the quick
-  // fade-in (tailwind.config.ts's `assistant-in` keyframe) on an actual new turn, while
-  // AssistantConversationView below stays mounted and untouched by an action changing or a
-  // confirmation flashing.
-  const actionKey = confirmation
-    ? 'confirmation'
-    : `${action.type}-${action.actionId}-${action.step?.key ?? ''}`
-
   return (
     <div className="flex flex-1 flex-col gap-5 py-2">
-      <div key={actionKey} className="animate-assistant-in">
+      <section className="space-y-2 rounded-lg bg-primary/5 p-4">
+        <h3 className="text-base font-semibold text-foreground">Welcome to Loopie</h3>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          One place to connect your ads, websites, messaging, and users under one CRM. I’m here to
+          help you get set up and keep your business growing.
+        </p>
+      </section>
+      <section className="space-y-3" aria-label="Next actions">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          {actions.length === 1 ? 'Next action' : 'Next actions'}
+        </p>
         {confirmation ? (
           <ConfirmationView message={confirmation.message} />
         ) : (
-          <ActionSection
-            action={action}
-            onOpenFlow={onOpenFlow}
-            onNavigate={onNavigate}
-            onSuccess={onSuccess}
-          />
+          actions.map((action) => (
+            <div
+              key={actionIdentity(action)}
+              className="animate-assistant-in"
+              data-testid="assistant-action"
+            >
+              <ActionSection
+                action={action}
+                onOpenFlow={() => onOpenFlow(action)}
+                onNavigate={onNavigate}
+                onSuccess={onSuccess}
+              />
+            </div>
+          ))
         )}
-      </div>
+      </section>
       {conversation ? <AssistantConversationView conversation={conversation} /> : null}
     </div>
   )
+}
+
+function actionIdentity(action: SingleAction) {
+  return `${action.actionId}-${action.landingPageId ?? action.campaignId ?? action.cycleId ?? ''}-${action.step?.key ?? ''}`
 }
 
 function FlowView({
@@ -301,6 +308,7 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
   const { data, isLoading, isError } = useNextAction()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const [selectedAction, setSelectedAction] = useState<string | null>(null)
   const [view, setView] = useState<'home' | 'flow'>('home')
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -334,7 +342,8 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
     }
   }
 
-  const action = data?.action ?? null
+  const actions = (data?.actions ?? (data?.action ? [data.action] : [])).slice(0, 3)
+  const action = actions.find((item) => actionIdentity(item) === selectedAction) ?? null
 
   // Flow only ever renders an action that opens a real form (business_info/page/advertising) — if
   // the action changes shape to something that renders directly on Home (Calendar/a goal-cycle
@@ -353,6 +362,8 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
 
   function handleSuccess(message: string) {
     queryClient.invalidateQueries({ queryKey: nextActionQueryKey })
+    setView('home')
+    setSelectedAction(null)
     setConfirmation({ message })
     window.setTimeout(() => setConfirmation(null), NON_TERMINAL_CONFIRMATION_MS)
   }
@@ -401,7 +412,7 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
           </button>
         ) : null}
 
-        {isLoading || !data || !action ? (
+        {isLoading || (!isError && !data) ? (
           <LoadingState />
         ) : isError ? (
           <div className="flex flex-1 items-center justify-center py-10">
@@ -411,10 +422,13 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
           </div>
         ) : view === 'home' ? (
           <HomeView
-            action={action}
-            conversation={data.conversation}
+            actions={actions}
+            conversation={data?.conversation ?? null}
             confirmation={confirmation}
-            onOpenFlow={() => setView('flow')}
+            onOpenFlow={(item) => {
+              setSelectedAction(actionIdentity(item))
+              setView('flow')
+            }}
             onNavigate={(path) => {
               onClose()
               navigate(path)
@@ -423,7 +437,9 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
           />
         ) : (
           <div key={flowKey} className="flex min-h-0 flex-1 flex-col animate-assistant-in">
-            <FlowView action={action} confirmation={confirmation} onSuccess={handleSuccess} />
+            {action ? (
+              <FlowView action={action} confirmation={confirmation} onSuccess={handleSuccess} />
+            ) : null}
           </div>
         )}
       </div>

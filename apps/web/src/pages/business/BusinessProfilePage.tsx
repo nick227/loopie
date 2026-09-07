@@ -69,7 +69,7 @@ function ContactRow({
       className="flex items-start gap-3 rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     >
       <Icon size={16} strokeWidth={1.8} className="mt-0.5 shrink-0 text-muted-foreground" />
-      <span className="min-w-0 break-all">{children}</span>
+      <span className="min-w-0 truncate min-w-0 max-w-full">{children}</span>
     </a>
   )
 }
@@ -139,6 +139,13 @@ export function BusinessProfilePage() {
       await profileQuery.refetch()
     } catch {
       setFollowError('Could not update your follow. Try again.')
+    }
+  }
+
+  function handleImageClick(event: React.MouseEvent<HTMLImageElement>) {
+    const img = event.currentTarget
+    if (img && img.src) {
+      window.open(img.src, '_blank', 'noopener,noreferrer')
     }
   }
 
@@ -256,7 +263,8 @@ export function BusinessProfilePage() {
                       src={mediaSrc(url) ?? undefined}
                       alt={`Work by ${business.name}, image ${index + 2}`}
                       loading="lazy"
-                      className="aspect-square h-full w-full object-cover"
+                      className="aspect-square h-full w-full object-cover cursor-pointer"
+                      onClick={handleImageClick}
                     />
                   </figure>
                 ))}
@@ -300,18 +308,18 @@ export function BusinessProfilePage() {
 
               {hasFacts ? (
                 <dl className="divide-y divide-border border-t border-border pt-1">
+                  {business.industry ? (
+                    <FactRow icon={BriefcaseBusiness} label="Industry" value={business.industry} />
+                  ) : null}
                   {business.location ? (
-                    <FactRow icon={MapPin} label="Where" value={business.location} />
+                    <FactRow icon={MapPin} label="Location" value={business.location} />
                   ) : null}
                   {business.hours ? (
                     <FactRow
                       icon={Clock3}
                       label="Hours"
-                      value={<span className="whitespace-pre-wrap">{business.hours}</span>}
+                      value={<span className="">{business.hours}</span>}
                     />
-                  ) : null}
-                  {business.industry ? (
-                    <FactRow icon={BriefcaseBusiness} label="Work" value={business.industry} />
                   ) : null}
                   {business.address ? (
                     <FactRow icon={MapPin} label="Address" value={business.address} />

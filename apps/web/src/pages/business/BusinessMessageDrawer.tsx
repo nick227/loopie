@@ -75,7 +75,7 @@ export function BusinessMessageDrawer({
       >
         <div className="flex items-start justify-between border-b border-border px-6 py-5">
           <div className="flex gap-3">
-            <div className="grid h-9 w-9 place-items-center rounded-full bg-primary/10 text-primary">
+            <div className="grid h-9 w-9 place-items-center rounded-full bg-primary/10 text-primary truncate">
               <Mail size={17} />
             </div>
             <div>

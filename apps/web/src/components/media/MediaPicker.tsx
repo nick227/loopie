@@ -128,6 +128,7 @@ export function MediaPicker({
               assets={assets}
               selectedIds={selectedIds}
               onToggle={onToggle}
+              onApply={canUse ? onConfirm : undefined}
               hasNextPage={!!query.hasNextPage}
               isFetchingNextPage={query.isFetchingNextPage}
               fetchNextPage={query.fetchNextPage}

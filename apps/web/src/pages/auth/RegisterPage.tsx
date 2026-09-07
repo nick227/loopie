@@ -1,4 +1,5 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { useMemo } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Command } from 'lucide-react'
 import { z } from 'zod'
 import { useRegister } from '@project/sdk'
@@ -8,10 +9,13 @@ import { Button } from '@/components/ui/Button'
 import type { FieldConfig } from '@/components/ui/Form'
 import { startGoogleAuth } from '@/lib/googleAuth'
 
+const REFERRAL_STORAGE_KEY = 'loopie_referral_code'
+
 const schema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   businessName: z.string().min(1).max(120),
+  referralCode: z.string().max(120).optional().or(z.literal('')),
 })
 type FormData = z.infer<typeof schema>
 
@@ -19,11 +23,40 @@ const fields: FieldConfig[] = [
   { name: 'email', label: 'Email', type: 'email', voice: false, required: true },
   { name: 'password', label: 'Password', type: 'password', voice: false, required: true },
   { name: 'businessName', label: 'Business Name', type: 'text', voice: false, required: true },
+  {
+    name: 'referralCode',
+    label: 'Referral code (optional)',
+    type: 'text',
+    voice: false,
+    required: false,
+  },
 ]
+
+/** Persists a `?ref=` referral code across navigation (e.g. a Google OAuth redirect round-trip). */
+function useReferralCode() {
+  const [searchParams] = useSearchParams()
+  return useMemo(() => {
+    const fromQuery = searchParams.get('ref')?.trim()
+    if (fromQuery) {
+      try {
+        localStorage.setItem(REFERRAL_STORAGE_KEY, fromQuery)
+      } catch {
+        // localStorage unavailable (private mode, etc.) — the query param itself still works.
+      }
+      return fromQuery
+    }
+    try {
+      return localStorage.getItem(REFERRAL_STORAGE_KEY) ?? ''
+    } catch {
+      return ''
+    }
+  }, [searchParams])
+}
 
 export function RegisterPage() {
   const navigate = useNavigate()
   const mutation = useRegister()
+  const referralCode = useReferralCode()
 
   return (
     <div className="flex min-h-dvh w-full items-center justify-center overflow-y-auto bg-background px-4 py-8">
@@ -42,8 +75,12 @@ export function RegisterPage() {
             <Form<FormData>
               fields={fields}
               schema={schema}
+              defaultValues={{ referralCode } as Partial<FormData>}
               onSubmit={async (data) => {
-                await mutation.mutateAsync(data)
+                await mutation.mutateAsync({
+                  ...data,
+                  referralCode: data.referralCode || undefined,
+                })
                 navigate('/')
               }}
               isLoading={mutation.isPending}
@@ -63,7 +100,7 @@ export function RegisterPage() {
               variant="outline"
               type="button"
               className="w-full"
-              onClick={() => startGoogleAuth('/')}
+              onClick={() => startGoogleAuth('/', referralCode)}
             >
               <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                 <path

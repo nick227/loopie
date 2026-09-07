@@ -42,15 +42,7 @@ function conversationCategoryForSignalActionId(actionId: string): ConversationCa
 }
 
 export class AssistantService {
-  // Two wholly independent slots (2026-09-04 — "Conversation = ongoing business advice /
-  // knowledge exploration. Actions = things Loopie wants the user to do or can do for them."):
-  // `action` is the single next executable/decidable thing (the original cross-product priority
-  // chain: Business -> Page -> Advertising -> the active goal cycle's Learn/Plan/Grow turn,
-  // signal-boosted -> Calendar fallback — Learn is explicitly the *first* Action, not a separate
-  // "conversation" concept). `conversation` is the browsable advice corpus
-  // (AssistantConversationService) — never gated by Action state, so a Learn question and a
-  // useful business tip can both be on screen at once. An active signal can shape Conversation
-  // too (a matching category gets featured) without ever being required to.
+  // Resolve up to three available actions in priority order, alongside independent advice.
   async getNextAction(businessId: string) {
     const business = await businessService.get(businessId)
     const knowledgeRow = await db.business.findUniqueOrThrow({
@@ -59,58 +51,53 @@ export class AssistantService {
     })
     const knowledge = readBusinessKnowledge(knowledgeRow)
 
-    // The original cross-product priority chain, unchanged: an urgent signal outranks the setup
-    // chain; otherwise Business -> Page -> Advertising -> the active goal cycle's own
-    // Learn/Plan/Grow turn -> Calendar fallback. `homepage` is only ever looked up once we're past
-    // the signal/business-profile checks (matches the DTO's existing "homepageUrl is null until
-    // there's a real page to report" contract).
     const goalCycleResult = await assistantGoalCycleService.resolveAction(businessId)
+    const actions: AssistantAction[] = []
+    if (goalCycleResult?.type === 'SIGNAL') actions.push(goalCycleResult)
 
-    let action: AssistantAction
-    let homepage: LandingPage | null = null
+    const businessAction = resolveBusinessProfileAction(business)
+    if (businessAction) actions.push(businessAction)
+    // Adding a logo is available independently of completing the profile.
+    if (businessAction?.actionId === 'business_info' && !business.logoUrl) {
+      actions.push({
+        type: 'BUSINESS_PROFILE',
+        actionId: 'business_logo',
+        operationId: 'updateBusiness',
+      })
+    }
 
-    if (goalCycleResult?.type === 'SIGNAL') {
-      action = goalCycleResult
-    } else {
-      const businessAction = resolveBusinessProfileAction(business)
-      if (businessAction) {
-        action = businessAction
-      } else {
-        homepage = await db.landingPage.findFirst({
-          where: { businessId, templateId: HOMEPAGE_TEMPLATE_ID, deletedAt: null },
-          orderBy: { createdAt: 'asc' },
-        })
-
-        const otherDraft =
-          homepage?.status === 'PUBLISHED'
-            ? await db.landingPage.findFirst({
-                where: {
-                  businessId,
-                  deletedAt: null,
-                  status: 'DRAFT',
-                  templateId: { not: HOMEPAGE_TEMPLATE_ID },
-                },
-                orderBy: { createdAt: 'desc' },
-              })
-            : null
-        const pageAction = resolvePageAction(homepage, otherDraft)
-
-        if (pageAction) {
-          action = pageAction
-        } else {
-          const draftCampaign = await db.campaign.findFirst({
-            where: { businessId, status: 'DRAFT', creativeLinks: { none: {} } },
+    const homepage = await db.landingPage.findFirst({
+      where: { businessId, templateId: HOMEPAGE_TEMPLATE_ID, deletedAt: null },
+      orderBy: { createdAt: 'asc' },
+    })
+    const otherDraft =
+      homepage?.status === 'PUBLISHED'
+        ? await db.landingPage.findFirst({
+            where: {
+              businessId,
+              deletedAt: null,
+              status: 'DRAFT',
+              templateId: { not: HOMEPAGE_TEMPLATE_ID },
+            },
             orderBy: { createdAt: 'desc' },
           })
-          const unpromoted = draftCampaign
-            ? null
-            : await this.findUnpromotedPublishedPage(businessId)
-          const adAction = resolveAdvertisingAction(draftCampaign, unpromoted)
+        : null
+    const pageAction = resolvePageAction(homepage, otherDraft)
+    if (pageAction) actions.push(pageAction)
 
-          action = adAction ?? goalCycleResult ?? resolveCalendarAction()
-        }
-      }
+    if (actions.length < 3) {
+      const draftCampaign = await db.campaign.findFirst({
+        where: { businessId, status: 'DRAFT', creativeLinks: { none: {} } },
+        orderBy: { createdAt: 'desc' },
+      })
+      const unpromoted = draftCampaign ? null : await this.findUnpromotedPublishedPage(businessId)
+      const adAction = resolveAdvertisingAction(draftCampaign, unpromoted)
+      if (adAction) actions.push(adAction)
     }
+    if (goalCycleResult && goalCycleResult.type !== 'SIGNAL') actions.push(goalCycleResult)
+    if (!actions.length) actions.push(resolveCalendarAction())
+    const visibleActions = actions.slice(0, 3)
+    const action = visibleActions[0]!
 
     const signalCategory =
       action.type === 'SIGNAL' ? conversationCategoryForSignalActionId(action.actionId) : null
@@ -123,6 +110,7 @@ export class AssistantService {
 
     return {
       action: this.toDTO(action, homepage),
+      actions: visibleActions.map((item) => this.toDTO(item, homepage)),
       conversation,
     }
   }

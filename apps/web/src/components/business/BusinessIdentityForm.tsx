@@ -276,10 +276,11 @@ export function BusinessIdentityForm({
       </div>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
-      <Button type="submit" disabled={update.isPending} className="w-full sm:w-auto">
-        {update.isPending ? 'Saving…' : submitLabel}
-      </Button>
+      <div className="w-full flex justify-end align-right align-end">
+        <Button type="submit" disabled={update.isPending} className="w-full sm:w-auto">
+          {update.isPending ? 'Saving…' : submitLabel}
+        </Button>
+      </div>
     </form>
   )
 }

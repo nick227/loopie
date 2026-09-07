@@ -213,7 +213,7 @@ describe('River feed v2', () => {
     const item = feedRes
       .json()
       .items.find((candidate: { id: string }) => candidate.id === postRes.json().data.id)
-    expect(item.cta).toEqual({ label: 'Shop now', url: expect.stringContaining('/click') })
+    expect(item.cta).toEqual({ label: 'Shop now', url: 'https://example.com/shop' })
     expect(item.body).toBe('Fresh arrivals are ready to shop.')
   })
 

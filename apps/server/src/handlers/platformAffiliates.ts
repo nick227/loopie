@@ -71,6 +71,42 @@ export async function listPlatformClasses(request: FastifyRequest, reply: Fastif
   reply.send(result)
 }
 
+export async function createPlatformClass(
+  request: FastifyRequest<{ Body: { name: string; defaultDealId?: string } }>,
+  reply: FastifyReply,
+) {
+  requireSiteAdmin((request as any).user)
+  const result = await service.createClass(request.body)
+  reply.status(201).send(result)
+}
+
+export async function updatePlatformClass(
+  request: FastifyRequest<{ Params: { id: string }; Body: { defaultDealId?: string | null } }>,
+  reply: FastifyReply,
+) {
+  requireSiteAdmin((request as any).user)
+  const result = await service.updateClass(request.params.id, request.body)
+  reply.send(result)
+}
+
+export async function setDefaultPlatformClass(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply,
+) {
+  requireSiteAdmin((request as any).user)
+  const result = await service.setDefaultClass(request.params.id)
+  reply.send(result)
+}
+
+export async function listPlatformAffiliateAttributions(
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
+  requireSiteAdmin((request as any).user)
+  const result = await service.listAttributions()
+  reply.send(result)
+}
+
 export async function getBusinessAttribution(
   request: FastifyRequest<{ Params: { businessId: string } }>,
   reply: FastifyReply,
@@ -81,38 +117,49 @@ export async function getBusinessAttribution(
 }
 
 export async function setBusinessAttribution(
-  request: FastifyRequest<{ Params: { businessId: string }; Body: { affiliateId: string } }>,
+  request: FastifyRequest<{
+    Params: { businessId: string }
+    Body: { affiliateId: string; force?: boolean }
+  }>,
   reply: FastifyReply,
 ) {
-  requireSiteAdmin((request as any).user)
+  const user = (request as any).user as AuthUser
+  requireSiteAdmin(user)
   const result = await service.setBusinessAttribution(
     request.params.businessId,
     request.body.affiliateId,
+    { actor: user, force: request.body.force },
   )
   reply.send(result)
 }
 
+// Every authenticated user has (or is lazily given) their own PlatformAffiliate record — see
+// PlatformAffiliateService.getOrCreateForUser. This is no longer gated to platformRole=AFFILIATE,
+// which remains a separate, affiliate-only account flavor with its own portal.
 export async function getMyPlatformAffiliate(request: FastifyRequest, reply: FastifyReply) {
   const user = (request as any).user as AuthUser
-  if (user.platformRole !== 'AFFILIATE') throw { statusCode: 403, message: 'Forbidden' }
-  // Look up by userId
-  const affiliates = await service.listAffiliates()
-  const myAffiliate = affiliates.data.find((a) => a.userId === user.id)
-  if (!myAffiliate) throw { statusCode: 404, message: 'Platform affiliate not found' }
-  reply.send({ data: myAffiliate })
+  const affiliate = await service.getOrCreateForUser(user)
+  reply.send({ data: affiliate })
 }
 
 export async function getPlatformAffiliateOverview(request: FastifyRequest, reply: FastifyReply) {
   const user = (request as any).user as AuthUser
-  if (user.platformRole !== 'AFFILIATE') throw { statusCode: 403, message: 'Forbidden' }
-  const result = await service.getAffiliateOverview(user.id)
+  const result = await service.getAffiliateOverview(user)
   reply.send(result)
 }
 
 export async function getPlatformAffiliateClients(request: FastifyRequest, reply: FastifyReply) {
   const user = (request as any).user as AuthUser
-  if (user.platformRole !== 'AFFILIATE') throw { statusCode: 403, message: 'Forbidden' }
-  const result = await service.getAffiliateClients(user.id)
+  const result = await service.getAffiliateClients(user)
+  reply.send(result)
+}
+
+export async function getMyPlatformAffiliateLedger(
+  request: FastifyRequest<{ Querystring: { cursor?: string; limit?: number } }>,
+  reply: FastifyReply,
+) {
+  const user = (request as any).user as AuthUser
+  const result = await service.getAffiliateLedger(user, request.query)
   reply.send(result)
 }
 

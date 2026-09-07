@@ -309,7 +309,7 @@ export function RecipientSelector({ suggestedChips = [], onChange }: RecipientSe
                         handleAddRawEmail(query)
                       }}
                     >
-                      <div className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-gray-100 text-gray-600">
+                      <div className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-gray-100 text-gray-600 truncate">
                         <Mail size={16} />
                       </div>
                       <div className="flex flex-col">

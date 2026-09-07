@@ -5,6 +5,7 @@ import { normalizeEmail } from '../lib/identityResolution'
 import type { AuthUser } from '../lib/membership'
 import { ensureHomeMembership, loadAuthUser } from '../lib/membership'
 import { emitAuditEvent, AuditActions, AuditResourceTypes } from '../lib/audit'
+import { invalidateAttributionOnNewMembership } from './PlatformAffiliateService'
 
 const INVITE_TTL_MS = 14 * 24 * 60 * 60 * 1000
 
@@ -379,6 +380,10 @@ export class TeamService {
           where: { id: invite.id },
           data: { acceptedAt: new Date() },
         })
+        // If this business has an active platform-affiliate referral attribution and the person
+        // just joining it is the referring affiliate (or its manager), that attribution just
+        // became a self-referral — invalidate it in the same transaction as the membership write.
+        await invalidateAttributionOnNewMembership(tx, invite.businessId, actor.id)
       })
     }
 

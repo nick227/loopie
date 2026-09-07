@@ -231,6 +231,7 @@ model BusinessInvitation {
 }
 
 model User {
+  siteInboxEmailNotifications Boolean @default(true)
   id           String           @id @default(cuid())
   email        String           @unique
   passwordHash String
@@ -3531,6 +3532,16 @@ model PlatformAffiliateClass {
   name          String
   defaultDealId String?  @unique
   isActive      Boolean  @default(true)
+  // The class newly-registered users are auto-provisioned into (see
+  // PlatformAffiliateService.getOrCreateForUser). Enforced as "at most one" via defaultSlot
+  // below, not this column alone — MySQL has no partial unique index, so a plain
+  // `@@unique([isDefault])` would only allow a single non-default row too. defaultSlot is the
+  // real DB-level singleton lock; isDefault is kept as the convenient, always-in-sync read flag.
+  isDefault     Boolean  @default(false)
+  // Set to the literal string 'DEFAULT' only when isDefault is true, else null. MySQL treats
+  // multiple NULLs as distinct under a unique index, so this is the standard "singleton row"
+  // trick: two concurrent setDefaultClass calls targeting different rows can't both commit.
+  defaultSlot   String?  @unique
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -3584,6 +3595,18 @@ model PlatformAffiliate {
   PlatformAffiliatePayout PlatformAffiliatePayout[]
 }
 
+// State-transition eligibility, not live recomputation: CommissionEngine trusts `status` at
+// payment time instead of re-deriving "is there an ownership overlap" by joining
+// BusinessMembership on every Stripe webhook (which raced a concurrent membership change under
+// MySQL's default isolation). Eligibility is decided once, at approval, and only changes again
+// when a real event happens (a membership is added matching the snapshotted owner ids, or an
+// admin reassigns) — each such event updates this row in the same transaction as whatever
+// triggered it, so payment processing never has to ask "what does the world look like right now."
+enum AffiliateAttributionStatus {
+  ACTIVE
+  INVALIDATED
+}
+
 model BusinessAffiliateAttribution {
   id                 String   @id @default(cuid())
   businessId         String   @unique
@@ -3593,6 +3616,20 @@ model BusinessAffiliateAttribution {
   managerAffiliateId String?
   managerShareBps    Int?
   attributedAt       DateTime @default(now())
+
+  status        AffiliateAttributionStatus @default(ACTIVE)
+  approvedAt    DateTime                   @default(now())
+  invalidatedAt DateTime?
+  invalidatedReason String?
+  // The affiliate/manager's linked userId at approval time. Membership-creation call sites check
+  // an incoming member against these snapshots (not against a live PlatformAffiliate lookup) to
+  // decide whether this attribution just became a self-referral and must be invalidated.
+  affiliateUserIdSnapshot String?
+  managerUserIdSnapshot   String?
+  // Set once, the first time a MembershipPayment is processed for this business — replaces a
+  // live `membershipPayment.findFirst` existence check with a stored fact, so the post-payment
+  // immutability lock in setBusinessAttribution is also a state read, not a recomputation.
+  lockedAfterPaymentAt DateTime?
 
   business         Business              @relation(fields: [businessId], references: [id], onDelete: Cascade)
   affiliate        PlatformAffiliate     @relation("AttributionAffiliate", fields: [affiliateId], references: [id])
@@ -3723,4 +3760,15 @@ model HouseAdMetric {
   houseAd     HouseAd  @relation(fields: [houseAdId], references: [id], onDelete: Cascade)
 
   @@unique([houseAdId, zone, date])
+}
+
+// Platform-owned incoming advertising inquiries, independent of business tenancy.
+model SiteInquiry {
+  id String @id @default(cuid())
+  submissionKey String @unique @db.VarChar(64)
+  name String @db.VarChar(120)
+  email String @db.VarChar(254)
+  message String @db.Text
+  createdAt DateTime @default(now())
+  @@index([createdAt, id])
 }

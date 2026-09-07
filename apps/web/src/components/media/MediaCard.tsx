@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import type { components } from '@project/sdk'
 import { UniversalRow } from '@/components/ui/UniversalRow'
+import { Button } from '@/components/ui/Button'
 import { formatBytes, formatDuration, mediaSrc } from '@/lib/media'
 import { cn } from '@/lib/utils'
 
@@ -33,12 +34,14 @@ export function MediaCard({
   asset,
   selected,
   onSelect,
+  onApply,
   to,
   compact,
 }: {
   asset: Asset
   selected?: boolean
   onSelect?: () => void
+  onApply?: () => void
   to?: string
   compact?: boolean
 }) {
@@ -114,9 +117,23 @@ export function MediaCard({
 
   if (onSelect) {
     return (
-      <button type="button" onClick={onSelect} aria-pressed={selected} className={frame}>
-        {inner}
-      </button>
+      <div className="relative min-w-0">
+        <button
+          type="button"
+          onClick={onSelect}
+          aria-pressed={selected}
+          className={cn(frame, 'w-full')}
+        >
+          {inner}
+        </button>
+        {selected && onApply ? (
+          <div className="pointer-events-none absolute inset-x-0 top-0 flex aspect-square items-center justify-center">
+            <Button onClick={onApply} className="pointer-events-auto min-h-11 shadow-lg">
+              APPLY
+            </Button>
+          </div>
+        ) : null}
+      </div>
     )
   }
   if (to) {

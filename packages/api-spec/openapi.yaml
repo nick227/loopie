@@ -454,6 +454,8 @@ components:
           type: string
           minLength: 1
           maxLength: 120
+        referralCode:
+          type: string
     LoginInput:
       type: object
       required:
@@ -863,10 +865,18 @@ components:
       type: object
       required:
         - action
+        - actions
         - conversation
       description: |
-        Two wholly independent slots (2026-09-04) — GET /assistant/next-action's actual response shape. `action` is the single next executable/decidable thing Loopie wants the user to do or can do for them (the cross-product priority chain: Business -> Page -> Advertising -> the active goal cycle's own Learn/Plan/Grow turn, signal-boosted -> Calendar fallback; Learn is explicitly the first Action, not a separate concept). `conversation` is a browsable advice/knowledge corpus — ongoing business advice the user can read for its own sake, never gated by Action state, so a Learn question and a useful business tip render together instead of one winner-take-all slot.
+        Up to three available actions in priority order, plus independent business advice.
+        `action` is the first entry for compatibility with existing clients.
       properties:
+        actions:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/AssistantActionDTO'
         action:
           allOf:
             - $ref: '#/components/schemas/AssistantActionDTO'
@@ -8255,6 +8265,88 @@ components:
         - createdAt
         - updatedAt
 paths:
+  /site-inquiries:
+    post:
+      operationId: createSiteInquiry
+      tags: [site-inbox]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name, email, message, submissionKey]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 120, pattern: '\S' }
+                email: { type: string, format: email, maxLength: 254 }
+                message: { type: string, minLength: 1, maxLength: 5000, pattern: '\S' }
+                submissionKey: { type: string, format: uuid }
+      responses:
+        '201':
+          description: Inquiry received and stored in the shared site inbox
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [received]
+                properties:
+                  received: { type: boolean }
+  /admin/site-inbox:
+    get:
+      operationId: adminListSiteInquiries
+      tags: [site-inbox]
+      parameters:
+        - in: query
+          name: cursor
+          schema: { type: string }
+      responses:
+        '200':
+          description: Shared site inbox and the current staff member's email preference
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, nextCursor, emailNotifications]
+                properties:
+                  emailNotifications: { type: boolean }
+                  nextCursor: { type: string, nullable: true }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name, email, message, createdAt]
+                      properties:
+                        id: { type: string }
+                        name: { type: string }
+                        email: { type: string }
+                        message: { type: string }
+                        createdAt: { type: string, format: date-time }
+  /admin/site-inbox/subscription:
+    put:
+      operationId: adminSetSiteInboxSubscription
+      tags: [site-inbox]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [enabled]
+              properties:
+                enabled: { type: boolean }
+      responses:
+        '200':
+          description: Email preference saved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [enabled]
+                properties:
+                  enabled: { type: boolean }
   /admin/businesses:
     get:
       operationId: adminListBusinesses
@@ -10372,7 +10464,7 @@ paths:
   /contacts/{contactId}/sales:
     get:
       operationId: listContactSales
-      summary: 'This contact''s sale history: where their revenue came from'
+      summary: "This contact's sale history: where their revenue came from"
       tags:
         - contacts
       parameters:
@@ -11737,6 +11829,10 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  data: {}
+                required:
+                  - data
   /affiliates/{affiliateId}:
     get:
       operationId: getAffiliate
@@ -14198,7 +14294,7 @@ paths:
   /leads/queue:
     get:
       operationId: getLeadQueue
-      summary: 'The morning work queue: who''s new, uncontacted, needs follow-up, overdue, or engaged'
+      summary: "The morning work queue: who's new, uncontacted, needs follow-up, overdue, or engaged"
       tags:
         - leads
       responses:
@@ -14969,6 +15065,10 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  data: {}
+                required:
+                  - data
     post:
       operationId: createPlatformAffiliate
       summary: Create platform affiliate
@@ -14980,6 +15080,30 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                email:
+                  type: string
+                  nullable: true
+                referralCode:
+                  type: string
+                classId:
+                  type: string
+                  nullable: true
+                dealId:
+                  type: string
+                  nullable: true
+                managerId:
+                  type: string
+                  nullable: true
+                userId:
+                  type: string
+                  nullable: true
+              required:
+                - name
       responses:
         '201':
           description: Created
@@ -14987,6 +15111,10 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  data: {}
+                required:
+                  - data
   /admin/platform-affiliates/{id}:
     get:
       operationId: getPlatformAffiliate
@@ -15006,6 +15134,10 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  data: {}
+                required:
+                  - data
     patch:
       operationId: updatePlatformAffiliate
       summary: Update platform affiliate
@@ -15023,6 +15155,30 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  nullable: true
+                classId:
+                  type: string
+                  nullable: true
+                dealId:
+                  type: string
+                  nullable: true
+                managerId:
+                  type: string
+                  nullable: true
+                affiliateRateOverrideBps:
+                  type: number
+                  nullable: true
+                managerShareOverrideBps:
+                  type: number
+                  nullable: true
+                isActive:
+                  type: boolean
       responses:
         '200':
           description: OK
@@ -15030,6 +15186,10 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  data: {}
+                required:
+                  - data
   /admin/platform-affiliate-deals:
     get:
       operationId: listPlatformDeals
@@ -15043,6 +15203,10 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  data: {}
+                required:
+                  - data
     post:
       operationId: createPlatformDeal
       summary: Create platform affiliate deal
@@ -15054,6 +15218,22 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                classId:
+                  type: string
+                  nullable: true
+                affiliateRateBps:
+                  type: number
+                  nullable: true
+                managerShareBps:
+                  type: number
+              required:
+                - name
+                - managerShareBps
       responses:
         '201':
           description: Created
@@ -15061,6 +15241,10 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  data: {}
+                required:
+                  - data
   /admin/platform-affiliate-classes:
     get:
       operationId: listPlatformClasses
@@ -15074,6 +15258,115 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  data: {}
+                required:
+                  - data
+    post:
+      operationId: createPlatformClass
+      summary: Create platform affiliate class
+      tags:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                defaultDealId:
+                  type: string
+              required:
+                - name
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+                required:
+                  - data
+  /admin/platform-affiliate-classes/{id}:
+    patch:
+      operationId: updatePlatformClass
+      summary: Update platform affiliate class (e.g. attach a default deal)
+      tags:
+        - admin
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                defaultDealId:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+                required:
+                  - data
+  /admin/platform-affiliate-classes/{id}/default:
+    patch:
+      operationId: setDefaultPlatformClass
+      summary: Mark a platform affiliate class as the default for newly-registered users
+      tags:
+        - admin
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+                required:
+                  - data
+  /admin/platform-affiliate-attributions:
+    get:
+      operationId: listPlatformAffiliateAttributions
+      summary: List all business-to-affiliate referral attributions
+      tags:
+        - admin
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+                required:
+                  - data
   /admin/businesses/{businessId}/platform-attribution:
     get:
       operationId: getBusinessAttribution
@@ -15093,6 +15386,10 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  data: {}
+                required:
+                  - data
     post:
       operationId: setBusinessAttribution
       summary: Set business platform affiliate attribution
@@ -15110,6 +15407,17 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
+              properties:
+                affiliateId:
+                  type: string
+                force:
+                  type: boolean
+                  description: >-
+                    Required to reassign an attribution after the business has already been
+                    billed. Ignored when there is no existing attribution or no billing yet.
+              required:
+                - affiliateId
       responses:
         '200':
           description: OK
@@ -15117,6 +15425,10 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  data: {}
+                required:
+                  - data
   /affiliates/me/overview:
     get:
       operationId: getPlatformAffiliateOverview
@@ -15200,6 +15512,62 @@ paths:
                         - directRateBps
                         - membershipRevenueMinor
                         - cumulativeEarningsMinor
+                  nextCursor:
+                    type: string
+                    nullable: true
+                required:
+                  - data
+  /affiliates/me/ledger:
+    get:
+      operationId: getMyPlatformAffiliateLedger
+      summary: Get my platform affiliate personal payout ledger
+      tags:
+        - admin
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        businessId:
+                          type: string
+                        businessName:
+                          type: string
+                        clientPaymentMinor:
+                          type: number
+                        type:
+                          type: string
+                        rateBps:
+                          type: number
+                        amountMinor:
+                          type: number
+                        status:
+                          type: string
+                        createdAt:
+                          type: string
+                          format: date-time
+                      required:
+                        - id
+                        - businessId
+                        - businessName
+                        - clientPaymentMinor
+                        - type
+                        - rateBps
+                        - amountMinor
+                        - status
+                        - createdAt
                   nextCursor:
                     type: string
                     nullable: true

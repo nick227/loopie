@@ -7,6 +7,7 @@ export function MediaGrid({
   assets,
   selectedIds,
   onToggle,
+  onApply,
   linkTo,
   hasNextPage,
   isFetchingNextPage,
@@ -16,6 +17,7 @@ export function MediaGrid({
   assets: Asset[]
   selectedIds?: string[]
   onToggle?: (assetId: string) => void
+  onApply?: () => void
   linkTo?: (asset: Asset) => string
   hasNextPage?: boolean
   isFetchingNextPage?: boolean
@@ -38,6 +40,7 @@ export function MediaGrid({
             compact={compact}
             selected={selectedIds?.includes(asset.id)}
             onSelect={onToggle ? () => onToggle(asset.id) : undefined}
+            onApply={onApply}
             to={linkTo ? linkTo(asset) : undefined}
           />
         ))}

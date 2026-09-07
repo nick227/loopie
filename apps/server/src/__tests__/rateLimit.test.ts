@@ -140,4 +140,25 @@ describe('publicRateLimit plugin', () => {
 
     await app.close()
   })
+
+  it('limits POST /auth/register to 5/min per IP — the referral program made its referralCode lookup a code-enumeration target', async () => {
+    delete process.env.VITEST
+    const app = Fastify()
+    app.addHook('onRequest', publicRateLimit)
+    app.post('/auth/register', () => ({ ok: true }))
+    await app.ready()
+
+    const ip = '203.0.113.2'
+    const inject = () =>
+      app.inject({ method: 'POST', url: '/auth/register', remoteAddress: ip, payload: {} })
+
+    for (let i = 0; i < 5; i++) {
+      const res = await inject()
+      expect(res.statusCode).toBe(200)
+    }
+    const sixth = await inject()
+    expect(sixth.statusCode).toBe(429)
+
+    await app.close()
+  })
 })

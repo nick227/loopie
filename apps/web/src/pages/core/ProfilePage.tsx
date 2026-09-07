@@ -8,7 +8,6 @@ import { BusinessHeader } from '@/components/business/BusinessHeader'
 import { subscriptionStatusLabel, toBillingSnapshot } from '@/lib/billingCopy'
 import { WelcomeSection } from '@/components/welcome/WelcomeSection'
 import { useRestoreOverviewScroll } from '@/hooks/useOverviewScroll'
-import { ProfileTeamsSection } from '@/pages/team/ProfileTeamsSection'
 
 function roleLabel(role: string | undefined, isFounder?: boolean, membershipRole?: string) {
   if (isFounder) return 'Founder'
@@ -79,70 +78,37 @@ export function ProfilePage() {
     <div className="space-y-6">
       <BusinessHeader />
 
-      {!isAffiliate ? <ProfileTeamsSection /> : null}
+      <section className="rounded-2xl border border-border bg-surface/40 p-5 sm:p-6">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background">
+            <Building2 size={17} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+              Account
+            </p>
+            <p className="mt-2 truncate font-medium text-foreground">
+              {user.businessName || 'Loopie account'}
+            </p>
+            <p className="mt-1 truncate text-sm text-muted-foreground">{user.email}</p>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          className="mt-5 w-full"
+          loading={logout.isPending}
+          onClick={handleLogout}
+        >
+          <LogOut size={15} />
+          Sign out
+        </Button>
+      </section>
 
       {!isAffiliate ? (
         <section aria-labelledby="business-overview-heading" className="space-y-4">
           <WelcomeSection />
         </section>
       ) : null}
-
-      <section className="p-2">
-        <div className="mt-7 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex min-w-0 items-center gap-4">
-            <Avatar
-              name={user.email}
-              size="lg"
-              className="h-16 w-16 border border-border bg-background text-lg"
-            />
-            <div className="min-w-0">
-              <h2 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">
-                {user.email}
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {roleLabel(user.platformRole, user.isFounder, user.membershipRole)} · Member since{' '}
-                {new Date(user.createdAt).toLocaleDateString(undefined, {
-                  month: 'short',
-                  year: 'numeric',
-                })}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <ShieldCheck size={16} />
-            <span>Visible only to you</span>
-          </div>
-        </div>
-      </section>
-
-      <aside className="ml-auto w-full max-w-sm space-y-4">
-        <section className="rounded-2xl border border-border bg-surface/40 p-5 sm:p-6">
-          <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background">
-              <Building2 size={17} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                Account
-              </p>
-              <p className="mt-2 truncate font-medium text-foreground">
-                {user.businessName || 'Loopie account'}
-              </p>
-              <p className="mt-1 truncate text-sm text-muted-foreground">{user.email}</p>
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            className="mt-5 w-full"
-            loading={logout.isPending}
-            onClick={handleLogout}
-          >
-            <LogOut size={15} />
-            Sign out
-          </Button>
-        </section>
-        {user.membershipRole === 'OWNER' ? <BillingSummary /> : null}
-      </aside>
     </div>
   )
 }

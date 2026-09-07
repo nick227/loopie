@@ -306,6 +306,21 @@ const AdminPlatformPayoutsPage = lazy(() =>
     default: m.AdminPlatformPayoutsPage,
   })),
 )
+const AdminPlatformClassesPage = lazy(() =>
+  import('@/pages/admin/AdminPlatformClassesPage').then((m) => ({
+    default: m.AdminPlatformClassesPage,
+  })),
+)
+const AdminPlatformReferralsPage = lazy(() =>
+  import('@/pages/admin/AdminPlatformReferralsPage').then((m) => ({
+    default: m.AdminPlatformReferralsPage,
+  })),
+)
+const AdminPlatformAffiliateNav = lazy(() =>
+  import('@/components/admin/AdminPlatformAffiliateNav').then((m) => ({
+    default: m.AdminPlatformAffiliateNav,
+  })),
+)
 const AdUnitsPage = lazy(() =>
   import('@/pages/ad-units/AdUnitsPage').then((m) => ({ default: m.AdUnitsPage })),
 )
@@ -386,6 +401,10 @@ const PlatformsPage = lazy(() =>
 const AdminBusinessesPage = lazy(() =>
   import('@/pages/admin/AdminBusinessesPage').then((m) => ({ default: m.AdminBusinessesPage })),
 )
+const AdminSiteInboxPage = lazy(() =>
+  import('@/pages/admin/AdminSiteInboxPage').then((m) => ({ default: m.AdminSiteInboxPage })),
+)
+
 const AdminAuditPage = lazy(() =>
   import('@/pages/admin/AdminAuditPage').then((m) => ({ default: m.AdminAuditPage })),
 )
@@ -424,6 +443,11 @@ const AffiliateClassesPage = lazy(() =>
 const AffiliatePayoutsPage = lazy(() =>
   import('@/pages/affiliates/AffiliatePayoutsPage').then((m) => ({
     default: m.AffiliatePayoutsPage,
+  })),
+)
+const AffiliateProgramPage = lazy(() =>
+  import('@/pages/affiliate-program/AffiliateProgramPage').then((m) => ({
+    default: m.AffiliateProgramPage,
   })),
 )
 
@@ -695,6 +719,7 @@ export function App() {
                         </RequireMembershipRole>
                       }
                     />
+                    <Route path="/affiliate-program" element={<AffiliateProgramPage />} />
                     <Route
                       path="/billing"
                       element={
@@ -725,6 +750,7 @@ export function App() {
                   <Route path="businesses/:id" element={<AdminBusinessDetailPage />} />
                   <Route path="users" element={<AdminUsersPage />} />
                   <Route path="house-ads" element={<AdminHouseAdsPage />} />
+                  <Route path="inbox" element={<AdminSiteInboxPage />} />
                   <Route path="audit" element={<AdminAuditPage />} />
                 </Route>
                 {/* Platform Affiliates */}
@@ -752,10 +778,14 @@ export function App() {
                     </RequirePlatformRole>
                   }
                 >
-                  <Route index element={<AdminPlatformAffiliatesPage />} />
-                  <Route path="rates" element={<AdminPlatformRatesPage />} />
-                  <Route path="commissions" element={<AdminPlatformCommissionsPage />} />
-                  <Route path="payouts" element={<AdminPlatformPayoutsPage />} />
+                  <Route element={<AdminPlatformAffiliateNav />}>
+                    <Route index element={<AdminPlatformAffiliatesPage />} />
+                    <Route path="classes" element={<AdminPlatformClassesPage />} />
+                    <Route path="rates" element={<AdminPlatformRatesPage />} />
+                    <Route path="commissions" element={<AdminPlatformCommissionsPage />} />
+                    <Route path="payouts" element={<AdminPlatformPayoutsPage />} />
+                    <Route path="referrals" element={<AdminPlatformReferralsPage />} />
+                  </Route>
                 </Route>
               </Route>
             </Route>

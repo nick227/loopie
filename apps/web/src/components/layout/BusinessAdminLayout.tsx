@@ -1,13 +1,17 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Building2, Users, CreditCard, Handshake, ShieldCheck, ScrollText } from 'lucide-react'
+import { Building2, Users, CreditCard, ShieldCheck, ScrollText, Gift } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+// The legacy business-owned Affiliate program (Directory/Classes & Deals/Payouts at /affiliates,
+// OWNER-gated) is intentionally not linked here — per product direction, "Affiliate Program"
+// (the LOOPIE-wide referral program, below) is the only affiliate surface normal Settings shows.
+// The old routes/backend stay live for now (not deleted), just unlinked from nav.
 const NAV_ITEMS = [
   { to: '/profile', label: 'Business profile', icon: Building2 },
   { to: '/permissions', label: 'Permissions', icon: ShieldCheck },
   { to: '/team', label: 'Team', icon: Users },
   { to: '/billing', label: 'Billing & usage', icon: CreditCard },
-  { to: '/affiliates', label: 'Affiliates', icon: Handshake },
+  { to: '/affiliate-program', label: 'Affiliate Program', icon: Gift },
   { to: '/audit', label: 'Audit Log', icon: ScrollText },
 ]
 
@@ -16,9 +20,6 @@ export function BusinessAdminLayout() {
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight text-foreground">Settings</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Manage your business profile, permissions, team, billing, and affiliate program.
-        </p>
       </div>
 
       <div className="flex flex-col lg:flex-row lg:gap-12">

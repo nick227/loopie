@@ -35,7 +35,7 @@ export function ExportImportActions({
       </Button>
 
       {open && (
-        <div className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-card border shadow-lg focus:outline-none">
+        <div className="absolute bg-white right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-card border shadow-lg focus:outline-none">
           <div className="py-1">
             {onImportCsv && (
               <button

@@ -13,7 +13,10 @@ import { mapErrorToReply } from './plugins/errorHandler'
 import { publicRateLimit } from './plugins/publicRateLimit'
 import { BODY_LIMIT_BYTES, registerUploadStatic } from './lib/mediaStorage'
 
-const server = Fastify({ logger: true, bodyLimit: BODY_LIMIT_BYTES })
+// trustProxy: true so request.ip resolves to the real client (X-Forwarded-For) rather than
+// Railway's edge proxy — without this, every request behind the proxy shares one IP, collapsing
+// publicRateLimit's per-IP buckets (e.g. /auth/register) into one global bucket for all users.
+const server = Fastify({ logger: true, bodyLimit: BODY_LIMIT_BYTES, trustProxy: true })
 
 const specPath = resolve(__dirname, '../../../packages/api-spec/openapi.yaml')
 const spec = load(readFileSync(specPath, 'utf-8')) as object

@@ -1,6 +1,7 @@
 import { BarChart2 } from 'lucide-react'
 import { useAdvertisements } from '@project/sdk'
 import { HouseAdRenderer } from '../ads/HouseAdRenderer'
+import { AdvertiseHereLink } from '../ads/AdvertiseHereLink'
 
 export function RiverCompanionRail() {
   const { data: adsData } = useAdvertisements({ limit: 3 })
@@ -42,6 +43,7 @@ export function RiverCompanionRail() {
         <div className="flex items-center justify-between mb-2">
           <HouseAdRenderer placement="HOUSE_AD" />
         </div>
+        <AdvertiseHereLink />
       </div>
     </div>
   )

@@ -1,8 +1,9 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Building2, Users, Megaphone } from 'lucide-react'
+import { Building2, Users, Megaphone, Inbox } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const NAV_ITEMS = [
+  { to: '/admin/inbox', label: 'Site inbox', icon: Inbox },
   { to: '/admin/businesses', label: 'Businesses', icon: Building2 },
   { to: '/admin/users', label: 'Users', icon: Users },
   { to: '/admin/platform-affiliates', label: 'Affiliates', icon: Users },

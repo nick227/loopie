@@ -106,7 +106,7 @@ export function Modal({
       ) : (
         <button
           type="button"
-          className="modal-backdrop absolute inset-0 bg-foreground/40"
+          className="modal-backdrop absolute inset-0 bg-foreground/70"
           aria-label="Close"
           onClick={onClose}
         />

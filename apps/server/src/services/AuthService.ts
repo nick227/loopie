@@ -1,13 +1,48 @@
 import { randomBytes } from 'crypto'
 import { db, hashSessionToken, randomSessionToken } from '@project/db'
+import type { UserPlatformRole } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { provisionDefaultPage } from '../lib/provisionDefaultPage'
 import { normalizeEmail } from '../lib/identityResolution'
 import { seedChannelProviders } from '../lib/channelProviders'
 import { nextUniqueBusinessSlug } from '../lib/businessSlug'
 import type { AuthUser } from '../lib/membership'
+import { PlatformAffiliateService } from './PlatformAffiliateService'
 
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
+
+const platformAffiliateService = new PlatformAffiliateService()
+
+/**
+ * Give a brand-new user their own referral identity, and — if they arrived via someone else's
+ * referral link — attribute their business to that affiliate. Best-effort and never allowed to
+ * fail registration: an unknown/garbage referral code, or any hiccup in the affiliate system,
+ * must never block a signup (same discipline as this codebase's other non-critical post-create
+ * side effects, e.g. LandingPageService.publish()'s activity-projection/thumbnail hooks).
+ */
+async function provisionReferralProgram(
+  user: { id: string; email: string; platformRole: UserPlatformRole },
+  businessId: string,
+  referralCode?: string | null,
+) {
+  try {
+    await platformAffiliateService.getOrCreateForUser(user)
+    if (referralCode) {
+      const referrer = await db.platformAffiliate.findUnique({ where: { referralCode } })
+      if (referrer && referrer.isActive) {
+        // This is always a fresh business's first-ever attribution (registration only ever
+        // creates, never reassigns), so the post-payment immutability lock never applies here —
+        // force is irrelevant, not a bypass. assertNoOwnershipOverlap inside setBusinessAttribution
+        // still runs unconditionally and blocks same-account self-referral.
+        await platformAffiliateService.setBusinessAttribution(businessId, referrer.id, {
+          actor: { id: user.id, platformRole: user.platformRole },
+        })
+      }
+    }
+  } catch (err) {
+    console.error('provisionReferralProgram failed', err)
+  }
+}
 
 export function toUserDTO(
   user:
@@ -48,7 +83,12 @@ export function toUserDTO(
 }
 
 export class AuthService {
-  async register(data: { email: string; password: string; businessName: string }) {
+  async register(data: {
+    email: string
+    password: string
+    businessName: string
+    referralCode?: string
+  }) {
     const email = normalizeEmail(data.email)
     if (!email) throw { statusCode: 400, message: 'Email is required' }
     const hash = await bcrypt.hash(data.password, 12)
@@ -57,6 +97,7 @@ export class AuthService {
       hash,
       data.businessName,
     )
+    await provisionReferralProgram(user, user.businessId, data.referralCode)
     return {
       user: toUserDTO({
         ...user,
@@ -105,7 +146,11 @@ export class AuthService {
    * Login or register from a verified Google identity (email already normalized + verified).
    * Roles are never taken from Google claims — new accounts use the same bootstrap as email register.
    */
-  async loginOrRegisterWithGoogle(data: { email: string; displayName?: string | null }) {
+  async loginOrRegisterWithGoogle(data: {
+    email: string
+    displayName?: string | null
+    referralCode?: string | null
+  }) {
     const email = normalizeEmail(data.email)
     if (!email) throw { statusCode: 400, message: 'Email is required' }
 
@@ -141,6 +186,7 @@ export class AuthService {
       hash,
       businessName,
     )
+    await provisionReferralProgram(user, user.businessId, data.referralCode)
     return {
       user: toUserDTO({
         ...user,

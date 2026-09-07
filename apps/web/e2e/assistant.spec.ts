@@ -51,7 +51,7 @@ test.describe('next steps assistant', () => {
 
     // --- Assistant Home: a "Next action" eyebrow above the real next action, not "Step 1 of 4" —
     // plus independent Conversation advice content, always present alongside it. ---
-    await expect(dialog.getByText('Next action')).toBeVisible()
+    await expect(dialog.getByText('Next actions', { exact: true })).toBeVisible()
     await expect(dialog.getByText('Finish your business profile')).toBeVisible()
 
     // --- Step 1: business info (conversational framing, not a form wizard) ---
@@ -65,7 +65,9 @@ test.describe('next steps assistant', () => {
     await dialog.getByRole('button', { name: /continue/i }).click()
     await expect(dialog.getByText('Business details saved')).toBeVisible()
 
-    // --- Step 2: logo (auto-advances after the brief confirmation) ---
+    // Choose the next available action after each confirmation.
+    await dialog.getByText('Add your logo', { exact: true }).click()
+    // --- Step 2: logo ---
     await expect(dialog.getByText('Do you have a logo you’d like to use?')).toBeVisible({
       timeout: 10000,
     })
@@ -78,6 +80,7 @@ test.describe('next steps assistant', () => {
     await expect(dialog.getByText('Logo added')).toBeVisible()
 
     // --- Step 3: create homepage ---
+    await dialog.getByText('Create your homepage', { exact: true }).click()
     await expect(
       dialog.getByText("Let's build your homepage from a template you can edit anytime."),
     ).toBeVisible({ timeout: 10000 })
@@ -87,6 +90,7 @@ test.describe('next steps assistant', () => {
 
     // --- Step 4: publish homepage — no longer a dead end: it auto-advances into ADVERTISING,
     // since the homepage is now published with no promotion. ---
+    await dialog.getByText('Publish your homepage', { exact: true }).click()
     await expect(dialog.getByText('Your homepage is ready to go live.')).toBeVisible({
       timeout: 10000,
     })
@@ -94,10 +98,17 @@ test.describe('next steps assistant', () => {
     await expect(dialog.getByText('Your homepage is live')).toBeVisible({ timeout: 15000 })
 
     // --- ADVERTISING: create the real promotion campaign, landing on the real campaign page ---
-    await expect(dialog.getByText(/is live, but nobody's being sent to it yet/i)).toBeVisible({
-      timeout: 15000,
-    })
-    await dialog.getByRole('button', { name: /create your first promotion/i }).click()
+    await dialog.getByRole('button', { name: /^Promote / }).click()
+    await page.waitForURL(/\/campaigns\/new$/)
+    await page.getByLabel('Name', { exact: true }).fill('My first promotion')
+    const published = await page.request.get(
+      `${process.env.PLAYWRIGHT_API_URL ?? 'http://localhost:3001'}/assistant/next-action`,
+    )
+    const promotion = (await published.json()).data.actions.find(
+      (item: any) => item.actionId === 'campaign_create',
+    )
+    await page.getByLabel('Destination Url').fill(promotion.pageUrl)
+    await page.getByRole('button', { name: 'Create Campaign', exact: true }).click()
     await page.waitForURL(/\/campaigns\/(?!new$)[^/]+$/)
     // AssistantCampaignCreateStep closes the panel after navigating away.
     await expect(dialog).toBeHidden({ timeout: 10000 })
@@ -110,7 +121,6 @@ test.describe('next steps assistant', () => {
     await expect(dialog.getByText('Finish setting up your campaign')).toBeVisible({
       timeout: 15000,
     })
-    await dialog.getByText('Finish setting up your campaign').click()
     await dialog.getByRole('button', { name: /finish setting up your campaign/i }).click()
     await page.waitForURL(new RegExp(`/campaigns/${campaignId}$`))
     await expect(dialog).toBeHidden({ timeout: 10000 })

@@ -5,3 +5,5 @@ export * from './lib/importContactSchema'
 export * from './lib/parseContactImport'
 export * from './lib/capabilities'
 export type * from './generated/types'
+
+export * from './hooks/useSiteInbox'

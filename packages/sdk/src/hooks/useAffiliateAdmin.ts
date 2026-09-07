@@ -14,6 +14,19 @@ export function useAdminListPlatformAffiliates(options?: any) {
   })
 }
 
+export function useAdminCreatePlatformAffiliate(options?: any) {
+  return useMutation({
+    mutationFn: async (body: Record<string, any>) => {
+      const { data, error } = await getApiClient().POST('/admin/platform-affiliates', {
+        body: body as any,
+      })
+      if (error) throw error
+      return data
+    },
+    ...options,
+  })
+}
+
 export function useAdminUpdatePlatformAffiliate(options?: any) {
   return useMutation({
     mutationFn: async ({ id, ...body }: { id: string } & Record<string, any>) => {
@@ -45,6 +58,133 @@ export function useAdminListPlatformDeals(options?: any) {
     queryKey: ['admin', 'platformDeals'],
     queryFn: async () => {
       const { data, error } = await getApiClient().GET('/admin/platform-affiliate-deals')
+      if (error) throw error
+      return data
+    },
+    ...options,
+  })
+}
+
+export function useAdminCreatePlatformClass(options?: any) {
+  return useMutation({
+    mutationFn: async (body: { name: string; defaultDealId?: string }) => {
+      const { data, error } = await getApiClient().POST('/admin/platform-affiliate-classes', {
+        body,
+      })
+      if (error) throw error
+      return data
+    },
+    ...options,
+  })
+}
+
+export function useAdminUpdatePlatformClass(options?: any) {
+  return useMutation({
+    mutationFn: async ({ id, ...body }: { id: string; defaultDealId?: string | null }) => {
+      const { data, error } = await getApiClient().PATCH('/admin/platform-affiliate-classes/{id}', {
+        params: { path: { id } },
+        body: body as any,
+      })
+      if (error) throw error
+      return data
+    },
+    ...options,
+  })
+}
+
+export function useAdminSetDefaultPlatformClass(options?: any) {
+  return useMutation({
+    mutationFn: async ({ id }: { id: string }) => {
+      const { data, error } = await getApiClient().PATCH(
+        '/admin/platform-affiliate-classes/{id}/default',
+        { params: { path: { id } } },
+      )
+      if (error) throw error
+      return data
+    },
+    ...options,
+  })
+}
+
+export function useAdminListPlatformAffiliateAttributions(options?: any) {
+  return useQuery({
+    queryKey: ['admin', 'platformAffiliateAttributions'],
+    queryFn: async () => {
+      const { data, error } = await getApiClient().GET('/admin/platform-affiliate-attributions')
+      if (error) throw error
+      return data
+    },
+    ...options,
+  })
+}
+
+export function useAdminGetBusinessAttribution(businessId: string, options?: any) {
+  return useQuery({
+    queryKey: ['admin', 'businessAttribution', businessId],
+    queryFn: async () => {
+      const { data, error } = await getApiClient().GET(
+        '/admin/businesses/{businessId}/platform-attribution',
+        { params: { path: { businessId } } },
+      )
+      if (error) throw error
+      return data
+    },
+    enabled: Boolean(businessId),
+    ...options,
+  })
+}
+
+export function useAdminSetBusinessAttribution(options?: any) {
+  return useMutation({
+    mutationFn: async ({
+      businessId,
+      affiliateId,
+      force,
+    }: {
+      businessId: string
+      affiliateId: string
+      force?: boolean
+    }) => {
+      const result = await getApiClient().POST(
+        '/admin/businesses/{businessId}/platform-attribution',
+        { params: { path: { businessId } }, body: { affiliateId, force } as any },
+      )
+      const err: any = result.error
+      if (err) throw new ApiError(result.response.status, err.error ?? 'Request failed')
+      return result.data
+    },
+    ...options,
+  })
+}
+
+export function useGetMyPlatformAffiliateLedger(query: any = {}, options?: any) {
+  return useInfiniteQuery({
+    queryKey: ['affiliates', 'me', 'ledger', query],
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam }: { pageParam?: string }) => {
+      const result = await getApiClient().GET('/affiliates/me/ledger', {
+        params: { query: { ...query, cursor: pageParam } as any },
+      })
+      const err: any = result.error
+      if (err) throw new ApiError(result.response.status, err.error)
+      return result.data!
+    },
+    getNextPageParam: (lastPage: any) => lastPage.nextCursor ?? undefined,
+    ...options,
+  })
+}
+
+export function useAdminCreatePlatformDeal(options?: any) {
+  return useMutation({
+    mutationFn: async (body: {
+      name: string
+      classId?: string
+      affiliateRateBps?: number
+      managerShareBps: number
+    }) => {
+      const { data, error } = await getApiClient().POST('/admin/platform-affiliate-deals', {
+        body: body as any,
+      })
       if (error) throw error
       return data
     },

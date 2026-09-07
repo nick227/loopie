@@ -4,6 +4,8 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 export default defineConfig({
+  // Share the repository-root .env with the backend; only VITE_ values reach the browser.
+  envDir: path.resolve(__dirname, '../..'),
   plugins: [react()],
   resolve: {
     alias: {

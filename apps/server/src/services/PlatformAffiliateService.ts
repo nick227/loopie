@@ -1,8 +1,147 @@
+import { randomBytes } from 'crypto'
 import { db } from '@project/db'
 import type { Prisma } from '@prisma/client'
+import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
+import { isUniqueConflict } from '../lib/prismaError'
+import { AuditActions, AuditResourceTypes } from '../lib/audit'
+import type { AuditActor } from '../lib/audit'
+
+// Lowercase alphanumeric — no `-`/`_`/mixed-case ambiguity when a code is read aloud or retyped.
+const OPAQUE_CODE_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789'
+
+/** Opaque, crypto-random — never derived from email/name, so a shared referral link can't leak
+ * who it belongs to. Always exactly `length` characters (~51.7 bits of entropy at the default):
+ * earlier versions generated base64url and stripped `-`/`_` afterward, which silently shortened
+ * (and weakened) any code unlucky enough to contain one instead of redrawing that character. */
+function randomOpaqueCode(length = 10): string {
+  const bytes = randomBytes(length)
+  let code = ''
+  for (let i = 0; i < length; i++) {
+    code += OPAQUE_CODE_ALPHABET[bytes[i]! % OPAQUE_CODE_ALPHABET.length]
+  }
+  return code
+}
+
+/** Which unique column a P2002 violation was actually on, so a collision on one column (e.g. a
+ * generated referralCode) can be retried while a collision on another (e.g. userId, meaning a
+ * concurrent request already provisioned this exact row) is handled differently. */
+function uniqueConflictField(err: unknown): string | null {
+  if (!isUniqueConflict(err)) return null
+  const target = (err as { meta?: { target?: unknown } } | undefined)?.meta?.target
+  if (Array.isArray(target)) return target.join(',')
+  if (typeof target === 'string') return target
+  return null
+}
+
+async function assertDealBelongsToClass(
+  dealId: string | null | undefined,
+  classId: string | null | undefined,
+) {
+  if (!dealId || !classId) return
+  const deal = await db.platformAffiliateDeal.findUnique({ where: { id: dealId } })
+  if (deal && deal.classId && deal.classId !== classId) {
+    throw { statusCode: 400, message: 'Deal does not belong to the specified class' }
+  }
+}
+
+/** Same invariant as assertDealBelongsToClass, but for a class's own defaultDealId — here
+ * `classId: null` is a meaningful case (a brand-new class being created), not "skip the check":
+ * a new class may only claim a deal that isn't already exclusively scoped to some other class. */
+async function assertDealAvailableForClass(
+  dealId: string | null | undefined,
+  classId: string | null,
+) {
+  if (!dealId) return
+  const deal = await db.platformAffiliateDeal.findUnique({ where: { id: dealId } })
+  if (!deal) throw { statusCode: 404, message: 'Deal not found' }
+  if (deal.classId && deal.classId !== classId) {
+    throw { statusCode: 400, message: 'Deal already belongs to a different class' }
+  }
+  // Separate from the check above: PlatformAffiliateClass.defaultDealId is its own DB-level
+  // 1:1 unique pointer (independent of Deal.classId, which is just informational grouping) — a
+  // given deal can be at most one class's *default* deal at a time. Checked explicitly here
+  // rather than only caught as a P2002 after the write, so the error is a clean 409 pre-write.
+  const claimedBy = await db.platformAffiliateClass.findFirst({
+    where: { defaultDealId: dealId, id: classId ? { not: classId } : undefined },
+  })
+  if (claimedBy) {
+    throw {
+      statusCode: 409,
+      message: `This deal is already the default for another class (${claimedBy.name})`,
+    }
+  }
+}
+
+/** Backstop for assertDealAvailableForClass's pre-check: two concurrent create/update calls can
+ * both pass the SELECT-based check before either commits, so the write itself can still race into
+ * defaultDealId's unique constraint. Converts that into the same clean 409 instead of a raw 500. */
+function rethrowAsDealConflict(err: unknown): unknown {
+  if (uniqueConflictField(err)?.includes('defaultDealId')) {
+    return {
+      statusCode: 409,
+      message: "This deal was just claimed as another class's default — please retry",
+    }
+  }
+  return err
+}
+
+/** Structural fraud guard: a referral's beneficiary can never be a member (owner or otherwise)
+ * of the business it's attributed to. This is intentionally unconditional — unlike the
+ * post-payment immutability lock below, there is no admin override for this one. It only catches
+ * same-account self-referral; a different-email/same-person referral requires a signal this
+ * service doesn't have (shared payment instrument, device, etc.) — flagged as a longer-term
+ * fraud-detection gap, not something attribution-time checks can close. */
+async function assertNoOwnershipOverlap(affiliateUserId: string | null, businessId: string) {
+  if (!affiliateUserId) return
+  const membership = await db.businessMembership.findFirst({
+    where: { businessId, userId: affiliateUserId },
+  })
+  if (membership) {
+    throw {
+      statusCode: 400,
+      message:
+        'This affiliate is a member of the business being referred — self-referral is not allowed',
+    }
+  }
+}
+
+/**
+ * The other half of the state-transition model: setBusinessAttribution decides eligibility once,
+ * at approval, and snapshots the affiliate/manager's userId onto the row. This is the event that
+ * can invalidate that decision later — call it, inside the SAME transaction as the write, from
+ * every place a BusinessMembership is created for an *existing* business (currently just
+ * TeamService.acceptInvitation; see that codebase's own audit of membership-creation call sites —
+ * ensureHomeMembership only backfills a user's own pre-existing business, never adds them to a
+ * business they weren't already tied to, so it isn't a self-referral vector and isn't hooked here).
+ * A no-op if this business has no ACTIVE attribution or the new member doesn't match its snapshot.
+ */
+export async function invalidateAttributionOnNewMembership(
+  tx: Prisma.TransactionClient,
+  businessId: string,
+  newMemberUserId: string,
+) {
+  const attribution = await tx.businessAffiliateAttribution.findUnique({ where: { businessId } })
+  if (!attribution || attribution.status !== 'ACTIVE') return
+  const overlaps =
+    attribution.affiliateUserIdSnapshot === newMemberUserId ||
+    attribution.managerUserIdSnapshot === newMemberUserId
+  if (!overlaps) return
+
+  await tx.businessAffiliateAttribution.update({
+    where: { businessId },
+    data: {
+      status: 'INVALIDATED',
+      invalidatedAt: new Date(),
+      invalidatedReason:
+        'The referring affiliate (or its manager) became a member of this business',
+    },
+  })
+}
 
 export const platformAffiliateInclude = {
-  class: true,
+  // Nested so an affiliate provisioned only into a class (no direct dealId) can still resolve a
+  // live rate from the class's own default deal — see currentRateBps in AffiliateProgramPage.tsx.
+  class: { include: { defaultDeal: true } },
   deal: true,
   manager: true,
   user: { select: { id: true, email: true } },
@@ -40,34 +179,48 @@ export class PlatformAffiliateService {
     userId?: string | null
   }) {
     if (!input.name) throw { statusCode: 400, message: 'Name is required' }
-    const referralCode =
-      input.referralCode ||
-      input.name.toLowerCase().replace(/[^a-z0-9]/g, '') + '-' + Math.floor(Math.random() * 10000)
+    await assertDealBelongsToClass(input.dealId, input.classId)
 
-    // Check if referral code exists
-    const existing = await db.platformAffiliate.findUnique({ where: { referralCode } })
-    if (existing) throw { statusCode: 409, message: 'Referral code already exists' }
-
-    if (input.dealId && input.classId) {
-      const deal = await db.platformAffiliateDeal.findUnique({ where: { id: input.dealId } })
-      if (deal && deal.classId && deal.classId !== input.classId) {
-        throw { statusCode: 400, message: 'Deal does not belong to the specified class' }
-      }
+    const baseData = {
+      name: input.name,
+      email: input.email,
+      classId: input.classId,
+      dealId: input.dealId,
+      managerId: input.managerId,
+      userId: input.userId,
     }
 
-    const affiliate = await db.platformAffiliate.create({
-      data: {
-        name: input.name,
-        email: input.email,
-        referralCode,
-        classId: input.classId,
-        dealId: input.dealId,
-        managerId: input.managerId,
-        userId: input.userId,
-      },
-      include: platformAffiliateInclude,
+    if (input.referralCode) {
+      // An admin-chosen code must be honored exactly or rejected — never silently substituted.
+      const existing = await db.platformAffiliate.findUnique({
+        where: { referralCode: input.referralCode },
+      })
+      if (existing) throw { statusCode: 409, message: 'Referral code already exists' }
+      const affiliate = await db.platformAffiliate.create({
+        data: { ...baseData, referralCode: input.referralCode },
+        include: platformAffiliateInclude,
+      })
+      return { data: affiliate }
+    }
+
+    const maxAttempts = 8
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const affiliate = await db.platformAffiliate.create({
+          data: { ...baseData, referralCode: randomOpaqueCode() },
+          include: platformAffiliateInclude,
+        })
+        return { data: affiliate }
+      } catch (err) {
+        if (uniqueConflictField(err)?.includes('referralCode')) continue
+        console.error('createAffiliate: referral code create failed', err)
+        throw err
+      }
+    }
+    console.error('createAffiliate: exhausted referral code generation attempts', {
+      attempts: maxAttempts,
     })
-    return { data: affiliate }
+    throw { statusCode: 500, message: 'Could not generate a unique referral code — please retry' }
   }
 
   async updateAffiliate(
@@ -85,6 +238,13 @@ export class PlatformAffiliateService {
   ) {
     const existing = await db.platformAffiliate.findUnique({ where: { id } })
     if (!existing) throw { statusCode: 404, message: 'Platform affiliate not found' }
+
+    // Validate against whichever of dealId/classId is ending up set, not just a pair changing
+    // together — e.g. reassigning only dealId while classId already exists on the row must still
+    // be checked against that existing classId.
+    const effectiveDealId = input.dealId !== undefined ? input.dealId : existing.dealId
+    const effectiveClassId = input.classId !== undefined ? input.classId : existing.classId
+    await assertDealBelongsToClass(effectiveDealId, effectiveClassId)
 
     const data: Prisma.PlatformAffiliateUncheckedUpdateInput = {}
     if (input.name !== undefined) data.name = input.name
@@ -143,6 +303,70 @@ export class PlatformAffiliateService {
     return { data: classes }
   }
 
+  async createClass(input: { name: string; defaultDealId?: string | null }) {
+    if (!input.name) throw { statusCode: 400, message: 'Name is required' }
+    await assertDealAvailableForClass(input.defaultDealId, null)
+    try {
+      const cls = await db.platformAffiliateClass.create({
+        data: { name: input.name, defaultDealId: input.defaultDealId },
+        include: { defaultDeal: true },
+      })
+      return { data: cls }
+    } catch (err) {
+      throw rethrowAsDealConflict(err)
+    }
+  }
+
+  async updateClass(id: string, input: { defaultDealId?: string | null }) {
+    const existing = await db.platformAffiliateClass.findUnique({ where: { id } })
+    if (!existing) throw { statusCode: 404, message: 'Platform affiliate class not found' }
+    await assertDealAvailableForClass(input.defaultDealId, id)
+    try {
+      const cls = await db.platformAffiliateClass.update({
+        where: { id },
+        data: { defaultDealId: input.defaultDealId },
+        include: { defaultDeal: true },
+      })
+      return { data: cls }
+    } catch (err) {
+      throw rethrowAsDealConflict(err)
+    }
+  }
+
+  /**
+   * Marks one class as the auto-provisioning default for new users, unsetting any other.
+   * `defaultSlot` is a DB-level unique singleton lock (see schema.prisma), not just an
+   * app-level "clear then set" — two concurrent calls targeting different classes can't both
+   * commit, because the second one's UPDATE collides on the unique `defaultSlot` value and is
+   * rejected with a clean 409 rather than silently leaving two rows marked default.
+   */
+  async setDefaultClass(classId: string) {
+    try {
+      return await db.$transaction(async (tx) => {
+        const cls = await tx.platformAffiliateClass.findUnique({ where: { id: classId } })
+        if (!cls) throw { statusCode: 404, message: 'Platform affiliate class not found' }
+        await tx.platformAffiliateClass.updateMany({
+          where: { defaultSlot: 'DEFAULT', id: { not: classId } },
+          data: { isDefault: false, defaultSlot: null },
+        })
+        const updated = await tx.platformAffiliateClass.update({
+          where: { id: classId },
+          data: { isDefault: true, defaultSlot: 'DEFAULT' },
+          include: { defaultDeal: true },
+        })
+        return { data: updated }
+      })
+    } catch (err) {
+      if (uniqueConflictField(err)?.includes('defaultSlot')) {
+        throw {
+          statusCode: 409,
+          message: 'Another admin just changed the default class — please retry',
+        }
+      }
+      throw err
+    }
+  }
+
   // --- Attributions ---
 
   async getAttributionForBusiness(businessId: string) {
@@ -157,13 +381,32 @@ export class PlatformAffiliateService {
     return { data: attr }
   }
 
-  async setBusinessAttribution(businessId: string, affiliateId: string) {
-    // Look up the affiliate
+  /**
+   * Sets (or reassigns) which platform affiliate a business's membership payments are attributed
+   * to. Three fraud/integrity guards, per the product's explicit "release blocker" list:
+   *  1. The affiliate can never be a member (owner or otherwise) of the business being referred —
+   *     unconditional, no override. Only catches same-account self-referral; a different-email/
+   *     same-person referral needs a signal this method doesn't have (shared payment instrument,
+   *     device, etc.) and is a deliberately deferred, longer-term fraud-detection gap.
+   *  2. Once the business has any real MembershipPayment, the attribution is locked — a
+   *     reassignment past that point requires `force: true`, which only the SITE_ADMIN-gated
+   *     HTTP handler ever sets (registration's own call never does).
+   *  3. Every create/reassignment is audit-logged, including forced overrides.
+   */
+  async setBusinessAttribution(
+    businessId: string,
+    affiliateId: string,
+    opts: { actor: AuditActor; force?: boolean },
+  ) {
+    const { actor, force = false } = opts
+
     const affiliate = await db.platformAffiliate.findUnique({
       where: { id: affiliateId },
       include: { deal: true, class: { include: { defaultDeal: true } }, manager: true },
     })
     if (!affiliate) throw { statusCode: 404, message: 'Platform affiliate not found' }
+
+    await assertNoOwnershipOverlap(affiliate.userId, businessId)
 
     // Resolve active deal
     const deal = affiliate.deal || affiliate.class?.defaultDeal
@@ -176,34 +419,167 @@ export class PlatformAffiliateService {
       ? (affiliate.managerShareOverrideBps ?? deal.managerShareBps)
       : null
 
-    const attr = await db.businessAffiliateAttribution.upsert({
+    // The manager side of the same guard — a manager override is still a commission on this
+    // business's payments, so a manager who's a member of it is just as much a self-referral.
+    if (managerAffiliateId) {
+      await assertNoOwnershipOverlap(affiliate.manager?.userId ?? null, businessId)
+    }
+
+    const existingAttribution = await db.businessAffiliateAttribution.findUnique({
       where: { businessId },
-      update: {
+    })
+
+    // A stored fact (set once by CommissionEngine on first payment), not a live
+    // membershipPayment lookup — the lock check is itself a state read, same principle as the
+    // eligibility check at payment time below.
+    if (existingAttribution?.lockedAfterPaymentAt && !force) {
+      throw {
+        statusCode: 409,
+        message:
+          'This business has already been billed — its referral attribution is locked. Pass force to override.',
+      }
+    }
+
+    // Attribution write + its audit record must succeed or fail together: emitAuditEvent
+    // deliberately swallows failures everywhere else (a good default so a logging hiccup never
+    // blocks the real action), but that's wrong for this one specifically — the audit trail is
+    // the entire point of the force-override path, so writing the audit event directly inside the
+    // same transaction as the upsert means a failed audit write rolls back the reassignment too,
+    // rather than leaving a real change with no record of who made it or that it was forced.
+    const attr = await db.$transaction(async (tx) => {
+      // Every (re)assignment is a fresh approval decision — status/approvedAt/invalidatedAt
+      // reset accordingly, and the owner-identity snapshot is what membership-creation call
+      // sites (see TeamService.acceptInvitation) check against later to decide whether a new
+      // member just turned this attribution into a self-referral. lockedAfterPaymentAt is
+      // deliberately NOT touched here — it describes the business's own billing history, not
+      // this particular affiliate assignment, so it persists across a reassignment.
+      const sharedFields = {
         affiliateId,
         affiliateDealId: deal.id,
         affiliateRateBps,
         managerAffiliateId,
         managerShareBps,
-      },
-      create: {
-        businessId,
-        affiliateId,
-        affiliateDealId: deal.id,
-        affiliateRateBps,
-        managerAffiliateId,
-        managerShareBps,
-      },
-      include: { affiliate: true, managerAffiliate: true },
+        status: 'ACTIVE' as const,
+        approvedAt: new Date(),
+        invalidatedAt: null,
+        invalidatedReason: null,
+        affiliateUserIdSnapshot: affiliate.userId,
+        managerUserIdSnapshot: affiliate.manager?.userId ?? null,
+      }
+      const written = await tx.businessAffiliateAttribution.upsert({
+        where: { businessId },
+        update: sharedFields,
+        create: { businessId, ...sharedFields },
+        include: { affiliate: true, managerAffiliate: true },
+      })
+
+      await tx.auditEvent.create({
+        data: {
+          actorUserId: actor.id,
+          actorPlatformRole: actor.platformRole,
+          action: existingAttribution
+            ? AuditActions.AFFILIATE_ATTRIBUTION_REASSIGNED
+            : AuditActions.AFFILIATE_ATTRIBUTION_CREATED,
+          resourceType: AuditResourceTypes.PLATFORM_AFFILIATE_ATTRIBUTION,
+          resourceId: written.id,
+          businessId,
+          metadata: {
+            previousAffiliateId: existingAttribution?.affiliateId ?? null,
+            affiliateId,
+            forced: existingAttribution ? force : false,
+          },
+          supportSessionId: actor.supportSessionId ?? null,
+        },
+      })
+
+      return written
     })
 
     return { data: attr }
   }
 
+  async listAttributions() {
+    const attributions = await db.businessAffiliateAttribution.findMany({
+      include: {
+        business: { select: { id: true, name: true } },
+        affiliate: true,
+        managerAffiliate: true,
+        affiliateDeal: true,
+      },
+      orderBy: { attributedAt: 'desc' },
+    })
+    return { data: attributions }
+  }
+
+  // --- Provisioning ---
+
+  /**
+   * Every user gets their own PlatformAffiliate record (referral link + rate), auto-created at
+   * registration and self-healed here for any pre-existing account that predates that. Resolves
+   * the admin-configured default class/deal for the starting rate — with none configured, the
+   * affiliate starts with no active deal (0%) until an admin assigns one.
+   */
+  async getOrCreateForUser(user: { id: string; email: string }) {
+    const existing = await db.platformAffiliate.findUnique({
+      where: { userId: user.id },
+      include: platformAffiliateInclude,
+    })
+    if (existing) return existing
+
+    const defaultClass = await db.platformAffiliateClass.findFirst({
+      where: { isDefault: true, isActive: true },
+    })
+
+    // Opaque, crypto-random code — never derived from email/name (a shared referral link must
+    // not leak who it belongs to). Retries only on a genuine referralCode collision; a userId
+    // collision means a concurrent request already provisioned this exact user's row, which is
+    // the benign case handled below, not a retry case.
+    const maxAttempts = 8
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        return await db.platformAffiliate.create({
+          data: {
+            name: user.email,
+            email: user.email,
+            referralCode: randomOpaqueCode(),
+            userId: user.id,
+            classId: defaultClass?.id,
+            dealId: defaultClass?.defaultDealId,
+          },
+          include: platformAffiliateInclude,
+        })
+      } catch (err) {
+        const field = uniqueConflictField(err)
+        if (field?.includes('userId')) {
+          // Lost a create race (e.g. concurrent requests right after registration) — the row
+          // already exists; this is expected, not an error.
+          const raced = await db.platformAffiliate.findUnique({
+            where: { userId: user.id },
+            include: platformAffiliateInclude,
+          })
+          if (raced) return raced
+          // Unique-violated on userId but a re-fetch finds nothing — genuinely unexpected.
+          console.error('getOrCreateForUser: userId conflict but no row found on re-fetch', {
+            userId: user.id,
+          })
+          throw { statusCode: 500, message: 'Could not provision affiliate record' }
+        }
+        if (field?.includes('referralCode')) continue // retry with a fresh code
+        console.error('getOrCreateForUser: unexpected create failure', { userId: user.id, err })
+        throw err
+      }
+    }
+    console.error('getOrCreateForUser: exhausted referral code generation attempts', {
+      userId: user.id,
+      attempts: maxAttempts,
+    })
+    throw { statusCode: 500, message: 'Could not generate a unique referral code — please retry' }
+  }
+
   // --- Affiliate Portal Methods ---
 
-  async getAffiliateOverview(userId: string) {
-    const affiliate = await db.platformAffiliate.findUnique({ where: { userId } })
-    if (!affiliate) throw { statusCode: 404, message: 'Affiliate not found' }
+  async getAffiliateOverview(user: { id: string; email: string }) {
+    const affiliate = await this.getOrCreateForUser(user)
 
     // Aggregate attributions for clients and licenses
     const attributions = await db.businessAffiliateAttribution.findMany({
@@ -247,9 +623,8 @@ export class PlatformAffiliateService {
     }
   }
 
-  async getAffiliateClients(userId: string) {
-    const affiliate = await db.platformAffiliate.findUnique({ where: { userId } })
-    if (!affiliate) throw { statusCode: 404, message: 'Affiliate not found' }
+  async getAffiliateClients(user: { id: string; email: string }) {
+    const affiliate = await this.getOrCreateForUser(user)
 
     const attributions = await db.businessAffiliateAttribution.findMany({
       where: {
@@ -291,6 +666,62 @@ export class PlatformAffiliateService {
     )
 
     return { data: clientsData, nextCursor: null }
+  }
+
+  /**
+   * Personal payout ledger: one row per commission-bearing event, with the rate frozen at the
+   * time it was earned (PlatformAffiliateEarning.rateBps never changes after the fact, even if
+   * the deal's live rate is edited later).
+   */
+  async getAffiliateLedger(
+    user: { id: string; email: string },
+    opts: { cursor?: string; limit?: number },
+  ) {
+    const affiliate = await this.getOrCreateForUser(user)
+    const limit = normalizeLimit(opts.limit)
+    const cursor = decodeCursor(opts.cursor)
+
+    const earnings = await db.platformAffiliateEarning.findMany({
+      where: {
+        beneficiaryAffiliateId: affiliate.id,
+        ...(cursor
+          ? {
+              OR: [
+                { createdAt: { lt: new Date(cursor.createdAt) } },
+                { createdAt: new Date(cursor.createdAt), id: { lt: cursor.id } },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        membershipPayment: { include: { business: { select: { id: true, name: true } } } },
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+    })
+
+    const hasMore = earnings.length > limit
+    const page = hasMore ? earnings.slice(0, limit) : earnings
+    const last = page[page.length - 1]
+    const nextCursor =
+      hasMore && last
+        ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
+        : null
+
+    return {
+      data: page.map((e) => ({
+        id: e.id,
+        businessId: e.membershipPayment.business.id,
+        businessName: e.membershipPayment.business.name,
+        clientPaymentMinor: e.membershipPayment.amountMinor,
+        type: e.type,
+        rateBps: e.rateBps,
+        amountMinor: e.amountMinor,
+        status: e.status,
+        createdAt: e.createdAt.toISOString(),
+      })),
+      nextCursor,
+    }
   }
 
   // --- Money Flow ---
