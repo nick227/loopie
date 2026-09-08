@@ -1,4 +1,4 @@
-import { resolveImportHeader } from '@project/sdk/src/lib/importContactSchema'
+import { resolveImportHeader } from '../../../../packages/sdk/src/lib/importContactSchema'
 import { db } from '@project/db'
 import { createExportSpreadsheet, type GoogleColumnMapping } from '../lib/crm/googleSheets'
 import { ensureFreshToken } from './CrmOAuthService'
