@@ -1,6 +1,7 @@
 import { runDueAutomations } from './services/AutomationExecutorService'
 import { runDueMessages } from './services/MessageExecutorService'
 import { runDuePayouts } from './services/AffiliatePayoutService'
+import { runDuePlatformEarningPromotions } from './services/PlatformEarningClearingService'
 import { runDueAdRunSyncs } from './services/AdRunSyncService'
 import { db, cleanupExpiredRateLimitBuckets } from '@project/db'
 import { processEmbedOutbox } from './services/activity/EmbedProjectionWorker'
@@ -27,6 +28,15 @@ function main() {
     setInterval(() => {
       runDuePayouts().catch((err) => console.error('[Worker] Error running due payouts:', err))
     }, payoutIntervalMs)
+
+    const platformEarningClearingIntervalMs = Number(
+      process.env.PLATFORM_EARNING_CLEARING_POLL_INTERVAL_MS ?? 60 * 60_000,
+    )
+    setInterval(() => {
+      runDuePlatformEarningPromotions().catch((err) =>
+        console.error('[Worker] Error promoting due platform-affiliate earnings:', err),
+      )
+    }, platformEarningClearingIntervalMs)
 
     const adRunSyncIntervalMs = Number(process.env.AD_RUN_SYNC_POLL_INTERVAL_MS ?? 5 * 60_000)
     setInterval(() => {

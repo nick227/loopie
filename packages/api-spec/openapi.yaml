@@ -2020,20 +2020,54 @@ components:
           description: Short-lived Google access token for the frontend Picker widget only.
     GoogleColumnMapping:
       type: object
-      description: 0-based column indices within the chosen tab.
+      additionalProperties: false
+      description: Optional 0-based column indices within the chosen tab. Unmapped fields are omitted.
       properties:
         name:
           type: integer
-          nullable: true
+          minimum: 0
+        firstName:
+          type: integer
+          minimum: 0
+        lastName:
+          type: integer
+          minimum: 0
         email:
           type: integer
-          nullable: true
+          minimum: 0
         phone:
           type: integer
-          nullable: true
+          minimum: 0
         company:
           type: integer
-          nullable: true
+          minimum: 0
+        externalId:
+          type: integer
+          minimum: 0
+        jobTitle:
+          type: integer
+          minimum: 0
+        website:
+          type: integer
+          minimum: 0
+        address:
+          type: integer
+          minimum: 0
+        city:
+          type: integer
+          minimum: 0
+        state:
+          type: integer
+          minimum: 0
+        postalCode:
+          type: integer
+          minimum: 0
+        country:
+          type: integer
+          minimum: 0
+        notes:
+          type: integer
+          minimum: 0
     GoogleSheetsSelection:
       type: object
       required:
@@ -15654,6 +15688,114 @@ paths:
                 properties:
                   data:
                     $ref: '#/components/schemas/PlatformAffiliatePayout'
+                required:
+                  - data
+  /admin/platform-affiliate-payouts/{id}/fail:
+    patch:
+      operationId: adminFailPlatformAffiliatePayout
+      summary: Move a payout to FAILED (from PENDING) or REVERSED (from PAID)
+      tags:
+        - admin
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                outcome:
+                  type: string
+                  enum: [FAILED, REVERSED]
+                reason:
+                  type: string
+              required:
+                - outcome
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PlatformAffiliatePayout'
+                required:
+                  - data
+  /admin/platform-affiliates/reconciliation:
+    get:
+      operationId: adminGetPlatformAffiliateReconciliation
+      summary: Cross-check membership revenue, generated earnings, and payouts
+      tags:
+        - admin
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      membershipRevenueMinor:
+                        type: number
+                      membershipPaymentCount:
+                        type: number
+                      earnings:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            status:
+                              type: string
+                            type:
+                              type: string
+                            amountMinor:
+                              type: number
+                            count:
+                              type: number
+                      payouts:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            status:
+                              type: string
+                            totalAmountMinor:
+                              type: number
+                            count:
+                              type: number
+                      unbatchedPayableMinor:
+                        type: number
+                      unbatchedPayableCount:
+                        type: number
+                      discrepancies:
+                        type: object
+                        properties:
+                          orphanedPayments:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                id:
+                                  type: string
+                                businessId:
+                                  type: string
+                                amountMinor:
+                                  type: number
+                                settledAt:
+                                  type: string
+                                  format: date-time
+                          reversedEarningsWithoutReason:
+                            type: number
                 required:
                   - data
   /admin/platform-affiliate-earnings/money-flow:

@@ -5,6 +5,9 @@ import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import { isUniqueConflict } from '../lib/prismaError'
 import { AuditActions, AuditResourceTypes } from '../lib/audit'
 import type { AuditActor } from '../lib/audit'
+import { FinanceService } from './FinanceService'
+
+const finance = new FinanceService()
 
 // Lowercase alphanumeric — no `-`/`_`/mixed-case ambiguity when a code is read aloud or retyped.
 const OPAQUE_CODE_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789'
@@ -848,15 +851,28 @@ export class PlatformAffiliateService {
     if (input.earningIds.length === 0) throw { statusCode: 400, message: 'No earnings provided' }
 
     return await db.$transaction(async (tx) => {
-      // Verify all earnings belong to affiliate and are PAYABLE
+      // Every earning in the request, regardless of whether it's already claimed — lets a
+      // duplicate submission of the exact same batch be recognized and replayed idempotently
+      // (below) instead of 400ing or silently double-counting, even though there's no
+      // idempotencyKey column on this model to check directly.
       const earnings = await tx.platformAffiliateEarning.findMany({
-        where: {
-          id: { in: input.earningIds },
-          payoutId: null,
-        },
+        where: { id: { in: input.earningIds } },
       })
       if (earnings.length !== input.earningIds.length) {
         throw { statusCode: 400, message: 'Some earnings were not found' }
+      }
+
+      const claimedPayoutIds = new Set(
+        earnings.map((e) => e.payoutId).filter((id): id is string => !!id),
+      )
+      if (claimedPayoutIds.size === 1 && earnings.every((e) => e.payoutId)) {
+        // The exact same set was already batched — replay the existing payout rather than error.
+        const [existingId] = claimedPayoutIds
+        const existing = await tx.platformAffiliatePayout.findUnique({ where: { id: existingId! } })
+        if (existing) return { data: existing }
+      }
+      if (claimedPayoutIds.size > 0) {
+        throw { statusCode: 409, message: 'Some earnings are already on a different payout' }
       }
 
       let totalAmountMinor = 0
@@ -870,8 +886,8 @@ export class PlatformAffiliateService {
         totalAmountMinor += earning.amountMinor
       }
 
-      if (totalAmountMinor < 0) {
-        throw { statusCode: 400, message: 'Payout amount cannot be negative' }
+      if (totalAmountMinor <= 0) {
+        throw { statusCode: 400, message: 'Payout amount must be positive' }
       }
 
       const payout = await tx.platformAffiliatePayout.create({
@@ -883,35 +899,120 @@ export class PlatformAffiliateService {
         },
       })
 
-      // Link earnings to payout and mark as PAID?
-      // Wait, the status is PENDING for the payout, so earnings should also be marked as PAID when payout settles?
-      // For now, let's just link them.
-      await tx.platformAffiliateEarning.updateMany({
-        where: { id: { in: input.earningIds } },
+      // No unique constraint backs this claim (no idempotencyKey column on this model), so the
+      // race guard is a conditional update instead: only earnings still unclaimed as of this
+      // UPDATE's own row locks get linked (InnoDB's UPDATE...WHERE always locks/reads the latest
+      // committed row, not this transaction's earlier snapshot). If a concurrent request already
+      // claimed one of these earnings between our read above and here, fewer rows are affected
+      // than requested and this whole batch aborts rather than leaving a partial, inconsistent
+      // payout — the caller (or a retry) sees a clean 409 instead of silent double-counting.
+      const claim = await tx.platformAffiliateEarning.updateMany({
+        where: { id: { in: input.earningIds }, payoutId: null },
         data: { payoutId: payout.id },
       })
+      if (claim.count !== input.earningIds.length) {
+        throw {
+          statusCode: 409,
+          message: 'Some earnings were just claimed by a concurrent payout; retry',
+        }
+      }
 
       return { data: payout }
     })
   }
 
   async settlePayout(payoutId: string) {
-    return await db.$transaction(async (tx) => {
-      const payout = await tx.platformAffiliatePayout.findUnique({ where: { id: payoutId } })
-      if (!payout) throw { statusCode: 404, message: 'Payout not found' }
-      if (payout.status === 'PAID') throw { statusCode: 400, message: 'Payout is already settled' }
+    const payout = await finance.settlePlatformPayout(
+      payoutId,
+      `platform-payout:settle:${payoutId}`,
+    )
+    return { data: payout }
+  }
 
-      const updatedPayout = await tx.platformAffiliatePayout.update({
-        where: { id: payoutId },
-        data: { status: 'PAID' },
-      })
+  /**
+   * Move a payout off PENDING (never transferred — releases its earnings back to PAYABLE) or off
+   * PAID (the external transfer was reversed after the fact — reverses the settlement posting and
+   * releases its earnings back to PAYABLE). Any other starting state is rejected.
+   */
+  async failPayout(payoutId: string, outcome: 'FAILED' | 'REVERSED', reason?: string) {
+    const payout = await finance.failPlatformPayout(
+      payoutId,
+      `platform-payout:${outcome.toLowerCase()}:${payoutId}`,
+      outcome,
+      reason,
+    )
+    return { data: payout }
+  }
 
-      await tx.platformAffiliateEarning.updateMany({
-        where: { payoutId },
-        data: { status: 'PAID' },
-      })
+  /**
+   * Cross-checks membership revenue, generated earnings, and payouts against each other so a gap
+   * in the pipeline (e.g. a payment with an ACTIVE attribution that somehow produced no earning)
+   * shows up here instead of silently going unnoticed.
+   */
+  async getReconciliation() {
+    const [revenue, earningsByStatusType, payoutsByStatus, reversedEarnings] = await Promise.all([
+      db.membershipPayment.aggregate({ _sum: { amountMinor: true }, _count: true }),
+      db.platformAffiliateEarning.groupBy({
+        by: ['status', 'type'],
+        _sum: { amountMinor: true },
+        _count: true,
+      }),
+      db.platformAffiliatePayout.groupBy({
+        by: ['status'],
+        _sum: { totalAmountMinor: true },
+        _count: true,
+      }),
+      db.platformAffiliateEarning.findMany({
+        where: { status: 'REVERSED' },
+        select: { id: true, beneficiaryAffiliateId: true, amountMinor: true },
+      }),
+    ])
 
-      return { data: updatedPayout }
+    // Payments on a business that currently has an ACTIVE attribution but produced zero
+    // PlatformAffiliateEarning rows — the exact class of gap this pass closes: a payment
+    // processed before CommissionEngine was wired into the webhook, or a future bug in that
+    // wiring, shows up here rather than silently vanishing. (An approximation, not an exact
+    // point-in-time replay: a payment predating the current attribution but postdating a since-
+    // invalidated one would also surface here — worth a human look either way.)
+    const orphanedPayments = await db.membershipPayment.findMany({
+      where: {
+        earnings: { none: {} },
+        business: { platformAffiliateAttribution: { status: 'ACTIVE' } },
+      },
+      select: { id: true, businessId: true, amountMinor: true, settledAt: true },
+      take: 100,
     })
+
+    // PAYABLE/PAID earnings not fully accounted for by any payout item — the sum a payout batch
+    // should eventually cover.
+    const unbatchedPayable = await db.platformAffiliateEarning.aggregate({
+      where: { status: 'PAYABLE', payoutId: null },
+      _sum: { amountMinor: true },
+      _count: true,
+    })
+
+    return {
+      data: {
+        membershipRevenueMinor: revenue._sum.amountMinor ?? 0,
+        membershipPaymentCount: revenue._count,
+        earnings: earningsByStatusType.map((row) => ({
+          status: row.status,
+          type: row.type,
+          amountMinor: row._sum.amountMinor ?? 0,
+          count: row._count,
+        })),
+        payouts: payoutsByStatus.map((row) => ({
+          status: row.status,
+          totalAmountMinor: row._sum.totalAmountMinor ?? 0,
+          count: row._count,
+        })),
+        unbatchedPayableMinor: unbatchedPayable._sum.amountMinor ?? 0,
+        unbatchedPayableCount: unbatchedPayable._count,
+        discrepancies: {
+          orphanedPayments,
+          reversedEarningsWithoutReason: reversedEarnings.length,
+        },
+      },
+    }
   }
 }

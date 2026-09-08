@@ -29,6 +29,13 @@ import {
   reconcileAdSpend,
 } from './finance/queryOps'
 import {
+  adjustPlatformEarningLedger,
+  adjustPlatformEarningLedgerInTx,
+  failPlatformPayout,
+  promotePlatformEarningPayable,
+  settlePlatformPayout,
+} from './finance/platformCommissionOps'
+import {
   authorizeAdRunBudget,
   authorizeCampaignBudget,
   recordAdRunSpend,
@@ -67,4 +74,9 @@ export class FinanceService {
   failConnectPayout = failConnectPayout
   findInFlightPayout = findInFlightPayout
   reconcileAdSpend = reconcileAdSpend
+  promotePlatformEarningPayable = promotePlatformEarningPayable
+  adjustPlatformEarningLedger = adjustPlatformEarningLedger
+  adjustPlatformEarningLedgerInTx = adjustPlatformEarningLedgerInTx
+  settlePlatformPayout = settlePlatformPayout
+  failPlatformPayout = failPlatformPayout
 }

@@ -108,6 +108,8 @@ describe('Stripe service billing', () => {
           id: 'ch_test_1',
           object: 'charge',
           payment_intent: 'pi_test_1',
+          amount: 29900,
+          amount_refunded: 29900,
         },
       },
     } as unknown as Stripe.Event)

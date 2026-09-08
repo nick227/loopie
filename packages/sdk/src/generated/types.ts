@@ -4060,6 +4060,40 @@ export interface paths {
     patch: operations['adminSettlePlatformAffiliatePayout']
     trace?: never
   }
+  '/admin/platform-affiliate-payouts/{id}/fail': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /** Move a payout to FAILED (from PENDING) or REVERSED (from PAID) */
+    patch: operations['adminFailPlatformAffiliatePayout']
+    trace?: never
+  }
+  '/admin/platform-affiliates/reconciliation': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Cross-check membership revenue, generated earnings, and payouts */
+    get: operations['adminGetPlatformAffiliateReconciliation']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/admin/platform-affiliate-earnings/money-flow': {
     parameters: {
       query?: never
@@ -4895,12 +4929,23 @@ export interface components {
       /** @description Short-lived Google access token for the frontend Picker widget only. */
       accessToken: string
     }
-    /** @description 0-based column indices within the chosen tab. */
+    /** @description Optional 0-based column indices within the chosen tab. Unmapped fields are omitted. */
     GoogleColumnMapping: {
-      name?: number | null
-      email?: number | null
-      phone?: number | null
-      company?: number | null
+      name?: number
+      firstName?: number
+      lastName?: number
+      email?: number
+      phone?: number
+      company?: number
+      externalId?: number
+      jobTitle?: number
+      website?: number
+      address?: number
+      city?: number
+      state?: number
+      postalCode?: number
+      country?: number
+      notes?: number
     }
     GoogleSheetsSelection: {
       integrationId: string
@@ -15418,6 +15463,86 @@ export interface operations {
         content: {
           'application/json': {
             data: components['schemas']['PlatformAffiliatePayout']
+          }
+        }
+      }
+    }
+  }
+  adminFailPlatformAffiliatePayout: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @enum {string} */
+          outcome: 'FAILED' | 'REVERSED'
+          reason?: string
+        }
+      }
+    }
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['PlatformAffiliatePayout']
+          }
+        }
+      }
+    }
+  }
+  adminGetPlatformAffiliateReconciliation: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: {
+              membershipRevenueMinor?: number
+              membershipPaymentCount?: number
+              earnings?: {
+                status?: string
+                type?: string
+                amountMinor?: number
+                count?: number
+              }[]
+              payouts?: {
+                status?: string
+                totalAmountMinor?: number
+                count?: number
+              }[]
+              unbatchedPayableMinor?: number
+              unbatchedPayableCount?: number
+              discrepancies?: {
+                orphanedPayments?: {
+                  id?: string
+                  businessId?: string
+                  amountMinor?: number
+                  /** Format: date-time */
+                  settledAt?: string
+                }[]
+                reversedEarningsWithoutReason?: number
+              }
+            }
           }
         }
       }

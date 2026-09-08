@@ -325,3 +325,37 @@ export function useAdminSettlePlatformAffiliatePayout(options?: any) {
     ...options,
   })
 }
+
+export function useAdminFailPlatformAffiliatePayout(options?: any) {
+  return useMutation({
+    mutationFn: async ({
+      id,
+      ...body
+    }: {
+      id: string
+    } & operations['adminFailPlatformAffiliatePayout']['requestBody']['content']['application/json']) => {
+      const { data, error } = await getApiClient().PATCH(
+        '/admin/platform-affiliate-payouts/{id}/fail',
+        {
+          params: { path: { id } },
+          body,
+        },
+      )
+      if (error) throw error
+      return data
+    },
+    ...options,
+  })
+}
+
+export function useAdminGetPlatformAffiliateReconciliation(options?: any) {
+  return useQuery({
+    queryKey: ['adminGetPlatformAffiliateReconciliation'],
+    queryFn: async () => {
+      const { data, error } = await getApiClient().GET('/admin/platform-affiliates/reconciliation')
+      if (error) throw error
+      return data
+    },
+    ...options,
+  })
+}

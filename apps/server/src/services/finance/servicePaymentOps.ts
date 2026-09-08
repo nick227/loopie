@@ -68,22 +68,54 @@ export async function refundServicePayment(businessId: string, input: ServiceRef
   if (existing) return toRefundDTO(existing)
   const payment = await db.payment.findFirst({ where: { id: input.paymentId, businessId } })
   if (!payment) throw { statusCode: 404, message: 'Payment not found' }
+  const amountMinor = input.amountMinor ?? payment.amountMinor
+  if (!Number.isInteger(amountMinor) || amountMinor <= 0 || amountMinor > payment.amountMinor) {
+    throw { statusCode: 400, message: 'Invalid refund amount' }
+  }
+  const isFullRefund = amountMinor === payment.amountMinor
   try {
     return await db.$transaction(async (tx) => {
-      const reversal = await reverseTransactionInTx(tx, businessId, {
-        transactionId: payment.ledgerTransactionId,
-        idempotencyKey: input.idempotencyKey,
-        reason: input.reason,
-      })
+      // A one-shot full refund keeps reusing reverseTransactionInTx exactly as before — including
+      // its `reversesTransactionId` unique-FK guard against a second full-refund attempt on the
+      // same payment. A partial amount (this payment's own amountMinor still exceeds it) can't go
+      // through that path: reversesTransactionId is @unique, so only one reversal could ever link
+      // back to the original SERVICE_PAYMENT transaction, but multiple partial-refund events (or a
+      // partial followed later by the remaining balance) each need their own. Those post a
+      // same-shape but smaller REFUND transaction directly, linked back via metadata instead of
+      // the FK — reverseTransactionInTx's own contract and every other caller are untouched.
+      let ledgerTransactionId: string
+      if (isFullRefund) {
+        const reversal = await reverseTransactionInTx(tx, businessId, {
+          transactionId: payment.ledgerTransactionId,
+          idempotencyKey: input.idempotencyKey,
+          reason: input.reason,
+        })
+        ledgerTransactionId = reversal.id
+      } else {
+        const chart = await ensureChartOfAccounts(tx, businessId, payment.currency)
+        const posted = await postLedger(tx, {
+          businessId,
+          currency: payment.currency,
+          type: 'REFUND',
+          idempotencyKey: input.idempotencyKey,
+          metadata: {
+            reason: input.reason ?? null,
+            paymentId: payment.id,
+            partialReversalOf: payment.ledgerTransactionId,
+          },
+          entries: balancedPair(chart.LOOPIE_REVENUE.id, chart.PROCESSOR_CLEARING.id, amountMinor),
+        })
+        ledgerTransactionId = posted.id
+      }
       const refund = await tx.refund.create({
         data: {
           businessId,
           paymentId: payment.id,
-          amountMinor: payment.amountMinor,
+          amountMinor,
           currency: payment.currency,
           reason: input.reason,
           idempotencyKey: input.idempotencyKey,
-          ledgerTransactionId: reversal.id,
+          ledgerTransactionId,
         },
       })
       return toRefundDTO(refund)

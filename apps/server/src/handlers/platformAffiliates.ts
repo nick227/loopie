@@ -190,6 +190,31 @@ export async function adminSettlePlatformAffiliatePayout(
   reply.send(result)
 }
 
+export async function adminFailPlatformAffiliatePayout(
+  request: FastifyRequest<{
+    Params: { id: string }
+    Body: { outcome: 'FAILED' | 'REVERSED'; reason?: string }
+  }>,
+  reply: FastifyReply,
+) {
+  requireSiteAdmin((request as any).user)
+  const result = await service.failPayout(
+    request.params.id,
+    request.body.outcome,
+    request.body.reason,
+  )
+  reply.send(result)
+}
+
+export async function adminGetPlatformAffiliateReconciliation(
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
+  requireSiteAdmin((request as any).user)
+  const result = await service.getReconciliation()
+  reply.send(result)
+}
+
 export async function adminGetPayableEarningsSummary(request: FastifyRequest, reply: FastifyReply) {
   requireSiteAdmin((request as any).user)
   const result = await service.getPayableEarningsSummary()

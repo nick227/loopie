@@ -125,4 +125,7 @@ export type ServiceRefundInput = {
   paymentId: string
   idempotencyKey: string
   reason?: string
+  // The amount THIS refund event covers, not the payment's cumulative refunded-to-date total.
+  // Omitted means a full refund of the whole payment (the original, still-default behavior).
+  amountMinor?: number
 }
