@@ -82,6 +82,58 @@ jobs:
             fi
           fi
 
+      # Catches what the type-check/lint/vitest steps above structurally cannot: vitest and `tsx
+      # <file>` both run against this repo's own already-`pnpm install`-ed node_modules (real
+      # pnpm workspace symlinks), so a package-specifier import that only breaks in the *built
+      # Railway image's* node_modules layout resolves fine here and slips through everywhere
+      # above. Confirmed live (2026-09-08): GoogleSheetsService.ts/ImportSourceService.ts's
+      # `@project/sdk/src/lib/X` imports passed typecheck, lint, and the full vitest suite, then
+      # crash-looped `server` in production for several minutes on MODULE_NOT_FOUND. This builds
+      # each service's real Dockerfile and boots the real container against the same fresh mysql
+      # service the rest of this job uses (before "Push DB schema" below, so `prisma migrate
+      # deploy` inside the container runs against a genuinely empty schema — the same situation
+      # as a real first deploy, not a database `db:push` already shaped for it), then polls
+      # /health. See eslint.config.js's no-restricted-imports rule for the complementary,
+      # cheaper check that catches the specific import *pattern*; this catches the failure mode
+      # directly, regardless of what causes it.
+      - name: Build and boot-check server images
+        run: |
+          set -e
+          boot_check() {
+            local name="$1" dockerfile="$2" port="$3"
+            echo "::group::docker build ($name)"
+            docker build -f "$dockerfile" -t "loopie-$name-ci" .
+            echo "::endgroup::"
+            docker run -d --name "$name-boot-check" --network host \
+              -e DATABASE_URL="$DATABASE_URL" \
+              -e NODE_ENV=production \
+              -e PORT="$port" \
+              "loopie-$name-ci"
+            ok=""
+            for i in $(seq 1 30); do
+              if curl -sf "http://127.0.0.1:$port/health" > /dev/null; then
+                ok=1
+                break
+              fi
+              if [ "$(docker inspect -f '{{.State.Running}}' "$name-boot-check" 2>/dev/null)" != "true" ]; then
+                echo "$name container exited before it ever answered /health."
+                break
+              fi
+              sleep 2
+            done
+            echo "::group::$name container logs"
+            docker logs "$name-boot-check" || true
+            echo "::endgroup::"
+            docker rm -f "$name-boot-check" > /dev/null 2>&1 || true
+            if [ -z "$ok" ]; then
+              echo "::error::$name did not answer 200 on /health within 60s of a real Docker boot."
+              exit 1
+            fi
+            echo "$name booted and answered /health."
+          }
+          boot_check server apps/server/Dockerfile 3001
+          boot_check ad-server apps/ad-server/Dockerfile 3002
+
       - name: Push DB schema
         run: pnpm db:push
 

@@ -135,6 +135,41 @@ module.exports = [
     },
   },
 
+  // apps/server and apps/ad-server: package-specifier subpath imports into a workspace package
+  // that declares more than one export (i.e. `@project/<pkg>/<subpath>`, not just `@project/<pkg>`
+  // itself) resolve fine locally (real tsx/vitest, real pnpm-linked node_modules) but crash with
+  // MODULE_NOT_FOUND in the built Railway image — confirmed live twice now: once for
+  // @project/page-renderer/@project/embed-contract/@project/ad-renderer (see apps/server/
+  // Dockerfile's COPY comments) and again for @project/sdk (GoogleSheetsService.ts/
+  // ImportSourceService.ts crash-looped production on 2026-09-08, see CLAUDE.md). The proven fix
+  // both times was a plain relative import to the real file instead — see ContactService.ts's
+  // `../../../../packages/sdk/src/lib/importContactSchema`. Only sdk and embed-contract declare
+  // subpath exports at all today; this list grows if another workspace package adds one.
+  {
+    files: ['apps/server/src/**/*.ts', 'apps/ad-server/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@project/sdk',
+              message:
+                'Import the specific relative file instead (e.g. ../../../../packages/sdk/src/lib/X) — the package root pulls in React/react-query and has never been proven to resolve at runtime in the Railway image either.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['@project/sdk/*', '@project/embed-contract/*'],
+              message:
+                'Package-specifier subpath imports into this workspace package are known to crash at runtime in the Railway image (MODULE_NOT_FOUND) even though they resolve fine locally. Use a relative import to the real file instead — see ContactService.ts.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // apps/server and packages/sdk lean heavily on `any` at request/response and
   // React Query generic boundaries (Prisma Json columns, generated-OpenAPI query
   // types that don't line up with hand-rolled pagination params, `...options`
