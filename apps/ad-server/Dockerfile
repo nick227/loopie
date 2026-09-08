@@ -63,4 +63,10 @@ EXPOSE 3002
 # Correction, found live: Railway's healthcheck probes PORT regardless of EXPOSE — the earlier
 # assumption here (that EXPOSE alone was enough, no PORT needed) was wrong; the app now
 # prioritizes process.env.PORT (see index.ts).
-CMD ["node_modules/.bin/tsx", "apps/ad-server/src/index.ts"]
+#
+# Applies any pending migration before the app starts serving — see apps/server/Dockerfile's own
+# copy of this comment for the full reasoning (same pattern, same safety properties). Run here too
+# even though apps/server also runs it: this service shares the same database and could restart
+# first after a schema change, and concurrent attempts from both services are safe via Prisma's
+# own advisory locking.
+CMD ["sh", "-c", "pnpm --filter \"./packages/db\" exec prisma migrate deploy && exec node_modules/.bin/tsx apps/ad-server/src/index.ts"]

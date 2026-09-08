@@ -31,6 +31,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history, not the default shallow clone — the migration-drift check below diffs
+          # against the pre-push/PR-base commit, which a depth-1 checkout wouldn't have.
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
         with:
@@ -55,6 +59,28 @@ jobs:
 
       - name: Check SDK drift
         run: pnpm sdk:check
+
+      # Catches the exact failure mode that caused this project's migrations folder to fall badly
+      # out of sync with schema.prisma for a long time (schema.prisma edited, `db push` used to
+      # ship it, no migration file ever written) — not by demanding the whole historical migration
+      # set perfectly reconstructs the current schema (it doesn't, and reconciling years of that
+      # retroactively is a separate cleanup, not something to gate every PR on), but by requiring
+      # that *this* change carries its own migration if it touches schema.prisma at all. See
+      # docs/deploy/database-migrations.md.
+      - name: Check schema/migration drift
+        run: |
+          BASE="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            echo "No base commit to diff against (e.g. a new branch's first push) — skipping."
+            exit 0
+          fi
+          CHANGED=$(git diff --name-only "$BASE" "${{ github.sha }}" -- packages/db/prisma/schema.prisma packages/db/prisma/migrations/)
+          if echo "$CHANGED" | grep -qx "packages/db/prisma/schema.prisma"; then
+            if ! echo "$CHANGED" | grep -qE "^packages/db/prisma/migrations/.+/migration\.sql$"; then
+              echo "::error::schema.prisma changed but no new file under packages/db/prisma/migrations/ came with it. Run 'prisma migrate dev' to create a real migration — never ship a schema.prisma change on its own (db push does not leave a record other environments can replay)."
+              exit 1
+            fi
+          fi
 
       - name: Push DB schema
         run: pnpm db:push

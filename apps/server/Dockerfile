@@ -87,4 +87,16 @@ COPY --from=builder /app/apps/server/src ./apps/server/src
 COPY --from=builder /app/apps/server/package.json ./apps/server/
 
 EXPOSE 3001
-CMD ["node_modules/.bin/tsx", "apps/server/src/index.ts"]
+# Applies any pending migration before the app starts serving — the only place this project's
+# deploy pipeline ever ran a real DB sync against production was by hand, until this line. Same
+# invocation pattern the builder stage above already proves works (`pnpm --filter "./packages/db"
+# exec prisma generate`), just `generate` swapped for `migrate deploy`; `packages/db/node_modules`
+# is already present in this runtime image via the COPY above, no new copy needed. Shell form so
+# migrate deploy can run first, but `exec` hands PID 1 to tsx afterward so SIGTERM/graceful
+# shutdown (index.ts's own SIGINT/SIGTERM handlers) still reach the real process directly, exactly
+# as the previous exec-form CMD did. If migrate deploy fails, this exits non-zero and the container
+# never starts — Railway's restartPolicyType/healthcheck then keep the previous version serving
+# instead of cutting over to a broken one. Safe under concurrent starts (this service, ad-server,
+# or multiple replicas of either) via Prisma's own advisory locking — see
+# docs/deploy/database-migrations.md.
+CMD ["sh", "-c", "pnpm --filter \"./packages/db\" exec prisma migrate deploy && exec node_modules/.bin/tsx apps/server/src/index.ts"]
