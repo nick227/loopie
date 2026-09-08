@@ -50,7 +50,7 @@ export class HouseAdService {
         advertisementId: data.advertisementId || null,
         startDate: data.startDate ? new Date(data.startDate) : null,
         endDate: data.endDate ? new Date(data.endDate) : null,
-        weight: data.weight || 1,
+        weight: data.weight ?? 1, // `??`, not `||` — an explicit weight of 0 must be honored as 0
         status: data.status,
         placements: {
           create: data.placements?.map((p: any) => ({ zone: p.zone })) || [],
@@ -128,11 +128,14 @@ export class HouseAdService {
 
     if (!activeAds.length) return null
 
-    const totalWeight = activeAds.reduce((sum: number, ad: any) => sum + (ad.weight || 1), 0)
+    // `?? 1`, not `|| 1` — weight is a non-null Int column, so this only ever guards a genuinely
+    // missing value, never an explicit weight of 0 (a real admin use case: temporarily zero out an
+    // ad's serving frequency without pausing or deleting it). `|| 1` silently overrode 0 to 1.
+    const totalWeight = activeAds.reduce((sum: number, ad: any) => sum + (ad.weight ?? 1), 0)
     let rand = Math.random() * totalWeight
     let chosenAd = activeAds[0]
     for (const ad of activeAds) {
-      rand -= ad.weight || 1
+      rand -= ad.weight ?? 1
       if (rand <= 0) {
         chosenAd = ad
         break

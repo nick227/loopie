@@ -101,20 +101,42 @@ describe('publicRateLimit plugin', () => {
   // bespoke minimal Fastify instance for exercising the OpenAPI-routed handlers, not index.ts's
   // real middleware stack. A small standalone app here proves the actual exported hook enforces
   // the limit end-to-end, not just the underlying consumeRateLimit helper it calls.
+  //
+  // consumeRateLimit's window is aligned to real wall-clock boundaries (windowStart =
+  // floor(Date.now()/windowMs)*windowMs — see rateLimit.ts), not relative to a test's own start
+  // time. A test that fires real sequential requests with the real clock running can straddle a
+  // minute boundary mid-run — the bucket key changes, the count silently resets, and a request
+  // that should have been the 6th in-window one lands as the 1st of a new window instead. This
+  // was a real, if rare, flake: negligible odds in isolation, but real suite runs aren't run in
+  // isolation, and a heavier neighboring test file shifting overall timing measurably changes the
+  // odds of any given test happening to straddle a boundary. Every test below freezes Date (only
+  // Date — `toFake: ['Date']` leaves setTimeout/setImmediate/the real event loop alone, so
+  // Fastify's own request lifecycle keeps working normally) at a fixed instant well inside a
+  // window, so the outcome no longer depends on real elapsed time at all, and a random per-test
+  // IP keeps each run's bucket key unique regardless of what any other test or file did.
   const originalVitestEnv = process.env.VITEST
   vitestAfterEach(() => {
     process.env.VITEST = originalVitestEnv
+    vi.useRealTimers() // unconditional — never leaves a frozen clock for a later test/file to inherit
   })
+
+  // TEST-NET-3 (RFC 5737) with a random last octet per call, so two tests (or two runs of the
+  // same test) never share a bucket key even if some future change stops resetting the table.
+  function randomTestIp() {
+    return `203.0.113.${1 + Math.floor(Math.random() * 254)}`
+  }
 
   it('returns 429 once a public write route exceeds its limit, and lets other routes through', async () => {
     delete process.env.VITEST // the hook no-ops entirely under VITEST — see publicRateLimit.ts
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-01-01T00:00:10.000Z')) // 10s into a 60s window — never advanced
     const app = Fastify()
     app.addHook('onRequest', publicRateLimit)
     app.post('/attribution/form-submit', () => ({ ok: true }))
     app.get('/health', () => ({ ok: true }))
     await app.ready()
 
-    const ip = '203.0.113.1' // TEST-NET-3, distinct per test run's bucket key
+    const ip = randomTestIp()
     const inject = () =>
       app.inject({
         method: 'POST',
@@ -143,12 +165,14 @@ describe('publicRateLimit plugin', () => {
 
   it('limits POST /auth/register to 5/min per IP — the referral program made its referralCode lookup a code-enumeration target', async () => {
     delete process.env.VITEST
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-01-01T00:00:10.000Z'))
     const app = Fastify()
     app.addHook('onRequest', publicRateLimit)
     app.post('/auth/register', () => ({ ok: true }))
     await app.ready()
 
-    const ip = '203.0.113.2'
+    const ip = randomTestIp()
     const inject = () =>
       app.inject({ method: 'POST', url: '/auth/register', remoteAddress: ip, payload: {} })
 
