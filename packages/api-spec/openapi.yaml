@@ -250,6 +250,12 @@ components:
       required: true
       schema:
         type: string
+    SourceId:
+      in: path
+      name: sourceId
+      required: true
+      schema:
+        type: string
     CrmProviderParam:
       in: path
       name: provider
@@ -1951,18 +1957,10 @@ components:
         createdAt:
           type: string
           format: date-time
-        spreadsheetId:
-          type: string
+        importSourceCount:
+          type: integer
           nullable: true
-        spreadsheetName:
-          type: string
-          nullable: true
-        sheetTab:
-          type: string
-          nullable: true
-        columnMapping:
-          $ref: '#/components/schemas/GoogleColumnMapping'
-          nullable: true
+          description: Saved ImportSource count for GOOGLE_SHEETS integrations; null for other providers.
     SyncIntegrationResult:
       type: object
       required:
@@ -2068,39 +2066,6 @@ components:
         notes:
           type: integer
           minimum: 0
-    GoogleSheetsSelection:
-      type: object
-      required:
-        - integrationId
-        - spreadsheetId
-        - spreadsheetName
-        - sheetTab
-        - columnMapping
-      properties:
-        integrationId:
-          type: string
-        spreadsheetId:
-          type: string
-          nullable: true
-        spreadsheetName:
-          type: string
-          nullable: true
-        sheetTab:
-          type: string
-          nullable: true
-        columnMapping:
-          $ref: '#/components/schemas/GoogleColumnMapping'
-          nullable: true
-    SelectGoogleSheetsSpreadsheetInput:
-      type: object
-      required:
-        - spreadsheetId
-        - spreadsheetName
-      properties:
-        spreadsheetId:
-          type: string
-        spreadsheetName:
-          type: string
     GoogleSheetsTab:
       type: object
       required:
@@ -2111,71 +2076,236 @@ components:
           type: string
         sheetId:
           type: integer
-    SelectGoogleSheetsTabInput:
+        rowCount:
+          type: integer
+    ImportMatrix:
       type: object
+      description: Portable, positional source data. No field creation, formula evaluation, or writes.
       required:
-        - sheetTab
-      properties:
-        sheetTab:
-          type: string
-    PreviewGoogleSheetsImportInput:
-      type: object
-      properties:
-        mapping:
-          $ref: '#/components/schemas/GoogleColumnMapping'
-          description: Recompute stats against this mapping instead of the persisted/suggested one
-          without saving it.: null
-    GoogleSheetsPreview:
-      type: object
-      required:
-        - spreadsheetName
-        - sheetTab
         - headers
-        - sampleRows
-        - suggestedMapping
-        - totalRows
-        - withEmail
-        - withPhone
-        - toImport
-        - toSkip
+        - rows
+        - firstDataRow
         - truncated
       properties:
-        spreadsheetName:
-          type: string
-          nullable: true
-        sheetTab:
-          type: string
         headers:
           type: array
           items:
             type: string
-        sampleRows:
+        rows:
           type: array
           items:
             type: array
             items:
               type: string
-        suggestedMapping:
-          $ref: '#/components/schemas/GoogleColumnMapping'
-        totalRows:
-          type: integer
-        withEmail:
-          type: integer
-        withPhone:
-          type: integer
-        toImport:
-          type: integer
-        toSkip:
+        firstDataRow:
           type: integer
         truncated:
           type: boolean
-    ConfirmGoogleSheetsMappingInput:
+    ImportSource:
       type: object
       required:
+        - id
+        - integrationId
+        - label
+        - spreadsheetId
+        - spreadsheetName
+        - sheetTab
         - mapping
+        - schemaFingerprint
+        - needsReview
+        - refreshPolicy
+        - cursor
+        - hasMore
+        - lastRunAt
+        - lastError
+        - previewRowCount
+        - previewEligibleCount
+        - previewTruncated
+        - running
+      properties:
+        id:
+          type: string
+        integrationId:
+          type: string
+        label:
+          type: string
+        spreadsheetId:
+          type: string
+        spreadsheetName:
+          type: string
+        sheetTab:
+          type: string
+        mapping:
+          $ref: '#/components/schemas/GoogleColumnMapping'
+          nullable: true
+        schemaFingerprint:
+          type: string
+          nullable: true
+        needsReview:
+          type: boolean
+        refreshPolicy:
+          type: string
+          enum:
+            - MANUAL
+        cursor:
+          type: string
+          nullable: true
+        hasMore:
+          type: boolean
+        lastRunAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastError:
+          type: string
+          nullable: true
+        previewRowCount:
+          type: integer
+        previewEligibleCount:
+          type: integer
+        previewTruncated:
+          type: boolean
+        running:
+          type: boolean
+    CreateImportSourceInput:
+      type: object
+      required:
+        - spreadsheetId
+        - sheetTab
+      properties:
+        spreadsheetId:
+          type: string
+        sheetTab:
+          type: string
+        label:
+          type: string
+    PreviewImportSourceInput:
+      type: object
       properties:
         mapping:
           $ref: '#/components/schemas/GoogleColumnMapping'
+          description: Recompute stats against this mapping instead of the persisted/suggested one, without saving it.
+    ImportSourcePreview:
+      type: object
+      required:
+        - matrix
+        - mapping
+        - schemaFingerprint
+        - schemaDrift
+        - needsReview
+        - scanned
+        - eligible
+        - skipped
+      properties:
+        matrix:
+          $ref: '#/components/schemas/ImportMatrix'
+        mapping:
+          $ref: '#/components/schemas/GoogleColumnMapping'
+        schemaFingerprint:
+          type: string
+        schemaDrift:
+          type: boolean
+          description: The tab's headings changed since the mapping was last confirmed.
+        needsReview:
+          type: boolean
+        scanned:
+          type: integer
+        eligible:
+          type: integer
+        skipped:
+          type: integer
+    ConfirmImportSourceMappingInput:
+      type: object
+      required:
+        - mapping
+        - schemaFingerprint
+      properties:
+        mapping:
+          $ref: '#/components/schemas/GoogleColumnMapping'
+        schemaFingerprint:
+          type: string
+          description: Must match the preview's current schemaFingerprint, or the confirm is rejected as stale.
+    ImportJobRun:
+      type: object
+      required:
+        - id
+        - sourceId
+        - status
+        - scanned
+        - eligible
+        - matched
+        - created
+        - updated
+        - skipped
+        - failed
+        - error
+        - hasMore
+        - startCursor
+        - endCursor
+        - schemaFingerprint
+        - startedAt
+        - completedAt
+      properties:
+        id:
+          type: string
+        sourceId:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum:
+            - PENDING
+            - RUNNING
+            - COMPLETED
+            - FAILED
+        scanned:
+          type: integer
+        eligible:
+          type: integer
+        matched:
+          type: integer
+        created:
+          type: integer
+        updated:
+          type: integer
+        skipped:
+          type: integer
+        failed:
+          type: integer
+        error:
+          type: string
+          nullable: true
+        hasMore:
+          type: boolean
+        startCursor:
+          type: string
+          nullable: true
+        endCursor:
+          type: string
+          nullable: true
+        schemaFingerprint:
+          type: string
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+    ImportSourceRunsPage:
+      type: object
+      required:
+        - runs
+        - nextCursor
+      properties:
+        runs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportJobRun'
+        nextCursor:
+          type: string
+          nullable: true
     ExportContactsToGoogleSheetsInput:
       type: object
       properties:
@@ -9941,10 +10071,31 @@ paths:
                 properties:
                   data:
                     $ref: '#/components/schemas/GoogleSheetsPickerToken'
-  /integrations/{integrationId}/google-sheets/spreadsheet:
+  /integrations/{integrationId}/import-sources:
+    get:
+      operationId: listImportSources
+      summary: List saved Google Sheets import sources for a connected account
+      tags:
+        - crm
+      parameters:
+        - $ref: '#/components/parameters/IntegrationId'
+      responses:
+        '200':
+          description: Saved sources
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ImportSource'
     post:
-      operationId: selectGoogleSheetsSpreadsheet
-      summary: Record the spreadsheet chosen via the Google Picker widget
+      operationId: createImportSource
+      summary: Save a new spreadsheet/tab as an import source for this account
       tags:
         - crm
       parameters:
@@ -9954,10 +10105,10 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SelectGoogleSheetsSpreadsheetInput'
+              $ref: '#/components/schemas/CreateImportSourceInput'
       responses:
         '200':
-          description: Selection updated
+          description: Source saved (idempotent per spreadsheet/tab)
           content:
             application/json:
               schema:
@@ -9966,15 +10117,20 @@ paths:
                   - data
                 properties:
                   data:
-                    $ref: '#/components/schemas/GoogleSheetsSelection'
-  /integrations/{integrationId}/google-sheets/tabs:
+                    $ref: '#/components/schemas/ImportSource'
+  /integrations/{integrationId}/import-sources/tabs:
     get:
-      operationId: listGoogleSheetsTabs
-      summary: List tabs in the selected spreadsheet
+      operationId: getImportSourceTabs
+      summary: List worksheet tabs in a spreadsheet, before a source exists for it
       tags:
         - crm
       parameters:
         - $ref: '#/components/parameters/IntegrationId'
+        - in: query
+          name: spreadsheetId
+          required: true
+          schema:
+            type: string
       responses:
         '200':
           description: Sheet tabs
@@ -9989,23 +10145,18 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/GoogleSheetsTab'
-  /integrations/{integrationId}/google-sheets/tab:
-    post:
-      operationId: selectGoogleSheetsTab
-      summary: Choose which tab to import from
+  /integrations/{integrationId}/import-sources/{sourceId}:
+    get:
+      operationId: getImportSource
+      summary: Get one saved import source
       tags:
         - crm
       parameters:
         - $ref: '#/components/parameters/IntegrationId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SelectGoogleSheetsTabInput'
+        - $ref: '#/components/parameters/SourceId'
       responses:
         '200':
-          description: Selection updated
+          description: Source
           content:
             application/json:
               schema:
@@ -10014,23 +10165,24 @@ paths:
                   - data
                 properties:
                   data:
-                    $ref: '#/components/schemas/GoogleSheetsSelection'
-  /integrations/{integrationId}/google-sheets/preview:
+                    $ref: '#/components/schemas/ImportSource'
+  /integrations/{integrationId}/import-sources/{sourceId}/preview:
     post:
-      operationId: previewGoogleSheetsImport
-      summary: Read the selected tab and report row counts, headers, and a suggested column mapping
+      operationId: previewImportSource
+      summary: Read the source's tab and report headers, sample rows, and eligible-row counts
       tags:
         - crm
       parameters:
         - $ref: '#/components/parameters/IntegrationId'
+        - $ref: '#/components/parameters/SourceId'
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PreviewGoogleSheetsImportInput'
+              $ref: '#/components/schemas/PreviewImportSourceInput'
       responses:
         '200':
-          description: Sheet preview
+          description: Source preview
           content:
             application/json:
               schema:
@@ -10039,21 +10191,22 @@ paths:
                   - data
                 properties:
                   data:
-                    $ref: '#/components/schemas/GoogleSheetsPreview'
-  /integrations/{integrationId}/google-sheets/mapping:
+                    $ref: '#/components/schemas/ImportSourcePreview'
+  /integrations/{integrationId}/import-sources/{sourceId}/mapping:
     post:
-      operationId: confirmGoogleSheetsMapping
-      summary: Confirm the column mapping — required before Import (POST /integrations/{id}/sync) can run
+      operationId: confirmImportSourceMapping
+      summary: Confirm the column mapping — required before Import (the sync endpoint) can run
       tags:
         - crm
       parameters:
         - $ref: '#/components/parameters/IntegrationId'
+        - $ref: '#/components/parameters/SourceId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ConfirmGoogleSheetsMappingInput'
+              $ref: '#/components/schemas/ConfirmImportSourceMappingInput'
       responses:
         '200':
           description: Mapping saved
@@ -10065,7 +10218,53 @@ paths:
                   - data
                 properties:
                   data:
-                    $ref: '#/components/schemas/GoogleSheetsSelection'
+                    $ref: '#/components/schemas/ImportSource'
+  /integrations/{integrationId}/import-sources/{sourceId}/sync:
+    post:
+      operationId: syncImportSource
+      summary: Import one batch (up to 2,000 rows) from this source. Call again to continue.
+      tags:
+        - crm
+      parameters:
+        - $ref: '#/components/parameters/IntegrationId'
+        - $ref: '#/components/parameters/SourceId'
+      responses:
+        '200':
+          description: Import run result
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ImportJobRun'
+  /integrations/{integrationId}/import-sources/{sourceId}/runs:
+    get:
+      operationId: listImportSourceRuns
+      summary: Run history for one import source
+      tags:
+        - crm
+      parameters:
+        - $ref: '#/components/parameters/IntegrationId'
+        - $ref: '#/components/parameters/SourceId'
+        - in: query
+          name: before
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Run history
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ImportSourceRunsPage'
   /integrations/{integrationId}/google-sheets/export:
     post:
       operationId: exportContactsToGoogleSheets

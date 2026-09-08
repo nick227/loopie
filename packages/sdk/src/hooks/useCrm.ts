@@ -99,12 +99,13 @@ export function useStartCrmOAuth() {
         | 'PIPEDRIVE'
         | 'GOOGLE_SHEETS'
       shop?: string
+      returnPath?: string
     }) => {
       const client = getApiClient()
       const result = await client.GET('/integrations/{provider}/oauth/start', {
         params: {
           path: { provider: input.provider },
-          query: { shop: input.shop, returnPath: '/integrations' },
+          query: { shop: input.shop, returnPath: input.returnPath ?? '/integrations' },
         },
       })
       const err = result.error

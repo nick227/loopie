@@ -79,9 +79,14 @@ export class CrmOAuthService {
     if (!live.configured()) throw { statusCode: 503, message: `${provider} is not configured` }
     const shop = provider === 'SHOPIFY' ? normalizeShop(opts.shop ?? '') : undefined
     const entry = catalogEntry(provider)!
-    const existing = await db.integration.findFirst({
-      where: { businessId, provider, ...(shop ? { externalAccountId: shop } : {}) },
-    })
+    // Each Sheets authorization gets its own pending record so two browser tabs cannot
+    // attach different Google accounts to the same integration.
+    const existing =
+      provider === 'GOOGLE_SHEETS'
+        ? null
+        : await db.integration.findFirst({
+            where: { businessId, provider, ...(shop ? { externalAccountId: shop } : {}) },
+          })
     const row =
       existing ??
       (await db.integration.create({
@@ -105,11 +110,21 @@ export class CrmOAuthService {
     return { url: live.authUrl(state, { shop: row.externalAccountId ?? shop }) }
   }
 
-  async handleCallback(providerRaw: string, code: string | undefined, state: string | undefined) {
+  async handleCallback(
+    providerRaw: string,
+    code: string | undefined,
+    state: string | undefined,
+    error?: string,
+  ) {
     const provider = asProvider(providerRaw)
     const parsed = verifyOAuthState(state)
     if (!parsed || parsed.platform !== `crm:${provider}`)
       throw { statusCode: 400, message: 'Invalid OAuth state' }
+    if (provider === 'GOOGLE_SHEETS' && error) {
+      const dest = new URL('/integrations/google-sheets', appBaseUrl())
+      dest.searchParams.set('connection', 'cancelled')
+      return dest.toString()
+    }
     if (!code) throw { statusCode: 400, message: 'Missing OAuth code' }
     const live = getLiveConnector(provider)
     if (!live.configured()) throw { statusCode: 503, message: `${provider} is not configured` }
@@ -120,8 +135,21 @@ export class CrmOAuthService {
     })
     if (!row) throw { statusCode: 404, message: 'Integration not found' }
     const token = await live.exchangeCode(code, { shop: row.externalAccountId ?? undefined })
+    // A newly authorized Google account must never replace a different account's credentials.
+    // Reauthorizing the same email retains its saved spreadsheet and provenance.
+    const sameAccount =
+      provider === 'GOOGLE_SHEETS' && token.externalAccountId
+        ? await db.integration.findFirst({
+            where: {
+              businessId: parsed.businessId,
+              provider,
+              externalAccountId: token.externalAccountId,
+            },
+          })
+        : null
+    const targetId = sameAccount?.id ?? row.id
     await db.integration.update({
-      where: { id: row.id },
+      where: { id: targetId },
       data: {
         status: 'CONNECTED',
         externalAccountId: token.externalAccountId || row.externalAccountId,
@@ -133,7 +161,13 @@ export class CrmOAuthService {
         }),
       },
     })
-    const dest = new URL(parsed.returnPath.split('?')[0] || '/integrations', appBaseUrl())
+    if (targetId !== row.id) await db.integration.delete({ where: { id: row.id } })
+    const dest = new URL(
+      provider === 'GOOGLE_SHEETS'
+        ? `/integrations/${targetId}/google-sheets`
+        : parsed.returnPath.split('?')[0] || '/integrations',
+      appBaseUrl(),
+    )
     dest.searchParams.set('connected', provider)
     return dest.toString()
   }

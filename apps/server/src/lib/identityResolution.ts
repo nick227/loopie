@@ -48,7 +48,7 @@ export function tombstoneIdentity(value: string | null, id: string): string | nu
 }
 
 export type ResolveContactResult =
-  | { status: 'resolved'; contact: Contact; created: boolean }
+  | { status: 'resolved'; contact: Contact; created: boolean; updated?: boolean }
   | { status: 'ambiguous'; candidateIds: string[] }
 
 export async function resolveContact(
@@ -145,7 +145,14 @@ export async function resolveContact(
         ...external,
       })
     }
-    return { status: 'resolved', contact, created: false }
+    return {
+      status: 'resolved',
+      contact,
+      created: false,
+      updated: (['name', 'email', 'phone', 'company'] as const).some(
+        (field) => contact[field] !== match.contact[field],
+      ),
+    }
   }
 
   try {

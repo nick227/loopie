@@ -71,7 +71,10 @@ afterEach(() => {
 })
 
 describe('Google Sheets CRM integration', () => {
-  it('connects, previews a sheet with a real column-completeness breakdown, imports on confirmed mapping, and exports contacts to a new sheet', async () => {
+  // Multi-source spreadsheet/tab selection, mapping, preview, and import now live entirely under
+  // /integrations/{id}/import-sources — see importSources.test.ts. This covers what's still
+  // account-level: OAuth connect, the Picker token, and CRM -> Sheets export.
+  it('connects, issues a picker token, and exports contacts to a new sheet', async () => {
     enableGoogleSheets()
     stubGoogleFetch()
 
@@ -110,88 +113,6 @@ describe('Google Sheets CRM integration', () => {
     expect(pickerToken.statusCode).toBe(200)
     expect(pickerToken.json().data.accessToken).toBe('G_TOKEN')
 
-    const selected = await app.inject({
-      method: 'POST',
-      url: `/integrations/${row.id}/google-sheets/spreadsheet`,
-      headers: asAuth(testUserId),
-      payload: { spreadsheetId: SHEET_ID, spreadsheetName: 'My CRM Sheet' },
-    })
-    expect(selected.statusCode).toBe(200)
-    expect(selected.json().data.spreadsheetId).toBe(SHEET_ID)
-
-    const tabs = await app.inject({
-      method: 'GET',
-      url: `/integrations/${row.id}/google-sheets/tabs`,
-      headers: asAuth(testUserId),
-    })
-    expect(tabs.statusCode).toBe(200)
-    expect(tabs.json().data).toEqual([
-      { title: 'Contacts', sheetId: 0 },
-      { title: 'Archive', sheetId: 1 },
-    ])
-
-    const tabSelected = await app.inject({
-      method: 'POST',
-      url: `/integrations/${row.id}/google-sheets/tab`,
-      headers: asAuth(testUserId),
-      payload: { sheetTab: 'Contacts' },
-    })
-    expect(tabSelected.statusCode).toBe(200)
-
-    const preview = await app.inject({
-      method: 'POST',
-      url: `/integrations/${row.id}/google-sheets/preview`,
-      headers: asAuth(testUserId),
-    })
-    expect(preview.statusCode).toBe(200)
-    expect(preview.json().data).toMatchObject({
-      headers: HEADER,
-      totalRows: 4,
-      withEmail: 2,
-      withPhone: 3,
-      toImport: 3,
-      toSkip: 1,
-      truncated: false,
-      suggestedMapping: { name: 0, email: 1, phone: 2, company: 3 },
-    })
-
-    // Confirm a mapping that deliberately differs from the suggestion (drop company) to prove the
-    // sync step honors whatever was confirmed, not just whatever preview suggested.
-    const confirmed = await app.inject({
-      method: 'POST',
-      url: `/integrations/${row.id}/google-sheets/mapping`,
-      headers: asAuth(testUserId),
-      payload: { mapping: { name: 0, email: 1, phone: 2 } },
-    })
-    expect(confirmed.statusCode).toBe(200)
-
-    const synced = await app.inject({
-      method: 'POST',
-      url: `/integrations/${row.id}/sync`,
-      headers: asAuth(testUserId),
-    })
-    expect(synced.statusCode).toBe(200)
-    expect(synced.json().data).toMatchObject({ created: 3, hasMore: false })
-
-    const imported = await db.contact.findMany({
-      where: { businessId: testBusinessId, source: 'GOOGLE_SHEETS' },
-      orderBy: { name: 'asc' },
-    })
-    expect(imported.map((c) => c.name)).toEqual(['Alice Smith', 'Bob Jones', 'Carol Lee'])
-    expect(imported.find((c) => c.name === 'Bob Jones')?.phone).toBe('555-0002')
-    // Company was dropped from the confirmed mapping — never imported even though the sheet has it.
-    expect(imported.every((c) => c.company === null)).toBe(true)
-
-    // Re-syncing is idempotent — same 4 sheet rows, no new contacts created.
-    const resynced = await app.inject({
-      method: 'POST',
-      url: `/integrations/${row.id}/sync`,
-      headers: asAuth(testUserId),
-    })
-    expect(resynced.statusCode).toBe(200)
-    expect(resynced.json().data).toMatchObject({ created: 0 })
-    expect(await db.contact.count({ where: { businessId: testBusinessId } })).toBe(3)
-
     const exported = await app.inject({
       method: 'POST',
       url: `/integrations/${row.id}/google-sheets/export`,
@@ -202,7 +123,7 @@ describe('Google Sheets CRM integration', () => {
     expect(exported.json().data).toMatchObject({
       spreadsheetId: 'export-sheet-1',
       url: 'https://docs.google.com/spreadsheets/d/export-sheet-1/edit',
-      contactCount: 3,
+      contactCount: 0,
     })
   })
 
@@ -271,5 +192,130 @@ describe('Google Sheets CRM integration', () => {
     const url = start.json().data.url as string
     expect(url).toContain('client_id=shared-id')
     expect(url).toContain(encodeURIComponent('/v1/integrations/google-sheets/callback'))
+  })
+})
+
+describe('Google Sheets mapping and source identity', () => {
+  it('recognizes exact aliases without treating company or first name as full name', async () => {
+    const { suggestMapping, validateMapping } = await import('../services/GoogleSheetsService')
+    expect(
+      suggestMapping([
+        'Company Name',
+        'first_name',
+        'Last Name',
+        'email_address',
+        'mobile',
+        'Notes',
+      ]),
+    ).toEqual({ company: 0, firstName: 1, lastName: 2, email: 3, phone: 4, notes: 5 })
+    expect(suggestMapping(['Company Email', 'Email', 'Email'])).toEqual({ email: 1 })
+    expect(() => validateMapping({ name: 0, email: 0 }, 2)).toThrow()
+    expect(() => validateMapping({ email: -1 }, 2)).toThrow()
+    expect(() => validateMapping({ email: 2 }, 2)).toThrow()
+    expect(() => validateMapping({ email: null } as never, 2)).toThrow()
+  })
+
+  it('reads columns beyond Z, joins split names, retains profile, and distinguishes sheets', async () => {
+    const { googleSheetsConnector, columnName } = await import('../lib/crm/googleSheets')
+    expect(columnName(26)).toBe('AA')
+    expect(columnName(701)).toBe('ZZ')
+    const cells = Array<string>(28).fill('')
+    cells[0] = 'Ada'
+    cells[1] = 'Lovelace'
+    cells[26] = 'ada@example.com'
+    cells[27] = 'Analyst'
+    const fetcher = vi.fn((_input: RequestInfo | URL) => Promise.resolve(json({ values: [cells] })))
+    vi.stubGlobal('fetch', fetcher)
+    const opts = {
+      spreadsheetId: 'one',
+      sheetTab: "Client's list",
+      columnMapping: { firstName: 0, lastName: 1, email: 26, jobTitle: 27 },
+    }
+    const first = await googleSheetsConnector.listContacts('token', null, opts)
+    expect(decodeURIComponent(String(fetcher.mock.calls[0]?.[0]))).toContain(
+      "'Client''s list'!A2:AB251",
+    )
+    expect(first.contacts[0]).toMatchObject({
+      name: 'Ada Lovelace',
+      email: 'ada@example.com',
+      raw: { profile: { jobTitle: 'Analyst' } },
+    })
+    const other = await googleSheetsConnector.listContacts('token', null, {
+      ...opts,
+      spreadsheetId: 'two',
+    })
+    expect(other.contacts[0]!.externalId).not.toBe(first.contacts[0]!.externalId)
+    const moved = await googleSheetsConnector.listContacts('token', '252', opts)
+    expect(moved.contacts[0]!.externalId).toBe(first.contacts[0]!.externalId)
+  })
+
+  it('returns cancelled authorization to account selection without connecting or importing', async () => {
+    enableGoogleSheets()
+    const start = await app.inject({
+      method: 'GET',
+      url: '/integrations/GOOGLE_SHEETS/oauth/start',
+      headers: asAuth(testUserId),
+    })
+    const state = new URL(start.json().data.url).searchParams.get('state')!
+    const callback = await app.inject({
+      method: 'GET',
+      url: `/v1/integrations/google-sheets/callback?error=access_denied&state=${encodeURIComponent(state)}`,
+    })
+    expect(callback.statusCode).toBe(302)
+    expect(callback.headers.location).toContain('/integrations/google-sheets?connection=cancelled')
+    expect(await db.contact.count({ where: { businessId: testBusinessId } })).toBe(0)
+    expect(
+      await db.integration.count({ where: { businessId: testBusinessId, status: 'CONNECTED' } }),
+    ).toBe(0)
+  })
+
+  it('adds a second account without replacing the first, and reconnects the original in place', async () => {
+    enableGoogleSheets()
+    stubGoogleFetch()
+    const original = await db.integration.create({
+      data: {
+        businessId: testBusinessId,
+        provider: 'GOOGLE_SHEETS',
+        status: 'CONNECTED',
+        externalAccountId: 'original@example.com',
+        capabilities: {},
+        providerConfig: { spreadsheetId: 'original-sheet' },
+      },
+    })
+    const start = await app.inject({
+      method: 'GET',
+      url: '/integrations/GOOGLE_SHEETS/oauth/start',
+      headers: asAuth(testUserId),
+    })
+    const state = new URL(start.json().data.url).searchParams.get('state')!
+    const callback = await app.inject({
+      method: 'GET',
+      url: `/v1/integrations/google-sheets/callback?code=abc&state=${encodeURIComponent(state)}`,
+    })
+    expect(callback.statusCode).toBe(302)
+    expect(callback.headers.location).toMatch(/\/integrations\/[^/]+\/google-sheets/)
+    expect(
+      (await db.integration.findUniqueOrThrow({ where: { id: original.id } })).externalAccountId,
+    ).toBe('original@example.com')
+    const added = await db.integration.findFirstOrThrow({
+      where: { businessId: testBusinessId, externalAccountId: 'owner@example.com' },
+    })
+    const again = await app.inject({
+      method: 'GET',
+      url: '/integrations/GOOGLE_SHEETS/oauth/start',
+      headers: asAuth(testUserId),
+    })
+    const againState = new URL(again.json().data.url).searchParams.get('state')!
+    const reconnected = await app.inject({
+      method: 'GET',
+      url: `/v1/integrations/google-sheets/callback?code=abc&state=${encodeURIComponent(againState)}`,
+    })
+    expect(reconnected.statusCode).toBe(302)
+    expect(reconnected.headers.location).toContain(`/integrations/${added.id}/google-sheets`)
+    expect(
+      await db.integration.count({
+        where: { businessId: testBusinessId, provider: 'GOOGLE_SHEETS' },
+      }),
+    ).toBe(2)
   })
 })

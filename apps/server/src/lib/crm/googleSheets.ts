@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { catalogEntry } from './catalog'
 import { formBody, jsonFetch } from './http'
 import type { CrmContactPage, CrmLiveConnector, CrmToken, GoogleColumnMapping } from './types'
@@ -23,6 +24,14 @@ const PAGE_SIZE = 250
 // cap — it just paginates.
 const PREVIEW_ROW_CAP = 5000
 
+export function columnName(index: number): string {
+  let name = ''
+  for (let n = index + 1; n > 0; n = Math.floor((n - 1) / 26)) {
+    name = String.fromCharCode(65 + ((n - 1) % 26)) + name
+  }
+  return name
+}
+
 function requireConfig() {
   // Prefer Sheets-specific env; fall back to the shared Google OAuth client already used for login
   // so one Console client (GOOGLE_CLIENT_ID/SECRET) covers both — redirect must match Console:
@@ -37,7 +46,7 @@ function requireConfig() {
   return { clientId, clientSecret, redirectUri }
 }
 
-async function readValues(
+export async function readValues(
   accessToken: string,
   spreadsheetId: string,
   range: string,
@@ -70,7 +79,7 @@ export const googleSheetsConnector: CrmLiveConnector = {
     // required to retain the connection across sessions (see GoogleSheetsService's
     // ensureFreshToken), matching the product's "don't ask them to reconnect every session" call.
     url.searchParams.set('access_type', 'offline')
-    url.searchParams.set('prompt', 'consent')
+    url.searchParams.set('prompt', 'consent select_account')
     url.searchParams.set('state', state)
     return url.toString()
   },
@@ -110,7 +119,11 @@ export const googleSheetsConnector: CrmLiveConnector = {
     }
     const startRow = cursor ? Number(cursor) : 2 // row 1 is headers
     const endRow = startRow + PAGE_SIZE - 1
-    const rows = await readValues(token, spreadsheetId, `'${sheetTab}'!A${startRow}:Z${endRow}`)
+    const rows = await readValues(
+      token,
+      spreadsheetId,
+      `'${sheetTab.replace(/'/g, "''")}'!A${startRow}:${columnName(Math.max(25, ...Object.values(mapping)))}${endRow}`,
+    )
     const contacts: CrmContactPage['contacts'] = []
     rows.forEach((row, i) => {
       const rowNumber = startRow + i
@@ -121,15 +134,46 @@ export const googleSheetsConnector: CrmLiveConnector = {
       // A row with neither is not a usable contact — resolveContact requires one of
       // email/phone/externalId, and using the row number alone as externalId would import every
       // blank/formatting row in the sheet as a nameless contact.
-      if (!email && !phone) return
-      const name = get(mapping.name)
+      const externalId = get(mapping.externalId)
+      if (!email && !phone && !externalId) return
+      const name =
+        get(mapping.name) ??
+        [get(mapping.firstName), get(mapping.lastName)].filter(Boolean).join(' ')
       contacts.push({
-        externalId: `row_${rowNumber}`,
-        name: name ?? email ?? phone ?? `Row ${rowNumber}`,
+        externalId: `sheet_${createHash('sha256')
+          .update(
+            JSON.stringify([
+              spreadsheetId,
+              sheetTab,
+              externalId ? 'id' : email ? 'email' : 'phone',
+              externalId ?? email?.toLowerCase() ?? phone,
+            ]),
+          )
+          .digest('hex')}`,
+        name: name || email || phone || `Row ${rowNumber}`,
         email: email ?? null,
         phone: phone ?? null,
         company: get(mapping.company) ?? null,
-        raw: { row: rowNumber },
+        raw: {
+          row: rowNumber,
+          externalId: externalId ?? null,
+          profile: Object.fromEntries(
+            Object.entries(mapping)
+              .filter(
+                ([key]) =>
+                  ![
+                    'name',
+                    'firstName',
+                    'lastName',
+                    'email',
+                    'phone',
+                    'company',
+                    'externalId',
+                  ].includes(key),
+              )
+              .map(([key, index]) => [key, get(index)]),
+          ),
+        },
       })
     })
     const hasMore = rows.length === PAGE_SIZE
@@ -165,25 +209,33 @@ export async function listSheetTabs(accessToken: string, spreadsheetId: string) 
   const spreadsheetTitle =
     (json.properties as { title?: string } | undefined)?.title ?? 'Untitled spreadsheet'
   const sheets =
-    (json.sheets as { properties?: { title?: string; sheetId?: number } }[] | undefined) ?? []
+    (json.sheets as
+      | {
+          properties?: { title?: string; sheetId?: number; gridProperties?: { rowCount?: number } }
+        }[]
+      | undefined) ?? []
   return {
     spreadsheetTitle,
     tabs: sheets.map((s) => ({
       title: s.properties?.title ?? 'Sheet1',
       sheetId: s.properties?.sheetId ?? 0,
+      rowCount: s.properties?.gridProperties?.rowCount ?? 1000,
     })),
   }
 }
 
-// No A1 range = the sheet's whole populated area, not its allocated grid size — the one call that
-// gives an accurate "how many rows are actually filled" count without guessing from
-// gridProperties.rowCount, which includes trailing empty rows Sheets pre-allocates.
+// Bound the request itself: header + 5,000 data rows + one look-ahead row.
+// Row-only A1 ranges include all columns, including those beyond Z.
 export async function readSheetRawRows(
   accessToken: string,
   spreadsheetId: string,
   sheetTab: string,
 ) {
-  const rows = await readValues(accessToken, spreadsheetId, `'${sheetTab}'`)
+  const rows = await readValues(
+    accessToken,
+    spreadsheetId,
+    `'${sheetTab.replace(/'/g, "''")}'!1:${PREVIEW_ROW_CAP + 2}`,
+  )
   return {
     rows: rows.slice(0, PREVIEW_ROW_CAP + 1),
     truncated: rows.length > PREVIEW_ROW_CAP + 1,

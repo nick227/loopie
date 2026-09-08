@@ -63,16 +63,20 @@ const APP_ID = import.meta.env.VITE_GOOGLE_PICKER_APP_ID as string | undefined
 export function GoogleSheetPicker({
   integrationId,
   onPicked,
+  disabled = false,
 }: {
   integrationId: string
+  disabled?: boolean
   onPicked: (file: { id: string; name: string }) => void
 }) {
   const pickerToken = useGoogleSheetsPickerToken()
+  const [error, setError] = useState<string | null>(null)
   const [opening, setOpening] = useState(false)
   const configured = Boolean(API_KEY)
 
   const open = useCallback(async () => {
     setOpening(true)
+    setError(null)
     try {
       const result = await pickerToken.mutateAsync(integrationId)
       await loadPickerLibrary()
@@ -90,6 +94,13 @@ export function GoogleSheetPicker({
       if (API_KEY) builder.setDeveloperKey(API_KEY)
       if (APP_ID) builder.setAppId(APP_ID)
       builder.build().setVisible(true)
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : 'Could not open Google Drive. Try connecting your account again.',
+      )
+      gapiLoadPromise = null
     } finally {
       setOpening(false)
     }
@@ -97,12 +108,18 @@ export function GoogleSheetPicker({
 
   return (
     <div className="space-y-1">
-      <Button type="button" onClick={open} disabled={!configured || opening}>
+      <Button type="button" onClick={open} disabled={disabled || !configured || opening}>
         {opening ? 'Opening Google Drive…' : 'Choose a spreadsheet'}
       </Button>
+      {error && (
+        <p role="alert" className="text-xs text-destructive">
+          {error}
+        </p>
+      )}
       {!configured ? (
         <p className="text-xs text-muted-foreground">
-          Set VITE_GOOGLE_PICKER_API_KEY to enable the file picker.
+          The Google Drive picker is currently unavailable. Please contact your workspace
+          administrator.
         </p>
       ) : null}
     </div>

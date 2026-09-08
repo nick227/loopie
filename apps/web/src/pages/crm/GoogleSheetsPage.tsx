@@ -1,269 +1,156 @@
-import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
-  useConfirmGoogleSheetsMapping,
-  useExportContactsToGoogleSheets,
-  useGoogleSheetsTabs,
+  useCreateImportSource,
+  useImportSourceTabs,
+  useImportSources,
   useIntegration,
-  usePreviewGoogleSheetsImport,
-  useSelectGoogleSheetsSpreadsheet,
-  useSelectGoogleSheetsTab,
-  useSyncIntegration,
-  type components,
 } from '@project/sdk'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { GoogleSheetPicker } from '@/components/crm/GoogleSheetPicker'
 
-type ColumnMapping = components['schemas']['GoogleColumnMapping']
-
-const FIELDS: { key: keyof ColumnMapping; label: string }[] = [
-  { key: 'name', label: 'Name' },
-  { key: 'email', label: 'Email' },
-  { key: 'phone', label: 'Phone' },
-  { key: 'company', label: 'Company' },
-]
-
 export function GoogleSheetsPage() {
   const { integrationId } = useParams<{ integrationId: string }>()
   const integration = useIntegration(integrationId)
-  const selectSpreadsheet = useSelectGoogleSheetsSpreadsheet()
-  const selectTab = useSelectGoogleSheetsTab()
-  const preview = usePreviewGoogleSheetsImport()
-  const confirmMapping = useConfirmGoogleSheetsMapping()
-  const syncNow = useSyncIntegration()
-  const exportContacts = useExportContactsToGoogleSheets()
-
-  // null = "no explicit edit yet, fall back to the server's suggested mapping" (see
-  // effectiveMapping below) rather than mirroring server state into local state via an effect.
-  const [mappingOverride, setMappingOverride] = useState<ColumnMapping | null>(null)
-  const [exportResult, setExportResult] = useState<{ url: string; contactCount: number } | null>(
-    null,
-  )
-
+  if (integration.isLoading) return <Skeleton className="h-64 w-full" />
+  if (integration.error) return <p role="alert">{integration.error.message}</p>
   const row = integration.data?.data
-  const tabsQuery = useGoogleSheetsTabs(integrationId && row?.spreadsheetId ? integrationId : null)
-  const mapping = mappingOverride ?? preview.data?.data?.suggestedMapping ?? null
-
-  // Re-run the preview whenever the confirmed tab changes so the page opens on real numbers
-  // instead of a stale mapping from a previous tab.
-  useEffect(() => {
-    if (integrationId && row?.spreadsheetId && row?.sheetTab) {
-      preview.mutate({ integrationId })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [integrationId, row?.spreadsheetId, row?.sheetTab])
-
-  if (!integrationId) return null
-
-  if (integration.isLoading) {
-    return <Skeleton className="h-64 w-full" />
-  }
-
-  if (!row || row.provider !== 'GOOGLE_SHEETS') {
-    return (
-      <div className="space-y-4">
-        <BackLink />
-        <p className="text-sm text-muted-foreground">Google Sheets integration not found.</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="max-w-2xl space-y-5">
-      <BackLink />
-      <PageHeader
-        variant="detail"
-        title="Google Sheets"
-        description="Import contacts from a spreadsheet, or export your CRM to a new one."
-      />
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">1. Choose a spreadsheet</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          {row.spreadsheetName ? (
-            <p>
-              Connected to <span className="font-medium">{row.spreadsheetName}</span>
-            </p>
-          ) : (
-            <p className="text-muted-foreground">No spreadsheet chosen yet.</p>
-          )}
-          <GoogleSheetPicker
-            integrationId={integrationId}
-            onPicked={(file) => {
-              setMappingOverride(null)
-              selectSpreadsheet.mutate({
-                integrationId,
-                spreadsheetId: file.id,
-                spreadsheetName: file.name,
-              })
-            }}
-          />
-        </CardContent>
-      </Card>
-
-      {row.spreadsheetId ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">2. Choose a tab</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            {tabsQuery.isLoading ? (
-              <Skeleton className="h-9 w-full" />
-            ) : (
-              <select
-                value={row.sheetTab ?? ''}
-                onChange={(e) => {
-                  setMappingOverride(null)
-                  selectTab.mutate({ integrationId, sheetTab: e.target.value })
-                }}
-                className="flex h-10 w-full rounded-lg border border-input-border bg-transparent px-3 text-sm"
-              >
-                <option value="" disabled>
-                  Select a tab…
-                </option>
-                {(tabsQuery.data?.data ?? []).map((tab) => (
-                  <option key={tab.sheetId} value={tab.title}>
-                    {tab.title}
-                  </option>
-                ))}
-              </select>
-            )}
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {row.sheetTab ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">3. Map columns and import</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            {preview.isPending ? (
-              <Skeleton className="h-40 w-full" />
-            ) : preview.data?.data ? (
-              <>
-                <p className="text-base font-medium text-foreground">
-                  {preview.data.data.totalRows} contacts found
-                </p>
-                <ul className="space-y-1 text-muted-foreground">
-                  <li>{preview.data.data.withEmail} have an email</li>
-                  <li>{preview.data.data.withPhone} have a phone number</li>
-                  {preview.data.data.toSkip > 0 ? (
-                    <li>{preview.data.data.toSkip} rows will be skipped</li>
-                  ) : null}
-                </ul>
-                {preview.data.data.truncated ? (
-                  <p className="text-warning">
-                    This sheet is large — only the first rows were used to build this preview.
-                  </p>
-                ) : null}
-
-                <div className="space-y-2 rounded-lg border border-border p-3">
-                  {FIELDS.map((field) => (
-                    <div key={field.key} className="flex items-center gap-2">
-                      <span className="w-20 shrink-0 text-muted-foreground">{field.label}</span>
-                      <select
-                        value={mapping?.[field.key] ?? ''}
-                        onChange={(e) => {
-                          const value = e.target.value === '' ? undefined : Number(e.target.value)
-                          const next = { ...mapping, [field.key]: value }
-                          setMappingOverride(next)
-                          preview.mutate({ integrationId, mapping: next })
-                        }}
-                        className="flex h-9 w-full rounded-lg border border-input-border bg-transparent px-2 text-sm"
-                      >
-                        <option value="">— not mapped —</option>
-                        {preview.data!.data.headers.map((header, index) => (
-                          <option key={index} value={index}>
-                            {header}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-
-                <Button
-                  type="button"
-                  disabled={
-                    !mapping ||
-                    (mapping.email === undefined && mapping.phone === undefined) ||
-                    confirmMapping.isPending ||
-                    syncNow.isPending
-                  }
-                  onClick={async () => {
-                    if (!mapping) return
-                    await confirmMapping.mutateAsync({ integrationId, mapping })
-                    await syncNow.mutateAsync(integrationId)
-                  }}
-                >
-                  {syncNow.isPending
-                    ? 'Importing…'
-                    : `Import ${preview.data.data.toImport} contacts`}
-                </Button>
-                {syncNow.isSuccess ? (
-                  <p className="text-success">
-                    Imported {syncNow.data?.data?.created} new contacts (
-                    {syncNow.data?.data?.linked} already existed).
-                  </p>
-                ) : null}
-              </>
-            ) : null}
-          </CardContent>
-        </Card>
-      ) : null}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Export contacts to Google Sheets</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <p className="text-muted-foreground">
-            Creates a brand-new spreadsheet with every contact in your CRM.
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={exportContacts.isPending}
-            onClick={async () => {
-              const result = await exportContacts.mutateAsync({ integrationId })
-              setExportResult(result.data)
-            }}
-          >
-            {exportContacts.isPending ? 'Creating spreadsheet…' : 'Export to a new sheet'}
-          </Button>
-          {exportResult ? (
-            <p>
-              Created a sheet with {exportResult.contactCount} contacts —{' '}
-              <a
-                href={exportResult.url}
-                target="_blank"
-                rel="noreferrer"
-                className="font-medium text-primary underline"
-              >
-                open it in Google Sheets
-              </a>
-            </p>
-          ) : null}
-        </CardContent>
-      </Card>
-    </div>
-  )
+  if (!row || row.provider !== 'GOOGLE_SHEETS') return <p>Google Sheets integration not found.</p>
+  return <GoogleSheetsSources key={row.id} integrationId={row.id} row={row} />
 }
 
-function BackLink() {
+function GoogleSheetsSources({
+  integrationId,
+  row,
+}: {
+  integrationId: string
+  row: { status: string; externalAccountId?: string | null }
+}) {
+  const navigate = useNavigate()
+  const sources = useImportSources(row.status === 'CONNECTED' ? integrationId : null)
+  const createSource = useCreateImportSource()
+  const [picked, setPicked] = useState<{ id: string; name: string } | null>(null)
+  const [sheetTab, setSheetTab] = useState('')
+  const tabs = useImportSourceTabs(integrationId, picked?.id ?? null)
+  const [error, setError] = useState<string | null>(null)
+
   return (
-    <Link
-      to="/integrations"
-      className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-    >
-      <ArrowLeft size={16} className="mr-1.5" /> Back to Integrations
-    </Link>
+    <div className="max-w-3xl space-y-5">
+      <Link to="/integrations/google-sheets" className="text-sm underline">
+        Google accounts
+      </Link>
+      <PageHeader
+        variant="detail"
+        title="Google Sheets sources"
+        description={`${row.externalAccountId ?? 'Google Sheets'} · Saved spreadsheets you import contacts from.`}
+      />
+      {row.status !== 'CONNECTED' ? (
+        <p>
+          Reconnect this account from{' '}
+          <Link to="/integrations/google-sheets" className="underline">
+            Google accounts
+          </Link>{' '}
+          to continue.
+        </p>
+      ) : (
+        <>
+          {sources.isLoading && <Skeleton className="h-32 w-full" />}
+          {sources.data?.data.map((source) => (
+            <Link
+              key={source.id}
+              to={`/integrations/${integrationId}/google-sheets/sources/${source.id}`}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4 hover:bg-accent"
+            >
+              <div>
+                <p className="font-medium">{source.label}</p>
+                <p className="text-sm text-muted-foreground">
+                  {source.spreadsheetName} / {source.sheetTab}
+                  {source.lastRunAt
+                    ? ` · Last imported ${new Date(source.lastRunAt).toLocaleString()}`
+                    : ' · Never imported'}
+                </p>
+              </div>
+              <div className="flex gap-2 text-xs">
+                {source.running && (
+                  <span className="rounded-full bg-accent px-2 py-1">Importing…</span>
+                )}
+                {source.needsReview && (
+                  <span className="rounded-full bg-warning/20 px-2 py-1 text-warning">
+                    Needs review
+                  </span>
+                )}
+              </div>
+            </Link>
+          ))}
+          {sources.isSuccess && sources.data.data.length === 0 && (
+            <p className="text-sm text-muted-foreground">No spreadsheets saved yet.</p>
+          )}
+          <section className="space-y-3 rounded-lg border p-4">
+            <h2 className="font-semibold">Add a spreadsheet</h2>
+            <GoogleSheetPicker
+              integrationId={integrationId}
+              disabled={createSource.isPending}
+              onPicked={(file) => {
+                setPicked(file)
+                setSheetTab('')
+                setError(null)
+              }}
+            />
+            {picked && (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">{picked.name}</p>
+                <label className="block space-y-1 text-sm">
+                  <span>Worksheet tab</span>
+                  <select
+                    disabled={tabs.isFetching || createSource.isPending}
+                    value={sheetTab}
+                    onChange={(event) => setSheetTab(event.target.value)}
+                    className="h-10 w-full rounded-lg border bg-card px-3"
+                  >
+                    <option value="" disabled>
+                      Select a tab…
+                    </option>
+                    {tabs.data?.data.map((tab) => (
+                      <option key={tab.sheetId} value={tab.title}>
+                        {tab.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <Button
+                  disabled={!sheetTab || createSource.isPending}
+                  onClick={async () => {
+                    setError(null)
+                    try {
+                      const result = await createSource.mutateAsync({
+                        integrationId,
+                        spreadsheetId: picked.id,
+                        sheetTab,
+                      })
+                      navigate(
+                        `/integrations/${integrationId}/google-sheets/sources/${result.data!.id}`,
+                      )
+                    } catch (cause) {
+                      setError(
+                        cause instanceof Error ? cause.message : 'Could not save this source.',
+                      )
+                    }
+                  }}
+                >
+                  {createSource.isPending ? 'Saving…' : 'Save source'}
+                </Button>
+              </div>
+            )}
+          </section>
+        </>
+      )}
+      {(error || sources.error || tabs.error || createSource.error) && (
+        <p role="alert" className="text-sm text-destructive">
+          {error ?? (sources.error || tabs.error || createSource.error)?.message}
+        </p>
+      )}
+    </div>
   )
 }

@@ -31,8 +31,16 @@ const ContactMatchesPage = lazy(() =>
 const IntegrationsPage = lazy(() =>
   import('@/pages/crm/IntegrationsPage').then((m) => ({ default: m.IntegrationsPage })),
 )
+const GoogleSheetsAccountsPage = lazy(() =>
+  import('@/pages/crm/GoogleSheetsAccountsPage').then((m) => ({
+    default: m.GoogleSheetsAccountsPage,
+  })),
+)
 const GoogleSheetsPage = lazy(() =>
   import('@/pages/crm/GoogleSheetsPage').then((m) => ({ default: m.GoogleSheetsPage })),
+)
+const GoogleSheetsSourcePage = lazy(() =>
+  import('@/pages/crm/GoogleSheetsSourcePage').then((m) => ({ default: m.GoogleSheetsSourcePage })),
 )
 const AudiencesPage = lazy(() =>
   import('@/pages/audiences/AudiencesPage').then((m) => ({ default: m.AudiencesPage })),
@@ -530,8 +538,16 @@ export function App() {
                   />
                   <Route path="/integrations" element={<IntegrationsPage />} />
                   <Route
+                    path="/integrations/google-sheets"
+                    element={<GoogleSheetsAccountsPage />}
+                  />
+                  <Route
                     path="/integrations/:integrationId/google-sheets"
                     element={<GoogleSheetsPage />}
+                  />
+                  <Route
+                    path="/integrations/:integrationId/google-sheets/sources/:sourceId"
+                    element={<GoogleSheetsSourcePage />}
                   />
                   <Route path="/contact-matches" element={<ContactMatchesPage />} />
                   <Route path="/audiences" element={<AudiencesPage />} />

@@ -72,6 +72,7 @@ export async function handleCrmOAuthCallback(request: any, reply: any) {
     request.params.provider,
     request.query.code,
     request.query.state,
+    request.query.error,
   )
   return reply.header('Cache-Control', 'no-store').redirect(302, redirectUrl)
 }

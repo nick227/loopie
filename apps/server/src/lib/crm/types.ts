@@ -44,9 +44,20 @@ export type CrmToken = {
 // names so a duplicate/renamed header can't silently break an already-confirmed mapping.
 export type GoogleColumnMapping = {
   name?: number
+  firstName?: number
+  lastName?: number
   email?: number
   phone?: number
   company?: number
+  externalId?: number
+  jobTitle?: number
+  website?: number
+  address?: number
+  city?: number
+  state?: number
+  postalCode?: number
+  country?: number
+  notes?: number
 }
 
 export type CrmListContactsOpts = {

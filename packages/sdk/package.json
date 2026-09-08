@@ -4,6 +4,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./src/lib/capabilities": "./src/lib/capabilities.ts",
+    "./src/lib/importMatrix": "./src/lib/importMatrix.ts",
     "./src/lib/importContactSchema": "./src/lib/importContactSchema.ts"
   },
   "scripts": {

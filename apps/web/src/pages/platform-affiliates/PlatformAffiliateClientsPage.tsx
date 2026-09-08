@@ -40,7 +40,6 @@ export function PlatformAffiliateClientsPage() {
             onExportCsv={() => alert('Export CSV')}
             onExportGoogleSheets={() => alert('Export Google Sheets')}
             onImportCsv={() => alert('Import CSV')}
-            onImportGoogleSheets={() => alert('Import Google Sheets')}
           />
         }
       />

@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import { Button } from './Button'
 import { Download, Upload, ChevronDown } from 'lucide-react'
@@ -15,6 +16,8 @@ export function ExportImportActions({
   onExportCsv,
   onExportGoogleSheets,
 }: ExportImportActionsProps) {
+  const navigate = useNavigate()
+  const importSheets = onImportGoogleSheets ?? (() => navigate('/integrations/google-sheets'))
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -48,17 +51,15 @@ export function ExportImportActions({
                 <Upload size={14} /> Import CSV
               </button>
             )}
-            {onImportGoogleSheets && (
-              <button
-                onClick={() => {
-                  setOpen(false)
-                  onImportGoogleSheets()
-                }}
-                className="flex w-full items-center gap-2 px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
-              >
-                <Upload size={14} /> Import Google Sheets
-              </button>
-            )}
+            <button
+              onClick={() => {
+                setOpen(false)
+                importSheets()
+              }}
+              className="flex w-full items-center gap-2 px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+            >
+              <Upload size={14} /> Import Google Sheets
+            </button>
             {onExportCsv && (
               <button
                 onClick={() => {

@@ -813,7 +813,6 @@ export function ContactsPage() {
             <ConnectIntegrationsButton />
             <ExportImportActions
               onImportCsv={() => setImportOpen(true)}
-              onImportGoogleSheets={() => setImportOpen(true)}
               onExportCsv={() => alert('Export CSV')}
               onExportGoogleSheets={() => alert('Export Google Sheets')}
             />

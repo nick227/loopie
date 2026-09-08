@@ -192,13 +192,13 @@ export function IntegrationsPage() {
                   {row?.status === 'CONNECTED' && provider.provider === 'GOOGLE_SHEETS' ? (
                     <div className="space-y-2">
                       <p className="text-muted-foreground">
-                        {row.spreadsheetName
-                          ? `Spreadsheet: ${row.spreadsheetName}`
-                          : 'No spreadsheet chosen yet'}
+                        {row.importSourceCount
+                          ? `${row.importSourceCount} saved source${row.importSourceCount === 1 ? '' : 's'}`
+                          : 'No spreadsheets saved yet'}
                       </p>
                       <Link to={`/integrations/${row.id}/google-sheets`}>
                         <Button type="button" variant="outline">
-                          Manage spreadsheet
+                          Manage sources
                         </Button>
                       </Link>
                     </div>

@@ -231,19 +231,19 @@ model BusinessInvitation {
 }
 
 model User {
-  siteInboxEmailNotifications Boolean @default(true)
-  id           String           @id @default(cuid())
-  email        String           @unique
-  passwordHash String
+  siteInboxEmailNotifications Boolean          @default(true)
+  id                          String           @id @default(cuid())
+  email                       String           @unique
+  passwordHash                String
   // Legacy home-business FK — still written on register; authorization prefers
   // Session.activeBusinessId + BusinessMembership. Kept until every reader migrates.
-  businessId   String
-  platformRole UserPlatformRole @default(USER)
-  isVerified   Boolean          @default(false)
-  suspendedAt  DateTime?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  deletedAt    DateTime?
+  businessId                  String
+  platformRole                UserPlatformRole @default(USER)
+  isVerified                  Boolean          @default(false)
+  suspendedAt                 DateTime?
+  createdAt                   DateTime         @default(now())
+  updatedAt                   DateTime         @updatedAt
+  deletedAt                   DateTime?
 
   business             Business              @relation(fields: [businessId], references: [id])
   memberships          BusinessMembership[]
@@ -2550,29 +2550,74 @@ model Integration {
   contactRecords ExternalContactRecord[]
   events         ExternalEvent[]
   importJobs     ImportJob[]
+  importSources  ImportSource[]
 
   @@unique([businessId, provider, externalAccountId])
   @@index([businessId, provider])
 }
 
+// Credentials remain on Integration. Each selected spreadsheet/tab has independent state.
+model ImportSource {
+  id                   String      @id @default(cuid())
+  integrationId        String
+  label                String
+  spreadsheetId        String
+  spreadsheetName      String
+  sheetTab             String
+  mapping              Json?
+  schemaFingerprint    String?
+  headers              Json?
+  needsReview          Boolean     @default(true)
+  refreshPolicy        String      @default("MANUAL")
+  cursor               String?
+  hasMore              Boolean     @default(false)
+  lastRunAt            DateTime?
+  lastError            String?     @db.Text
+  previewRowCount      Int         @default(0)
+  previewEligibleCount Int         @default(0)
+  previewTruncated     Boolean     @default(false)
+  lockToken            String?
+  lockExpiresAt        DateTime?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  integration          Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  runs                 ImportJob[]
+
+  @@unique([integrationId, spreadsheetId, sheetTab])
+  @@index([integrationId, createdAt])
+}
+
 model ImportJob {
-  id            String          @id @default(cuid())
-  businessId    String
-  integrationId String?
-  status        ImportJobStatus @default(COMPLETED)
-  created       Int             @default(0)
-  linked        Int             @default(0)
-  ambiguous     Int             @default(0)
-  skipped       Int             @default(0)
+  id                String          @id @default(cuid())
+  businessId        String
+  integrationId     String?
+  sourceId          String?
+  scanned           Int             @default(0)
+  eligible          Int             @default(0)
+  matched           Int             @default(0)
+  updatedContacts   Int             @default(0)
+  failed            Int             @default(0)
+  completedAt       DateTime?
+  schemaFingerprint String?
+  mappingSnapshot   Json?
+  startCursor       String?
+  endCursor         String?
+  hasMore           Boolean         @default(false)
+  status            ImportJobStatus @default(COMPLETED)
+  created           Int             @default(0)
+  linked            Int             @default(0)
+  ambiguous         Int             @default(0)
+  skipped           Int             @default(0)
   // Set only on status FAILED — the sync-job lifecycle must never leave a run stuck looking
   // "in progress" forever with no visible reason it stopped.
-  error         String?         @db.Text
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  error             String?         @db.Text
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   business    Business                @relation(fields: [businessId], references: [id])
   integration Integration?            @relation(fields: [integrationId], references: [id])
   records     ExternalContactRecord[]
+  source      ImportSource?           @relation(fields: [sourceId], references: [id], onDelete: SetNull)
 
   @@index([businessId, createdAt])
   @@index([integrationId, createdAt])
@@ -3617,10 +3662,10 @@ model BusinessAffiliateAttribution {
   managerShareBps    Int?
   attributedAt       DateTime @default(now())
 
-  status        AffiliateAttributionStatus @default(ACTIVE)
-  approvedAt    DateTime                   @default(now())
-  invalidatedAt DateTime?
-  invalidatedReason String?
+  status                  AffiliateAttributionStatus @default(ACTIVE)
+  approvedAt              DateTime                   @default(now())
+  invalidatedAt           DateTime?
+  invalidatedReason       String?
   // The affiliate/manager's linked userId at approval time. Membership-creation call sites check
   // an incoming member against these snapshots (not against a live PlatformAffiliate lookup) to
   // decide whether this attribution just became a self-referral and must be invalidated.
@@ -3629,7 +3674,7 @@ model BusinessAffiliateAttribution {
   // Set once, the first time a MembershipPayment is processed for this business — replaces a
   // live `membershipPayment.findFirst` existence check with a stored fact, so the post-payment
   // immutability lock in setBusinessAttribution is also a state read, not a recomputation.
-  lockedAfterPaymentAt DateTime?
+  lockedAfterPaymentAt    DateTime?
 
   business         Business              @relation(fields: [businessId], references: [id], onDelete: Cascade)
   affiliate        PlatformAffiliate     @relation("AttributionAffiliate", fields: [affiliateId], references: [id])
@@ -3714,36 +3759,36 @@ enum HouseAdPlacementZone {
 }
 
 model HouseAd {
-  id          String       @id @default(cuid())
-  businessId  String?
+  id              String         @id @default(cuid())
+  businessId      String?
   name            String
   type            HouseAdType
   advertisementId String?
   advertisement   Advertisement? @relation(fields: [advertisementId], references: [id])
-  scriptUrl       String?      // for WORDPRESS_EMBED
-  imageUrl    String?      // for INTERNAL
-  targetUrl   String?      // for INTERNAL
-  startDate   DateTime?
-  endDate     DateTime?
-  weight      Int          @default(1)
-  status      AdStatus     @default(ACTIVE)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  scriptUrl       String? // for WORDPRESS_EMBED
+  imageUrl        String? // for INTERNAL
+  targetUrl       String? // for INTERNAL
+  startDate       DateTime?
+  endDate         DateTime?
+  weight          Int            @default(1)
+  status          AdStatus       @default(ACTIVE)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
-  business    Business?    @relation(fields: [businessId], references: [id])
-  placements  HouseAdPlacement[]
-  metrics     HouseAdMetric[]
+  business   Business?          @relation(fields: [businessId], references: [id])
+  placements HouseAdPlacement[]
+  metrics    HouseAdMetric[]
 
   @@index([businessId])
 }
 
 model HouseAdPlacement {
-  id         String               @id @default(cuid())
-  houseAdId  String
-  zone       HouseAdPlacementZone
-  createdAt  DateTime             @default(now())
+  id        String               @id @default(cuid())
+  houseAdId String
+  zone      HouseAdPlacementZone
+  createdAt DateTime             @default(now())
 
-  houseAd    HouseAd  @relation(fields: [houseAdId], references: [id], onDelete: Cascade)
+  houseAd HouseAd @relation(fields: [houseAdId], references: [id], onDelete: Cascade)
 
   @@unique([houseAdId, zone])
   @@index([zone])
@@ -3757,18 +3802,19 @@ model HouseAdMetric {
   clicks      Int                  @default(0)
   date        DateTime             @db.Date
 
-  houseAd     HouseAd  @relation(fields: [houseAdId], references: [id], onDelete: Cascade)
+  houseAd HouseAd @relation(fields: [houseAdId], references: [id], onDelete: Cascade)
 
   @@unique([houseAdId, zone, date])
 }
 
 // Platform-owned incoming advertising inquiries, independent of business tenancy.
 model SiteInquiry {
-  id String @id @default(cuid())
-  submissionKey String @unique @db.VarChar(64)
-  name String @db.VarChar(120)
-  email String @db.VarChar(254)
-  message String @db.Text
-  createdAt DateTime @default(now())
+  id            String   @id @default(cuid())
+  submissionKey String   @unique @db.VarChar(64)
+  name          String   @db.VarChar(120)
+  email         String   @db.VarChar(254)
+  message       String   @db.Text
+  createdAt     DateTime @default(now())
+
   @@index([createdAt, id])
 }

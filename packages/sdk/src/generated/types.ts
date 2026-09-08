@@ -894,32 +894,33 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/integrations/{integrationId}/google-sheets/spreadsheet': {
+  '/integrations/{integrationId}/import-sources': {
     parameters: {
       query?: never
       header?: never
       path?: never
       cookie?: never
     }
-    get?: never
+    /** List saved Google Sheets import sources for a connected account */
+    get: operations['listImportSources']
     put?: never
-    /** Record the spreadsheet chosen via the Google Picker widget */
-    post: operations['selectGoogleSheetsSpreadsheet']
+    /** Save a new spreadsheet/tab as an import source for this account */
+    post: operations['createImportSource']
     delete?: never
     options?: never
     head?: never
     patch?: never
     trace?: never
   }
-  '/integrations/{integrationId}/google-sheets/tabs': {
+  '/integrations/{integrationId}/import-sources/tabs': {
     parameters: {
       query?: never
       header?: never
       path?: never
       cookie?: never
     }
-    /** List tabs in the selected spreadsheet */
-    get: operations['listGoogleSheetsTabs']
+    /** List worksheet tabs in a spreadsheet, before a source exists for it */
+    get: operations['getImportSourceTabs']
     put?: never
     post?: never
     delete?: never
@@ -928,24 +929,24 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/integrations/{integrationId}/google-sheets/tab': {
+  '/integrations/{integrationId}/import-sources/{sourceId}': {
     parameters: {
       query?: never
       header?: never
       path?: never
       cookie?: never
     }
-    get?: never
+    /** Get one saved import source */
+    get: operations['getImportSource']
     put?: never
-    /** Choose which tab to import from */
-    post: operations['selectGoogleSheetsTab']
+    post?: never
     delete?: never
     options?: never
     head?: never
     patch?: never
     trace?: never
   }
-  '/integrations/{integrationId}/google-sheets/preview': {
+  '/integrations/{integrationId}/import-sources/{sourceId}/preview': {
     parameters: {
       query?: never
       header?: never
@@ -954,15 +955,15 @@ export interface paths {
     }
     get?: never
     put?: never
-    /** Read the selected tab and report row counts, headers, and a suggested column mapping */
-    post: operations['previewGoogleSheetsImport']
+    /** Read the source's tab and report headers, sample rows, and eligible-row counts */
+    post: operations['previewImportSource']
     delete?: never
     options?: never
     head?: never
     patch?: never
     trace?: never
   }
-  '/integrations/{integrationId}/google-sheets/mapping': {
+  '/integrations/{integrationId}/import-sources/{sourceId}/mapping': {
     parameters: {
       query?: never
       header?: never
@@ -971,8 +972,42 @@ export interface paths {
     }
     get?: never
     put?: never
-    /** Confirm the column mapping — required before Import (POST /integrations/{id}/sync) can run */
-    post: operations['confirmGoogleSheetsMapping']
+    /** Confirm the column mapping — required before Import (the sync endpoint) can run */
+    post: operations['confirmImportSourceMapping']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/integrations/{integrationId}/import-sources/{sourceId}/sync': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Import one batch (up to 2,000 rows) from this source. Call again to continue. */
+    post: operations['syncImportSource']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/integrations/{integrationId}/import-sources/{sourceId}/runs': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Run history for one import source */
+    get: operations['listImportSourceRuns']
+    put?: never
+    post?: never
     delete?: never
     options?: never
     head?: never
@@ -4902,10 +4937,8 @@ export interface components {
       webhookSecret?: string | null
       /** Format: date-time */
       createdAt: string
-      spreadsheetId?: string | null
-      spreadsheetName?: string | null
-      sheetTab?: string | null
-      columnMapping?: components['schemas']['GoogleColumnMapping']
+      /** @description Saved ImportSource count for GOOGLE_SHEETS integrations; null for other providers. */
+      importSourceCount?: number | null
     }
     SyncIntegrationResult: {
       created: number
@@ -4947,43 +4980,90 @@ export interface components {
       country?: number
       notes?: number
     }
-    GoogleSheetsSelection: {
-      integrationId: string
-      spreadsheetId: string | null
-      spreadsheetName: string | null
-      sheetTab: string | null
-      columnMapping: components['schemas']['GoogleColumnMapping']
-    }
-    SelectGoogleSheetsSpreadsheetInput: {
-      spreadsheetId: string
-      spreadsheetName: string
-    }
     GoogleSheetsTab: {
       title: string
       sheetId: number
+      rowCount?: number
     }
-    SelectGoogleSheetsTabInput: {
-      sheetTab: string
-    }
-    PreviewGoogleSheetsImportInput: {
-      /** @description Recompute stats against this mapping instead of the persisted/suggested one */
-      mapping?: components['schemas']['GoogleColumnMapping']
-    }
-    GoogleSheetsPreview: {
-      spreadsheetName: string | null
-      sheetTab: string
+    /** @description Portable, positional source data. No field creation, formula evaluation, or writes. */
+    ImportMatrix: {
       headers: string[]
-      sampleRows: string[][]
-      suggestedMapping: components['schemas']['GoogleColumnMapping']
-      totalRows: number
-      withEmail: number
-      withPhone: number
-      toImport: number
-      toSkip: number
+      rows: string[][]
+      firstDataRow: number
       truncated: boolean
     }
-    ConfirmGoogleSheetsMappingInput: {
+    ImportSource: {
+      id: string
+      integrationId: string
+      label: string
+      spreadsheetId: string
+      spreadsheetName: string
+      sheetTab: string
       mapping: components['schemas']['GoogleColumnMapping']
+      schemaFingerprint: string | null
+      needsReview: boolean
+      /** @enum {string} */
+      refreshPolicy: 'MANUAL'
+      cursor: string | null
+      hasMore: boolean
+      /** Format: date-time */
+      lastRunAt: string | null
+      lastError: string | null
+      previewRowCount: number
+      previewEligibleCount: number
+      previewTruncated: boolean
+      running: boolean
+    }
+    CreateImportSourceInput: {
+      spreadsheetId: string
+      sheetTab: string
+      label?: string
+    }
+    PreviewImportSourceInput: {
+      /** @description Recompute stats against this mapping instead of the persisted/suggested one, without saving it. */
+      mapping?: components['schemas']['GoogleColumnMapping']
+    }
+    ImportSourcePreview: {
+      matrix: components['schemas']['ImportMatrix']
+      mapping: components['schemas']['GoogleColumnMapping']
+      schemaFingerprint: string
+      /** @description The tab's headings changed since the mapping was last confirmed. */
+      schemaDrift: boolean
+      needsReview: boolean
+      scanned: number
+      eligible: number
+      skipped: number
+    }
+    ConfirmImportSourceMappingInput: {
+      mapping: components['schemas']['GoogleColumnMapping']
+      /** @description Must match the preview's current schemaFingerprint, or the confirm is rejected as stale. */
+      schemaFingerprint: string
+    }
+    ImportJobRun: {
+      id: string
+      sourceId: string | null
+      /** @enum {string} */
+      status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED'
+      scanned: number
+      eligible: number
+      matched: number
+      created: number
+      updated: number
+      skipped: number
+      failed: number
+      error: string | null
+      hasMore: boolean
+      startCursor: string | null
+      endCursor: string | null
+      schemaFingerprint: string | null
+      /** Format: date-time */
+      startedAt: string
+      /** Format: date-time */
+      completedAt: string | null
+    }
+    ImportSourceRunsPage: {
+      runs: components['schemas']['ImportJobRun'][]
+      nextCursor: string | null
     }
     ExportContactsToGoogleSheetsInput: {
       title?: string
@@ -7546,6 +7626,7 @@ export interface components {
     AdSpendId: string
     CommissionId: string
     IntegrationId: string
+    SourceId: string
     CrmProviderParam:
       | 'HUBSPOT'
       | 'SALESFORCE'
@@ -9157,7 +9238,31 @@ export interface operations {
       }
     }
   }
-  selectGoogleSheetsSpreadsheet: {
+  listImportSources: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integrationId: components['parameters']['IntegrationId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Saved sources */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['ImportSource'][]
+          }
+        }
+      }
+    }
+  }
+  createImportSource: {
     parameters: {
       query?: never
       header?: never
@@ -9168,26 +9273,28 @@ export interface operations {
     }
     requestBody: {
       content: {
-        'application/json': components['schemas']['SelectGoogleSheetsSpreadsheetInput']
+        'application/json': components['schemas']['CreateImportSourceInput']
       }
     }
     responses: {
-      /** @description Selection updated */
+      /** @description Source saved (idempotent per spreadsheet/tab) */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
           'application/json': {
-            data: components['schemas']['GoogleSheetsSelection']
+            data: components['schemas']['ImportSource']
           }
         }
       }
     }
   }
-  listGoogleSheetsTabs: {
+  getImportSourceTabs: {
     parameters: {
-      query?: never
+      query: {
+        spreadsheetId: string
+      }
       header?: never
       path: {
         integrationId: components['parameters']['IntegrationId']
@@ -9209,74 +9316,73 @@ export interface operations {
       }
     }
   }
-  selectGoogleSheetsTab: {
+  getImportSource: {
     parameters: {
       query?: never
       header?: never
       path: {
         integrationId: components['parameters']['IntegrationId']
+        sourceId: components['parameters']['SourceId']
       }
       cookie?: never
     }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['SelectGoogleSheetsTabInput']
-      }
-    }
+    requestBody?: never
     responses: {
-      /** @description Selection updated */
+      /** @description Source */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
           'application/json': {
-            data: components['schemas']['GoogleSheetsSelection']
+            data: components['schemas']['ImportSource']
           }
         }
       }
     }
   }
-  previewGoogleSheetsImport: {
+  previewImportSource: {
     parameters: {
       query?: never
       header?: never
       path: {
         integrationId: components['parameters']['IntegrationId']
+        sourceId: components['parameters']['SourceId']
       }
       cookie?: never
     }
     requestBody?: {
       content: {
-        'application/json': components['schemas']['PreviewGoogleSheetsImportInput']
+        'application/json': components['schemas']['PreviewImportSourceInput']
       }
     }
     responses: {
-      /** @description Sheet preview */
+      /** @description Source preview */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
           'application/json': {
-            data: components['schemas']['GoogleSheetsPreview']
+            data: components['schemas']['ImportSourcePreview']
           }
         }
       }
     }
   }
-  confirmGoogleSheetsMapping: {
+  confirmImportSourceMapping: {
     parameters: {
       query?: never
       header?: never
       path: {
         integrationId: components['parameters']['IntegrationId']
+        sourceId: components['parameters']['SourceId']
       }
       cookie?: never
     }
     requestBody: {
       content: {
-        'application/json': components['schemas']['ConfirmGoogleSheetsMappingInput']
+        'application/json': components['schemas']['ConfirmImportSourceMappingInput']
       }
     }
     responses: {
@@ -9287,7 +9393,59 @@ export interface operations {
         }
         content: {
           'application/json': {
-            data: components['schemas']['GoogleSheetsSelection']
+            data: components['schemas']['ImportSource']
+          }
+        }
+      }
+    }
+  }
+  syncImportSource: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integrationId: components['parameters']['IntegrationId']
+        sourceId: components['parameters']['SourceId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Import run result */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['ImportJobRun']
+          }
+        }
+      }
+    }
+  }
+  listImportSourceRuns: {
+    parameters: {
+      query?: {
+        before?: string
+      }
+      header?: never
+      path: {
+        integrationId: components['parameters']['IntegrationId']
+        sourceId: components['parameters']['SourceId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Run history */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['ImportSourceRunsPage']
           }
         }
       }

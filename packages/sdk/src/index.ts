@@ -1,3 +1,4 @@
+export * from './lib/importMatrix'
 export { createApiClient, getApiClient, ApiError } from './client'
 export * from './hooks'
 export * from './lib/importContactFields'
