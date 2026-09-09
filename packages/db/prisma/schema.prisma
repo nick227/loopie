@@ -156,10 +156,12 @@ model Business {
   pinnedRiverPost        RiverPost?              @relation("BusinessPinnedRiverPost", fields: [pinnedRiverPostId], references: [id])
   riverComments          RiverComment[]          @relation("RiverCommentActor")
 
-  goalIdeaTemplates   GoalIdeaTemplate[]
-  goalIdeaStates      GoalIdeaState[]
-  scheduledGoals      ScheduledGoal[]
-  assistantGoalCycles AssistantGoalCycle[]
+  assignmentNotifications AssignmentNotification[]
+  goalIdeaTemplates       GoalIdeaTemplate[]
+  goalIdeaStates          GoalIdeaState[]
+  scheduledGoals          ScheduledGoal[]
+  assistantGoalCycles     AssistantGoalCycle[]
+  timeEntries             TimeEntry[]
 
   // Teams / multi-company (2026-09-03) — Business remains the tenant; membership grants access.
   memberships BusinessMembership[]
@@ -245,13 +247,17 @@ model User {
   updatedAt                   DateTime         @updatedAt
   deletedAt                   DateTime?
 
-  business             Business              @relation(fields: [businessId], references: [id])
-  memberships          BusinessMembership[]
-  sessions             Session[]
-  affiliate            Affiliate?
-  auditEvents          AuditEvent[]
-  adminSupportSessions AdminSupportSession[]
-  platformAffiliate    PlatformAffiliate?
+  business                Business                 @relation(fields: [businessId], references: [id])
+  memberships             BusinessMembership[]
+  sessions                Session[]
+  affiliate               Affiliate?
+  auditEvents             AuditEvent[]
+  adminSupportSessions    AdminSupportSession[]
+  platformAffiliate       PlatformAffiliate?
+  createdScheduledGoals   ScheduledGoal[]          @relation("ScheduledGoalCreatedBy")
+  assignmentNotifications AssignmentNotification[]
+  assignedScheduledGoals  ScheduledGoal[]          @relation("ScheduledGoalAssignedTo")
+  timeEntries             TimeEntry[]
 
   @@index([businessId])
 }
@@ -2545,15 +2551,40 @@ model Integration {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
-  business       Business                @relation(fields: [businessId], references: [id])
-  identifiers    ContactIdentifier[]
-  contactRecords ExternalContactRecord[]
-  events         ExternalEvent[]
-  importJobs     ImportJob[]
-  importSources  ImportSource[]
+  business           Business                @relation(fields: [businessId], references: [id])
+  identifiers        ContactIdentifier[]
+  contactRecords     ExternalContactRecord[]
+  events             ExternalEvent[]
+  importJobs         ImportJob[]
+  importSources      ImportSource[]
+  scheduleSyncTarget ScheduleSyncTarget?
 
   @@unique([businessId, provider, externalAccountId])
   @@index([businessId, provider])
+}
+
+// Schedule -> Google Sheets Sync (2026-09-10). One-way LOOPIE -> Sheets mirror of ScheduledGoal
+// rows, deliberately the opposite direction from ImportSource (Sheets -> LOOPIE) but the same
+// "credentials stay on Integration, each connection's own state lives here" split. FK'd to the
+// business's existing GOOGLE_SHEETS Integration rather than a second Integration row, which would
+// collide with @@unique([businessId, provider, externalAccountId]) above for the same account.
+model ScheduleSyncTarget {
+  id                String    @id @default(cuid())
+  integrationId     String    @unique
+  spreadsheetId     String
+  spreadsheetName   String
+  sheetTab          String
+  lastSyncAt        DateTime?
+  lastSyncAttemptAt DateTime?
+  lastSyncError     String?   @db.Text
+  // Same compare-and-swap lease as ImportSource.lockToken/lockExpiresAt — prevents a manual
+  // "Sync now" and the poller from racing each other on the same target.
+  lockToken         String?
+  lockExpiresAt     DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  integration Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
 }
 
 // Credentials remain on Integration. Each selected spreadsheet/tab has independent state.
@@ -3300,6 +3331,9 @@ enum GoalEventType {
   DISMISSED
   REMINDER_SENT
   PROGRESS_UPDATED
+  // Commitment-change audit for assignedToUserId (2026-09-09 Time Tracking & Team Activity epic)
+  // — estimate edits are planning data and deliberately emit no event, per that epic's spec.
+  REASSIGNED
 }
 
 model GoalIdeaTemplate {
@@ -3397,6 +3431,15 @@ model GoalIdeaState {
 model ScheduledGoal {
   id                   String              @id @default(cuid())
   businessId           String
+  // Attribution (2026-09-09 Time Tracking & Team Activity epic). Both nullable: every
+  // system-generated row (IDEA_TEMPLATE/CRM_NEXT_ACTION/WORKFLOW/ASSISTANT_PLAYBOOK) has no
+  // natural human creator and leaves both null, same nullable-for-history discipline as every
+  // other retrofitted attribution column in this schema. createdByUserId is set once, at
+  // creation, from the acting user (USER_CREATED rows only) and never changes. assignedToUserId
+  // defaults to the creator (self-assignment stays the default) but is reassignable afterward —
+  // see CalendarService.updateGoal and GoalEventType.REASSIGNED.
+  createdByUserId      String?
+  assignedToUserId     String?
   title                String
   // Copied from the source template's `detail` at creation time (or set directly for
   // USER_CREATED/CRM_NEXT_ACTION goals that have none) — read-only in the detail view; editing an
@@ -3451,16 +3494,21 @@ model ScheduledGoal {
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
 
-  business           Business            @relation(fields: [businessId], references: [id])
-  template           GoalIdeaTemplate?   @relation(fields: [sourceTemplateId], references: [id])
-  assistantGoalCycle AssistantGoalCycle? @relation(fields: [assistantGoalCycleId], references: [id])
-  events             GoalEvent[]
+  business                Business                 @relation(fields: [businessId], references: [id])
+  createdBy               User?                    @relation("ScheduledGoalCreatedBy", fields: [createdByUserId], references: [id])
+  assignedTo              User?                    @relation("ScheduledGoalAssignedTo", fields: [assignedToUserId], references: [id])
+  template                GoalIdeaTemplate?        @relation(fields: [sourceTemplateId], references: [id])
+  assistantGoalCycle      AssistantGoalCycle?      @relation(fields: [assistantGoalCycleId], references: [id])
+  events                  GoalEvent[]
+  assignmentNotifications AssignmentNotification[]
+  timeEntries             TimeEntry[]
 
   @@unique([businessId, externalKey])
   @@index([businessId, status, scheduledFor])
   @@index([subjectType, subjectId])
   @@index([sourceTemplateId])
   @@index([assistantGoalCycleId])
+  @@index([businessId, assignedToUserId])
 }
 
 // Append-only audit trail for a ScheduledGoal — mirrors AutomationLog's role for Automation.
@@ -3474,6 +3522,44 @@ model GoalEvent {
   goal ScheduledGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
 
   @@index([goalId, occurredAt])
+}
+
+// Time Tracking & Team Activity epic (2026-09-09), Phase 2 — the actual work/time data, on top of
+// Phase 1's ScheduledGoal attribution. A user has at most one running entry *globally*, across
+// every business they belong to (not one per business) — deliberately rejected the per-business
+// alternative, since it would let one person accrue two hours of "worked" time in one real hour by
+// running a second business's timer concurrently. runningForUserId is the enforcement mechanism:
+// it equals userId while running and is cleared (set null) the instant the entry stops, so
+// @@unique([runningForUserId]) is a real DB-level guarantee, not just a service-layer check — MySQL
+// treats every NULL in a unique index as distinct, so any number of *stopped* rows coexist freely.
+// TimeEntryService.start() relies on this constraint directly (create-and-catch-P2002, not
+// find-then-create) so a genuine two-tab race can't create two running entries for the same user.
+model TimeEntry {
+  id               String    @id @default(cuid())
+  businessId       String
+  userId           String
+  // Optional — a worker can log time against free text with no linked task (requirement: "users
+  // will primarily manually type what they are working on"). When set, must belong to businessId
+  // (checked in the service, not enforceable at the schema level across two FKs).
+  scheduledGoalId  String?
+  description      String    @db.Text
+  // Immutable once set (Time Tracking invariant: "startedAt is immutable. Only endedAt may be
+  // corrected, and only where startedAt < endedAt <= now") — no service method ever writes it
+  // after creation.
+  startedAt        DateTime  @default(now())
+  endedAt          DateTime?
+  runningForUserId String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  business      Business       @relation(fields: [businessId], references: [id])
+  user          User           @relation(fields: [userId], references: [id])
+  scheduledGoal ScheduledGoal? @relation(fields: [scheduledGoalId], references: [id])
+
+  @@unique([runningForUserId])
+  @@index([userId, endedAt])
+  @@index([businessId, userId, endedAt])
+  @@index([scheduledGoalId])
 }
 
 // Assistant business-consultant pass (2026-09-04) — one Learn->Act->Review->Grow goal cycle. At
@@ -3817,4 +3903,24 @@ model SiteInquiry {
   createdAt     DateTime @default(now())
 
   @@index([createdAt, id])
+}
+
+// Personal task notices. Read state belongs to the recipient, not the shared business Inbox.
+model AssignmentNotification {
+  id              String        @id @default(cuid())
+  businessId      String
+  recipientUserId String
+  goalId          String
+  actorLabel      String
+  taskTitle       String
+  scheduledFor    DateTime?
+  hasTime         Boolean
+  estimateMinutes Int?
+  createdAt       DateTime      @default(now())
+  readAt          DateTime?
+  business        Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  recipient       User          @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
+  goal            ScheduledGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, recipientUserId, readAt, createdAt])
 }

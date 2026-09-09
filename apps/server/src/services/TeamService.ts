@@ -120,6 +120,40 @@ export class TeamService {
     }
   }
 
+  // Time Tracking & Team Activity epic, Phase 3 (2026-09-09) — compact tracking state only, no
+  // presence/online concept. A member's running entry is global across every business they
+  // belong to (see TimeEntry's own schema.prisma comment), but only ever shown here if they
+  // started it under THIS business — a timer running for a different company they also belong to
+  // stays private to that company, same as any other business-scoped data.
+  async getActivity(businessId: string) {
+    const members = await db.businessMembership.findMany({
+      where: { businessId, suspendedAt: null },
+      include: { user: { select: { email: true } } },
+      orderBy: [{ isFounder: 'desc' }, { createdAt: 'asc' }],
+    })
+    if (members.length === 0) return []
+
+    const running = await db.timeEntry.findMany({
+      where: { businessId, userId: { in: members.map((m) => m.userId) }, endedAt: null },
+    })
+    const runningByUserId = new Map(running.map((entry) => [entry.userId, entry]))
+
+    return members.map((member) => {
+      const entry = runningByUserId.get(member.userId)
+      return {
+        userId: member.userId,
+        email: member.user.email,
+        currentEntry: entry
+          ? {
+              description: entry.description,
+              scheduledGoalId: entry.scheduledGoalId,
+              startedAt: entry.startedAt.toISOString(),
+            }
+          : null,
+      }
+    })
+  }
+
   async invite(
     actor: AuthUser,
     input: { email: string; role?: BusinessMemberRole; jobTitle?: string },

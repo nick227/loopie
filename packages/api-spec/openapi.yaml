@@ -580,6 +580,36 @@ components:
           format: date-time
         acceptUrl:
           type: string
+    TeamActivityEntry:
+      type: object
+      required:
+        - description
+        - startedAt
+      description: |
+        Deliberately narrower than TimeEntry — businessId/businessName are omitted since this is already scoped to the active business by the endpoint itself.
+      properties:
+        description:
+          type: string
+        scheduledGoalId:
+          type: string
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+    TeamActivityMember:
+      type: object
+      required:
+        - userId
+        - email
+      properties:
+        userId:
+          type: string
+        email:
+          type: string
+        currentEntry:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/TeamActivityEntry'
     TeamResponse:
       type: object
       required:
@@ -2178,6 +2208,49 @@ components:
         sheetTab:
           type: string
         label:
+          type: string
+    ScheduleSyncTarget:
+      type: object
+      required:
+        - id
+        - integrationId
+        - spreadsheetId
+        - spreadsheetName
+        - sheetTab
+        - lastSyncAt
+        - lastSyncError
+        - syncing
+      description: |
+        Schedule -> Google Sheets Sync (2026-09-10) — one connected sheet per business, one-way LOOPIE -> Sheets only.
+      properties:
+        id:
+          type: string
+        integrationId:
+          type: string
+        spreadsheetId:
+          type: string
+        spreadsheetName:
+          type: string
+        sheetTab:
+          type: string
+        lastSyncAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastSyncError:
+          type: string
+          nullable: true
+        syncing:
+          type: boolean
+    CreateScheduleSyncTargetInput:
+      type: object
+      required:
+        - spreadsheetId
+        - sheetTab
+      properties:
+        spreadsheetId:
+          type: string
+        sheetTab:
           type: string
     PreviewImportSourceInput:
       type: object
@@ -4904,6 +4977,50 @@ components:
         createdAt:
           type: string
           format: date-time
+    AssignmentNotification:
+      type: object
+      required:
+        [
+          id,
+          goalId,
+          actorLabel,
+          taskTitle,
+          scheduledFor,
+          hasTime,
+          estimateMinutes,
+          createdAt,
+          readAt,
+          taskScheduledFor,
+        ]
+      properties:
+        id:
+          type: string
+        goalId:
+          type: string
+        actorLabel:
+          type: string
+        taskTitle:
+          type: string
+        scheduledFor:
+          type: string
+          format: date-time
+          nullable: true
+        taskScheduledFor:
+          type: string
+          format: date-time
+          nullable: true
+        hasTime:
+          type: boolean
+        estimateMinutes:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        readAt:
+          type: string
+          format: date-time
+          nullable: true
     InboxThreadSummary:
       type: object
       description: A thread's list-view/detail-header shape — same object for both listInboxThreads and getInboxThread.
@@ -6462,6 +6579,14 @@ components:
         sourceTemplateId:
           type: string
           nullable: true
+        createdByUserId:
+          type: string
+          nullable: true
+          description: The user who created this task. Null for every system-generated source (IDEA_TEMPLATE/CRM_NEXT_ACTION/WORKFLOW/ASSISTANT_PLAYBOOK) — only a USER_CREATED task carries this.
+        assignedToUserId:
+          type: string
+          nullable: true
+          description: Who is doing this task. Defaults to the creator (self-assignment) for a USER_CREATED task; reassignable via PATCH.
         subjectType:
           type: string
           enum:
@@ -6604,6 +6729,50 @@ components:
           type: boolean
         estimateMinutes:
           type: integer
+          nullable: true
+        assignedToUserId:
+          type: string
+          nullable: true
+          description: Reassign this task to a teammate (or null to unassign). Audited as a REASSIGNED GoalEvent.
+    TimeEntry:
+      type: object
+      required:
+        - id
+        - businessId
+        - businessName
+        - description
+        - startedAt
+      description: |
+        One span of tracked work. endedAt is null while running. A user has at most one running entry globally (see startTimeEntry's 409 contract) — this is never a per-business count.
+      properties:
+        id:
+          type: string
+        businessId:
+          type: string
+        businessName:
+          type: string
+        scheduledGoalId:
+          type: string
+          nullable: true
+        description:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+    StartTimeEntryInput:
+      type: object
+      required:
+        - description
+      properties:
+        description:
+          type: string
+          description: Freeform — "what are you working on." Independent of scheduledGoalId; a quick pick prefills it but it stays editable.
+        scheduledGoalId:
+          type: string
           nullable: true
     Sale:
       type: object
@@ -9381,6 +9550,28 @@ paths:
                   nextCursor:
                     type: string
                     nullable: true
+  /business/team/activity:
+    get:
+      operationId: getTeamActivity
+      summary: Every active team member and what they're tracking right now, if anything
+      description: |
+        Time Tracking & Team Activity epic, Phase 3 (2026-09-09). Compact tracking state only — a member's currentEntry (or null) scoped to THIS business; a running entry they started under a different business they also belong to never appears here. No presence/online concept: a member with no currentEntry reads as "not tracking," not "offline" — there is no signal for whether they're actually at their desk. Suspended members are excluded, same as the team roster.
+      tags:
+        - team
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TeamActivityMember'
   /business/team/members/{userId}:
     parameters:
       - name: userId
@@ -10265,6 +10456,85 @@ paths:
                 properties:
                   data:
                     $ref: '#/components/schemas/ImportSourceRunsPage'
+  /integrations/{integrationId}/schedule-sync:
+    get:
+      operationId: getScheduleSyncTarget
+      summary: Get this account's connected schedule-sync sheet, if any
+      description: |
+        Schedule -> Google Sheets Sync (2026-09-10): one-way mirror of ScheduledGoal rows into a dedicated tab, keyed by a Loopie ID column so an update always lands on the same row. Null data means nothing is connected yet.
+      tags:
+        - crm
+      parameters:
+        - $ref: '#/components/parameters/IntegrationId'
+      responses:
+        '200':
+          description: The connected sheet, or null
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    nullable: true
+                    allOf:
+                      - $ref: '#/components/schemas/ScheduleSyncTarget'
+    post:
+      operationId: createScheduleSyncTarget
+      summary: Connect (or reconnect) the sheet/tab schedule sync writes to
+      tags:
+        - crm
+      parameters:
+        - $ref: '#/components/parameters/IntegrationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateScheduleSyncTargetInput'
+      responses:
+        '200':
+          description: Connected
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ScheduleSyncTarget'
+    delete:
+      operationId: deleteScheduleSyncTarget
+      summary: Disconnect schedule sync (does not touch the sheet itself)
+      tags:
+        - crm
+      parameters:
+        - $ref: '#/components/parameters/IntegrationId'
+      responses:
+        '204':
+          description: Disconnected
+  /integrations/{integrationId}/schedule-sync/sync:
+    post:
+      operationId: syncScheduleNow
+      summary: Sync now — the manual trigger, same code path the background poller uses
+      tags:
+        - crm
+      parameters:
+        - $ref: '#/components/parameters/IntegrationId'
+      responses:
+        '200':
+          description: The updated sync status
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ScheduleSyncTarget'
   /integrations/{integrationId}/google-sheets/export:
     post:
       operationId: exportContactsToGoogleSheets
@@ -11374,6 +11644,42 @@ paths:
                   data:
                     type: object
                     nullable: true
+  /inbox/assignments:
+    get:
+      operationId: listAssignmentNotifications
+      summary: Latest 50 personal assignment notices in the active business
+      tags: [inbox]
+      responses:
+        '200':
+          description: Personal notices and total unread count
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, unreadCount]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AssignmentNotification'
+                  unreadCount:
+                    type: integer
+  /inbox/assignments/{notificationId}/read:
+    post:
+      operationId: markAssignmentNotificationRead
+      summary: Mark your own assignment notice read
+      tags: [inbox]
+      parameters:
+        - in: path
+          name: notificationId
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Read
+        '404':
+          description: Notice not found for this recipient and business
   /inbox/threads:
     get:
       operationId: listInboxThreads
@@ -14761,6 +15067,102 @@ paths:
                 properties:
                   data:
                     $ref: '#/components/schemas/ScheduledGoal'
+  /time-entries/current:
+    get:
+      operationId: getCurrentTimeEntry
+      summary: The caller's own running time entry, if any
+      description: |
+        A user has at most one running entry globally, across every business they belong to — this is not scoped to the active business. Includes businessName so the frontend can explain a cross-business timer rather than hiding it.
+      tags:
+        - time-tracking
+      responses:
+        '200':
+          description: The running entry, or null if nothing is running
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    nullable: true
+                    allOf:
+                      - $ref: '#/components/schemas/TimeEntry'
+  /time-entries/start:
+    post:
+      operationId: startTimeEntry
+      summary: Start tracking work
+      description: |
+        Never auto-stops an existing running entry. If the caller already has one running anywhere, returns 409 with code=ACTIVE_TIME_ENTRY_EXISTS and the existing entry — the client decides whether to stop it first.
+      tags:
+        - time-tracking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartTimeEntryInput'
+      responses:
+        '201':
+          description: The newly started entry
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TimeEntry'
+        '409':
+          description: The caller already has a running entry (in this business or another) — never auto-stopped.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                  - code
+                  - data
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                    enum:
+                      - ACTIVE_TIME_ENTRY_EXISTS
+                  data:
+                    $ref: '#/components/schemas/TimeEntry'
+  /time-entries/current/stop:
+    post:
+      operationId: stopCurrentTimeEntry
+      summary: Stop the caller's running time entry
+      description: |
+        No entry id travels through the client — this always stops whichever entry is currently running for the caller. endedAt defaults to now; pass it explicitly to correct a forgotten-to-stop timer (must satisfy startedAt < endedAt <= now). startedAt itself is never editable.
+      tags:
+        - time-tracking
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                endedAt:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: The stopped entry
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TimeEntry'
   /sales:
     get:
       operationId: listSales

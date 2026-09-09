@@ -8,6 +8,7 @@ export type TeamInvitation = components['schemas']['TeamInvitation']
 export type InviteTeamMemberInput = components['schemas']['InviteTeamMemberInput']
 export type UpdateTeamMemberInput = components['schemas']['UpdateTeamMemberInput']
 export type TeamMemberMetrics = components['schemas']['TeamMemberMetrics']
+export type TeamActivityMember = components['schemas']['TeamActivityMember']
 
 export function useMyBusinesses() {
   return useQuery({
@@ -54,6 +55,25 @@ export function useBusinessTeam() {
       const status = result.response.status
       const data = result.data
       if (err) throw new ApiError(status, (err as { error: string }).error)
+      return data!
+    },
+  })
+}
+
+// Time Tracking & Team Activity epic, Phase 3 (2026-09-09). Compact tracking state only — no
+// presence/online concept, see the endpoint's own description. No polling here by default; the
+// Calendar strip that renders this list off its own elapsed-time effect, matching the header
+// control's focus/visibilitychange-driven recompute rather than a network refetch.
+export function useTeamActivity() {
+  return useQuery({
+    queryKey: ['business', 'team', 'activity'],
+    queryFn: async () => {
+      const client = getApiClient()
+      const result = await client.GET('/business/team/activity')
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
       return data!
     },
   })

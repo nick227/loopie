@@ -15,6 +15,7 @@ afterEach(async () => {
   // licensing.test.ts (and any future unit test) can leave Vitest fake timers on; with
   // singleFork that freezes Date for every later file and hangs real async I/O on timers.
   vi.useRealTimers()
+  await db.assignmentNotification.deleteMany()
   await db.payoutItem.deleteMany()
   await db.payout.deleteMany()
   await db.commission.deleteMany()
@@ -115,6 +116,7 @@ afterEach(async () => {
   await db.audienceMember.deleteMany()
   await db.audience.deleteMany()
   await db.landingPageTemplate.deleteMany()
+  await db.timeEntry.deleteMany()
   await db.goalEvent.deleteMany()
   await db.scheduledGoal.deleteMany()
   await db.assistantGoalCycle.deleteMany()

@@ -39,6 +39,10 @@ export class ApiError extends Error {
     public status: number,
     message: string,
     public code?: string,
+    // Structured payload riding along with a machine-readable `code` — e.g.
+    // startTimeEntry's 409 ACTIVE_TIME_ENTRY_EXISTS carries the conflicting entry here so the
+    // caller can act on it without a second fetch.
+    public data?: unknown,
   ) {
     super(message)
     this.name = 'ApiError'

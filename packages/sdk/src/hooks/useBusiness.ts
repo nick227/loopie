@@ -4,9 +4,10 @@ import type { components } from '../generated/types'
 
 export type UpdateBusinessInput = components['schemas']['UpdateBusinessInput']
 
-export function useBusiness() {
+export function useBusiness(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['business'],
+    enabled: options?.enabled,
     queryFn: async () => {
       const client = getApiClient()
       const result = await client.GET('/business')

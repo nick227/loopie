@@ -1,3 +1,4 @@
+import { AssignmentNotifications } from '@/components/messages/AssignmentNotifications'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useInboxThreads, useMessages } from '@project/sdk'
@@ -10,8 +11,8 @@ import { UniversalRowList } from '@/components/ui/UniversalRow'
 import { MessageRow } from '@/components/messages/MessageRow'
 import { Inbox, List, Plus } from 'lucide-react'
 import { useFlatPages } from '@/hooks/useFlatPages'
-import { MessagesCollectionInsights } from './MessagesCollectionInsights'
 import { InboxThreadRow } from '@/components/messages/InboxThreadRow'
+import { StatusTabs } from '@/components/ui/StatusTabs'
 
 const STATUSES = ['DRAFT', 'SCHEDULED', 'SENT', 'FAILED']
 const STATUS_LABEL: Record<string, string> = {
@@ -45,18 +46,35 @@ export function MessagesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <MessagesCollectionInsights messages={items} loading={query.isLoading} />
-
+    <div className="space-y-5">
       <PageHeader
         variant="list"
         title="Messages"
+        description="Write, schedule, and follow up with your audience."
         primaryAction={
           <Button onClick={() => navigate('/messages/new')}>
             <Plus size={16} /> New message
           </Button>
         }
       />
+
+      <SearchFilterBar
+        search={{ value: q, onChange: setQ, placeholder: 'Search messages by subject or body…' }}
+      />
+      <StatusTabs
+        value={status}
+        onChange={setStatus}
+        tabs={[
+          { value: '', label: 'All', count: items.length },
+          ...STATUSES.map((value) => ({
+            value,
+            label: STATUS_LABEL[value]!,
+            count: items.filter((item) => item.status === value).length,
+          })),
+        ]}
+      />
+
+      <AssignmentNotifications />
 
       <section className="space-y-3" aria-labelledby="messages-inbox-heading">
         <div className="flex items-baseline justify-between gap-3">
@@ -90,26 +108,6 @@ export function MessagesPage() {
           </UniversalRowList>
         )}
       </section>
-
-      <div className="border-t border-border pt-6">
-        <h2 className="text-sm font-semibold text-foreground">Campaign messages</h2>
-      </div>
-
-      <SearchFilterBar
-        search={{ value: q, onChange: setQ, placeholder: 'Search messages by subject or body...' }}
-        filters={[
-          {
-            id: 'status',
-            label: 'Status',
-            value: status,
-            options: [
-              { value: '', label: 'All statuses' },
-              ...STATUSES.map((value) => ({ value, label: STATUS_LABEL[value]! })),
-            ],
-            onChange: setStatus,
-          },
-        ]}
-      />
 
       {query.isLoading ? (
         <div className="space-y-3">

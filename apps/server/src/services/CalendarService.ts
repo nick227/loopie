@@ -69,6 +69,8 @@ function toScheduledGoalDTO(goal: ScheduledGoal, currentValue: number | null) {
     detail: goal.detail,
     source: goal.source,
     sourceTemplateId: goal.sourceTemplateId,
+    createdByUserId: goal.createdByUserId,
+    assignedToUserId: goal.assignedToUserId,
     subjectType: goal.subjectType,
     subjectId: goal.subjectId,
     trackingType: goal.trackingType,
@@ -279,6 +281,15 @@ export class CalendarService {
       titleOverride?: string
       targetValueOverride?: number | null
       trackingTypeOverride?: GoalTrackingType
+      // Attribution (2026-09-09 Time Tracking & Team Activity epic). Omitted by every
+      // system-generated caller (idea-template scheduling passes nothing extra beyond this;
+      // AssistantGoalCycleService.schedulePlan never sets these either) — createdByUserId/
+      // assignedToUserId both stay null for those rows, per the epic's own behavioral contract.
+      // The one user-driven caller (handlers/calendar.ts's scheduleGoalIdea) passes the acting
+      // user's id as createdByUserId; assignedToUserId defaults to it (self-assignment) unless
+      // explicitly overridden.
+      createdByUserId?: string
+      assignedToUserId?: string
     },
   ) {
     const template = await this._findAccessibleTemplate(businessId, templateId)
@@ -313,6 +324,8 @@ export class CalendarService {
           detail: template.detail,
           source: overrides?.source ?? 'IDEA_TEMPLATE',
           sourceTemplateId: template.id,
+          createdByUserId: overrides?.createdByUserId,
+          assignedToUserId: overrides?.assignedToUserId ?? overrides?.createdByUserId,
           assistantGoalCycleId: overrides?.assistantGoalCycleId,
           subjectType: template.subjectType,
           trackingType: overrides?.trackingTypeOverride ?? template.trackingType,
@@ -351,13 +364,19 @@ export class CalendarService {
       scheduledFor?: string | null
       hasTime?: boolean
       estimateMinutes?: number | null
+      // Attribution (2026-09-09 Time Tracking & Team Activity epic) — nullable so a task can be
+      // explicitly unassigned, distinct from "field omitted, leave as-is".
+      assignedToUserId?: string | null
     },
+    actorUserId?: string,
   ) {
     const goal = await db.scheduledGoal.findFirst({ where: { id: goalId, businessId } })
     if (!goal) throw { statusCode: 404, message: 'Scheduled item not found' }
 
     const data: Record<string, unknown> = {}
     let eventType: 'COMPLETED' | 'RESCHEDULED' | null = null
+    const reassigned =
+      input.assignedToUserId !== undefined && input.assignedToUserId !== goal.assignedToUserId
 
     if (input.status === 'DONE' && goal.status !== 'DONE') {
       data.status = 'DONE'
@@ -374,9 +393,53 @@ export class CalendarService {
     }
     if (input.hasTime !== undefined) data.hasTime = input.hasTime
     if (input.estimateMinutes !== undefined) data.estimateMinutes = input.estimateMinutes
+    // Commitment change — audited (REASSIGNED), unlike the plain estimate edit above, matching
+    // this epic's own "audit status/schedule/assignee, not estimates" rule.
+    if (reassigned) {
+      data.assignedToUserId = input.assignedToUserId
+    }
 
     const updated = await db.$transaction(async (tx) => {
-      const result = await tx.scheduledGoal.update({ where: { id: goalId }, data })
+      if (reassigned && input.assignedToUserId) {
+        const member = await tx.businessMembership.findFirst({
+          where: {
+            businessId,
+            userId: input.assignedToUserId,
+            suspendedAt: null,
+            user: { suspendedAt: null, deletedAt: null },
+          },
+        })
+        if (!member) throw { statusCode: 400, message: 'Assignee must be an active teammate' }
+      }
+      // Claim the old assignment so concurrent/retried saves cannot emit duplicate notices.
+      const changed = await tx.scheduledGoal.updateMany({
+        where: { id: goalId, businessId, assignedToUserId: goal.assignedToUserId },
+        data,
+      })
+      if (!changed.count)
+        throw { statusCode: 409, message: 'Task assignment changed. Refresh and try again.' }
+      const result = await tx.scheduledGoal.findUniqueOrThrow({ where: { id: goalId } })
+      if (reassigned) {
+        await tx.goalEvent.create({ data: { goalId, type: 'REASSIGNED' } })
+        if (input.assignedToUserId && actorUserId && input.assignedToUserId !== actorUserId) {
+          const actor = await tx.user.findUniqueOrThrow({
+            where: { id: actorUserId },
+            select: { email: true },
+          })
+          await tx.assignmentNotification.create({
+            data: {
+              businessId,
+              recipientUserId: input.assignedToUserId,
+              goalId,
+              actorLabel: actor.email,
+              taskTitle: result.title,
+              scheduledFor: result.scheduledFor,
+              hasTime: result.hasTime,
+              estimateMinutes: result.estimateMinutes,
+            },
+          })
+        }
+      }
       if (eventType) await tx.goalEvent.create({ data: { goalId, type: eventType } })
       return result
     })

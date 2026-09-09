@@ -45,7 +45,6 @@ import {
   getContactsTagMode,
   setContactsTagMode,
 } from '@/lib/contactsNavState'
-import { ContactsCollectionInsights } from './ContactsCollectionInsights'
 import { LeadWorkQueue } from '@/components/contacts/LeadWorkQueue'
 
 // Same best-effort approach as Inbox's/Pages'/Advertising's own scroll restore
@@ -800,14 +799,13 @@ export function ContactsPage() {
 
   return (
     <div className="space-y-5">
-      <ContactsCollectionInsights />
-
       {/* Same shared PageHeader/SearchFilterBar/UniversalRowList structure as Advertising and
           Pages (docs/strategy/03-product-principles.md's unified navigation grammar) — Connect/
           Import are real CRM-specific actions, not a reason to diverge from the shared header. */}
       <PageHeader
         variant="list"
         title="Contacts"
+        description="Keep your customer relationships, leads, and follow-ups in one place."
         secondaryActions={
           <>
             <ConnectIntegrationsButton />
@@ -827,13 +825,6 @@ export function ContactsPage() {
           </Link>
         }
       />
-
-      {/* The default CRM landing experience (CLAUDE.md's work-queue slice) — sits above the
-          searchable full list below, which stays for browsing/finding anyone, not just today's
-          actionable set. */}
-      <div className="rounded-2xl border border-border bg-surface p-2">
-        <LeadWorkQueue />
-      </div>
 
       <SearchFilterBar
         search={{ value: q, onChange: setQ, placeholder: 'Search name or email…' }}
@@ -857,6 +848,8 @@ export function ContactsPage() {
         onChange={setTagIds}
         onModeChange={setTagMode}
       />
+
+      <LeadWorkQueue />
 
       {query.isLoading ? (
         <div className="space-y-px">

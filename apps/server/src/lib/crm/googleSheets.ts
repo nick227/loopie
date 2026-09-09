@@ -275,6 +275,50 @@ export async function createExportSpreadsheet(
   }
 }
 
+// Targeted per-range writes for ScheduleSyncService (Schedule -> Google Sheets Sync, 2026-09-10)
+// — a genuinely different write shape from createExportSpreadsheet's one-shot whole-grid PUT
+// above: these update or append specific rows in an existing, already-connected sheet without
+// touching anything else in it, which is what makes "find this row by id and update just it"
+// possible at all.
+
+// One PUT per changed *existing* row would work but batchUpdate does every range in a single
+// request — the whole reason ScheduleSyncService reads column A once, diffs in memory, and
+// updates every changed row in one call rather than N.
+export async function batchUpdateValues(
+  accessToken: string,
+  spreadsheetId: string,
+  data: { range: string; values: (string | number)[][] }[],
+) {
+  if (data.length === 0) return
+  await jsonFetch(`${SHEETS_API}/${spreadsheetId}/values:batchUpdate`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data }),
+    errorLabel: 'Google Sheets batch update',
+  })
+}
+
+// Google's own :append finds the first row after the existing table in `range` and inserts
+// there — this deliberately never computes a target row number itself, so a caller never has to
+// track "how many rows are already in the sheet" for new rows.
+export async function appendValues(
+  accessToken: string,
+  spreadsheetId: string,
+  range: string,
+  rows: (string | number)[][],
+) {
+  if (rows.length === 0) return
+  await jsonFetch(
+    `${SHEETS_API}/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: rows }),
+      errorLabel: 'Google Sheets append',
+    },
+  )
+}
+
 // Everything GoogleSheetsService persists into Integration.providerConfig for one integration —
 // which spreadsheet/tab is selected and how its columns map to contact fields. Read back here
 // (not in GoogleSheetsService) so CrmSyncService/CrmPreviewService, which already loop over every

@@ -29,6 +29,7 @@ export async function scheduleGoalIdea(request: any, reply: any) {
     request.user.businessId,
     request.params.templateId,
     request.body ?? {},
+    { createdByUserId: request.user.id },
   )
   return reply.status(201).send(data)
 }
@@ -43,6 +44,7 @@ export async function updateScheduledGoal(request: any, reply: any) {
     request.user.businessId,
     request.params.goalId,
     request.body ?? {},
+    request.user.id,
   )
   return reply.send(data)
 }

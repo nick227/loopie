@@ -108,6 +108,69 @@ export function useDismissGoalIdea() {
   })
 }
 
+// Time Tracking, Phase 2 (2026-09-09). The caller's own running entry is global — not scoped to
+// the active business — so this key deliberately carries no businessId.
+const TIME_ENTRY_CURRENT_KEY = ['time-entries', 'current']
+
+export function useCurrentTimeEntry() {
+  return useQuery({
+    queryKey: TIME_ENTRY_CURRENT_KEY,
+    queryFn: async () => {
+      const client = getApiClient()
+      const result = await client.GET('/time-entries/current')
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
+      return data!
+    },
+  })
+}
+
+// Never auto-stops an existing running entry — on a 409, the thrown ApiError carries
+// code='ACTIVE_TIME_ENTRY_EXISTS' and `data` set to the entry already running, so the caller can
+// show it (which business, what description) instead of silently losing the conflict.
+export function useStartTimeEntry() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: { description: string; scheduledGoalId?: string | null }) => {
+      const client = getApiClient()
+      const result = await client.POST('/time-entries/start', { body })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) {
+        const body = err as { error?: string; code?: string; data?: unknown }
+        throw new ApiError(status, body.error ?? 'Request failed', body.code, body.data)
+      }
+      return data!
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: TIME_ENTRY_CURRENT_KEY })
+    },
+  })
+}
+
+// No entry id travels through the client — this always stops whichever entry is currently
+// running for the caller. Pass endedAt only to correct a forgotten-to-stop timer.
+export function useStopCurrentTimeEntry() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: { endedAt?: string } = {}) => {
+      const client = getApiClient()
+      const result = await client.POST('/time-entries/current/stop', { body })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
+      return data!
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: TIME_ENTRY_CURRENT_KEY })
+    },
+  })
+}
+
 export function useUpdateScheduledGoal() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -120,6 +183,7 @@ export function useUpdateScheduledGoal() {
       scheduledFor?: string | null
       hasTime?: boolean
       estimateMinutes?: number | null
+      assignedToUserId?: string | null
     }) => {
       const client = getApiClient()
       const result = await client.PATCH('/calendar/goals/{goalId}', {

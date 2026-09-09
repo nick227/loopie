@@ -8,3 +8,5 @@ export * from './lib/capabilities'
 export type * from './generated/types'
 
 export * from './hooks/useSiteInbox'
+
+export * from './hooks/useAssignmentNotifications'

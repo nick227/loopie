@@ -14,7 +14,13 @@ import {
   Users,
   Shield,
 } from 'lucide-react'
-import { useCurrentUser, useInboxThreads, useLogout } from '@project/sdk'
+import {
+  useCurrentUser,
+  useBusiness,
+  useInboxThreads,
+  useLogout,
+  useAssignmentNotifications,
+} from '@project/sdk'
 import { AD_CREATIVE_STYLESHEET } from '@project/ad-renderer'
 import { cn } from '@/lib/utils'
 import { CreateMenu, CreateButtonTrigger } from '@/components/layout/CreateMenu'
@@ -25,6 +31,8 @@ import { PageEnter } from '@/components/layout/PageEnter'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { AssistantLauncher } from '@/components/assistant/AssistantLauncher'
 import { prefetchPrimaryRoutes, prefetchRoute } from '@/lib/routePrefetch'
+import { Avatar } from '@/components/ui/Avatar'
+import { mediaSrc } from '@/lib/media'
 
 // Persistent across navigations so BrowserRouter's v7_startTransition can keep the previous
 // page painted while the next lazy chunk loads. resetKey clears a crashed page on the next
@@ -83,7 +91,8 @@ const AFFILIATE_NAV = [
 
 function MessagesButton() {
   const inbox = useInboxThreads({ filter: 'unread' })
-  const unreadCount = inbox.data?.data?.length ?? 0
+  const assignments = useAssignmentNotifications()
+  const unreadCount = (inbox.data?.data?.length ?? 0) + (assignments.data?.unreadCount ?? 0)
   const navigate = useNavigate()
 
   return (
@@ -109,6 +118,7 @@ function MessagesButton() {
 function Header({
   pageTitle,
   businessName,
+  businessLogoUrl,
   email,
   platformRole,
   isLoading,
@@ -116,6 +126,7 @@ function Header({
 }: {
   pageTitle: string | null
   businessName?: string
+  businessLogoUrl?: string | null
   email?: string
   platformRole?: string
   // River is the one route Shell renders outside <AuthGuard/> (see App.tsx) — an anonymous
@@ -148,7 +159,7 @@ function Header({
           onClick={() => setNavOpen(true)}
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Command size={16} />
           </span>
         </button>
@@ -157,9 +168,9 @@ function Header({
           to="/profile"
           onMouseEnter={() => prefetchRoute('/profile')}
           onFocus={() => prefetchRoute('/profile')}
-          className="min-w-0 max-w-[8rem] truncate rounded-lg px-1 py-1.5 text-sm font-semibold tracking-tight text-foreground transition-colors hover:bg-accent sm:max-w-[10rem] sm:px-1.5"
+          className="min-w-0 max-w-[8rem] truncate rounded-lg px-1 py-1.5 text-2xl font-semibold tracking-tight text-foreground transition-colors hover:bg-accent sm:max-w-[10rem] sm:px-1.5"
         >
-          {businessName ?? 'Loopie'}
+          Loopie
         </Link>
 
         <nav
@@ -251,9 +262,12 @@ function Header({
                 )
               }
             >
-              <span className="text-xs font-semibold text-foreground">
-                {email?.charAt(0).toUpperCase() || 'U'}
-              </span>
+              <Avatar
+                src={mediaSrc(businessLogoUrl)}
+                name={businessName ?? email ?? 'User'}
+                size="sm"
+                className="h-full w-full rounded-full bg-transparent text-xs"
+              />
             </NavLink>
           ) : !isLoading ? (
             <Link
@@ -282,6 +296,7 @@ export function Shell() {
   const me = useCurrentUser()
   const isAffiliate = me.data?.data?.platformRole === 'AFFILIATE'
   const isAuthenticated = Boolean(me.data?.data)
+  const business = useBusiness({ enabled: isAuthenticated && !isAffiliate })
   const landingPageMatch = useMatch('/landing-pages/:landingPageId')
   const isLandingPageEditor =
     Boolean(landingPageMatch) && landingPageMatch?.params.landingPageId !== 'new'
@@ -395,6 +410,7 @@ export function Shell() {
       <Header
         pageTitle={pageTitle}
         businessName={me.data?.data?.businessName}
+        businessLogoUrl={business.data?.data?.logoUrl}
         email={me.data?.data?.email}
         platformRole={me.data?.data?.platformRole}
         isLoading={me.isLoading}

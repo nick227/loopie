@@ -3,7 +3,7 @@
 // follow-up from a Lead, see it on the board, log the activity, watch it auto-complete), and the
 // coach-rules prerequisite gate (lib/coachRules.ts).
 import { describe, it, expect } from 'vitest'
-import { buildTestApp, asAuth, testUserId, testBusinessId } from './helpers'
+import { buildTestApp, asAuth, testUserId, testBusinessId, testShopUserId } from './helpers'
 import { db } from '@project/db'
 
 const app = buildTestApp()
@@ -719,5 +719,137 @@ describe('calendar', () => {
       where: { businessId: testBusinessId, externalKey: `crm-next-action:${lead.id}` },
     })
     expect(goalRow?.status).toBe('DONE')
+  })
+
+  // Time Tracking & Team Activity epic (2026-09-09): a user-created task is attributed to its
+  // creator and self-assigned by default, and can be reassigned to a teammate afterward — audited
+  // as a REASSIGNED GoalEvent, distinct from a plain estimate edit which emits nothing.
+  it('attributes a user-created task to its creator, self-assigns it, and lets it be reassigned', async () => {
+    const createRes = await app.inject({
+      method: 'POST',
+      url: '/calendar/ideas',
+      headers: asAuth(testUserId),
+      payload: { title: 'Attribution test task' },
+    })
+    const templateId = createRes.json().data.templateId
+
+    const scheduleRes = await app.inject({
+      method: 'POST',
+      url: `/calendar/ideas/${templateId}/schedule`,
+      headers: asAuth(testUserId),
+      payload: { when: 'TODAY' },
+    })
+    expect(scheduleRes.statusCode).toBe(201)
+    const goal = scheduleRes.json().data
+    expect(goal.createdByUserId).toBe(testUserId)
+    expect(goal.assignedToUserId).toBe(testUserId)
+
+    const reassignRes = await app.inject({
+      method: 'PATCH',
+      url: `/calendar/goals/${goal.id}`,
+      headers: asAuth(testUserId),
+      payload: { assignedToUserId: testShopUserId },
+    })
+    expect(reassignRes.statusCode).toBe(200)
+    expect(reassignRes.json().data.assignedToUserId).toBe(testShopUserId)
+    // Reassignment never rewrites who created it.
+    expect(reassignRes.json().data.createdByUserId).toBe(testUserId)
+
+    const recipientNotices = await app.inject({
+      method: 'GET',
+      url: '/inbox/assignments',
+      headers: asAuth(testShopUserId),
+    })
+    expect(recipientNotices.statusCode).toBe(200)
+    expect(recipientNotices.json().unreadCount).toBe(1)
+    expect(recipientNotices.json().data).toHaveLength(1)
+    expect(recipientNotices.json().data[0]).toMatchObject({
+      goalId: goal.id,
+      taskTitle: 'Attribution test task',
+      taskScheduledFor: goal.scheduledFor,
+    })
+
+    const senderNotices = await app.inject({
+      method: 'GET',
+      url: '/inbox/assignments',
+      headers: asAuth(testUserId),
+    })
+    expect(senderNotices.statusCode).toBe(200)
+    expect(senderNotices.json().data).toHaveLength(0)
+    expect(senderNotices.json().unreadCount).toBe(0)
+
+    const senderReadAttempt = await app.inject({
+      method: 'POST',
+      url: `/inbox/assignments/${recipientNotices.json().data[0].id}/read`,
+      headers: asAuth(testUserId),
+    })
+    expect(senderReadAttempt.statusCode).toBe(404)
+
+    const selfAssignRes = await app.inject({
+      method: 'PATCH',
+      url: `/calendar/goals/${goal.id}`,
+      headers: asAuth(testUserId),
+      payload: { assignedToUserId: testUserId },
+    })
+    expect(selfAssignRes.statusCode).toBe(200)
+    const noticesAfterSelfAssign = await db.assignmentNotification.count({
+      where: { goalId: goal.id },
+    })
+    expect(noticesAfterSelfAssign).toBe(1)
+
+    const events = await db.goalEvent.findMany({
+      where: { goalId: goal.id },
+      select: { type: true },
+    })
+    expect(events.map((e) => e.type)).toContain('REASSIGNED')
+
+    // A plain estimate edit is planning data, not a commitment change — it emits nothing.
+    const eventsBefore = events.length
+    const estimateRes = await app.inject({
+      method: 'PATCH',
+      url: `/calendar/goals/${goal.id}`,
+      headers: asAuth(testUserId),
+      payload: { estimateMinutes: 45 },
+    })
+    expect(estimateRes.statusCode).toBe(200)
+    expect(estimateRes.json().data.estimateMinutes).toBe(45)
+    const eventsAfterEstimate = await db.goalEvent.findMany({ where: { goalId: goal.id } })
+    expect(eventsAfterEstimate.length).toBe(eventsBefore)
+
+    // Unassigning is explicit (null), distinct from omitting the field entirely.
+    const unassignRes = await app.inject({
+      method: 'PATCH',
+      url: `/calendar/goals/${goal.id}`,
+      headers: asAuth(testUserId),
+      payload: { assignedToUserId: null },
+    })
+    expect(unassignRes.statusCode).toBe(200)
+    expect(unassignRes.json().data.assignedToUserId).toBeNull()
+
+    // A system-generated goal (CRM_NEXT_ACTION mirror) has no human creator and self-assigns
+    // no one — both columns stay null, per the epic's behavioral contract.
+    const contact = await db.contact.create({
+      data: { businessId: testBusinessId, name: 'Attribution Contact' },
+    })
+    const lead = await db.lead.create({
+      data: {
+        businessId: testBusinessId,
+        contactId: contact.id,
+        sourceType: 'MANUAL',
+        stage: 'INTERESTED',
+        openSlot: 'OPEN',
+      },
+    })
+    await app.inject({
+      method: 'PATCH',
+      url: `/leads/${lead.id}`,
+      headers: asAuth(testUserId),
+      payload: { nextActionNote: 'Call them', nextActionAt: new Date().toISOString() },
+    })
+    const mirrored = await db.scheduledGoal.findFirst({
+      where: { businessId: testBusinessId, externalKey: `crm-next-action:${lead.id}` },
+    })
+    expect(mirrored?.createdByUserId).toBeNull()
+    expect(mirrored?.assignedToUserId).toBeNull()
   })
 })

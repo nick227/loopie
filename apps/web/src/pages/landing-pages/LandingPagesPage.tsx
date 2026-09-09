@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { cn } from '@/lib/utils'
 import { useDeleteLandingPage, useLandingPages } from '@project/sdk'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { SearchFilterBar } from '@/components/ui/SearchFilterBar'
+import { StatusTabs } from '@/components/ui/StatusTabs'
 import { Button } from '@/components/ui/Button'
 import { BulkSelectionBar } from '@/components/ui/BulkSelectionBar'
 import { LayoutTemplate, Plus } from 'lucide-react'
@@ -11,12 +12,12 @@ import { useFlatPages } from '@/hooks/useFlatPages'
 import { useListSelection } from '@/hooks/useListSelection'
 import { VirtualInfiniteList } from '@/components/ui/VirtualInfiniteList'
 import { PageRow } from './components/PageRow'
-import { PagesCollectionInsights } from './components/PagesCollectionInsights'
 import { useQuickCreatePage } from '@/hooks/useQuickCreatePage'
 import {
   getPagesScrollY,
   setPagesScrollY,
   getPagesSearch,
+  setPagesSearch,
   getPagesStatusFilter,
   setPagesStatusFilter,
 } from '@/lib/pagesNavState'
@@ -51,13 +52,17 @@ export function LandingPagesPage() {
   const [createError, setCreateError] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
-  const [q] = useState(getPagesSearch)
+  const [q, setQState] = useState(getPagesSearch)
   const [status, setStatusState] = useState(getPagesStatusFilter)
   // Persisted through pagesNavState so Back from a Page entity restores search/filter, same
   // continuity contract as Inbox's own filter (inboxNavState.ts).
   function setStatus(next: string) {
     setStatusState(next)
     setPagesStatusFilter(next)
+  }
+  function setQ(next: string) {
+    setQState(next)
+    setPagesSearch(next)
   }
   const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useLandingPages()
@@ -73,8 +78,8 @@ export function LandingPagesPage() {
 
   const statuses = ['DRAFT', 'PUBLISHED', 'ARCHIVED']
   const visibleIds = visible.map((page) => page.id)
-  // Same "top = highest submissionCount" computation PagesCollectionInsights already does for its
-  // highlight banner — reused here so at most one row's insight line claims "Best-performing page".
+  // Keep the strongest page's useful performance context on its own row rather than in a
+  // detached summary surface.
   const topPage = [...items].sort((a, b) => b.submissionCount - a.submissionCount)[0]
   const bestPageId = topPage && topPage.submissionCount > 0 ? topPage.id : null
 
@@ -102,12 +107,11 @@ export function LandingPagesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <PagesCollectionInsights pages={items} loading={isLoading} />
-
+    <div className="space-y-5">
       <PageHeader
         variant="list"
         title="Pages"
+        description="Manage your website and landing pages."
         primaryAction={
           <Button
             loading={quickCreate.isPending}
@@ -143,40 +147,20 @@ export function LandingPagesPage() {
         onDelete={handleBulkDelete}
       />
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => setStatus('')}
-          className={cn(
-            'rounded-full px-3 py-1.5 text-xs font-medium border transition-colors',
-            status === ''
-              ? 'bg-primary text-primary-foreground border-primary'
-              : 'bg-transparent text-muted-foreground border-input-border hover:border-border',
-          )}
-        >
-          All statuses
-        </button>
-        {statuses.map((value) => {
-          const isSelected = status === value
-          const hasResults = items.some((item) => item.status === value)
-          const isDisabled = !hasResults && !isSelected && status === ''
-
-          return (
-            <button
-              key={value}
-              onClick={() => setStatus(value)}
-              disabled={isDisabled}
-              className={cn(
-                'rounded-full px-3 py-1.5 text-xs font-medium border transition-colors',
-                isSelected
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-transparent text-muted-foreground border-input-border hover:border-border',
-                isDisabled && 'opacity-50 cursor-not-allowed',
-              )}
-            >
-              {value.charAt(0) + value.slice(1).toLowerCase()}
-            </button>
-          )
-        })}
+      <div className="space-y-3">
+        <SearchFilterBar search={{ value: q, onChange: setQ, placeholder: 'Search pages…' }} />
+        <StatusTabs
+          value={status}
+          onChange={setStatus}
+          tabs={[
+            { value: '', label: 'All', count: items.length },
+            ...statuses.map((value) => ({
+              value,
+              label: value.charAt(0) + value.slice(1).toLowerCase(),
+              count: items.filter((item) => item.status === value).length,
+            })),
+          ]}
+        />
       </div>
 
       {isLoading ? (

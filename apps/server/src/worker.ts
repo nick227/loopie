@@ -7,6 +7,7 @@ import { db, cleanupExpiredRateLimitBuckets } from '@project/db'
 import { processEmbedOutbox } from './services/activity/EmbedProjectionWorker'
 import { runDueGoalReminders } from './services/CalendarReminderService'
 import { processPendingPageThumbnails } from './services/PageThumbnailService'
+import { runDueScheduleSyncs } from './services/ScheduleSyncService'
 
 function main() {
   console.log('Worker started. Initializing pollers...')
@@ -76,6 +77,13 @@ function main() {
         console.error('[Worker] Error processing page thumbnails:', err),
       )
     }, thumbnailIntervalMs)
+
+    const scheduleSyncIntervalMs = Number(process.env.SCHEDULE_SYNC_POLL_INTERVAL_MS ?? 2 * 60_000)
+    setInterval(() => {
+      runDueScheduleSyncs().catch((err) =>
+        console.error('[Worker] Error running due schedule syncs:', err),
+      )
+    }, scheduleSyncIntervalMs)
   }
 
   const shutdown = async () => {

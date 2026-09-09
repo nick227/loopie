@@ -24,6 +24,11 @@ export async function getBusinessTeam(request: { user: AuthUser }, reply: any) {
   return reply.send({ data })
 }
 
+export async function getTeamActivity(request: { user: AuthUser }, reply: any) {
+  const data = await teamService.getActivity(request.user.businessId)
+  return reply.send({ data })
+}
+
 export async function inviteTeamMember(
   request: {
     user: AuthUser

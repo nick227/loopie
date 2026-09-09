@@ -483,6 +483,26 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/business/team/activity': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Every active team member and what they're tracking right now, if anything
+     * @description Time Tracking & Team Activity epic, Phase 3 (2026-09-09). Compact tracking state only — a member's currentEntry (or null) scoped to THIS business; a running entry they started under a different business they also belong to never appears here. No presence/online concept: a member with no currentEntry reads as "not tracking," not "offline" — there is no signal for whether they're actually at their desk. Suspended members are excluded, same as the team roster.
+     */
+    get: operations['getTeamActivity']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/business/team/members/{userId}': {
     parameters: {
       query?: never
@@ -1014,6 +1034,45 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/integrations/{integrationId}/schedule-sync': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get this account's connected schedule-sync sheet, if any
+     * @description Schedule -> Google Sheets Sync (2026-09-10): one-way mirror of ScheduledGoal rows into a dedicated tab, keyed by a Loopie ID column so an update always lands on the same row. Null data means nothing is connected yet.
+     */
+    get: operations['getScheduleSyncTarget']
+    put?: never
+    /** Connect (or reconnect) the sheet/tab schedule sync writes to */
+    post: operations['createScheduleSyncTarget']
+    /** Disconnect schedule sync (does not touch the sheet itself) */
+    delete: operations['deleteScheduleSyncTarget']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/integrations/{integrationId}/schedule-sync/sync': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Sync now — the manual trigger, same code path the background poller uses */
+    post: operations['syncScheduleNow']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/integrations/{integrationId}/google-sheets/export': {
     parameters: {
       query?: never
@@ -1490,6 +1549,40 @@ export interface paths {
     head?: never
     /** Update creative */
     patch: operations['updateCreative']
+    trace?: never
+  }
+  '/inbox/assignments': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Latest 50 personal assignment notices in the active business */
+    get: operations['listAssignmentNotifications']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/inbox/assignments/{notificationId}/read': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Mark your own assignment notice read */
+    post: operations['markAssignmentNotificationRead']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
     trace?: never
   }
   '/inbox/threads': {
@@ -3473,6 +3566,66 @@ export interface paths {
     patch: operations['updateScheduledGoal']
     trace?: never
   }
+  '/time-entries/current': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * The caller's own running time entry, if any
+     * @description A user has at most one running entry globally, across every business they belong to — this is not scoped to the active business. Includes businessName so the frontend can explain a cross-business timer rather than hiding it.
+     */
+    get: operations['getCurrentTimeEntry']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/time-entries/start': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Start tracking work
+     * @description Never auto-stops an existing running entry. If the caller already has one running anywhere, returns 409 with code=ACTIVE_TIME_ENTRY_EXISTS and the existing entry — the client decides whether to stop it first.
+     */
+    post: operations['startTimeEntry']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/time-entries/current/stop': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Stop the caller's running time entry
+     * @description No entry id travels through the client — this always stops whichever entry is currently running for the caller. endedAt defaults to now; pass it explicitly to correct a forgotten-to-stop timer (must satisfy startedAt < endedAt <= now). startedAt itself is never editable.
+     */
+    post: operations['stopCurrentTimeEntry']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/sales': {
     parameters: {
       query?: never
@@ -4369,6 +4522,18 @@ export interface components {
       createdAt: string
       acceptUrl: string
     }
+    /** @description Deliberately narrower than TimeEntry — businessId/businessName are omitted since this is already scoped to the active business by the endpoint itself. */
+    TeamActivityEntry: {
+      description: string
+      scheduledGoalId?: string | null
+      /** Format: date-time */
+      startedAt: string
+    }
+    TeamActivityMember: {
+      userId: string
+      email: string
+      currentEntry?: components['schemas']['TeamActivityEntry'] | null
+    }
     TeamResponse: {
       data: {
         members: components['schemas']['TeamMember'][]
@@ -5018,6 +5183,22 @@ export interface components {
       spreadsheetId: string
       sheetTab: string
       label?: string
+    }
+    /** @description Schedule -> Google Sheets Sync (2026-09-10) — one connected sheet per business, one-way LOOPIE -> Sheets only. */
+    ScheduleSyncTarget: {
+      id: string
+      integrationId: string
+      spreadsheetId: string
+      spreadsheetName: string
+      sheetTab: string
+      /** Format: date-time */
+      lastSyncAt: string | null
+      lastSyncError: string | null
+      syncing: boolean
+    }
+    CreateScheduleSyncTargetInput: {
+      spreadsheetId: string
+      sheetTab: string
     }
     PreviewImportSourceInput: {
       /** @description Recompute stats against this mapping instead of the persisted/suggested one, without saving it. */
@@ -6163,6 +6344,22 @@ export interface components {
       /** Format: date-time */
       createdAt: string
     }
+    AssignmentNotification: {
+      id: string
+      goalId: string
+      actorLabel: string
+      taskTitle: string
+      /** Format: date-time */
+      scheduledFor: string | null
+      /** Format: date-time */
+      taskScheduledFor: string | null
+      hasTime: boolean
+      estimateMinutes: number | null
+      /** Format: date-time */
+      createdAt: string
+      /** Format: date-time */
+      readAt: string | null
+    }
     /** @description A thread's list-view/detail-header shape — same object for both listInboxThreads and getInboxThread. */
     InboxThreadSummary: {
       id: string
@@ -6795,6 +6992,10 @@ export interface components {
       /** @enum {string} */
       source: 'IDEA_TEMPLATE' | 'USER_CREATED' | 'CRM_NEXT_ACTION' | 'WORKFLOW'
       sourceTemplateId?: string | null
+      /** @description The user who created this task. Null for every system-generated source (IDEA_TEMPLATE/CRM_NEXT_ACTION/WORKFLOW/ASSISTANT_PLAYBOOK) — only a USER_CREATED task carries this. */
+      createdByUserId?: string | null
+      /** @description Who is doing this task. Defaults to the creator (self-assignment) for a USER_CREATED task; reassignable via PATCH. */
+      assignedToUserId?: string | null
       /** @enum {string} */
       subjectType: 'GENERAL' | 'CRM' | 'ADVERTISEMENT' | 'PAGE' | 'RIVER' | 'BUSINESS'
       subjectId?: string | null
@@ -6856,6 +7057,25 @@ export interface components {
       scheduledFor?: string | null
       hasTime?: boolean
       estimateMinutes?: number | null
+      /** @description Reassign this task to a teammate (or null to unassign). Audited as a REASSIGNED GoalEvent. */
+      assignedToUserId?: string | null
+    }
+    /** @description One span of tracked work. endedAt is null while running. A user has at most one running entry globally (see startTimeEntry's 409 contract) — this is never a per-business count. */
+    TimeEntry: {
+      id: string
+      businessId: string
+      businessName: string
+      scheduledGoalId?: string | null
+      description: string
+      /** Format: date-time */
+      startedAt: string
+      /** Format: date-time */
+      endedAt?: string | null
+    }
+    StartTimeEntryInput: {
+      /** @description Freeform — "what are you working on." Independent of scheduledGoalId; a quick pick prefills it but it stays editable. */
+      description: string
+      scheduledGoalId?: string | null
     }
     Sale: {
       id: string
@@ -8529,6 +8749,28 @@ export interface operations {
       }
     }
   }
+  getTeamActivity: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['TeamActivityMember'][]
+          }
+        }
+      }
+    }
+  }
   removeTeamMember: {
     parameters: {
       query?: never
@@ -9446,6 +9688,102 @@ export interface operations {
         content: {
           'application/json': {
             data: components['schemas']['ImportSourceRunsPage']
+          }
+        }
+      }
+    }
+  }
+  getScheduleSyncTarget: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integrationId: components['parameters']['IntegrationId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The connected sheet, or null */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['ScheduleSyncTarget'] | null
+          }
+        }
+      }
+    }
+  }
+  createScheduleSyncTarget: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integrationId: components['parameters']['IntegrationId']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateScheduleSyncTargetInput']
+      }
+    }
+    responses: {
+      /** @description Connected */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['ScheduleSyncTarget']
+          }
+        }
+      }
+    }
+  }
+  deleteScheduleSyncTarget: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integrationId: components['parameters']['IntegrationId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Disconnected */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  syncScheduleNow: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integrationId: components['parameters']['IntegrationId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The updated sync status */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['ScheduleSyncTarget']
           }
         }
       }
@@ -10678,6 +11016,56 @@ export interface operations {
             data?: components['schemas']['Creative']
           }
         }
+      }
+    }
+  }
+  listAssignmentNotifications: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Personal notices and total unread count */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['AssignmentNotification'][]
+            unreadCount: number
+          }
+        }
+      }
+    }
+  }
+  markAssignmentNotificationRead: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        notificationId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Read */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Notice not found for this recipient and business */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
       }
     }
   }
@@ -14476,6 +14864,97 @@ export interface operations {
         content: {
           'application/json': {
             data?: components['schemas']['ScheduledGoal']
+          }
+        }
+      }
+    }
+  }
+  getCurrentTimeEntry: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The running entry, or null if nothing is running */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['TimeEntry'] | null
+          }
+        }
+      }
+    }
+  }
+  startTimeEntry: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['StartTimeEntryInput']
+      }
+    }
+    responses: {
+      /** @description The newly started entry */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['TimeEntry']
+          }
+        }
+      }
+      /** @description The caller already has a running entry (in this business or another) — never auto-stopped. */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: string
+            /** @enum {string} */
+            code: 'ACTIVE_TIME_ENTRY_EXISTS'
+            data: components['schemas']['TimeEntry']
+          }
+        }
+      }
+    }
+  }
+  stopCurrentTimeEntry: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: {
+      content: {
+        'application/json': {
+          /** Format: date-time */
+          endedAt?: string
+        }
+      }
+    }
+    responses: {
+      /** @description The stopped entry */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: components['schemas']['TimeEntry']
           }
         }
       }

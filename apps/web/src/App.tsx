@@ -42,6 +42,11 @@ const GoogleSheetsPage = lazy(() =>
 const GoogleSheetsSourcePage = lazy(() =>
   import('@/pages/crm/GoogleSheetsSourcePage').then((m) => ({ default: m.GoogleSheetsSourcePage })),
 )
+const GoogleSheetsScheduleSyncPage = lazy(() =>
+  import('@/pages/crm/GoogleSheetsScheduleSyncPage').then((m) => ({
+    default: m.GoogleSheetsScheduleSyncPage,
+  })),
+)
 const AudiencesPage = lazy(() =>
   import('@/pages/audiences/AudiencesPage').then((m) => ({ default: m.AudiencesPage })),
 )
@@ -548,6 +553,10 @@ export function App() {
                   <Route
                     path="/integrations/:integrationId/google-sheets/sources/:sourceId"
                     element={<GoogleSheetsSourcePage />}
+                  />
+                  <Route
+                    path="/integrations/:integrationId/schedule-sync"
+                    element={<GoogleSheetsScheduleSyncPage />}
                   />
                   <Route path="/contact-matches" element={<ContactMatchesPage />} />
                   <Route path="/audiences" element={<AudiencesPage />} />

@@ -1,7 +1,18 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { AssigneeFilter, TaskOwner, matchesAssignee } from './TaskOwnership'
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Plus, Check, ArrowUpRight, ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react'
+import {
+  Plus,
+  Check,
+  ArrowUpRight,
+  ChevronDown,
+  ChevronRight,
+  ChevronLeft,
+  UserCog,
+  Play,
+  Square,
+} from 'lucide-react'
 import {
   useCalendarBoard,
   useCalendarGoalsInRange,
@@ -9,18 +20,28 @@ import {
   useScheduleGoalIdea,
   useDismissGoalIdea,
   useUpdateScheduledGoal,
+  useBusinessTeam,
+  useCurrentUser,
+  useCurrentTimeEntry,
+  useStartTimeEntry,
+  useStopCurrentTimeEntry,
+  useTeamActivity,
+  ApiError,
   type components,
 } from '@project/sdk'
 import { Input } from '@/components/ui/Input'
+import { Textarea } from '@/components/ui/Textarea'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { SlideoutRail } from '@/components/ui/SlideoutRail'
 import { cn } from '@/lib/utils'
 import { usePageTitle } from '@/lib/headerContext'
-import { CalendarCollectionInsights } from './CalendarCollectionInsights'
 
 type ScheduledGoal = components['schemas']['ScheduledGoal']
 type GoalIdea = components['schemas']['GoalIdea']
+type TimeEntry = components['schemas']['TimeEntry']
+type TeamActivityMember = components['schemas']['TeamActivityMember']
 type Horizon = 'TODAY' | 'THIS_WEEK' | 'NEXT_WEEK'
 type View = 'list' | 'calendar'
 type CalendarMode = 'month' | 'year'
@@ -43,6 +64,17 @@ function formatMinutes(minutes: number | null | undefined): string | null {
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
+
+// Elapsed time on a running entry — unlike formatMinutes (which hides a falsy/zero estimate),
+// this always renders, including "0m" right after a timer starts. Approximated to the nearest
+// minute per the product spec, not seconds.
+function formatElapsedMinutes(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`
+  const hours = minutes / 60
+  return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`
+}
+
+const EIGHT_HOURS_MINUTES = 8 * 60
 
 // Local midnight of `day`, as an ISO instant — same encoding as lib/calendarWindows.ts's
 // resolveHorizonDate on the server, so a day picked here buckets correctly everywhere else.
@@ -142,30 +174,93 @@ function ActionButton({ target, label }: { target: string; label: string }) {
   )
 }
 
+// The estimate pill row (30m/1h/2h/Custom) — extracted so the idea-scheduling flow
+// (SchedulingControls) and the post-creation edit rail (AssignEstimateForm) render the identical
+// control instead of diverging copies. Self-contained: owns its own preset-vs-custom toggle,
+// exposes only the resolved minutes (or null) to the caller.
+function EstimatePicker({
+  value,
+  onChange,
+}: {
+  value: number | null
+  onChange: (minutes: number | null) => void
+}) {
+  const isPreset = value != null && (ESTIMATE_CHOICES as readonly number[]).includes(value)
+  const [custom, setCustom] = useState(value != null && !isPreset)
+  const [customMinutes, setCustomMinutes] = useState(
+    value != null && !isPreset ? String(value) : '',
+  )
+
+  return (
+    <div>
+      <p className="mb-1.5 text-xs font-medium text-muted-foreground">Estimate</p>
+      <div className="flex flex-wrap gap-1.5">
+        {ESTIMATE_CHOICES.map((minutes) => (
+          <button
+            key={minutes}
+            type="button"
+            onClick={() => {
+              setCustom(false)
+              onChange(minutes)
+            }}
+            className={cn(
+              'rounded-full border px-2.5 py-1 text-xs font-medium',
+              !custom && value === minutes
+                ? 'border-foreground/30 bg-foreground text-background'
+                : 'border-input-border text-foreground hover:border-foreground/40 hover:bg-accent',
+            )}
+          >
+            {formatMinutes(minutes)}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setCustom(true)}
+          className={cn(
+            'rounded-full border px-2.5 py-1 text-xs font-medium',
+            custom
+              ? 'border-foreground/30 bg-foreground text-background'
+              : 'border-input-border text-foreground hover:border-foreground/40 hover:bg-accent',
+          )}
+        >
+          Custom
+        </button>
+      </div>
+      {custom ? (
+        <input
+          type="number"
+          min={5}
+          placeholder="Minutes"
+          value={customMinutes}
+          onChange={(event) => {
+            setCustomMinutes(event.target.value)
+            const n = Number(event.target.value)
+            onChange(Number.isFinite(n) && n > 0 ? n : null)
+          }}
+          className="mt-2 h-8 w-full rounded border border-input-border bg-transparent px-2 text-xs"
+        />
+      ) : null}
+    </div>
+  )
+}
+
 // The full When/Pick-date/Estimate control — not shown up front (see IdeaRow's one-click
 // default), only inside an expanded idea's "choose a different time" option.
 function SchedulingControls({ idea, onScheduled }: { idea: GoalIdea; onScheduled: () => void }) {
   const schedule = useScheduleGoalIdea()
-  const [estimate, setEstimate] = useState<number | 'CUSTOM'>(idea.defaultEstimateMinutes ?? 30)
-  const [customMinutes, setCustomMinutes] = useState('')
+  const [estimateMinutes, setEstimateMinutes] = useState<number | null>(
+    idea.defaultEstimateMinutes ?? 30,
+  )
   const [picking, setPicking] = useState(false)
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
-
-  function resolvedEstimate(): number | undefined {
-    if (estimate === 'CUSTOM') {
-      const n = Number(customMinutes)
-      return Number.isFinite(n) && n > 0 ? n : undefined
-    }
-    return estimate
-  }
 
   async function submit(when: Horizon | 'DATE') {
     try {
       await schedule.mutateAsync({
         templateId: idea.templateId,
         when,
-        estimateMinutes: resolvedEstimate(),
+        estimateMinutes: estimateMinutes ?? undefined,
         ...(when === 'DATE'
           ? {
               date: time ? new Date(`${date}T${time}`).toISOString() : new Date(date).toISOString(),
@@ -226,48 +321,7 @@ function SchedulingControls({ idea, onScheduled }: { idea: GoalIdea; onScheduled
         ) : null}
       </div>
 
-      <div>
-        <p className="mb-1.5 text-xs font-medium text-muted-foreground">Estimate</p>
-        <div className="flex flex-wrap gap-1.5">
-          {ESTIMATE_CHOICES.map((minutes) => (
-            <button
-              key={minutes}
-              type="button"
-              onClick={() => setEstimate(minutes)}
-              className={cn(
-                'rounded-full border px-2.5 py-1 text-xs font-medium',
-                estimate === minutes
-                  ? 'border-foreground/30 bg-foreground text-background'
-                  : 'border-input-border text-foreground hover:border-foreground/40 hover:bg-accent',
-              )}
-            >
-              {formatMinutes(minutes)}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => setEstimate('CUSTOM')}
-            className={cn(
-              'rounded-full border px-2.5 py-1 text-xs font-medium',
-              estimate === 'CUSTOM'
-                ? 'border-foreground/30 bg-foreground text-background'
-                : 'border-input-border text-foreground hover:border-foreground/40 hover:bg-accent',
-            )}
-          >
-            Custom
-          </button>
-        </div>
-        {estimate === 'CUSTOM' ? (
-          <input
-            type="number"
-            min={5}
-            placeholder="Minutes"
-            value={customMinutes}
-            onChange={(event) => setCustomMinutes(event.target.value)}
-            className="mt-2 h-8 w-full rounded border border-input-border bg-transparent px-2 text-xs"
-          />
-        ) : null}
-      </div>
+      <EstimatePicker value={estimateMinutes} onChange={setEstimateMinutes} />
 
       {picking ? (
         <Button
@@ -383,13 +437,86 @@ function IdeaRow({ idea, scheduleTarget }: { idea: GoalIdea; scheduleTarget?: Sc
   )
 }
 
+// The post-creation edit rail (Time Tracking & Team Activity epic, 2026-09-09) — reassign this
+// task to a teammate and/or adjust its estimate. Deliberately two fields only; this is never
+// labeled "Edit task" and never touches scheduling — Reschedule stays exactly where it already is,
+// in GoalRow's own expanded panel.
+function AssignEstimateForm({ goal, onDone }: { goal: ScheduledGoal; onDone: () => void }) {
+  const team = useBusinessTeam()
+  const members = (team.data?.data.members ?? []).filter((m) => !m.suspendedAt)
+  const [assignedToUserId, setAssignedToUserId] = useState(goal.assignedToUserId ?? '')
+  const [estimateMinutes, setEstimateMinutes] = useState<number | null>(
+    goal.estimateMinutes ?? null,
+  )
+  const updateGoal = useUpdateScheduledGoal()
+
+  async function submit() {
+    try {
+      await updateGoal.mutateAsync({
+        goalId: goal.id,
+        assignedToUserId: assignedToUserId || null,
+        estimateMinutes,
+      })
+      toast.success('Saved')
+      onDone()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not save this.')
+    }
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-foreground">Assign & Estimate</h2>
+        <button
+          type="button"
+          onClick={onDone}
+          className="text-xs text-muted-foreground hover:text-foreground"
+        >
+          Close
+        </button>
+      </div>
+      <p className="mt-1 truncate text-xs text-muted-foreground">{goal.title}</p>
+
+      <div className="mt-5 space-y-4">
+        <div>
+          <p className="mb-1.5 text-xs font-medium text-muted-foreground">Assigned to</p>
+          <select
+            value={assignedToUserId}
+            onChange={(event) => setAssignedToUserId(event.target.value)}
+            className="h-8 w-full rounded border border-input-border bg-transparent px-2 text-xs"
+          >
+            <option value="">Unassigned</option>
+            {members.map((member) => (
+              <option key={member.userId} value={member.userId}>
+                {member.email}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <EstimatePicker value={estimateMinutes} onChange={setEstimateMinutes} />
+      </div>
+
+      <div className="mt-auto pt-4">
+        <Button className="w-full" loading={updateGoal.isPending} onClick={submit}>
+          Save
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 // A Today/This Week/Recently Completed row — the same expand-inline treatment as IdeaRow, but for
 // committed work: the action destination (if any) is always visible right under the title, since
 // scheduling is what earns it. Reused for completed goals too (checkbox renders filled, done
 // goals can still be reopened from the expanded panel — "keep it visible," not read-only).
 function GoalRow({ goal }: { goal: ScheduledGoal }) {
-  const [expanded, setExpanded] = useState(false)
+  const [searchParams] = useSearchParams()
+  const highlighted = searchParams.get('goal') === goal.id
+  const [expanded, setExpanded] = useState(highlighted)
   const [rescheduling, setRescheduling] = useState(false)
+  const [assigning, setAssigning] = useState(false)
   const [date, setDate] = useState(goal.scheduledFor ? goal.scheduledFor.slice(0, 10) : '')
   const [time, setTime] = useState(
     goal.hasTime && goal.scheduledFor ? goal.scheduledFor.slice(11, 16) : '',
@@ -428,7 +555,7 @@ function GoalRow({ goal }: { goal: ScheduledGoal }) {
   }
 
   return (
-    <div className="py-2.5">
+    <div id={`goal-${goal.id}`} className={cn('py-2.5', highlighted && 'rounded bg-accent px-2')}>
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -464,6 +591,7 @@ function GoalRow({ goal }: { goal: ScheduledGoal }) {
         {estimate ? (
           <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{estimate}</span>
         ) : null}
+        <TaskOwner userId={goal.assignedToUserId} />
       </div>
 
       {expanded ? (
@@ -505,6 +633,9 @@ function GoalRow({ goal }: { goal: ScheduledGoal }) {
               <Button variant="outline" size="sm" onClick={() => setRescheduling(true)}>
                 Reschedule
               </Button>
+              <Button variant="outline" size="sm" onClick={() => setAssigning(true)}>
+                <UserCog size={13} /> Assign
+              </Button>
               {goal.actionTarget && goal.actionLabel ? (
                 <ActionButton target={goal.actionTarget} label={goal.actionLabel} />
               ) : null}
@@ -512,6 +643,354 @@ function GoalRow({ goal }: { goal: ScheduledGoal }) {
           )}
         </div>
       ) : null}
+
+      <SlideoutRail open={assigning} onClose={() => setAssigning(false)}>
+        <AssignEstimateForm goal={goal} onDone={() => setAssigning(false)} />
+      </SlideoutRail>
+    </div>
+  )
+}
+
+// The "Start Work" rail (Time Tracking, Phase 2, 2026-09-09) — free-text description plus a few
+// quick picks (my tasks today, then unassigned tasks today; never a teammate's own assigned
+// work). Sourced from the board's own `today` bucket already fetched by useCalendarBoard — no new
+// query. Picking one prefills the description and links scheduledGoalId; the text stays editable
+// afterward either way.
+function TimeTrackerForm({ onDone }: { onDone: () => void }) {
+  const [description, setDescription] = useState('')
+  const [scheduledGoalId, setScheduledGoalId] = useState<string | null>(null)
+  const { data: board } = useCalendarBoard()
+  const { data: me } = useCurrentUser()
+  const start = useStartTimeEntry()
+
+  const today = board?.data.today ?? []
+  const picks = today.filter(
+    (goal) =>
+      goal.status !== 'DONE' &&
+      (goal.assignedToUserId == null || goal.assignedToUserId === me?.data.id),
+  )
+
+  function pick(goal: ScheduledGoal) {
+    setDescription(goal.title)
+    setScheduledGoalId(goal.id)
+  }
+
+  async function submit() {
+    const trimmed = description.trim()
+    if (!trimmed) return
+    try {
+      await start.mutateAsync({
+        description: trimmed,
+        scheduledGoalId: scheduledGoalId ?? undefined,
+      })
+      toast.success('Started')
+      onDone()
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 'ACTIVE_TIME_ENTRY_EXISTS') {
+        const active = error.data as
+          { businessId: string; businessName: string; description: string } | undefined
+        if (active) {
+          const sameBusiness = active.businessId === me?.data.businessId
+          toast.error(
+            sameBusiness
+              ? `You're already tracking "${active.description}". Stop it first.`
+              : `You're tracking "${active.description}" for ${active.businessName}. Stop it there first.`,
+          )
+          onDone()
+          return
+        }
+      }
+      toast.error(error instanceof Error ? error.message : 'Could not start this.')
+    }
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-foreground">Start Work</h2>
+        <button
+          type="button"
+          onClick={onDone}
+          className="text-xs text-muted-foreground hover:text-foreground"
+        >
+          Close
+        </button>
+      </div>
+
+      <div className="mt-5">
+        <Textarea
+          autoFocus
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault()
+              submit()
+            }
+          }}
+          placeholder="What are you working on? (visible to your team)"
+          className="text-sm"
+        />
+      </div>
+
+      {picks.length > 0 ? (
+        <div className="mt-4">
+          <p className="mb-1.5 text-xs font-medium text-muted-foreground">Today</p>
+          <div className="space-y-1">
+            {picks.map((goal) => (
+              <button
+                key={goal.id}
+                type="button"
+                onClick={() => pick(goal)}
+                className={cn(
+                  'block w-full truncate rounded border px-2.5 py-1.5 text-left text-xs',
+                  scheduledGoalId === goal.id
+                    ? 'border-foreground/30 bg-foreground text-background'
+                    : 'border-input-border text-foreground hover:border-foreground/40 hover:bg-accent',
+                )}
+              >
+                {goal.title}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-auto pt-4">
+        <Button
+          className="w-full"
+          loading={start.isPending}
+          disabled={!description.trim()}
+          onClick={submit}
+        >
+          Start
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// The forgotten-timer correction rail — only ever reached when Stop Work is clicked on an entry
+// that's been running 8+ hours (EIGHT_HOURS_MINUTES): never stop a very-long-running entry
+// silently, since it's far more likely someone forgot to stop it than actually worked that long.
+// "Stop now" and "Set end time" are deliberately separate actions, matching the product's own
+// "never silently stop, cap, or move recorded work" rule — startedAt itself is never editable.
+function StopWorkCorrectionForm({
+  entry,
+  elapsedMinutes,
+  onDone,
+}: {
+  entry: TimeEntry
+  elapsedMinutes: number
+  onDone: () => void
+}) {
+  const [correctedAt, setCorrectedAt] = useState('')
+  const stop = useStopCurrentTimeEntry()
+
+  async function submit(endedAt?: string) {
+    try {
+      await stop.mutateAsync(endedAt ? { endedAt } : {})
+      toast.success('Stopped')
+      onDone()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not stop this.')
+    }
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-foreground">Still running?</h2>
+        <button
+          type="button"
+          onClick={onDone}
+          className="text-xs text-muted-foreground hover:text-foreground"
+        >
+          Close
+        </button>
+      </div>
+      <p className="mt-2 text-sm text-muted-foreground">
+        &ldquo;{entry.description}&rdquo; has been running for{' '}
+        {formatElapsedMinutes(elapsedMinutes)}. If you forgot to stop it, set when it actually
+        ended.
+      </p>
+
+      <div className="mt-5">
+        <Button
+          variant="outline"
+          className="w-full"
+          loading={stop.isPending}
+          onClick={() => submit()}
+        >
+          Stop now
+        </Button>
+      </div>
+
+      <div className="mt-5">
+        <p className="mb-1.5 text-xs font-medium text-muted-foreground">Or set when it ended</p>
+        <input
+          type="datetime-local"
+          value={correctedAt}
+          max={new Date().toISOString().slice(0, 16)}
+          onChange={(event) => setCorrectedAt(event.target.value)}
+          className="h-8 w-full rounded border border-input-border bg-transparent px-2 text-xs"
+        />
+      </div>
+
+      <div className="mt-auto pt-4">
+        <Button
+          className="w-full"
+          loading={stop.isPending}
+          disabled={!correctedAt}
+          onClick={() => submit(new Date(correctedAt).toISOString())}
+        >
+          Set end time
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// Shared by the header Start/Stop Work control and the Team Activity strip (Phase 3): elapsed
+// minutes lives in state, recomputed from Date.now() only inside the effect below — reading the
+// clock during render itself fails React's purity rule. Recomputed on an interval and on
+// focus/visibilitychange, since background tabs and locked phones throttle setInterval and would
+// otherwise show a stale number once the tab comes back.
+function useElapsedMinutes(startedAt: string | null): number {
+  const [elapsedMinutes, setElapsedMinutes] = useState(0)
+
+  useEffect(() => {
+    // No reset-to-0 branch needed: every caller only reads elapsedMinutes once it already knows
+    // there's a current entry (an `if (!entry)` / `currentEntry ?` guard upstream), so a stale
+    // value here while startedAt is null is never actually rendered.
+    if (!startedAt) return
+    const startedAtMs = new Date(startedAt).getTime()
+    function recompute() {
+      setElapsedMinutes(Math.max(0, Math.floor((Date.now() - startedAtMs) / 60_000)))
+    }
+    recompute()
+    const interval = setInterval(recompute, 30_000)
+    function onVisible() {
+      if (document.visibilityState === 'visible') recompute()
+    }
+    window.addEventListener('focus', recompute)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', recompute)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [startedAt])
+
+  return elapsedMinutes
+}
+
+// The header Start/Stop Work control — next to Add task, per the product spec. Idle: opens
+// TimeTrackerForm. Running: shows the description + elapsed time (to the nearest minute) and a
+// Stop Work button. Never auto-stops anything — see useStartTimeEntry's own comment.
+function StartStopWorkControl() {
+  const { data } = useCurrentTimeEntry()
+  const stop = useStopCurrentTimeEntry()
+  const [railOpen, setRailOpen] = useState(false)
+  const [correcting, setCorrecting] = useState(false)
+
+  const entry = data?.data ?? null
+  const elapsedMinutes = useElapsedMinutes(entry?.startedAt ?? null)
+
+  if (!entry) {
+    return (
+      <>
+        <Button variant="outline" size="sm" onClick={() => setRailOpen(true)} className="shrink-0">
+          <Play size={13} />
+          <span className="hidden sm:inline">Start Work</span>
+        </Button>
+        <SlideoutRail open={railOpen} onClose={() => setRailOpen(false)}>
+          <TimeTrackerForm onDone={() => setRailOpen(false)} />
+        </SlideoutRail>
+      </>
+    )
+  }
+
+  async function handleStopClick() {
+    if (elapsedMinutes >= EIGHT_HOURS_MINUTES) {
+      setCorrecting(true)
+      return
+    }
+    try {
+      await stop.mutateAsync({})
+      toast.success('Stopped')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not stop this.')
+    }
+  }
+
+  return (
+    <div className="flex min-w-0 shrink-0 items-center gap-2">
+      <span className="hidden max-w-[10rem] truncate text-xs text-muted-foreground sm:inline">
+        {entry.description}
+      </span>
+      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+        {formatElapsedMinutes(elapsedMinutes)}
+      </span>
+      <Button variant="outline" size="sm" loading={stop.isPending} onClick={handleStopClick}>
+        <Square size={13} />
+        <span className="hidden sm:inline">Stop Work</span>
+      </Button>
+      <SlideoutRail open={correcting} onClose={() => setCorrecting(false)}>
+        <StopWorkCorrectionForm
+          entry={entry}
+          elapsedMinutes={elapsedMinutes}
+          onDone={() => setCorrecting(false)}
+        />
+      </SlideoutRail>
+    </div>
+  )
+}
+
+// One team member's line — "Name — activity · elapsed" or "Name — Not tracking." Compact tracking
+// state only, per the product rule: there is no presence/online concept, so a member with no
+// currentEntry never reads as "away" or "offline," just not tracking right now.
+function TeamActivityRow({ member, isMe }: { member: TeamActivityMember; isMe: boolean }) {
+  const elapsedMinutes = useElapsedMinutes(member.currentEntry?.startedAt ?? null)
+  const name = isMe ? 'You' : (member.email.split('@')[0] ?? member.email)
+
+  return (
+    <p className="truncate text-xs">
+      <span className="font-medium text-foreground">{name}</span>
+      <span className="text-muted-foreground">
+        {member.currentEntry ? (
+          <>
+            {' '}
+            — {member.currentEntry.description} · {formatElapsedMinutes(elapsedMinutes)}
+          </>
+        ) : (
+          ' — Not tracking'
+        )}
+      </span>
+    </p>
+  )
+}
+
+// Team Activity (Phase 3, 2026-09-09) — Calendar as a shared team resource: what everyone's
+// doing right now, sourced entirely from real TimeEntry rows. No presence/online tracking exists
+// anywhere in this product — see useTeamActivity's own comment — so this only ever shows what a
+// member is actively tracking, never whether they're "online." Only worth showing once there's a
+// team to show; a solo business never sees this.
+function TeamActivitySection() {
+  const { data } = useTeamActivity()
+  const { data: me } = useCurrentUser()
+  const members = data?.data ?? []
+
+  if (members.length < 2) return null
+
+  return (
+    <div className="space-y-1 rounded-lg border border-border p-3">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">
+        Team activity
+      </p>
+      {members.map((member) => (
+        <TeamActivityRow key={member.userId} member={member} isMe={member.userId === me?.data.id} />
+      ))}
     </div>
   )
 }
@@ -542,7 +1021,7 @@ function QuickAddTask() {
   const pending = createIdea.isPending || scheduleIdea.isPending
 
   return (
-    <div className="flex w-full min-w-0 items-center gap-2">
+    <div className="flex min-w-0 flex-1 items-center gap-2">
       <Input
         value={title}
         onChange={(event) => setTitle(event.target.value)}
@@ -925,6 +1404,7 @@ function MonthDayItem({ goal }: { goal: ScheduledGoal }) {
         {goal.hasTime && goal.scheduledFor ? `${formatTime(goal.scheduledFor)} ` : ''}
         {goal.title}
       </span>
+      <TaskOwner userId={goal.assignedToUserId} />
     </div>
   )
 }
@@ -1170,10 +1650,16 @@ function ViewSwitch({ view, onChange }: { view: View; onChange: (view: View) => 
 // Foundation->Attract->Capture->Convert->Grow progression).
 export function CalendarPage() {
   usePageTitle('Calendar')
-  const [view, setView] = useState<View>('list')
+  const [searchParams] = useSearchParams()
+  const requestedDate = searchParams.get('date')
+  const initialDate = requestedDate ? new Date(requestedDate) : new Date()
+  const validDate = !Number.isNaN(initialDate.getTime()) ? initialDate : new Date()
+  const [assigneeFilter, setAssigneeFilter] = useState('everyone')
+  const me = useCurrentUser()
+  const [view, setView] = useState<View>(requestedDate ? 'calendar' : 'list')
   const [mode, setMode] = useState<CalendarMode>('month')
-  const [anchor, setAnchor] = useState(() => new Date())
-  const [selectedDay, setSelectedDay] = useState<Date | null>(null)
+  const [anchor, setAnchor] = useState(() => validDate)
+  const [selectedDay, setSelectedDay] = useState<Date | null>(requestedDate ? validDate : null)
 
   const { data, isLoading } = useCalendarBoard()
 
@@ -1190,11 +1676,13 @@ export function CalendarPage() {
   const rangeQuery = useCalendarGoalsInRange(range.from.toISOString(), range.to.toISOString())
 
   const board = data?.data
-  const today = board?.today ?? []
-  const thisWeek = board?.thisWeek ?? []
-  const recentlyCompleted = board?.recentlyCompleted ?? []
+  const includeGoal = (goal: ScheduledGoal) =>
+    matchesAssignee(goal, assigneeFilter, me.data?.data.id)
+  const today = (board?.today ?? []).filter(includeGoal)
+  const thisWeek = (board?.thisWeek ?? []).filter(includeGoal)
+  const recentlyCompleted = (board?.recentlyCompleted ?? []).filter(includeGoal)
   const ideas = board?.ideas ?? []
-  const rangeGoals = rangeQuery.data?.data ?? []
+  const rangeGoals = (rangeQuery.data?.data ?? []).filter(includeGoal)
 
   function step(n: number) {
     setSelectedDay(null)
@@ -1226,25 +1714,26 @@ export function CalendarPage() {
     : { when: 'TODAY' }
 
   return (
-    <div className="mx-auto w-full min-w-0 space-y-6">
-      <CalendarCollectionInsights
-        today={today}
-        thisWeek={thisWeek}
-        recentlyCompleted={recentlyCompleted}
-        ideas={ideas}
-        loading={isLoading}
-      />
-
+    <div className="mx-auto w-full min-w-0 space-y-5">
       <PageHeader
         variant="list"
         title="Calendar"
+        description="Plan the work that moves your business forward."
         className="min-w-0"
         primaryAction={<ViewSwitch view={view} onChange={setView} />}
       >
         {/* Full-width under the title row so the fixed w-48 input + Add + view switch can't
-            spill past the right edge on narrow viewports. */}
-        <QuickAddTask />
+            spill past the right edge on narrow viewports. Start/Stop Work sits right next to Add
+            task, wrapping onto its own line alongside it (not independently) on narrow screens. */}
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
+          <QuickAddTask />
+          <StartStopWorkControl />
+        </div>
       </PageHeader>
+
+      <AssigneeFilter value={assigneeFilter} onChange={setAssigneeFilter} />
+
+      <TeamActivitySection />
 
       {isLoading ? (
         <div className="space-y-3" aria-hidden="true">

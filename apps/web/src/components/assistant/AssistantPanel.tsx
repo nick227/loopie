@@ -125,17 +125,6 @@ function ActionSection({
     <div className="space-y-2">
       {actionId === 'calendar' ? (
         <AssistantCalendarCard />
-      ) : action.type === 'ADVERTISING' ? (
-        <Button
-          size="sm"
-          onClick={() =>
-            onNavigate(action.campaignId ? `/campaigns/${action.campaignId}` : '/campaigns/new')
-          }
-        >
-          {action.campaignId
-            ? 'Finish setting up your campaign'
-            : `Promote ${action.pageName ?? 'your page'}`}
-        </Button>
       ) : action.type === 'SIGNAL' && action.cycleId && action.signalSummary ? (
         <AssistantSignalCard
           cycleId={action.cycleId}
@@ -243,7 +232,7 @@ function HomeView({
 }
 
 function actionIdentity(action: SingleAction) {
-  return `${action.actionId}-${action.landingPageId ?? action.campaignId ?? action.cycleId ?? ''}-${action.step?.key ?? ''}`
+  return `${action.actionId}-${action.landingPageId ?? action.cycleId ?? ''}-${action.step?.key ?? ''}`
 }
 
 function FlowView({
@@ -327,9 +316,9 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
   }, [open])
 
   // Every open re-orients to Home if the user had drilled into Flow — predictable, and matters
-  // after campaign_create/campaign_resume, which close the panel on navigating away (reopening
-  // should show the fresh next action, not linger on the flow screen for the action that just
-  // completed). Conversation itself is untouched by this — it isn't unmounted by open/close at
+  // after navigating away, reopening should show the fresh next action, not linger on the flow
+  // screen for the action that just completed. Conversation itself is untouched by this — it
+  // isn't unmounted by open/close at
   // all (the panel stays mounted throughout, just visually hidden), so whatever the user was
   // reading is exactly where they left it. Adjusted during render (guarded by a previous-value
   // comparison), not in an effect — React's own recommended pattern for this.
@@ -342,7 +331,9 @@ export function AssistantPanel({ open, onClose }: { open: boolean; onClose: () =
     }
   }
 
-  const actions = (data?.actions ?? (data?.action ? [data.action] : [])).slice(0, 3)
+  const actions = (data?.actions ?? (data?.action ? [data.action] : []))
+    .filter((item) => item.type !== 'ADVERTISING')
+    .slice(0, 3)
   const action = actions.find((item) => actionIdentity(item) === selectedAction) ?? null
 
   // Flow only ever renders an action that opens a real form (business_info/page/advertising) — if

@@ -17,11 +17,7 @@ const NAV_ITEMS = [
 
 export function BusinessAdminLayout() {
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Settings</h1>
-      </div>
-
+    <div className="mx-auto w-full min-w-0 px-3 sm:px-4 max-w-[900px]">
       <div className="flex flex-col lg:flex-row lg:gap-12">
         <aside className="mb-8 w-full shrink-0 lg:mb-0 lg:w-56">
           <nav className="flex space-x-2 overflow-x-auto lg:flex-col lg:space-x-0 lg:space-y-1">

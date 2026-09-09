@@ -51,9 +51,14 @@ export function GoogleSheetsAccountsPage() {
               </p>
             </div>
             {row.status === 'CONNECTED' ? (
-              <Link to={`/integrations/${row.id}/google-sheets`}>
-                <Button variant="outline">Manage sources</Button>
-              </Link>
+              <div className="flex gap-2">
+                <Link to={`/integrations/${row.id}/google-sheets`}>
+                  <Button variant="outline">Manage sources</Button>
+                </Link>
+                <Link to={`/integrations/${row.id}/schedule-sync`}>
+                  <Button variant="outline">Schedule sync</Button>
+                </Link>
+              </div>
             ) : (
               <span className="text-sm">Connect this account again below to restore access.</span>
             )}

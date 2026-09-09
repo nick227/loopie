@@ -1,20 +1,21 @@
 import { useEffect, useState } from 'react'
-import { cn } from '@/lib/utils'
 import { useNavigate } from 'react-router-dom'
 import { ApiError, useAdvertisements, useDeleteAdvertisement } from '@project/sdk'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { SearchFilterBar } from '@/components/ui/SearchFilterBar'
+import { StatusTabs } from '@/components/ui/StatusTabs'
 import { Button } from '@/components/ui/Button'
 import { BulkSelectionBar } from '@/components/ui/BulkSelectionBar'
 import { AdRow } from '@/components/ads/AdRow'
 import { Image, Plus } from 'lucide-react'
-import { AdsCollectionInsights } from './AdsCollectionInsights'
 import { useListSelection } from '@/hooks/useListSelection'
 import {
   getAdsScrollY,
   setAdsScrollY,
   getAdsSearch,
+  setAdsSearch,
   getAdsStatusFilter,
   setAdsStatusFilter,
 } from '@/lib/adsNavState'
@@ -48,13 +49,17 @@ export function AdsPage() {
   const selection = useListSelection()
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
-  const [q] = useState(getAdsSearch)
+  const [q, setQState] = useState(getAdsSearch)
   const [status, setStatusState] = useState(getAdsStatusFilter)
   // Persisted through adsNavState so Back from an Ad entity restores search/filter, same
   // continuity contract as Pages (pagesNavState.ts) and Inbox (inboxNavState.ts).
   function setStatus(next: string) {
     setStatusState(next)
     setAdsStatusFilter(next)
+  }
+  function setQ(next: string) {
+    setQState(next)
+    setAdsSearch(next)
   }
   const { data, isLoading, isError, refetch } = useAdvertisements()
   const items = data?.data ?? []
@@ -69,8 +74,8 @@ export function AdsPage() {
 
   const statuses = ['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'FAILED']
   const visibleIds = visible.map((item) => item.id)
-  // Same "top = highest conversions" computation AdsCollectionInsights already does for its
-  // highlight banner — reused here so at most one row's insight line claims "Best-performing ad".
+  // Keep the strongest ad's useful performance context on its own row rather than in a detached
+  // summary surface.
   const topAd = [...items].sort((a, b) => (b.conversions ?? 0) - (a.conversions ?? 0))[0]
   const bestAdId = topAd && (topAd.conversions ?? 0) > 0 ? topAd.id : null
 
@@ -103,12 +108,11 @@ export function AdsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <AdsCollectionInsights ads={items} loading={isLoading} />
-
+    <div className="space-y-5">
       <PageHeader
         variant="list"
         title="Advertising"
+        description="Create and manage the ads that bring people to your business."
         primaryAction={
           <Button onClick={() => navigate('/ads/new')}>
             <Plus size={16} /> New ad
@@ -132,40 +136,20 @@ export function AdsPage() {
         onDelete={handleBulkDelete}
       />
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => setStatus('')}
-          className={cn(
-            'rounded-full px-3 py-1.5 text-xs font-medium border transition-colors',
-            status === ''
-              ? 'bg-primary text-primary-foreground border-primary'
-              : 'bg-transparent text-muted-foreground border-input-border hover:border-border',
-          )}
-        >
-          All statuses
-        </button>
-        {statuses.map((value) => {
-          const isSelected = status === value
-          const hasResults = items.some((item) => item.status === value)
-          const isDisabled = !hasResults && !isSelected && status === ''
-
-          return (
-            <button
-              key={value}
-              onClick={() => setStatus(value)}
-              disabled={isDisabled}
-              className={cn(
-                'rounded-full px-3 py-1.5 text-xs font-medium border transition-colors',
-                isSelected
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-transparent text-muted-foreground border-input-border hover:border-border',
-                isDisabled && 'opacity-50 cursor-not-allowed',
-              )}
-            >
-              {value.charAt(0) + value.slice(1).toLowerCase()}
-            </button>
-          )
-        })}
+      <div className="space-y-3">
+        <SearchFilterBar search={{ value: q, onChange: setQ, placeholder: 'Search ads…' }} />
+        <StatusTabs
+          value={status}
+          onChange={setStatus}
+          tabs={[
+            { value: '', label: 'All', count: items.length },
+            ...statuses.map((value) => ({
+              value,
+              label: value.charAt(0) + value.slice(1).toLowerCase(),
+              count: items.filter((item) => item.status === value).length,
+            })),
+          ]}
+        />
       </div>
 
       {isLoading ? (
