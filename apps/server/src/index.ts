@@ -12,6 +12,7 @@ import * as security from './plugins/security'
 import { mapErrorToReply } from './plugins/errorHandler'
 import { publicRateLimit } from './plugins/publicRateLimit'
 import { BODY_LIMIT_BYTES, registerUploadStatic } from './lib/mediaStorage'
+import { ensureDefaultThumbnails } from './lib/ensureDefaultThumbnails'
 
 // trustProxy: true so request.ip resolves to the real client (X-Forwarded-For) rather than
 // Railway's edge proxy — without this, every request behind the proxy shares one IP, collapsing
@@ -118,6 +119,19 @@ async function main() {
     port: Number(process.env.PORT ?? 3001),
     host: '0.0.0.0',
   })
+
+  // Fire-and-forget, after the server is already listening: a slow or failed Playwright capture
+  // cycle must never delay startup or fail a health check. See ensureDefaultThumbnails.ts's own
+  // comment — this only does real work the first time a system template has no preview yet.
+  void ensureDefaultThumbnails()
+    .then((result) => {
+      if (!result.skipped) {
+        server.log.info(result, 'Regenerated missing system Page Layout thumbnails')
+      }
+    })
+    .catch((err) => {
+      server.log.error({ err }, 'Background thumbnail regen failed; server continues running')
+    })
 
   const shutdown = async () => {
     server.log.info('Shutting down server...')

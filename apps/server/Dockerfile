@@ -20,6 +20,13 @@ COPY packages/page-renderer/package.json ./packages/page-renderer/
 COPY packages/embed-contract/package.json ./packages/embed-contract/
 COPY apps/server/package.json ./apps/server/
 
+# The runtime stage below is a fresh `FROM`, not derived from this builder's filesystem beyond
+# the explicit COPY --from lines further down — a browser Playwright downloaded here (outside
+# node_modules, e.g. ~/.cache/ms-playwright) would never reach the runtime image anyway. Skip it
+# here purely so the build doesn't spend time/bandwidth fetching a browser that gets thrown away;
+# the runtime stage installs Alpine's own Chromium instead (musl-compatible; Playwright's bundled
+# download assumes glibc and doesn't reliably run on Alpine — see htmlCaptureBrowser.ts's comment).
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 RUN pnpm install --frozen-lockfile
 
 # Copy full source
@@ -45,6 +52,17 @@ RUN corepack enable
 # Confirmed live: this exact crash still happened after the binaryTargets fix, until this line
 # was added.
 RUN apk add --no-cache openssl
+
+# Headless Chromium for PageThumbnailService/adCreativeCapture's real-browser HTML->PNG capture
+# (Playwright). Alpine ships its own musl-built Chromium via apk — Playwright's own downloaded
+# binary assumes glibc and is not reliably usable here, which is exactly why the builder stage
+# skips that download entirely. `command -v chromium` vs `chromium-browser` covers both package
+# names Alpine has used across versions; the symlink gives htmlCaptureBrowser.ts one fixed path
+# to point PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH at regardless of which one this image has.
+RUN apk add --no-cache chromium nss freetype freetype-dev harfbuzz ca-certificates ttf-freefont && \
+    CHROMIUM_BIN="$(command -v chromium || command -v chromium-browser)" && \
+    { [ "$CHROMIUM_BIN" = "/usr/bin/chromium-browser" ] || ln -sf "$CHROMIUM_BIN" /usr/bin/chromium-browser; }
+ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 WORKDIR /app
 ENV NODE_ENV=production

@@ -59,10 +59,23 @@ async function bindCaptureIsolation(context: BrowserContext) {
   })
 }
 
+/**
+ * Set in production (see apps/server/Dockerfile) to Alpine's own apk-installed Chromium —
+ * Playwright's bundled/downloaded Chromium binary assumes glibc and doesn't reliably run on
+ * Alpine's musl libc, so the production image skips that download entirely
+ * (PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1) and points here instead. Left unset, Playwright launches
+ * its own downloaded browser exactly as before — local dev and CI are unaffected.
+ */
+const CHROMIUM_EXECUTABLE_PATH = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined
+
 /** Shared browser isolation only; each caller owns its capture/output contract. */
 export async function openHtmlCaptureBrowser(options: BrowserContextOptions) {
   const { chromium } = await import('playwright')
-  const browser = await chromium.launch({ headless: true, args: ['--disable-dev-shm-usage'] })
+  const browser = await chromium.launch({
+    headless: true,
+    args: ['--disable-dev-shm-usage'],
+    executablePath: CHROMIUM_EXECUTABLE_PATH,
+  })
   try {
     const context = await browser.newContext({
       ...options,
