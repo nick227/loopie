@@ -103,6 +103,15 @@ COPY --from=builder /app/packages/embed-contract/src ./packages/embed-contract/s
 COPY --from=builder /app/packages/embed-contract/package.json ./packages/embed-contract/
 COPY --from=builder /app/apps/server/src ./apps/server/src
 COPY --from=builder /app/apps/server/package.json ./apps/server/
+# Same MODULE_NOT_FOUND shape as every @project/* fix above, but for a real npm dependency this
+# time: pnpm never hoists `playwright` to the root /app/node_modules copied above — it's only
+# resolvable via the symlink at apps/server/node_modules/playwright (into the root .pnpm store),
+# which nothing was copying. Confirmed live: htmlCaptureBrowser.ts's `await import('playwright')`
+# threw ERR_MODULE_NOT_FOUND in production the moment this pass's boot-time thumbnail regen
+# became the first runtime code path to ever actually exercise it (previously only reachable via
+# the local-only regen script). Tiny (~176K, mostly symlinks) — safe to copy wholesale rather than
+# enumerate which specific dependency needs it.
+COPY --from=builder /app/apps/server/node_modules ./apps/server/node_modules
 
 EXPOSE 3001
 # Applies any pending migration before the app starts serving — the only place this project's
