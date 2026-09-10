@@ -59,7 +59,7 @@ export function TeamPage() {
   if (team.isLoading) return <Skeleton className="h-72 w-full" />
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8">
+    <div className="mx-auto w-full space-y-8">
       <div>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">Team</h1>
         <p className="mt-2 text-sm text-muted-foreground">

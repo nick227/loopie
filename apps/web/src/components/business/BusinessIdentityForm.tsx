@@ -99,7 +99,7 @@ export function BusinessIdentityForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6 w-full">
       <div className="space-y-1.5">
         <label htmlFor="business-name" className="text-sm font-medium text-foreground">
           Business name
