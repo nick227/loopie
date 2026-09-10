@@ -58,19 +58,16 @@ RUN apk add --no-cache openssl
 # binary assumes glibc and is not reliably usable here, which is exactly why the builder stage
 # skips that download entirely.
 #
-# Ask apk itself where the binary actually landed (`apk info -L`, the package's real file list)
-# instead of guessing a name via `command -v` — confirmed live that the guess-based version
-# silently produced a *broken* symlink: /bin/sh here is BusyBox ash, and per POSIX a bare variable
-# assignment's exit status is 0 regardless of whether the command substitution inside it failed,
-# so `command -v chromium || command -v chromium-browser` both failing never tripped the `&&`
-# chain — it just quietly set an empty path, which `ln -sf` then happily "symlinked" anyway. The
-# final `[ -e ... ]` now makes a bad resolution fail the *build*, not a production deploy.
+# Alpine's `chromium` package already installs the real binary at /usr/bin/chromium-browser (with
+# /usr/bin/chromium as a plain symlink alias to it) — no detection or symlink of our own needed.
+# Confirmed live this was the actual layout, the hard way: an earlier version of this line tried
+# to *locate* the binary via `apk info -L chromium | grep ... | head -1`, which matched the alias
+# entry first and then `ln -sf`'d over the real /usr/bin/chromium-browser file with a symlink
+# pointing back at /usr/bin/chromium — i.e. back at itself, a circular loop that made the
+# then-"fixed" path resolve to nothing. `[ -f ... ]` here just confirms the package's own layout
+# is what's expected, so a future Alpine chromium package renaming this would fail the *build*,
+# not a production deploy.
 RUN apk add --no-cache chromium nss freetype freetype-dev harfbuzz ca-certificates ttf-freefont && \
-    CHROMIUM_BIN="/$(apk info -L chromium | grep -E 'bin/chromium(-browser)?$' | head -1)" && \
-    [ "$CHROMIUM_BIN" != "/" ] && \
-    echo "Resolved Alpine chromium binary: $CHROMIUM_BIN" && \
-    ls -la "$CHROMIUM_BIN" && \
-    ln -sf "$CHROMIUM_BIN" /usr/bin/chromium-browser && \
     ls -la /usr/bin/chromium-browser && \
     [ -f /usr/bin/chromium-browser ]
 ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
