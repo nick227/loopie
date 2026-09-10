@@ -151,6 +151,24 @@ export function useLandingPagePerformance(landingPageId: string) {
   })
 }
 
+export function useLandingPageCompatibility(landingPageId: string) {
+  return useQuery({
+    queryKey: ['landingPage', landingPageId, 'compatibility'],
+    queryFn: async () => {
+      const client = getApiClient()
+      const result = await client.GET('/landing-pages/{landingPageId}/compatibility', {
+        params: { path: { landingPageId } },
+      })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
+      return data!
+    },
+    enabled: !!landingPageId,
+  })
+}
+
 export function useCreateLandingPage() {
   const queryClient = useQueryClient()
   return useMutation({

@@ -1,16 +1,15 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { ApiError, useAdvertisements, useDeleteAdvertisement } from '@project/sdk'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SearchFilterBar } from '@/components/ui/SearchFilterBar'
 import { StatusTabs } from '@/components/ui/StatusTabs'
-import { Button } from '@/components/ui/Button'
 import { BulkSelectionBar } from '@/components/ui/BulkSelectionBar'
 import { AdRow } from '@/components/ads/AdRow'
-import { Image, Plus } from 'lucide-react'
+import { Image } from 'lucide-react'
 import { useListSelection } from '@/hooks/useListSelection'
+import { AdsStartRow } from './AdsStartRow'
 import {
   getAdsScrollY,
   setAdsScrollY,
@@ -44,7 +43,6 @@ function useRestoreAdsScroll() {
 
 export function AdsPage() {
   useRestoreAdsScroll()
-  const navigate = useNavigate()
   const deleteAd = useDeleteAdvertisement()
   const selection = useListSelection()
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -113,12 +111,11 @@ export function AdsPage() {
         variant="list"
         title="Advertising"
         description="Create and manage the ads that bring people to your business."
-        primaryAction={
-          <Button onClick={() => navigate('/ads/new')}>
-            <Plus size={16} /> New ad
-          </Button>
-        }
       />
+
+      {/* Ad Type first, real screenshots — see AdsStartRow/AdCatalogStartRow (2026-09-10),
+          mirroring Pages' own always-visible Page Type picker. */}
+      <AdsStartRow />
 
       {deleteError ? (
         <p role="alert" className="text-sm text-destructive">
@@ -175,9 +172,10 @@ export function AdsPage() {
           icon={Image}
           title={q ? 'No matching ads' : 'No ads yet'}
           description={
-            q ? 'Try adjusting your search.' : 'Create an ad, then run it on a platform or page.'
+            q
+              ? 'Try adjusting your search.'
+              : 'Pick a starting point above to create your first ad.'
           }
-          action={q ? undefined : { label: 'New ad', onClick: () => navigate('/ads/new') }}
         />
       ) : (
         <div className="space-y-3">

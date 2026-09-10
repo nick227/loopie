@@ -1,5 +1,6 @@
 import type { TemplateSchema } from '../leadGenTemplate'
 import { DEFAULT_PAGE_FAVICON_URL, type PageContent } from '../content'
+import type { StarterPageBusiness } from '../starterPageBusiness'
 
 export const SYSTEM_WEBINAR_SIGNUP_TEMPLATE_ID = 'system-template-webinar-signup'
 
@@ -70,90 +71,97 @@ export const webinarSignupSchema: TemplateSchema = {
   themeTokens: [],
 }
 
-export const webinarSignupStarterContent: PageContent = {
-  browser: {
-    title: 'How to get your next ten customers — live session',
-    favicon: { url: DEFAULT_PAGE_FAVICON_URL },
-  },
-  hero: {
-    eyebrow: 'Free live session · 60 minutes',
-    headline: 'Join us live: how to get your next ten customers',
-    body: 'A practical hour on the page, message, and follow-up that bring in real replies — with live Q&A and a recording if you cannot attend.',
-    media: {
-      url: 'https://images.unsplash.com/photo-1591115765373-5207764f72e7?auto=format&fit=crop&q=80&w=1600',
-      alt: 'Presenter hosting a live virtual session',
+// A function, not a static object — see StarterPageBusiness's own doc comment. This template has
+// no nav section (no site brand to substitute) and its hero is the *event's* pitch, not the
+// business's own — overriding it with a generic business tagline would break the "join this
+// specific session" narrative. So only the browser tab, the one identity-bearing slot here, picks
+// up the real business name; the host/testimonials/faq stay hand-authored example copy.
+export function webinarSignupStarterContent(business: StarterPageBusiness): PageContent {
+  return {
+    browser: {
+      title: `${business.name}: How to get your next ten customers`,
+      favicon: { url: DEFAULT_PAGE_FAVICON_URL },
     },
-    primaryCta: { label: 'Save my seat', url: '#signup' },
-  },
-  webinar: {
-    eventDate: '2026-09-15T17:00:00.000Z',
-    durationMinutes: 60,
-    seatsTotal: 500,
-    hostName: 'Dana Whitfield',
-    hostTitle: 'Operator and workshop host',
-    hostAvatarUrl:
-      'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=400',
-    hostBio:
-      'Dana has helped owner-led teams set up a simple customer system — one page, one message, one follow-up — and has run this session for thousands of attendees.',
-  },
-  features: {
-    headline: 'What you’ll walk away with',
-    body: 'Concrete steps, not a highlight reel.',
-    items: [
-      {
-        title: 'A simple three-step system',
-        body: 'Page, outreach, and follow-up — the minimum that actually produces replies.',
+    hero: {
+      eyebrow: 'Free live session · 60 minutes',
+      headline: 'Join us live: how to get your next ten customers',
+      body: 'A practical hour on the page, message, and follow-up that bring in real replies — with live Q&A and a recording if you cannot attend.',
+      media: {
+        url: 'https://images.unsplash.com/photo-1591115765373-5207764f72e7?auto=format&fit=crop&q=80&w=1600',
+        alt: 'Presenter hosting a live virtual session',
       },
-      {
-        title: 'A live teardown',
-        body: 'We break down a real example, mistakes included, so you can see the thinking.',
-      },
-      {
-        title: 'Templates you can reuse',
-        body: 'Worksheets and a short checklist you can use the same afternoon.',
-      },
-    ],
-  },
-  testimonials: {
-    headline: 'From past attendees',
-    body: '',
-    items: [
-      {
-        quote:
-          'I’ve sat through a lot of webinars that were just a pitch. This one taught me something I used the next day.',
-        author: 'Priya Nair',
-        role: 'Marketing lead, Fenwick & Co.',
-      },
-      {
-        quote: 'The live teardown alone was worth the hour. Concrete, specific, no filler.',
-        author: 'Marcus Ude',
-        role: 'Founder, Ude Studio',
-      },
-    ],
-  },
-  faq: {
-    headline: 'Before you save your seat',
-    body: '',
-    items: [
-      {
-        question: 'Is this actually free?',
-        answer:
-          'Yes — no credit card. We keep a short pitch for our own product to about five minutes at the end.',
-      },
-      {
-        question: 'Will there be a recording?',
-        answer:
-          'Yes. Every registrant gets the replay and slides by email, whether or not you attend live.',
-      },
-      {
-        question: 'Is there time for questions?',
-        answer: 'Live Q&A runs for the last 15 minutes — bring your specific situation.',
-      },
-    ],
-  },
-  footer: {
-    headline: 'Seats are limited — save yours now',
-    body: 'Registration closes when the room fills or the event starts, whichever comes first.',
-    cta: { label: 'Save my seat', url: '#signup' },
-  },
+      primaryCta: { label: 'Save my seat', url: '#signup' },
+    },
+    webinar: {
+      eventDate: '2026-09-15T17:00:00.000Z',
+      durationMinutes: 60,
+      seatsTotal: 500,
+      hostName: 'Dana Whitfield',
+      hostTitle: 'Operator and workshop host',
+      hostAvatarUrl:
+        'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=400',
+      hostBio:
+        'Dana has helped owner-led teams set up a simple customer system — one page, one message, one follow-up — and has run this session for thousands of attendees.',
+    },
+    features: {
+      headline: 'What you’ll walk away with',
+      body: 'Concrete steps, not a highlight reel.',
+      items: [
+        {
+          title: 'A simple three-step system',
+          body: 'Page, outreach, and follow-up — the minimum that actually produces replies.',
+        },
+        {
+          title: 'A live teardown',
+          body: 'We break down a real example, mistakes included, so you can see the thinking.',
+        },
+        {
+          title: 'Templates you can reuse',
+          body: 'Worksheets and a short checklist you can use the same afternoon.',
+        },
+      ],
+    },
+    testimonials: {
+      headline: 'From past attendees',
+      body: '',
+      items: [
+        {
+          quote:
+            'I’ve sat through a lot of webinars that were just a pitch. This one taught me something I used the next day.',
+          author: 'Priya Nair',
+          role: 'Marketing lead, Fenwick & Co.',
+        },
+        {
+          quote: 'The live teardown alone was worth the hour. Concrete, specific, no filler.',
+          author: 'Marcus Ude',
+          role: 'Founder, Ude Studio',
+        },
+      ],
+    },
+    faq: {
+      headline: 'Before you save your seat',
+      body: '',
+      items: [
+        {
+          question: 'Is this actually free?',
+          answer:
+            'Yes — no credit card. We keep a short pitch for our own product to about five minutes at the end.',
+        },
+        {
+          question: 'Will there be a recording?',
+          answer:
+            'Yes. Every registrant gets the replay and slides by email, whether or not you attend live.',
+        },
+        {
+          question: 'Is there time for questions?',
+          answer: 'Live Q&A runs for the last 15 minutes — bring your specific situation.',
+        },
+      ],
+    },
+    footer: {
+      headline: 'Seats are limited — save yours now',
+      body: 'Registration closes when the room fills or the event starts, whichever comes first.',
+      cta: { label: 'Save my seat', url: '#signup' },
+    },
+  }
 }

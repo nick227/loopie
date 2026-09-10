@@ -30,9 +30,14 @@ function invalidateBoard(queryClient: ReturnType<typeof useQueryClient>) {
 
 // The Calendar (Week/Month) views' own read — an arbitrary, navigable date range, unlike
 // useCalendarBoard's fixed "relative to now" buckets. `from`/`to` are ISO instants.
-export function useCalendarGoalsInRange(from: string, to: string) {
+export function useCalendarGoalsInRange(
+  from: string,
+  to: string,
+  options: { enabled?: boolean } = {},
+) {
   return useQuery({
     queryKey: ['calendar', 'goalsInRange', from, to],
+    enabled: options.enabled ?? true,
     queryFn: async () => {
       const client = getApiClient()
       const result = await client.GET('/calendar/goals', { params: { query: { from, to } } })

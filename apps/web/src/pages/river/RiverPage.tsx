@@ -79,7 +79,7 @@ function buildFeedRows(items: RiverFeedItem[], viewerBusinessId?: string): FeedR
 // page already uses via its own vanilla-JS poll/scroll script; this is a second consumer, not a
 // re-implementation of RiverFeedService's assembly, anti-repeat, or sponsored-insertion logic.
 //
-// Frame width: Shell's own page wrapper (Shell.tsx) is a shared max-w-[900px] applied to every
+// Frame width: Shell's own page wrapper (Shell.tsx) is a shared max-w-5xl applied to every
 // route in the app — widening it just for River would mean breaking a route out of the shared
 // layout, which is a bigger structural change than this pass's "layout geometry, typography,
 // media sizing, spacing, card anatomy" scope. Instead the feed itself sits at max-w-[720px]
@@ -126,7 +126,7 @@ export function RiverPage() {
   const showSkeletons = feed.isPending
 
   return (
-    <div className="mx-auto w-full max-w-[900px] pb-12">
+    <div className="mx-auto w-full max-w-5xl pb-12">
       <div className="mb-8 px-4 sm:px-0">
         <h1 className="text-3xl font-bold tracking-tight text-foreground">River</h1>
         <p className="mt-1 text-muted-foreground">

@@ -30,7 +30,7 @@ const STAGE_ORDER = ['FOUNDATION', 'ATTRACT', 'CAPTURE', 'CONVERT', 'GROW'] as c
 // content alongside the genuinely big goals. Backed by packages/db/src/data/goalIdeas.ts's much
 // larger catalog plus the repeatable/cooldown rule (see GoalIdeaTemplate.repeatable) so completing
 // everything once doesn't run the well dry — there's always a next 6.
-const MAX_IDEAS = 6
+const MAX_IDEAS = 3
 // "Keep completed work visible — completion should create a sense of progress" — a short rolling
 // window, not a permanent history/archive view.
 const RECENTLY_COMPLETED_DAYS = 14

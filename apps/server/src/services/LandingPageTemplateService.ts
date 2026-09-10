@@ -10,6 +10,7 @@ function toTemplateDTO(template: any) {
     name: template.name,
     description: template.description,
     category: template.category,
+    pageType: template.pageType,
     formatVersion: template.formatVersion,
     previewImageUrl: template.previewImageUrl,
     schema: template.schema,

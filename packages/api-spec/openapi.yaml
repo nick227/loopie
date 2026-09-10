@@ -5521,6 +5521,7 @@ components:
         - id
         - isSystem
         - name
+        - pageType
         - formatVersion
         - schema
         - createdAt
@@ -5541,6 +5542,19 @@ components:
         category:
           type: string
           nullable: true
+        pageType:
+          type: string
+          enum:
+            - HOME
+            - LANDING
+            - STUDIO
+            - PORTFOLIO
+            - EMAIL_CAPTURE
+            - STORE
+            - EVENT
+            - GENERAL
+          description: |
+            Page purpose — see docs/strategy/pages-page-types-and-style-axes-roadmap.md. Distinct from `category` (an editor-implementation detail) and from the visual layout inside `schema` (`renderer`). Fixed per Layout (this template row); a page's Page Type is the property of whichever Layout it's currently built from.
         formatVersion:
           type: string
         previewImageUrl:
@@ -5900,6 +5914,115 @@ components:
           type: integer
         revenue:
           type: number
+    CompatibilityIssue:
+      type: object
+      required:
+        - kind
+        - key
+        - reason
+      properties:
+        kind:
+          type: string
+          enum:
+            - capability
+            - slot
+        key:
+          type: string
+        reason:
+          type: string
+    LandingPageCompatibility:
+      type: object
+      required:
+        - currentLayoutId
+        - currentPageType
+        - layouts
+        - pageTypes
+      properties:
+        currentLayoutId:
+          type: string
+        currentPageType:
+          type: string
+          enum:
+            - HOME
+            - LANDING
+            - STUDIO
+            - PORTFOLIO
+            - EMAIL_CAPTURE
+            - STORE
+            - EVENT
+            - GENERAL
+        layouts:
+          type: array
+          description: Every Layout in the catalog, each evaluated against this page's active/dormant state. Filter to `pageType === currentPageType` for the in-editor Layout switcher.
+          items:
+            type: object
+            required:
+              - layoutId
+              - pageType
+              - compatible
+              - blockers
+              - warnings
+            properties:
+              layoutId:
+                type: string
+              pageType:
+                type: string
+                enum:
+                  - HOME
+                  - LANDING
+                  - STUDIO
+                  - PORTFOLIO
+                  - EMAIL_CAPTURE
+                  - STORE
+                  - EVENT
+                  - GENERAL
+              compatible:
+                type: boolean
+              blockers:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompatibilityIssue'
+              warnings:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompatibilityIssue'
+        pageTypes:
+          type: array
+          description: Every Page Type, each evaluated for Page Type conversion — compatible when at least one of its Layouts is compatible.
+          items:
+            type: object
+            required:
+              - pageType
+              - compatible
+              - blockers
+              - warnings
+              - supportedLayoutIds
+            properties:
+              pageType:
+                type: string
+                enum:
+                  - HOME
+                  - LANDING
+                  - STUDIO
+                  - PORTFOLIO
+                  - EMAIL_CAPTURE
+                  - STORE
+                  - EVENT
+                  - GENERAL
+              compatible:
+                type: boolean
+              blockers:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompatibilityIssue'
+              warnings:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompatibilityIssue'
+              supportedLayoutIds:
+                type: array
+                items:
+                  type: string
     SubmitLandingPageFormInput:
       type: object
       required:
@@ -13961,6 +14084,30 @@ paths:
                 properties:
                   data:
                     $ref: '#/components/schemas/LandingPagePerformance'
+  /landing-pages/{landingPageId}/compatibility:
+    get:
+      operationId: getLandingPageCompatibility
+      summary: Get landing page compatibility
+      description: |
+        Evaluates this page's currently active/dormant content and enabled capabilities against
+        every Layout and every Page Type in the catalog (docs/strategy/pages-page-types-and-style-axes-roadmap.md).
+        Powers the in-editor Layout switcher (filter `layouts` to the page's own `currentPageType`)
+        and Page Type conversion (`pageTypes`) as two distinct, contract-checked actions off one
+        read. Read-only — never mutates the page.
+      tags:
+        - landing-pages
+      parameters:
+        - $ref: '#/components/parameters/LandingPageId'
+      responses:
+        '200':
+          description: Compatibility evaluation against every Layout and Page Type
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/LandingPageCompatibility'
   /landing-pages/{landingPageId}/form-start:
     post:
       operationId: recordLandingPageFormStart

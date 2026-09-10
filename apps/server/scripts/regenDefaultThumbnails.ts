@@ -11,6 +11,8 @@ async function main() {
     remaining -= processed
     console.log(`Processed batch of ${processed}; ~${Math.max(0, remaining)} left`)
   }
+  const synced = await service.syncSystemLayoutPreviewImages()
+  console.log(`Synced ${synced} LandingPageTemplate.previewImageUrl rows from their thumbnails`)
   console.log('Done')
 }
 

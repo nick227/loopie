@@ -32,10 +32,14 @@ function checksumOf(payload: unknown) {
   return crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex')
 }
 
+// Catalog-level previews of the Layout itself, not a real business's page — deliberately keyed by
+// the template's own name (matches AdCatalogPreviewService's identical "sample business" stance
+// for the Ads starter catalog), not a real Business row.
 function systemStarterContent(template: { id: string; name: string; schema: unknown }) {
+  const sampleBusiness = { name: template.name }
   return (
-    SYSTEM_TEMPLATE_STARTER_CONTENT[template.id] ??
-    starterContentForTemplate(template.schema as never, template.name)
+    SYSTEM_TEMPLATE_STARTER_CONTENT[template.id]?.(sampleBusiness) ??
+    starterContentForTemplate(template.schema as never, sampleBusiness)
   )
 }
 
@@ -361,6 +365,33 @@ export class PageThumbnailService {
       }
     }
     return enqueued
+  }
+
+  // Pages Phase 2 revision (2026-09-10) — see docs/strategy/pages-page-types-and-style-axes-roadmap.md
+  // §9. `LandingPageTemplate.previewImageUrl` already existed on the schema/DTO but nothing ever
+  // populated it; the creation-flow picker showed generic icon tiles instead of real previews.
+  // Call after regenerateAllSystemLayouts()'s thumbnails have processed to READY. One representative
+  // preset per Layout (not one tile per preset x Layout — the picker shows one tile per Layout).
+  async syncSystemLayoutPreviewImages(presetId = PAGE_THEME_PRESETS[0]!.id) {
+    const templates = await db.landingPageTemplate.findMany({
+      where: { isSystem: true },
+      select: { id: true, previewImageUrl: true },
+    })
+    let updated = 0
+    for (const template of templates) {
+      const thumb = await db.pageThumbnail.findUnique({
+        where: { systemKey: systemLayoutKey(template.id, presetId) },
+        select: { url: true, status: true },
+      })
+      if (thumb?.status === 'READY' && thumb.url && thumb.url !== template.previewImageUrl) {
+        await db.landingPageTemplate.update({
+          where: { id: template.id },
+          data: { previewImageUrl: thumb.url },
+        })
+        updated += 1
+      }
+    }
+    return updated
   }
 }
 

@@ -72,6 +72,7 @@ const NAV_TABS: { to: string; label: string; end?: boolean }[] = [
   { to: '/landing-pages', label: 'Pages' },
   { to: '/ads', label: 'Advertising' },
   { to: '/contacts', label: 'CRM' },
+  { to: '/profile', label: 'Account' },
 ]
 
 const MOBILE_NAV_ITEMS: MobileNavItem[] = [
@@ -151,7 +152,7 @@ function Header({
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex h-14 w-full max-w-[900px] min-w-0 items-center gap-1.5 px-3 sm:gap-2 sm:px-4">
+      <div className="mx-auto flex h-14 max-w-5xl min-w-0 items-center gap-1.5 px-6">
         <button
           type="button"
           aria-label="Open menu"
@@ -362,7 +363,7 @@ export function Shell() {
         </aside>
         <div className="md:pl-64 flex flex-col min-h-screen">
           <main className="flex-1 pb-20 md:pb-8 pt-8">
-            <div className="max-w-[900px] mx-auto px-4 sm:px-6 lg:px-8 animate-in">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 animate-in">
               <RouteContent />
             </div>
           </main>
@@ -420,7 +421,7 @@ export function Shell() {
         <div
           className={cn(
             'mx-auto w-full min-w-0 px-3 sm:px-4',
-            isLandingPageEditor ? 'max-w-none' : 'max-w-[900px]',
+            isLandingPageEditor ? 'max-w-none' : 'max-w-5xl',
           )}
         >
           <SetHeaderTitleContext.Provider value={setPageTitle}>

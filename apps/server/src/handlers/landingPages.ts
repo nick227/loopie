@@ -109,6 +109,14 @@ export async function getLandingPagePerformance(request: any, reply: any) {
   return reply.send({ data })
 }
 
+export async function getLandingPageCompatibility(request: any, reply: any) {
+  const data = await landingPageService.compatibility(
+    request.user.businessId,
+    request.params.landingPageId,
+  )
+  return reply.send({ data })
+}
+
 // Public — no request.user.
 export async function recordLandingPageFormStart(request: any, reply: any) {
   await submissionService.recordFormStart(request.params.landingPageId)

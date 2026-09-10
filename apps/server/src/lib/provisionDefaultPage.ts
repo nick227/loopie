@@ -38,7 +38,11 @@ export async function provisionDefaultPage(
   const clash = await tx.landingPage.findUnique({ where: { slug } })
   if (clash) slug = `${slug}-${input.businessId.slice(-6).toLowerCase()}`
 
-  const content = corporateProfessionalStarterContent as unknown as Prisma.InputJsonValue
+  // Only the business name is known this early (tagline/description come later, during
+  // onboarding) — corporateProfessionalStarterContent's own fallbacks handle that gracefully.
+  const content = corporateProfessionalStarterContent({
+    name: input.businessName,
+  }) as unknown as Prisma.InputJsonValue
 
   const page = await tx.landingPage.create({
     data: {

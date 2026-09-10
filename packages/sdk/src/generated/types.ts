@@ -2936,6 +2936,30 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/landing-pages/{landingPageId}/compatibility': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get landing page compatibility
+     * @description Evaluates this page's currently active/dormant content and enabled capabilities against
+     *     every Layout and every Page Type in the catalog (docs/strategy/pages-page-types-and-style-axes-roadmap.md).
+     *     Powers the in-editor Layout switcher (filter `layouts` to the page's own `currentPageType`)
+     *     and Page Type conversion (`pageTypes`) as two distinct, contract-checked actions off one
+     *     read. Read-only — never mutates the page.
+     */
+    get: operations['getLandingPageCompatibility']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/landing-pages/{landingPageId}/form-start': {
     parameters: {
       query?: never
@@ -6573,6 +6597,19 @@ export interface components {
       name: string
       description?: string | null
       category?: string | null
+      /**
+       * @description Page purpose — see docs/strategy/pages-page-types-and-style-axes-roadmap.md. Distinct from `category` (an editor-implementation detail) and from the visual layout inside `schema` (`renderer`). Fixed per Layout (this template row); a page's Page Type is the property of whichever Layout it's currently built from.
+       * @enum {string}
+       */
+      pageType:
+        | 'HOME'
+        | 'LANDING'
+        | 'STUDIO'
+        | 'PORTFOLIO'
+        | 'EMAIL_CAPTURE'
+        | 'STORE'
+        | 'EVENT'
+        | 'GENERAL'
       formatVersion: string
       previewImageUrl?: string | null
       /** @description { sections: [{ key, type, order, hideable, editable: string[] }], themeTokens: string[] } — a structured manifest of what an author may edit, not markup. Versioned by formatVersion, independent of LOOPIE's own release, so an external template catalog can supply one LOOPIE imports. */
@@ -6740,6 +6777,59 @@ export interface components {
       leads?: number
       sales?: number
       revenue?: number
+    }
+    CompatibilityIssue: {
+      /** @enum {string} */
+      kind: 'capability' | 'slot'
+      key: string
+      reason: string
+    }
+    LandingPageCompatibility: {
+      currentLayoutId: string
+      /** @enum {string} */
+      currentPageType:
+        | 'HOME'
+        | 'LANDING'
+        | 'STUDIO'
+        | 'PORTFOLIO'
+        | 'EMAIL_CAPTURE'
+        | 'STORE'
+        | 'EVENT'
+        | 'GENERAL'
+      /** @description Every Layout in the catalog, each evaluated against this page's active/dormant state. Filter to `pageType === currentPageType` for the in-editor Layout switcher. */
+      layouts: {
+        layoutId: string
+        /** @enum {string} */
+        pageType:
+          | 'HOME'
+          | 'LANDING'
+          | 'STUDIO'
+          | 'PORTFOLIO'
+          | 'EMAIL_CAPTURE'
+          | 'STORE'
+          | 'EVENT'
+          | 'GENERAL'
+        compatible: boolean
+        blockers: components['schemas']['CompatibilityIssue'][]
+        warnings: components['schemas']['CompatibilityIssue'][]
+      }[]
+      /** @description Every Page Type, each evaluated for Page Type conversion — compatible when at least one of its Layouts is compatible. */
+      pageTypes: {
+        /** @enum {string} */
+        pageType:
+          | 'HOME'
+          | 'LANDING'
+          | 'STUDIO'
+          | 'PORTFOLIO'
+          | 'EMAIL_CAPTURE'
+          | 'STORE'
+          | 'EVENT'
+          | 'GENERAL'
+        compatible: boolean
+        blockers: components['schemas']['CompatibilityIssue'][]
+        warnings: components['schemas']['CompatibilityIssue'][]
+        supportedLayoutIds: string[]
+      }[]
     }
     SubmitLandingPageFormInput: {
       /** @description HMAC-signed visitor session token issued on click or hosted page serve. */
@@ -13682,6 +13772,30 @@ export interface operations {
         content: {
           'application/json': {
             data?: components['schemas']['LandingPagePerformance']
+          }
+        }
+      }
+    }
+  }
+  getLandingPageCompatibility: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        landingPageId: components['parameters']['LandingPageId']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Compatibility evaluation against every Layout and Page Type */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data?: components['schemas']['LandingPageCompatibility']
           }
         }
       }

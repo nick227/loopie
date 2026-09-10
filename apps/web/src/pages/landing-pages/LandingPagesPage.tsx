@@ -5,14 +5,13 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SearchFilterBar } from '@/components/ui/SearchFilterBar'
 import { StatusTabs } from '@/components/ui/StatusTabs'
-import { Button } from '@/components/ui/Button'
 import { BulkSelectionBar } from '@/components/ui/BulkSelectionBar'
-import { LayoutTemplate, Plus } from 'lucide-react'
+import { LayoutTemplate } from 'lucide-react'
 import { useFlatPages } from '@/hooks/useFlatPages'
 import { useListSelection } from '@/hooks/useListSelection'
 import { VirtualInfiniteList } from '@/components/ui/VirtualInfiniteList'
 import { PageRow } from './components/PageRow'
-import { useQuickCreatePage } from '@/hooks/useQuickCreatePage'
+import { PagesStartRow } from './components/PagesStartRow'
 import {
   getPagesScrollY,
   setPagesScrollY,
@@ -46,7 +45,6 @@ function useRestorePagesScroll() {
 
 export function LandingPagesPage() {
   useRestorePagesScroll()
-  const quickCreate = useQuickCreatePage()
   const deletePage = useDeleteLandingPage()
   const selection = useListSelection()
   const [createError, setCreateError] = useState<string | null>(null)
@@ -112,19 +110,11 @@ export function LandingPagesPage() {
         variant="list"
         title="Pages"
         description="Manage your website and landing pages."
-        primaryAction={
-          <Button
-            loading={quickCreate.isPending}
-            onClick={async () => {
-              setCreateError(null)
-              const result = await quickCreate.create()
-              if (!result.ok) setCreateError(result.message)
-            }}
-          >
-            <Plus size={16} /> New page
-          </Button>
-        }
       />
+
+      {/* Page Type first, then Layout — see PagesStartRow. Always visible, not a "New page"
+          toggle-reveal — the row of real screenshot tiles is the one creation entry point (2026-09-10). */}
+      <PagesStartRow onError={setCreateError} />
 
       {createError ? (
         <p role="alert" className="text-sm text-destructive">

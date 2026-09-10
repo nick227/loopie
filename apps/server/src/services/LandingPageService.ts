@@ -7,7 +7,14 @@ import {
   SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID,
   SYSTEM_TEMPLATE_STARTER_CONTENT,
   DEFAULT_PAGE_FAVICON_URL,
+  PAGE_TYPE_KEYS,
 } from '@project/db'
+import {
+  computePageState,
+  evaluateLayoutCompatibility,
+  evaluatePageTypeCompatibility,
+  loadPageCompatibilityContract,
+} from './PageCompatibilityService'
 import type { Prisma } from '@prisma/client'
 import { decodeCursor, encodeCursor, normalizeLimit } from '../lib/pagination'
 import {
@@ -279,8 +286,8 @@ export class LandingPageService {
     const business = await db.business.findUniqueOrThrow({ where: { id: businessId } })
     const selectedContent = normalizeLegacyPageContent(
       data.content ??
-        SYSTEM_TEMPLATE_STARTER_CONTENT[data.templateId] ??
-        starterContentForTemplate(template.schema as never, business.name),
+        SYSTEM_TEMPLATE_STARTER_CONTENT[data.templateId]?.(business) ??
+        starterContentForTemplate(template.schema as never, business),
     )
     const initialContent = {
       ...selectedContent,
@@ -634,6 +641,49 @@ export class LandingPageService {
       leads: leadIds.length,
       sales,
       revenue: Number(revenueAgg._sum.amount ?? 0),
+    }
+  }
+
+  // Pages Phase 3 (2026-09-10) — see docs/strategy/pages-page-types-and-style-axes-roadmap.md §6
+  // Phase 3. Read-only; powers the in-editor Layout switcher and Page Type conversion off one
+  // evaluation, per PageCompatibilityService's active-vs-dormant model.
+  async compatibility(businessId: string, landingPageId: string) {
+    const page = await this._find(businessId, landingPageId)
+    const contract = await loadPageCompatibilityContract()
+    const state = computePageState({
+      content: page.content,
+      formId: page.formId,
+      enabledCapabilities: page.enabledCapabilities,
+      hasAdSlots: page.adSlots.length > 0,
+    })
+    const currentLayout = contract.layouts.find((l) => l.id === page.templateId)
+
+    const layouts = contract.layouts.map((layout) => {
+      const result = evaluateLayoutCompatibility(state, layout.id, contract, page.templateId)
+      return {
+        layoutId: layout.id,
+        pageType: layout.pageType,
+        compatible: result.compatible,
+        blockers: result.blockers,
+        warnings: result.warnings,
+      }
+    })
+    const pageTypes = PAGE_TYPE_KEYS.map((pageType) => {
+      const result = evaluatePageTypeCompatibility(state, pageType, contract, page.templateId)
+      return {
+        pageType,
+        compatible: result.compatible,
+        blockers: result.blockers,
+        warnings: result.warnings,
+        supportedLayoutIds: result.supportedLayouts,
+      }
+    })
+
+    return {
+      currentLayoutId: page.templateId,
+      currentPageType: currentLayout?.pageType ?? 'LANDING',
+      layouts,
+      pageTypes,
     }
   }
 

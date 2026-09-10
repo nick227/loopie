@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Mail, Megaphone, LayoutTemplate, Plus, Waves } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { useQuickCreatePage } from '@/hooks/useQuickCreatePage'
 import { RiverComposerModal } from '@/components/river/RiverComposerModal'
@@ -29,8 +29,6 @@ export function CreateMenu({
     {
       key: 'message',
       label: 'Message',
-      description: 'Email or text a contact or audience',
-      icon: Mail,
       onSelect: () => {
         setOpen(false)
         navigate('/messages/new')
@@ -39,8 +37,6 @@ export function CreateMenu({
     {
       key: 'page',
       label: 'Page',
-      description: 'A hosted landing page you own',
-      icon: LayoutTemplate,
       onSelect: async () => {
         setPageError(null)
         const result = await quickCreatePage.create()
@@ -52,8 +48,6 @@ export function CreateMenu({
     {
       key: 'ad',
       label: 'Ad',
-      description: 'Create a first-party or platform ad',
-      icon: Megaphone,
       onSelect: () => {
         setOpen(false)
         navigate('/ads/new')
@@ -61,9 +55,7 @@ export function CreateMenu({
     },
     {
       key: 'river',
-      label: 'River post',
-      description: 'Post text, media, or share a page/ad',
-      icon: Waves,
+      label: 'Post',
       onSelect: () => {
         setOpen(false)
         setRiverComposerOpen(true)
@@ -93,15 +85,9 @@ export function CreateMenu({
                 onClick={() => void item.onSelect()}
                 className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-accent disabled:opacity-50"
               >
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
-                  <item.icon size={17} />
-                </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-medium text-foreground">
                     {item.pending ? 'Creating…' : item.label}
-                  </span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {item.description}
                   </span>
                 </span>
               </button>

@@ -86,6 +86,7 @@ export function AdEditor({
   deletePending,
   initialMediaPickerType,
   autoFocusPrimaryText,
+  initialPlacement,
 }: {
   name: string
   primaryText: string
@@ -147,13 +148,18 @@ export function AdEditor({
   deletePending?: boolean
   initialMediaPickerType?: 'IMAGE' | 'VIDEO'
   autoFocusPrimaryText?: boolean
+  // Set when arriving from a starter Ad Type (AdCatalogStartRow) whose format isn't Meta Feed —
+  // the preview should open already showing the same format the starter tile promised, not
+  // silently default back to Meta Feed. A one-shot initializer (like initialMediaPickerType
+  // above): known synchronously from the URL's ?adType= at first render, never re-applied after.
+  initialPlacement?: AdPreviewPlacement
 }) {
   const [open, setOpen] = useState(Boolean(initialMediaPickerType))
   const [embedModalOpen, setEmbedModalOpen] = useState(false)
   const [selected, setSelected] = useState<string[]>([])
   const [reviewKey, setReviewKey] = useState<string | null>(null)
   const [relaunch, setRelaunch] = useState<{ key: string; run: AdRun } | null>(null)
-  const [placement, setPlacement] = useState<AdPreviewPlacement>('meta-feed')
+  const [placement, setPlacement] = useState<AdPreviewPlacement>(initialPlacement ?? 'meta-feed')
   const pages = useFlatPages(useLandingPages({ limit: 100 }))
   const onDeckId = assetIds[0]
   const onDeck = useAsset(onDeckId ?? '').data?.data

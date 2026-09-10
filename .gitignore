@@ -17,3 +17,7 @@ uploads/
 *.pem
 *.key
 credentials.json
+
+# Generated report artifacts (e.g. apps/server/scripts/pageCompatibilityMatrix.ts) — derived from
+# real business data on whatever database they were run against, never source.
+apps/server/scripts/output/

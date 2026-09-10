@@ -23,7 +23,7 @@ export function RiverPostPage() {
 
   if (postQuery.isPending) {
     return (
-      <div className="mx-auto max-w-[900px] space-y-6">
+      <div className="mx-auto max-w-5xl space-y-6">
         <Skeleton className="h-48 w-full rounded-2xl" />
       </div>
     )
@@ -31,7 +31,7 @@ export function RiverPostPage() {
 
   if (postQuery.isError || !post) {
     return (
-      <div className="mx-auto max-w-[900px]">
+      <div className="mx-auto max-w-5xl">
         <EmptyState
           icon={Waves}
           title="Post not found"
@@ -42,7 +42,7 @@ export function RiverPostPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[900px] space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6">
       <RiverFeedCard item={post} viewerBusinessId={viewerBusinessId} />
 
       <div>

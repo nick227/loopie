@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ApiError,
+  useBusiness,
   useCreateAdRun,
   useCreateAdvertisement,
   useCreateAsset,
@@ -9,8 +10,14 @@ import {
   useResumeAdRun,
   useUpdateAdvertisement,
 } from '@project/sdk'
-import type { AdCreativeFormat } from '@project/ad-renderer'
+import {
+  AD_TYPE_REGISTRY,
+  createStarterAds,
+  type AdCreativeFormat,
+  type AdPurpose,
+} from '@project/ad-renderer'
 import { AdEditor } from '@/components/ads/AdEditor'
+import type { AdPreviewPlacement } from '@/components/ads/preview/types'
 import { CreateAdDesignerPage } from '@/pages/ads/CreateAdDesignerPage'
 import { startAdRuns } from '@/lib/startAdRuns'
 import { usePageTitle } from '@/lib/headerContext'
@@ -51,12 +58,68 @@ function CreateGenericAdPage() {
   const promotedPageId = searchParams.get('pageId')
   const promotedPage = useLandingPage(promotedPageId ?? '').data?.data
   const appliedPromotedPageId = useRef<string | null>(null)
+  /* eslint-disable react-hooks/set-state-in-effect -- syncing a one-shot prefill from the URL's
+     ?pageId / ?adType (an external system, react-router's own search params) into React state,
+     guarded by a ref so it fires exactly once per param value — the same carve-out already used in
+     useLandingPageEditor.ts's query-param sync. */
   useEffect(() => {
     if (!promotedPage || appliedPromotedPageId.current === promotedPage.id) return
     appliedPromotedPageId.current = promotedPage.id
     setName((curr) => curr || `Promote: ${promotedPage.name}`)
     setDestinationUrl((curr) => curr || promotedPage.hostedUrl || '')
   }, [promotedPage])
+
+  // Set when arriving from AdCatalogStartRow's 8-item Ad Type catalog (2026-09-10) — prefills the
+  // same starter content the catalog's own screenshot was rendered from
+  // (packages/ad-renderer's createStarterAds), using this business's real facts where known.
+  // Never auto-saved: the user still reviews/edits before Save, same as every other /ads/new path.
+  const adType = searchParams.get('adType')
+  // Known synchronously from the URL alone (a pure registry lookup, no business fetch needed) —
+  // so the preview opens on the right format from the very first render, not one tick later once
+  // useBusiness() resolves.
+  const initialPlacement: AdPreviewPlacement | undefined =
+    adType && Object.hasOwn(AD_TYPE_REGISTRY, adType)
+      ? AD_TYPE_REGISTRY[adType as AdPurpose].format
+      : undefined
+  const business = useBusiness().data?.data
+  const appliedAdType = useRef<string | null>(null)
+  useEffect(() => {
+    if (!adType || !business || appliedAdType.current === adType) return
+    if (!Object.hasOwn(AD_TYPE_REGISTRY, adType)) return
+    appliedAdType.current = adType
+    const ads = createStarterAds({
+      name: business.name,
+      tagline: business.tagline ?? undefined,
+      description: business.description ?? undefined,
+      location: business.location ?? undefined,
+      destinationUrl: business.website ?? undefined,
+    })
+    const ad = ads.find((a) => a.typeKey === adType)
+    if (!ad) return
+    setName((curr) => curr || AD_TYPE_REGISTRY[adType as AdPurpose].label)
+    setHeadline((curr) => curr || ad.content.headline)
+    setPrimaryText((curr) => curr || ad.content.body || '')
+    setCtaLabel((curr) => curr || ad.content.ctaLabel || '')
+    setDestinationUrl((curr) => curr || ad.destinationUrl || '')
+    // Blank is the one starter with no image (packages/ad-renderer's adCatalog.ts) — every other
+    // starter ships a real illustration. Attach it as a real per-business Asset so the editor
+    // opens already showing the picture, not just prefilled text.
+    if (ad.content.mediaUrl) {
+      const mediaUrl = ad.content.mediaUrl
+      void createAsset
+        .mutateAsync({
+          type: 'IMAGE',
+          name: `${AD_TYPE_REGISTRY[adType as AdPurpose].label} illustration`,
+          file: { filename: `${adType}-starter.png`, mimeType: 'image/png', data: mediaUrl },
+        })
+        .then((result) => {
+          const id = result.data?.id
+          if (id) setAssetIds((curr) => (curr.length ? curr : [id]))
+        })
+    }
+  }, [adType, business])
+  /* eslint-enable react-hooks/set-state-in-effect */
+
   const [error, setError] = useState<string | null>(null)
   // Set once the Advertisement itself is first persisted, so a retry after a failed run-send
   // (bad budget, bad dates, a connector rejection) updates that same draft instead of creating a
@@ -117,6 +180,7 @@ function CreateGenericAdPage() {
       destinationUrl={destinationUrl}
       assetIds={assetIds}
       runs={[]}
+      initialPlacement={initialPlacement}
       pending={pending}
       error={error}
       onName={setName}

@@ -1,12 +1,4 @@
-import { useBusinessTeam, useCurrentUser, type components } from '@project/sdk'
-
-type Goal = components['schemas']['ScheduledGoal']
-
-export function matchesAssignee(goal: Goal, filter: string, currentUserId?: string) {
-  if (filter === 'everyone') return true
-  if (filter === 'unassigned') return goal.assignedToUserId == null
-  return goal.assignedToUserId === (filter === 'me' ? currentUserId : filter)
-}
+import { useBusinessTeam, useCurrentUser } from '@project/sdk'
 
 export function TaskOwner({ userId }: { userId?: string | null }) {
   const team = useBusinessTeam()

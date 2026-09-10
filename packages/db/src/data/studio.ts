@@ -1,6 +1,7 @@
 import type { TemplateSchema } from '../leadGenTemplate'
 import { DEFAULT_PAGE_FAVICON_URL, type PageContent } from '../content'
 import { PAGE_THEME_PRESETS } from '../pageThemes'
+import type { StarterPageBusiness } from '../starterPageBusiness'
 
 export const SYSTEM_STUDIO_TEMPLATE_ID = 'system-template-studio'
 
@@ -68,172 +69,179 @@ export const studioSchema: TemplateSchema = {
   themePresets: PAGE_THEME_PRESETS,
 }
 
-export const studioStarterContent: PageContent = {
-  browser: {
-    title: 'Fieldnote',
-    favicon: { url: DEFAULT_PAGE_FAVICON_URL },
-  },
-  nav: {
-    brand: 'Fieldnote',
-    links: [{ label: 'Start a project', url: '#contact' }],
-  },
-  hero: {
-    headline: 'Make work people remember.',
-    body: 'Fieldnote is an independent studio for founders who want fewer, better decisions — strategy, identity, and digital design under one roof.',
-    media: {
-      url: 'https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&q=80&w=2400',
-      alt: 'Studio workspace with design work in progress',
+// A function, not a static object — see StarterPageBusiness's own doc comment. Only the identity
+// slots substitute real facts; logos/services/gallery/features/testimonials/faq stay hand-authored
+// example copy — no honest source for a real client list or a real quote.
+export function studioStarterContent(business: StarterPageBusiness): PageContent {
+  return {
+    browser: {
+      title: business.name,
+      favicon: { url: DEFAULT_PAGE_FAVICON_URL },
     },
-    primaryCta: { label: 'Start a project', url: '#contact' },
-  },
-  logos: {
-    title: 'Trusted by teams building something real',
-    items: [
-      { name: 'Northbound' },
-      { name: 'Halcyon' },
-      { name: 'Ledger & Co.' },
-      { name: 'Meridian' },
-      { name: 'Alder' },
-    ],
-  },
-  features: {
-    headline: 'How we work',
-    body: 'Three phases. No handoffs, no black box.',
-    items: [
-      {
-        title: 'Discover',
-        body: 'We spend two weeks in your business before we design anything — talking to your team, your customers, your competitors.',
+    nav: {
+      brand: business.name,
+      links: [{ label: 'Start a project', url: '#contact' }],
+    },
+    hero: {
+      headline: business.tagline || 'Make work people remember.',
+      body:
+        business.description ||
+        'An independent studio for founders who want fewer, better decisions — strategy, identity, and digital design under one roof.',
+      media: {
+        url: 'https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&q=80&w=2400',
+        alt: 'Studio workspace with design work in progress',
       },
-      {
-        title: 'Design',
-        body: 'Strategy becomes system: identity, voice, and the digital experience, built together so nothing feels bolted on.',
-      },
-      {
-        title: 'Deliver',
-        body: 'You leave with real files, real guidelines, and a team that still picks up the phone six months later.',
-      },
-    ],
-  },
-  services: {
-    title: 'What we do',
-    body: 'Three ways in, depending on how much of the problem is already solved.',
-    items: [
-      {
-        id: 'strategy',
-        label: 'Strategy',
-        headline: 'Positioning, before anything gets designed.',
-        description:
-          'Who you’re for, what you’re actually selling, and the one thing competitors can’t say. Two weeks, one document, no deck theater.',
-        media: {
-          url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&q=80&w=1600',
-          alt: 'Strategy workshop with sticky notes and whiteboards',
+      primaryCta: { label: 'Start a project', url: '#contact' },
+    },
+    logos: {
+      title: 'Trusted by teams building something real',
+      items: [
+        { name: 'Northbound' },
+        { name: 'Halcyon' },
+        { name: 'Ledger & Co.' },
+        { name: 'Meridian' },
+        { name: 'Alder' },
+      ],
+    },
+    features: {
+      headline: 'How we work',
+      body: 'Three phases. No handoffs, no black box.',
+      items: [
+        {
+          title: 'Discover',
+          body: 'We spend two weeks in your business before we design anything — talking to your team, your customers, your competitors.',
         },
-        cta: { label: 'Start with strategy', url: '#contact' },
-      },
-      {
-        id: 'identity',
-        label: 'Identity',
-        headline: 'A system, not a logo file.',
-        description:
-          'Mark, type, color, and voice — built to survive a hundred people using it without you in the room.',
-        media: {
-          url: 'https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&q=80&w=1600',
-          alt: 'Brand identity type and color proofs',
+        {
+          title: 'Design',
+          body: 'Strategy becomes system: identity, voice, and the digital experience, built together so nothing feels bolted on.',
         },
-        cta: { label: 'See identity work', url: '#contact' },
-      },
-      {
-        id: 'digital',
-        label: 'Digital',
-        headline: 'The site and product, built by the same team.',
-        description:
-          'No handoff between the brand studio and the build team — one team, so nothing gets lost in translation.',
-        media: {
-          url: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&q=80&w=1600',
-          alt: 'Digital product design on a laptop screen',
+        {
+          title: 'Deliver',
+          body: 'You leave with real files, real guidelines, and a team that still picks up the phone six months later.',
         },
-        cta: { label: 'See digital work', url: '#contact' },
-      },
-    ],
-  },
-  gallery: {
-    title: 'Selected work',
-    body: 'A few frames from recent projects and days on the studio floor — proof before the pitch.',
-    items: [
-      {
-        url: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&q=80&w=1200',
-        alt: 'Studio hallway and workspace',
-        caption: 'The studio, most Mondays',
-      },
-      {
-        url: 'https://images.unsplash.com/photo-1541746972996-4e0b0f43e02a?auto=format&fit=crop&q=80&w=1200',
-        alt: 'Design team reviewing print samples',
-        caption: 'Print review, Northbound',
-      },
-      {
-        url: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&q=80&w=1200',
-        alt: 'Close-up of a color palette board',
-        caption: 'Palette exploration',
-      },
-      {
-        url: 'https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&q=80&w=1200',
-        alt: 'Studio desk with sketches',
-        caption: 'Early sketches, Halcyon',
-      },
-      {
-        url: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&q=80&w=1200',
-        alt: 'Printed brand guideline pages',
-        caption: 'Finished guidelines',
-      },
-      {
-        url: 'https://images.unsplash.com/photo-1497215842964-222b430dc094?auto=format&fit=crop&q=80&w=1200',
-        alt: 'Team working around a table',
-        caption: 'Studio, most Tuesdays',
-      },
-    ],
-  },
-  testimonials: {
-    headline: 'What it’s like to work with us',
-    body: '',
-    items: [
-      {
-        quote:
-          'They asked harder questions about our business than our own board did. The brand that came out of it was the easy part.',
-        author: 'Priya Anand',
-        role: 'Founder, Northbound',
-      },
-      {
-        quote:
-          'No decks full of buzzwords. Just decisions, explained plainly, that turned out to be right.',
-        author: 'Sam Okafor',
-        role: 'CEO, Halcyon',
-      },
-    ],
-  },
-  faq: {
-    headline: 'Before you reach out',
-    body: '',
-    items: [
-      {
-        question: 'What size clients do you take on?',
-        answer:
-          'Mostly founder-led companies between 5 and 200 people — early enough that brand decisions still compound, established enough to commit to them.',
-      },
-      {
-        question: 'How long does an engagement run?',
-        answer:
-          'Most brand and identity engagements run 8–12 weeks. Ongoing digital work is scoped separately, month to month.',
-      },
-      {
-        question: 'Do you work with agencies or only direct?',
-        answer:
-          'Both — about a third of our work comes through agency and VC referrals for portfolio companies.',
-      },
-    ],
-  },
-  footer: {
-    headline: 'Tell us what you’re building.',
-    body: 'A short note is enough to start — we reply within two business days, every time.',
-    cta: { label: 'Send it', url: '#contact' },
-  },
+      ],
+    },
+    services: {
+      title: 'What we do',
+      body: 'Three ways in, depending on how much of the problem is already solved.',
+      items: [
+        {
+          id: 'strategy',
+          label: 'Strategy',
+          headline: 'Positioning, before anything gets designed.',
+          description:
+            'Who you’re for, what you’re actually selling, and the one thing competitors can’t say. Two weeks, one document, no deck theater.',
+          media: {
+            url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&q=80&w=1600',
+            alt: 'Strategy workshop with sticky notes and whiteboards',
+          },
+          cta: { label: 'Start with strategy', url: '#contact' },
+        },
+        {
+          id: 'identity',
+          label: 'Identity',
+          headline: 'A system, not a logo file.',
+          description:
+            'Mark, type, color, and voice — built to survive a hundred people using it without you in the room.',
+          media: {
+            url: 'https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&q=80&w=1600',
+            alt: 'Brand identity type and color proofs',
+          },
+          cta: { label: 'See identity work', url: '#contact' },
+        },
+        {
+          id: 'digital',
+          label: 'Digital',
+          headline: 'The site and product, built by the same team.',
+          description:
+            'No handoff between the brand studio and the build team — one team, so nothing gets lost in translation.',
+          media: {
+            url: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&q=80&w=1600',
+            alt: 'Digital product design on a laptop screen',
+          },
+          cta: { label: 'See digital work', url: '#contact' },
+        },
+      ],
+    },
+    gallery: {
+      title: 'Selected work',
+      body: 'A few frames from recent projects and days on the studio floor — proof before the pitch.',
+      items: [
+        {
+          url: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&q=80&w=1200',
+          alt: 'Studio hallway and workspace',
+          caption: 'The studio, most Mondays',
+        },
+        {
+          url: 'https://images.unsplash.com/photo-1541746972996-4e0b0f43e02a?auto=format&fit=crop&q=80&w=1200',
+          alt: 'Design team reviewing print samples',
+          caption: 'Print review, Northbound',
+        },
+        {
+          url: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&q=80&w=1200',
+          alt: 'Close-up of a color palette board',
+          caption: 'Palette exploration',
+        },
+        {
+          url: 'https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&q=80&w=1200',
+          alt: 'Studio desk with sketches',
+          caption: 'Early sketches, Halcyon',
+        },
+        {
+          url: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&q=80&w=1200',
+          alt: 'Printed brand guideline pages',
+          caption: 'Finished guidelines',
+        },
+        {
+          url: 'https://images.unsplash.com/photo-1497215842964-222b430dc094?auto=format&fit=crop&q=80&w=1200',
+          alt: 'Team working around a table',
+          caption: 'Studio, most Tuesdays',
+        },
+      ],
+    },
+    testimonials: {
+      headline: 'What it’s like to work with us',
+      body: '',
+      items: [
+        {
+          quote:
+            'They asked harder questions about our business than our own board did. The brand that came out of it was the easy part.',
+          author: 'Priya Anand',
+          role: 'Founder, Northbound',
+        },
+        {
+          quote:
+            'No decks full of buzzwords. Just decisions, explained plainly, that turned out to be right.',
+          author: 'Sam Okafor',
+          role: 'CEO, Halcyon',
+        },
+      ],
+    },
+    faq: {
+      headline: 'Before you reach out',
+      body: '',
+      items: [
+        {
+          question: 'What size clients do you take on?',
+          answer:
+            'Mostly founder-led companies between 5 and 200 people — early enough that brand decisions still compound, established enough to commit to them.',
+        },
+        {
+          question: 'How long does an engagement run?',
+          answer:
+            'Most brand and identity engagements run 8–12 weeks. Ongoing digital work is scoped separately, month to month.',
+        },
+        {
+          question: 'Do you work with agencies or only direct?',
+          answer:
+            'Both — about a third of our work comes through agency and VC referrals for portfolio companies.',
+        },
+      ],
+    },
+    footer: {
+      headline: 'Tell us what you’re building.',
+      body: 'A short note is enough to start — we reply within two business days, every time.',
+      cta: { label: 'Send it', url: '#contact' },
+    },
+  }
 }

@@ -1697,6 +1697,41 @@ model Interaction {
   @@index([providerId])
 }
 
+// ---------- Shared Catalog Vocabulary (Pages/Ads boundary, 2026-09-10) ----------
+//
+// See docs/strategy/pages-and-ads-shared-catalog-boundary.md. These two tables are pure
+// vocabulary — governed lookup rows, nothing else. They must never gain a domain-specific FK
+// (to LandingPageTemplate, Advertisement, PageType, ...), a status/lifecycle field, rendering
+// rule, or compatibility-evaluation logic. Domain-specific contract tables (e.g.
+// PageTypeCapability below) reference these from the outside; these tables never reference back.
+// Genre in particular is catalog *browsing/classification* metadata only — it must never appear
+// as an input to a compatibility evaluator (see PageCompatibilityService's own invariant note).
+
+model Capability {
+  id          String   @id @default(cuid())
+  key         String   @unique // stable, product-governed, e.g. "LEAD_CAPTURE"
+  label       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  pageTypeRequirements PageTypeCapability[]
+  pageLayoutSupport    PageLayoutCapability[]
+
+  @@index([key])
+}
+
+model Genre {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  label       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([key])
+}
+
 // ---------- Landing Pages ----------
 //
 // Authoring is intentionally constrained to a structured, template-driven model — not a
@@ -1706,13 +1741,57 @@ model Interaction {
 //
 // LandingPageTemplate -> LandingPage (draft working copy) -> PublishedPageVersion (immutable).
 
+// Page purpose (Home/Landing/Studio/Email Capture/Store/Event) — see
+// docs/strategy/pages-page-types-and-style-axes-roadmap.md §2.1. Deliberately separate from
+// `category` above (which only ever distinguishes the editor-implementation split, lead-gen vs
+// advanced) and from `renderer` inside `schema` (which is the visual implementation, not the
+// purpose). A page's PageType is a fixed property of its Layout (LandingPageTemplate row), not
+// a directly user-editable field on LandingPage itself — "converting" a page's type means
+// switching its templateId to a Layout of the target PageType, validated by
+// PageCompatibilityService, not writing a pageType column on LandingPage.
+enum PageType {
+  HOME
+  LANDING
+  STUDIO
+  PORTFOLIO // split out of STUDIO 2026-09-10 — see roadmap doc §9; Portfolio has no gallery
+  // section and serves a distinct intent (personal/freelance showcase vs. Studio's brand-forward
+  // agency site) — the two only shared a Page Type as an artifact of sharing render code.
+  EMAIL_CAPTURE
+  STORE
+  EVENT
+  GENERAL // 2026-09-10 — a genuinely blank, unopinionated starting point; not a variant of any
+  // existing purpose, deliberately carries no strong capability recommendations (§9).
+}
+
+// PageTypeCapability's requirement level and PageLayoutCapability/PageLayoutSlotSupport's support
+// level are deliberately two different enums (not one shared "level" enum) — REQUIRED means a
+// different thing on each side (every page of this PageType must have it, vs. this Layout can
+// never render it) and collapsing them risks a REQUIRED that silently means two things.
+enum CapabilityRequirementLevel {
+  REQUIRED
+  RECOMMENDED
+  ALLOWED
+}
+
+enum CapabilitySupportLevel {
+  REQUIRED
+  SUPPORTED
+  UNSUPPORTED
+}
+
 model LandingPageTemplate {
   id              String   @id @default(cuid())
   businessId      String? // null = system template (ships with LOOPIE or imported from a catalog)
   isSystem        Boolean  @default(false)
   name            String
   description     String?
-  category        String? // free-form for V1: "lead-gen", "event", "promo", ...
+  category        String? // free-form for V1: "lead-gen", "event", "promo", ... — editor-implementation split only, see formatVersion; not a page-purpose taxonomy, that's pageType below
+  // Defaulted (not left implicit-required) purely so Prisma's generated CreateInput stays
+  // optional for the many pre-existing test fixtures that create a throwaway LandingPageTemplate
+  // for unrelated feature tests (Ad Run budget, hardening, etc.) with no opinion on page purpose
+  // — every real system Layout still sets this explicitly in ensureSystemTemplates.ts, and the
+  // default is never silently relied on there.
+  pageType        PageType @default(LANDING) // page purpose — see the enum's own doc comment above
   formatVersion   String   @default("1.0") // versions the schema shape below, independent of LOOPIE's own release
   previewImageUrl String?
   // { sections: [{ key, type, order, hideable, editable: string[] }], themeTokens: string[] }
@@ -1722,10 +1801,68 @@ model LandingPageTemplate {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  business Business?     @relation(fields: [businessId], references: [id])
-  pages    LandingPage[]
+  business          Business?               @relation(fields: [businessId], references: [id])
+  capabilitySupport PageLayoutCapability[]
+  slotSupport       PageLayoutSlotSupport[]
+  pages             LandingPage[]
 
   @@index([businessId])
+  @@index([pageType])
+}
+
+// ---------- Page compatibility contract (2026-09-10) ----------
+//
+// See docs/strategy/pages-page-types-and-style-axes-roadmap.md §3 and
+// docs/strategy/pages-and-ads-shared-catalog-boundary.md. Page-domain only — references the
+// shared Capability vocabulary from the outside; never referenced by Advertisement code. All
+// three tables are pure contract data, evaluated by PageCompatibilityService
+// (apps/server/src/services/PageCompatibilityService.ts), never mutated by rendering/publishing.
+
+// PageType's requirement level per Capability — e.g. (STORE, PRODUCT_CATALOG) -> REQUIRED.
+model PageTypeCapability {
+  id               String                     @id @default(cuid())
+  pageType         PageType
+  capabilityId     String
+  requirementLevel CapabilityRequirementLevel
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+
+  capability Capability @relation(fields: [capabilityId], references: [id])
+
+  @@unique([pageType, capabilityId])
+  @@index([capabilityId])
+}
+
+// A Layout's (LandingPageTemplate row's) declared support level per Capability.
+model PageLayoutCapability {
+  id                    String                 @id @default(cuid())
+  landingPageTemplateId String
+  capabilityId          String
+  supportLevel          CapabilitySupportLevel
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  template   LandingPageTemplate @relation(fields: [landingPageTemplateId], references: [id], onDelete: Cascade)
+  capability Capability          @relation(fields: [capabilityId], references: [id])
+
+  @@unique([landingPageTemplateId, capabilityId])
+  @@index([capabilityId])
+}
+
+// A Layout's declared support level per canonical content slot group. slotGroup is stored as a
+// plain string (one of packages/db/src/content.ts's KNOWN_SLOT_GROUPS), not a second enum, so it
+// can never drift out of sync with the one real definition of what a slot group is.
+model PageLayoutSlotSupport {
+  id                    String                 @id @default(cuid())
+  landingPageTemplateId String
+  slotGroup             String
+  supportLevel          CapabilitySupportLevel
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  template LandingPageTemplate @relation(fields: [landingPageTemplateId], references: [id], onDelete: Cascade)
+
+  @@unique([landingPageTemplateId, slotGroup])
 }
 
 enum PageStatus {
@@ -1735,23 +1872,32 @@ enum PageStatus {
 }
 
 model LandingPage {
-  id                 String     @id @default(cuid())
-  businessId         String
-  templateId         String
-  formId             String?
-  name               String // internal name
-  slug               String     @unique // hosted at /p/{slug}; globally unique so custom domains can map 1:1 later
-  slugAutoManaged    Boolean    @default(true) // true = slug still auto-derives from name on every draft save; false once explicitly edited or once first published — see LandingPageService.update/publish
-  customDomain       String? // domain-ready: DNS/cert provisioning is out of scope for V1, field exists so the mapping has somewhere to live
-  status             PageStatus @default(DRAFT)
-  content            Json // canonical content, keyed by semantic slot group (hero, features, footer, ...) — shared across every template, not shaped per-template. See packages/db/src/content.ts.
-  theme              Json? // theme tokens (brand colors, fonts) — kept distinct from content per the brief's "theme tokens/branding" callout
-  layoutConfig       Json? // presentation only (section visibility/order per slot group) — never content values. See packages/db/src/content.ts.
-  publishedVersionId String?    @unique
-  formStartCount     Int        @default(0) // approximate, not deduplicated by session — see LandingPageService
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
-  deletedAt          DateTime?
+  id                  String     @id @default(cuid())
+  businessId          String
+  templateId          String
+  formId              String?
+  name                String // internal name
+  slug                String     @unique // hosted at /p/{slug}; globally unique so custom domains can map 1:1 later
+  slugAutoManaged     Boolean    @default(true) // true = slug still auto-derives from name on every draft save; false once explicitly edited or once first published — see LandingPageService.update/publish
+  customDomain        String? // domain-ready: DNS/cert provisioning is out of scope for V1, field exists so the mapping has somewhere to live
+  status              PageStatus @default(DRAFT)
+  content             Json // canonical content, keyed by semantic slot group (hero, features, footer, ...) — shared across every template, not shaped per-template. See packages/db/src/content.ts.
+  theme               Json? // theme tokens (brand colors, fonts) — kept distinct from content per the brief's "theme tokens/branding" callout
+  layoutConfig        Json? // presentation only (section visibility/order per slot group) — never content values. See packages/db/src/content.ts.
+  // string[] of Capability.key — explicit, page-instance opt-in state for capabilities with no
+  // existing relation of their own (Gallery, Social Proof, Product Catalog, Live Event Data).
+  // Deliberately separate from both "does this page's content have data in the matching slot
+  // group" and "does the current Layout currently render that slot" — a page can enable Gallery
+  // before uploading any photos, and enabling is not undone by switching to a Layout that hides
+  // the section. Lead Capture/Ad Monetization are NOT tracked here — their own relations
+  // (formId / LandingPageAdSlot rows) already are the enabled state; see
+  // PageCompatibilityService.computePageState and docs/strategy/pages-page-types-and-style-axes-roadmap.md §3.1.
+  enabledCapabilities Json?
+  publishedVersionId  String?    @unique
+  formStartCount      Int        @default(0) // approximate, not deduplicated by session — see LandingPageService
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  deletedAt           DateTime?
 
   business         Business               @relation(fields: [businessId], references: [id])
   template         LandingPageTemplate    @relation(fields: [templateId], references: [id])

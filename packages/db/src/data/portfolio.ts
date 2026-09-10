@@ -1,6 +1,7 @@
 import type { TemplateSchema } from '../leadGenTemplate'
 import { DEFAULT_PAGE_FAVICON_URL, type PageContent } from '../content'
 import { PAGE_THEME_PRESETS } from '../pageThemes'
+import type { StarterPageBusiness } from '../starterPageBusiness'
 
 export const SYSTEM_PORTFOLIO_TEMPLATE_ID = 'system-template-portfolio'
 
@@ -66,115 +67,122 @@ export const portfolioSchema: TemplateSchema = {
   themePresets: PAGE_THEME_PRESETS,
 }
 
-export const portfolioStarterContent: PageContent = {
-  browser: {
-    title: 'Corinne Vale',
-    favicon: { url: DEFAULT_PAGE_FAVICON_URL },
-  },
-  nav: {
-    brand: 'Corinne Vale',
-    links: [{ label: 'Inquire', url: '#contact' }],
-  },
-  hero: {
-    eyebrow: 'Photographer & visual storyteller',
-    headline: 'Quiet, honest work.',
-    body: 'Based on the Oregon coast — commissioned projects for people and publications who want images that hold up for years, not a week of likes.',
-    media: {
-      url: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=2400',
-      alt: 'Couple walking along a coastal cliff at golden hour',
+// A function, not a static object — see StarterPageBusiness's own doc comment. Only the identity
+// slots substitute real facts; services/team/logos/testimonials stay hand-authored example copy —
+// no honest source for a real client list, real team bio, or a real quote.
+export function portfolioStarterContent(business: StarterPageBusiness): PageContent {
+  return {
+    browser: {
+      title: business.name,
+      favicon: { url: DEFAULT_PAGE_FAVICON_URL },
     },
-    primaryCta: { label: 'Inquire', url: '#contact' },
-  },
-  services: {
-    title: 'Featured work',
-    items: [
-      {
-        id: 'cannon-beach',
-        label: 'Project',
-        headline: 'A quiet ceremony on Cannon Beach',
-        description: 'Two families, one long table, and a coastline that did most of the work.',
-        media: {
-          url: 'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&q=80&w=1800',
-          alt: 'Intimate outdoor ceremony on a beach',
+    nav: {
+      brand: business.name,
+      links: [{ label: 'Inquire', url: '#contact' }],
+    },
+    hero: {
+      eyebrow: 'Photographer & visual storyteller',
+      headline: business.tagline || 'Quiet, honest work.',
+      body:
+        business.description ||
+        'Commissioned projects for people and publications who want images that hold up for years, not a week of likes.',
+      media: {
+        url: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=2400',
+        alt: 'Couple walking along a coastal cliff at golden hour',
+      },
+      primaryCta: { label: 'Inquire', url: '#contact' },
+    },
+    services: {
+      title: 'Featured work',
+      items: [
+        {
+          id: 'cannon-beach',
+          label: 'Project',
+          headline: 'A quiet ceremony on Cannon Beach',
+          description: 'Two families, one long table, and a coastline that did most of the work.',
+          media: {
+            url: 'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&q=80&w=1800',
+            alt: 'Intimate outdoor ceremony on a beach',
+          },
+          cta: { label: 'Inquire about a similar project', url: '#contact' },
         },
-        cta: { label: 'Inquire about a similar project', url: '#contact' },
-      },
-      {
-        id: 'kinfolk-editorial',
-        label: 'Editorial',
-        headline: 'A slow-living feature for Kinfolk',
-        description: 'Four days following a family of bakers through their last harvest season.',
-        media: {
-          url: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&q=80&w=1800',
-          alt: 'Editorial portrait in warm natural light',
+        {
+          id: 'kinfolk-editorial',
+          label: 'Editorial',
+          headline: 'A slow-living feature for Kinfolk',
+          description: 'Four days following a family of bakers through their last harvest season.',
+          media: {
+            url: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&q=80&w=1800',
+            alt: 'Editorial portrait in warm natural light',
+          },
+          cta: { label: 'Inquire about a similar project', url: '#contact' },
         },
-        cta: { label: 'Inquire about a similar project', url: '#contact' },
-      },
-      {
-        id: 'juniper-house',
-        label: 'Series',
-        headline: 'Two people, a ridge, and a Wednesday',
-        description: 'No guest list. Just the two of them and about six miles of trail.',
-        media: {
-          url: 'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&q=80&w=1800',
-          alt: 'Couple embracing on a mountain ridge',
+        {
+          id: 'juniper-house',
+          label: 'Series',
+          headline: 'Two people, a ridge, and a Wednesday',
+          description: 'No guest list. Just the two of them and about six miles of trail.',
+          media: {
+            url: 'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&q=80&w=1800',
+            alt: 'Couple embracing on a mountain ridge',
+          },
+          cta: { label: 'Inquire about a similar project', url: '#contact' },
         },
-        cta: { label: 'Inquire about a similar project', url: '#contact' },
-      },
-    ],
-  },
-  features: {
-    headline: 'What I take on',
-    body: 'Three kinds of work, one way of paying attention.',
-    items: [
-      {
-        title: 'Events',
-        body: 'Full-day coverage with no rigid shot list — I follow the day instead of directing it.',
-      },
-      {
-        title: 'Editorial',
-        body: 'Commissioned stories for print and digital publications, shot on location.',
-      },
-      {
-        title: 'Portraits',
-        body: 'A single afternoon, one location, a small set of images that actually look like you.',
-      },
-    ],
-  },
-  team: {
-    items: [
-      {
-        name: 'Corinne Vale',
-        role: 'Photographer',
-        bio: 'I started shooting for friends because I could not afford to hire anyone good. Twelve years later it is still the only kind of work I want to do.',
-        media: {
-          url: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&q=80&w=800',
-          alt: 'Portrait of Corinne Vale',
+      ],
+    },
+    features: {
+      headline: 'What I take on',
+      body: 'Three kinds of work, one way of paying attention.',
+      items: [
+        {
+          title: 'Events',
+          body: 'Full-day coverage with no rigid shot list — I follow the day instead of directing it.',
         },
-      },
-    ],
-  },
-  logos: {
-    title: 'Featured in',
-    items: [{ name: 'Kinfolk' }, { name: 'The Knot' }, { name: 'Cereal' }, { name: 'Rue' }],
-  },
-  testimonials: {
-    items: [
-      {
-        quote:
-          'She spent more time watching us than posing us. The photos feel like the day actually felt.',
-        author: 'Priya & Tom',
-        role: 'Cannon Beach project',
-      },
-      {
-        quote: 'The calmest person on a very unmanageable day. The gallery made me cry, twice.',
-        author: 'Naomi R.',
-        role: 'Private commission',
-      },
-    ],
-  },
-  footer: {
-    headline: 'Let’s talk about your project.',
-    body: 'A few details about the date and the place is enough to start — I reply within two days.',
-  },
+        {
+          title: 'Editorial',
+          body: 'Commissioned stories for print and digital publications, shot on location.',
+        },
+        {
+          title: 'Portraits',
+          body: 'A single afternoon, one location, a small set of images that actually look like you.',
+        },
+      ],
+    },
+    team: {
+      items: [
+        {
+          name: 'Corinne Vale',
+          role: 'Photographer',
+          bio: 'I started shooting for friends because I could not afford to hire anyone good. Twelve years later it is still the only kind of work I want to do.',
+          media: {
+            url: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&q=80&w=800',
+            alt: 'Portrait of Corinne Vale',
+          },
+        },
+      ],
+    },
+    logos: {
+      title: 'Featured in',
+      items: [{ name: 'Kinfolk' }, { name: 'The Knot' }, { name: 'Cereal' }, { name: 'Rue' }],
+    },
+    testimonials: {
+      items: [
+        {
+          quote:
+            'She spent more time watching us than posing us. The photos feel like the day actually felt.',
+          author: 'Priya & Tom',
+          role: 'Cannon Beach project',
+        },
+        {
+          quote: 'The calmest person on a very unmanageable day. The gallery made me cry, twice.',
+          author: 'Naomi R.',
+          role: 'Private commission',
+        },
+      ],
+    },
+    footer: {
+      headline: 'Let’s talk about your project.',
+      body: 'A few details about the date and the place is enough to start — I reply within two days.',
+    },
+  }
 }

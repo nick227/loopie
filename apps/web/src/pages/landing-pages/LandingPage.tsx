@@ -139,7 +139,7 @@ export function LandingPage() {
           Singleton/Collection/Entity grammar (docs/strategy/03-product-principles.md) argues
           against. */}
       <div className="relative z-20 border-y border-border bg-background/95 backdrop-blur-md">
-        <div className="mx-auto flex min-h-12 max-w-[900px] flex-wrap flex-col items-center gap-2 px-3 py-2 lg:flex-nowrap lg:px-0">
+        <div className="mx-auto flex min-h-12 max-w-5xl flex-wrap flex-col items-center gap-2 px-3 py-2 lg:flex-nowrap lg:px-0">
           <div className="flex w-full">
             <input
               value={name}
@@ -208,7 +208,7 @@ export function LandingPage() {
       {saveError && (
         <p
           role="alert"
-          className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm max-w-[900px] mx-auto"
+          className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm max-w-5xl mx-auto"
         >
           {saveError}
         </p>
@@ -222,6 +222,7 @@ export function LandingPage() {
             className="flex min-h-10 items-center justify-center rounded-t-xl border border-b-0 border-input-border bg-muted/45 px-2 py-1"
           >
             <PageToolbar
+              landingPageId={page.id}
               templateId={templateId}
               templateSchema={template?.schema}
               theme={theme}
@@ -283,7 +284,7 @@ export function LandingPage() {
           </div>
         </div>
       ) : tab === 'content' ? (
-        <div className="mx-auto w-full max-w-[900px]">
+        <div className="mx-auto w-full max-w-5xl">
           <ContentView
             content={content}
             sections={sections}
@@ -319,7 +320,7 @@ export function LandingPage() {
           />
         </div>
       ) : (
-        <div className="mx-auto w-full max-w-[900px]">
+        <div className="mx-auto w-full max-w-5xl">
           <PageActivity landingPageId={page.id} />
         </div>
       )}

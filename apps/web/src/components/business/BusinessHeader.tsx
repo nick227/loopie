@@ -1,21 +1,29 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowUpRight, Briefcase, MapPin } from 'lucide-react'
-import { useAsset, useBusiness, useCreateAsset, useUpdateBusiness } from '@project/sdk'
+import { Link, useNavigate } from 'react-router-dom'
+import { ArrowUpRight, Briefcase, LogOut, MapPin } from 'lucide-react'
+import { useAsset, useBusiness, useCreateAsset, useLogout, useUpdateBusiness } from '@project/sdk'
 import { toast } from 'sonner'
 import { MediaPicker } from '@/components/media/MediaPicker'
 import { Avatar } from '@/components/ui/Avatar'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { mediaSrc } from '@/lib/media'
+import { Button } from '@/components/ui/Button'
 
 export function BusinessHeader() {
   const business = useBusiness()
   const updateBusiness = useUpdateBusiness()
   const createAsset = useCreateAsset()
+  const logout = useLogout()
+  const navigate = useNavigate()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<string>()
   const [saving, setSaving] = useState(false)
   const asset = useAsset(selectedId ?? '')
+
+  async function handleLogout() {
+    await logout.mutateAsync()
+    navigate('/login', { replace: true })
+  }
 
   async function applyLogo() {
     if (!selectedId || saving) return
@@ -66,6 +74,7 @@ export function BusinessHeader() {
             {data.name || 'Business'}
           </h1>
         </div>
+        <p className="mt-1 truncate text-sm text-muted-foreground">{data.email}</p>
       </div>
 
       {data.industry || data.location ? (
@@ -116,6 +125,16 @@ export function BusinessHeader() {
           }}
         />
       ) : null}
+
+      <Button
+        variant="outline"
+        className="mt-5 w-full"
+        loading={logout.isPending}
+        onClick={handleLogout}
+      >
+        <LogOut size={15} />
+        Sign out
+      </Button>
     </section>
   )
 }

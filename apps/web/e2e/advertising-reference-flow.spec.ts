@@ -72,9 +72,13 @@ test.describe('Advertising — Singleton/Collection/Entity reference implementat
     const marker = `AdRefE2E ${Date.now()}`
     await page.getByPlaceholder('Search ads by name...').fill(marker)
 
-    // --- Create an Ad ---
-    await page.getByRole('button', { name: 'New ad' }).click()
-    await page.waitForURL(/\/ads\/new$/)
+    // --- Create an Ad: AdsStartRow's Ad Type catalog (2026-09-10) replaced the old "New ad"
+    // button's blind direct-navigate with real starting points, mirroring Pages' own Page Type
+    // picker — "Blank" is the equivalent no-assumption starting point Pages' own Blank tile is.
+    // The prefilled name from the Ad Type ("Blank") is immediately overwritten by this test's own
+    // marker below, same as it always was. ---
+    await page.getByRole('button', { name: /^Blank$/ }).click()
+    await page.waitForURL(/\/ads\/new/)
     await expect(page.locator('header').getByText('New ad', { exact: true })).toBeVisible()
     await page.getByPlaceholder('Ad name').fill(marker)
 

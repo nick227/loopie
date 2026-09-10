@@ -12,6 +12,7 @@ import {
   type LayoutConfig,
   type PageContent,
 } from './content'
+import type { StarterPageBusiness } from './starterPageBusiness'
 
 export const SYSTEM_LEAD_GEN_TEMPLATE_ID = 'system-template-lead-gen'
 export const SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID = 'system-template-lead-gen-media'
@@ -117,7 +118,7 @@ export function defaultLayoutConfigFromSchema(schema: TemplateSchema): LayoutCon
 
 export function starterContentForTemplate(
   schema: TemplateSchema,
-  businessName: string,
+  business: StarterPageBusiness,
 ): PageContent {
   const slotGroups = new Set(
     (schema.sections ?? [])
@@ -125,15 +126,20 @@ export function starterContentForTemplate(
       .filter((slot): slot is NonNullable<typeof slot> => !!slot),
   )
   const content: PageContent = {
-    browser: { title: businessName, favicon: { url: DEFAULT_PAGE_FAVICON_URL } },
+    browser: { title: business.name, favicon: { url: DEFAULT_PAGE_FAVICON_URL } },
   }
   if (slotGroups.has('hero')) {
     const isSplit = (schema.sections ?? []).some((s) => s.type === 'split-capture')
     content.hero = isSplit
-      ? { headline: `Get updates from ${businessName}`, media: { url: MOCK_STARTER_IMAGE } }
+      ? {
+          headline: business.tagline || `Get updates from ${business.name}`,
+          media: { url: MOCK_STARTER_IMAGE },
+        }
       : {
-          headline: `${businessName} is booking this week`,
-          body: 'Leave your name and what you need. We call back the same day with a time that works and a price before we start.',
+          headline: business.tagline || `${business.name} is booking this week`,
+          body:
+            business.description ||
+            'Leave your name and what you need. We call back the same day with a time that works and a price before we start.',
           primaryCta: { label: 'Request a callback', url: '#form' },
         }
   }
@@ -144,7 +150,7 @@ export function starterContentForTemplate(
     content.media = { kind: 'image', url: MOCK_STARTER_IMAGE }
   }
   if (slotGroups.has('footer')) {
-    content.footer = { body: `${businessName} · Send this form — we reply the same day.` }
+    content.footer = { body: `${business.name} · Send this form — we reply the same day.` }
   }
   return content
 }

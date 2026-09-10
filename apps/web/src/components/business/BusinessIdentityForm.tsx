@@ -123,12 +123,63 @@ export function BusinessIdentityForm({
           <label htmlFor="business-industry" className="text-sm font-medium text-foreground">
             Industry
           </label>
-          <Input
+          <select
             id="business-industry"
-            placeholder="Plumbing"
             value={industry}
             onChange={(e) => setIndustry(e.target.value)}
-          />
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          >
+            <option value="">Select an industry…</option>
+            {[
+              'Advertising',
+              'Agriculture',
+              'Arts',
+              'Automotive',
+              'Beauty',
+              'Business Services',
+              'Construction',
+              'Consulting',
+              'Comedy',
+              'Creative',
+              'Education',
+              'Energy & Utilities',
+              'Engineering',
+              'Finance',
+              'Fitness',
+              'Food & Beverage',
+              'Government',
+              'Healthcare',
+              'Home Services',
+              'Hospitality',
+              'Insurance',
+              'Legal Services',
+              'Management',
+              'Manufacturing',
+              'Marketing',
+              'Media',
+              'Nonprofit',
+              'Photography',
+              'Professional Services',
+              'Real Estate',
+              'Restaurants',
+              'Retail',
+              'Sales',
+              'Software',
+              'Sports',
+              'Technology',
+              'Telecommunications',
+              'Transportation',
+              'Travel',
+              'Video',
+              'Websites',
+              'Writing',
+              'Other',
+            ].map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 

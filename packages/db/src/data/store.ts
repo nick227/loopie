@@ -1,5 +1,6 @@
 import type { TemplateSchema } from '../leadGenTemplate'
 import { DEFAULT_PAGE_FAVICON_URL, type PageContent } from '../content'
+import type { StarterPageBusiness } from '../starterPageBusiness'
 
 export const SYSTEM_STORE_TEMPLATE_ID = 'system-template-store'
 
@@ -47,150 +48,157 @@ export const storeSchema: TemplateSchema = {
   themeTokens: [],
 }
 
-export const storeStarterContent: PageContent = {
-  browser: {
-    title: 'Amble Coffee',
-    favicon: { url: DEFAULT_PAGE_FAVICON_URL },
-  },
-  nav: {
-    brand: 'Amble Coffee',
-    links: [{ label: 'Shop', url: '#products' }],
-  },
-  hero: {
-    badges: ['Free shipping over $40', 'Roasted to order, every Tuesday'],
-    headline: 'Coffee, roasted the week you drink it.',
-    body: 'Small-batch beans from five family farms, roasted in Portland three days before your bag ships — not three months.',
-    media: {
-      url: 'https://images.unsplash.com/photo-1447933601403-0c6688de566e?auto=format&fit=crop&q=80&w=1600',
-      alt: 'Bag of freshly roasted coffee beans with beans scattered nearby',
+// A function, not a static object — see StarterPageBusiness's own doc comment. Only the identity
+// slots substitute real facts; the product grid and testimonials stay hand-authored example copy
+// — no honest source for real products/prices or a real quote.
+export function storeStarterContent(business: StarterPageBusiness): PageContent {
+  return {
+    browser: {
+      title: business.name,
+      favicon: { url: DEFAULT_PAGE_FAVICON_URL },
     },
-    primaryCta: { label: 'Shop coffee', url: '#products' },
-  },
-  products: {
-    headline: 'Featured this week',
-    items: [
-      {
-        id: 'cloudline',
-        name: 'Cloudline — Light Roast',
-        price: '$19',
-        badge: 'Best seller',
-        media: {
-          url: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&q=80&w=900',
-          alt: 'Bag of Cloudline light roast coffee',
-        },
-        cta: { label: 'View product', url: '#products' },
-      },
-      {
-        id: 'basin',
-        name: 'Basin — Medium Roast',
-        price: '$19',
-        media: {
-          url: 'https://images.unsplash.com/photo-1521302080334-4bebac2763a6?auto=format&fit=crop&q=80&w=900',
-          alt: 'Bag of Basin medium roast coffee',
-        },
-        cta: { label: 'View product', url: '#products' },
-      },
-      {
-        id: 'night-watch',
-        name: 'Night Watch — Dark Roast',
-        price: '$19',
-        badge: 'New',
-        media: {
-          url: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&q=80&w=900',
-          alt: 'Bag of Night Watch dark roast coffee',
-        },
-        cta: { label: 'View product', url: '#products' },
-      },
-      {
-        id: 'origin-trio',
-        name: 'Origin Trio Sampler',
-        price: '$42',
-        media: {
-          url: 'https://images.unsplash.com/photo-1442550528053-c431ecb55509?auto=format&fit=crop&q=80&w=900',
-          alt: 'Close-up of roasted coffee beans',
-        },
-        cta: { label: 'View product', url: '#products' },
-      },
-    ],
-  },
-  categories: {
-    headline: 'Shop by category',
-    items: [
-      {
-        label: 'Whole bean',
-        url: '#products',
-        media: {
-          url: 'https://images.unsplash.com/photo-1442512595331-e89e73853f31?auto=format&fit=crop&q=80&w=800',
-          alt: 'Whole coffee beans',
-        },
-      },
-      {
-        label: 'Ground',
-        url: '#products',
-        media: {
-          url: 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?auto=format&fit=crop&q=80&w=800',
-          alt: 'Ground coffee and whole beans on a wooden board',
-        },
-      },
-      {
-        label: 'Subscriptions',
-        url: '#products',
-        media: {
-          url: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&q=80&w=800',
-          alt: 'Coffee bags packed for shipping',
-        },
-      },
-      {
-        label: 'Merch',
-        url: '#products',
-        media: {
-          url: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&q=80&w=800',
-          alt: 'Branded mug and tote bag',
-        },
-      },
-    ],
-  },
-  intro: {
-    headline: 'Small farms, short chain.',
-    body: 'We buy directly from five farms we visit every year — no importers, no blending, no beans older than a season. If a harvest is thin, we sell less coffee. We don’t stretch it with something else.',
-    media: {
-      url: 'https://images.unsplash.com/photo-1520903920243-00d872a2d1c9?auto=format&fit=crop&q=80&w=1400',
-      alt: 'A customer holding a latte with hand-poured art',
+    nav: {
+      brand: business.name,
+      links: [{ label: 'Shop', url: '#products' }],
     },
-  },
-  logos: {
-    title: 'As seen in',
-    items: [
-      { name: 'Sprudge' },
-      { name: 'Food & Wine' },
-      { name: 'Eater' },
-      { name: 'Bon Appétit' },
-    ],
-  },
-  testimonials: {
-    items: [
-      {
-        quote:
-          'The freshest coffee I have ever had delivered. You can genuinely taste the roast date.',
-        author: 'Devin M.',
-        role: 'Subscriber since 2023',
+    hero: {
+      badges: ['Free shipping over $40'],
+      headline: business.tagline || 'Coffee, roasted the week you drink it.',
+      body:
+        business.description ||
+        'Small-batch and made to order — not sitting on a shelf for months before it reaches you.',
+      media: {
+        url: 'https://images.unsplash.com/photo-1447933601403-0c6688de566e?auto=format&fit=crop&q=80&w=1600',
+        alt: 'Bag of freshly roasted coffee beans with beans scattered nearby',
       },
-      {
-        quote: 'Origin Trio is how I finally figured out what roast I actually like.',
-        author: 'Anh T.',
-        role: 'Repeat customer',
+      primaryCta: { label: 'Shop coffee', url: '#products' },
+    },
+    products: {
+      headline: 'Featured this week',
+      items: [
+        {
+          id: 'cloudline',
+          name: 'Cloudline — Light Roast',
+          price: '$19',
+          badge: 'Best seller',
+          media: {
+            url: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&q=80&w=900',
+            alt: 'Bag of Cloudline light roast coffee',
+          },
+          cta: { label: 'View product', url: '#products' },
+        },
+        {
+          id: 'basin',
+          name: 'Basin — Medium Roast',
+          price: '$19',
+          media: {
+            url: 'https://images.unsplash.com/photo-1521302080334-4bebac2763a6?auto=format&fit=crop&q=80&w=900',
+            alt: 'Bag of Basin medium roast coffee',
+          },
+          cta: { label: 'View product', url: '#products' },
+        },
+        {
+          id: 'night-watch',
+          name: 'Night Watch — Dark Roast',
+          price: '$19',
+          badge: 'New',
+          media: {
+            url: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&q=80&w=900',
+            alt: 'Bag of Night Watch dark roast coffee',
+          },
+          cta: { label: 'View product', url: '#products' },
+        },
+        {
+          id: 'origin-trio',
+          name: 'Origin Trio Sampler',
+          price: '$42',
+          media: {
+            url: 'https://images.unsplash.com/photo-1442550528053-c431ecb55509?auto=format&fit=crop&q=80&w=900',
+            alt: 'Close-up of roasted coffee beans',
+          },
+          cta: { label: 'View product', url: '#products' },
+        },
+      ],
+    },
+    categories: {
+      headline: 'Shop by category',
+      items: [
+        {
+          label: 'Whole bean',
+          url: '#products',
+          media: {
+            url: 'https://images.unsplash.com/photo-1442512595331-e89e73853f31?auto=format&fit=crop&q=80&w=800',
+            alt: 'Whole coffee beans',
+          },
+        },
+        {
+          label: 'Ground',
+          url: '#products',
+          media: {
+            url: 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?auto=format&fit=crop&q=80&w=800',
+            alt: 'Ground coffee and whole beans on a wooden board',
+          },
+        },
+        {
+          label: 'Subscriptions',
+          url: '#products',
+          media: {
+            url: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&q=80&w=800',
+            alt: 'Coffee bags packed for shipping',
+          },
+        },
+        {
+          label: 'Merch',
+          url: '#products',
+          media: {
+            url: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&q=80&w=800',
+            alt: 'Branded mug and tote bag',
+          },
+        },
+      ],
+    },
+    intro: {
+      headline: 'Small farms, short chain.',
+      body: 'We buy directly from five farms we visit every year — no importers, no blending, no beans older than a season. If a harvest is thin, we sell less coffee. We don’t stretch it with something else.',
+      media: {
+        url: 'https://images.unsplash.com/photo-1520903920243-00d872a2d1c9?auto=format&fit=crop&q=80&w=1400',
+        alt: 'A customer holding a latte with hand-poured art',
       },
-      {
-        quote:
-          'Restock alerts actually mean something — when Night Watch is back, I order the same day.',
-        author: 'Jordan K.',
-        role: 'Monthly order',
-      },
-    ],
-  },
-  footer: {
-    headline: 'Get 10% off your first order.',
-    body: 'Join the list for new roasts and restock alerts — or skip straight to the shop.',
-    cta: { label: 'Shop the full collection', url: '#products' },
-  },
+    },
+    logos: {
+      title: 'As seen in',
+      items: [
+        { name: 'Sprudge' },
+        { name: 'Food & Wine' },
+        { name: 'Eater' },
+        { name: 'Bon Appétit' },
+      ],
+    },
+    testimonials: {
+      items: [
+        {
+          quote:
+            'The freshest coffee I have ever had delivered. You can genuinely taste the roast date.',
+          author: 'Devin M.',
+          role: 'Subscriber since 2023',
+        },
+        {
+          quote: 'Origin Trio is how I finally figured out what roast I actually like.',
+          author: 'Anh T.',
+          role: 'Repeat customer',
+        },
+        {
+          quote:
+            'Restock alerts actually mean something — when Night Watch is back, I order the same day.',
+          author: 'Jordan K.',
+          role: 'Monthly order',
+        },
+      ],
+    },
+    footer: {
+      headline: 'Get 10% off your first order.',
+      body: 'Join the list for new roasts and restock alerts — or skip straight to the shop.',
+      cta: { label: 'Shop the full collection', url: '#products' },
+    },
+  }
 }

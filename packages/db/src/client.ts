@@ -42,6 +42,18 @@ export {
   matchThemePreset,
 } from './leadGenTemplate'
 export type { PageThemePreset, TemplateSchema, TemplateSectionDef } from './leadGenTemplate'
+export {
+  PALETTE_OPTIONS,
+  TYPOGRAPHY_OPTIONS,
+  SHAPE_OPTIONS,
+  STYLE_BUNDLES,
+  themeFromAxes,
+  matchPalette,
+  matchTypography,
+  matchShape,
+  matchBundle,
+} from './pageThemes'
+export type { PaletteOption, TypographyOption, ShapeOption, StyleBundle } from './pageThemes'
 export { parseYoutubeId, youtubeEmbedUrl } from './youtube'
 export {
   normalizeLegacyPageContent,
@@ -50,6 +62,28 @@ export {
   DEFAULT_PAGE_FAVICON_URL,
 } from './content'
 export type { PageContent, PageBrowserSettings, LayoutConfig, SlotGroupKey } from './content'
+export type { StarterPageBusiness } from './starterPageBusiness'
+export {
+  CAPABILITY_VOCABULARY,
+  GENRE_VOCABULARY,
+  ensureCatalogVocabulary,
+} from './catalogVocabulary'
+export type { CapabilityVocabularyEntry } from './catalogVocabulary'
+export {
+  CAPABILITY_KEYS,
+  PAGE_TYPE_KEYS,
+  PAGE_TYPE_CAPABILITY_MATRIX,
+  deriveLayoutSlotSupport,
+  deriveLayoutCapabilitySupport,
+  ensurePageTypeCapabilityMatrix,
+  ensurePageLayoutContract,
+} from './pageCompatibilityCatalog'
+export type {
+  CapabilityKey,
+  PageTypeKey,
+  RequirementLevel,
+  SupportLevel,
+} from './pageCompatibilityCatalog'
 export {
   SYSTEM_CORPORATE_PROFESSIONAL_TEMPLATE_ID,
   corporateProfessionalTitle,
@@ -92,6 +126,13 @@ export {
   emailOutreachSchema,
   emailOutreachStarterContent,
 } from './data/email-outreach'
+export {
+  SYSTEM_GENERAL_TEMPLATE_ID,
+  generalTitle,
+  generalDescription,
+  generalSchema,
+  generalStarterContent,
+} from './data/general'
 export { SYSTEM_TEMPLATE_STARTER_CONTENT } from './systemTemplates'
 export {
   STATIC_GOAL_IDEA_TEMPLATES,
