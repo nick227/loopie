@@ -69,7 +69,9 @@ RUN apk add --no-cache chromium nss freetype freetype-dev harfbuzz ca-certificat
     CHROMIUM_BIN="/$(apk info -L chromium | grep -E 'bin/chromium(-browser)?$' | head -1)" && \
     [ "$CHROMIUM_BIN" != "/" ] && \
     echo "Resolved Alpine chromium binary: $CHROMIUM_BIN" && \
+    ls -la "$CHROMIUM_BIN" && \
     ln -sf "$CHROMIUM_BIN" /usr/bin/chromium-browser && \
+    ls -la /usr/bin/chromium-browser && \
     [ -f /usr/bin/chromium-browser ]
 ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
