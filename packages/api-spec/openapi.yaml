@@ -5578,6 +5578,7 @@ components:
         - slug
         - status
         - content
+        - layoutVariant
         - formStartCount
         - submissionCount
         - createdAt
@@ -5619,6 +5620,15 @@ components:
           nullable: true
           additionalProperties: true
           description: Presentation only — section visibility/order per slot group. Never content values.
+        layoutVariant:
+          type: string
+          enum:
+            - STACKED
+            - SPLIT
+            - CENTERED
+            - ALTERNATING
+            - EDITORIAL
+          description: Structural arrangement of this page's existing content. Editor-facing, changeable any time — independent of templateId/pageType/content. See CLAUDE.md's Layout entry.
         publishedVersionId:
           type: string
           nullable: true
@@ -5811,8 +5821,6 @@ components:
         formId:
           type: string
           nullable: true
-        templateId:
-          type: string
         content:
           type: object
           additionalProperties: true
@@ -5824,6 +5832,15 @@ components:
           type: object
           nullable: true
           additionalProperties: true
+        layoutVariant:
+          type: string
+          enum:
+            - STACKED
+            - SPLIT
+            - CENTERED
+            - ALTERNATING
+            - EDITORIAL
+          description: Structural arrangement, changeable any time. templateId ("Page Starter") is creation-time only and cannot be changed here — see CLAUDE.md's Layout entry.
     PublishedPageVersion:
       type: object
       required:
@@ -5875,6 +5892,16 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/FormFieldSchema'
+        layoutVariant:
+          type: string
+          nullable: true
+          enum:
+            - STACKED
+            - SPLIT
+            - CENTERED
+            - ALTERNATING
+            - EDITORIAL
+          description: Frozen at publish time, same immutability pattern as content/theme. Null for versions published before this column existed — treat as STACKED (a no-op).
         publishedAt:
           type: string
           format: date-time

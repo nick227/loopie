@@ -98,45 +98,81 @@ describe('page editor', () => {
     expect(submit.statusCode).toBe(400)
   })
 
-  it('switches template without rewriting content keys', async () => {
+  it('ignores templateId on update — the Page Starter is creation-time only and immutable', async () => {
     const created = await app.inject({
       method: 'POST',
       url: '/landing-pages',
       headers: asAuth(testUserId),
       payload: {
         templateId: SYSTEM_LEAD_GEN_TEMPLATE_ID,
-        name: 'Switch Page',
-        slug: `switch-${Date.now()}`,
+        name: 'Immutable Starter Page',
+        slug: `immutable-starter-${Date.now()}`,
       },
     })
     expect(created.statusCode).toBe(201)
     const page = created.json().data
-    expect(page.content.features).toBeTruthy()
-    expect(page.content.media.url).toContain('images.unsplash.com')
-    expect(page.formId).toBeTruthy()
+    expect(page.templateId).toBe(SYSTEM_LEAD_GEN_TEMPLATE_ID)
 
-    const switched = await app.inject({
+    const patched = await app.inject({
       method: 'PATCH',
       url: `/landing-pages/${page.id}`,
       headers: asAuth(testUserId),
-      payload: { templateId: SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID },
+      // A stale/malicious client sending templateId in an update body must have no effect —
+      // there is no server-side path left that can change a page's Starter post-creation.
+      payload: { templateId: SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID, name: 'Renamed' },
     })
-    expect(switched.statusCode).toBe(200)
-    expect(switched.json().data.templateId).toBe(SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID)
-    // The whole point of the canonical content model: switching templates never touches content
-    // that the new template simply doesn't render — `features` isn't part of the email-capture
-    // template's schema, but it's still there, untouched, ready to reappear if switched back.
-    expect(switched.json().data.content.features).toBeTruthy()
-    expect(switched.json().data.content.media.url).toContain('images.unsplash.com')
+    expect(patched.statusCode).toBe(200)
+    expect(patched.json().data.templateId).toBe(SYSTEM_LEAD_GEN_TEMPLATE_ID)
+    expect(patched.json().data.name).toBe('Renamed')
+  })
 
-    const exported = await app.inject({
-      method: 'GET',
-      url: `/landing-pages/${page.id}/export`,
+  it('preserves every section and content value across all five Layout variants', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/landing-pages',
       headers: asAuth(testUserId),
+      payload: {
+        templateId: SYSTEM_LEAD_GEN_TEMPLATE_ID,
+        name: 'Layout Variant Page',
+        slug: `layout-variant-${Date.now()}`,
+      },
     })
-    expect(exported.statusCode).toBe(200)
-    expect(exported.json().data.html).not.toContain('class="lp-section lp-hero"')
-    expect(exported.json().data.html).toContain('class="lp-split"')
+    expect(created.statusCode).toBe(201)
+    const page = created.json().data
+    expect(page.layoutVariant).toBe('STACKED')
+    expect(page.content.features).toBeTruthy()
+    expect(page.content.media.url).toContain('images.unsplash.com')
+
+    const variants = ['SPLIT', 'CENTERED', 'ALTERNATING', 'EDITORIAL', 'STACKED'] as const
+    for (const layoutVariant of variants) {
+      const updated = await app.inject({
+        method: 'PATCH',
+        url: `/landing-pages/${page.id}`,
+        headers: asAuth(testUserId),
+        payload: { layoutVariant },
+      })
+      expect(updated.statusCode).toBe(200)
+      const data = updated.json().data
+      // Same Starter, same content, same section availability — only the layout changed.
+      expect(data.templateId).toBe(SYSTEM_LEAD_GEN_TEMPLATE_ID)
+      expect(data.layoutVariant).toBe(layoutVariant)
+      expect(data.content.features).toEqual(page.content.features)
+      expect(data.content.media.url).toContain('images.unsplash.com')
+      expect(data.content.hero.headline).toEqual(page.content.hero.headline)
+
+      const exported = await app.inject({
+        method: 'GET',
+        url: `/landing-pages/${page.id}/export`,
+        headers: asAuth(testUserId),
+      })
+      expect(exported.statusCode).toBe(200)
+      const html = exported.json().data.html as string
+      // The rendered page always carries every section this template renders, regardless of
+      // layout — nothing is ever hidden/removed by a layout change.
+      expect(html).toContain('class="lp-section lp-hero"')
+      expect(html).toContain('class="lp-section lp-features"')
+      expect(html).toContain(`data-lp-layout="${layoutVariant.toLowerCase()}"`)
+    }
   })
 
   it('creates an email-capture page as a two-column pitch with email only', async () => {
@@ -197,7 +233,7 @@ describe('page editor', () => {
     expect(submitBad.statusCode).toBe(400)
   })
 
-  it('keeps the hosted layout on the published schema until republish', async () => {
+  it('keeps the hosted layout on the published layoutVariant/content until republish', async () => {
     const { userId } = await registerBusiness()
     const list = await app.inject({
       method: 'GET',
@@ -216,25 +252,21 @@ describe('page editor', () => {
     const before = await app.inject({ method: 'GET', url: `/p/${page.slug}` })
     expect(before.statusCode).toBe(200)
     expect(before.body).toContain('class="lp-section lp-hero"')
+    expect(before.body).toContain('data-lp-layout="stacked"')
 
     const patched = await app.inject({
       method: 'PATCH',
       url: `/landing-pages/${page.id}`,
       headers: asAuth(userId),
       payload: {
-        templateId: SYSTEM_MEDIA_LEAD_GEN_TEMPLATE_ID,
-        content: {
-          sections: {
-            ...page.content.sections,
-            split: { hidden: false, headline: 'Draft pitch only' },
-          },
-        },
+        layoutVariant: 'SPLIT',
+        content: { ...page.content, hero: { ...page.content.hero, headline: 'Draft pitch only' } },
       },
     })
     expect(patched.statusCode).toBe(200)
 
     const mid = await app.inject({ method: 'GET', url: `/p/${page.slug}` })
-    expect(mid.body).toContain('class="lp-section lp-hero"')
+    expect(mid.body).toContain('data-lp-layout="stacked"')
     expect(mid.body).not.toContain('Draft pitch only')
 
     const published = await app.inject({
@@ -245,9 +277,10 @@ describe('page editor', () => {
     expect(published.statusCode).toBe(201)
 
     const after = await app.inject({ method: 'GET', url: `/p/${page.slug}` })
-    expect(after.body).toContain('class="lp-split"')
+    expect(after.body).toContain('data-lp-layout="split"')
     expect(after.body).toContain('Draft pitch only')
-    expect(after.body).not.toContain('class="lp-section lp-hero"')
+    // The Starter/section availability is untouched throughout — only layout/content changed.
+    expect(after.body).toContain('class="lp-section lp-hero"')
   })
 
   it('serves an authenticated draft preview distinct from the live page', async () => {

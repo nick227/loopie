@@ -1871,6 +1871,21 @@ enum PageStatus {
   ARCHIVED
 }
 
+// Layout (2026-09-11) — a NEW, deliberately narrow concept, distinct from both PageType (purpose)
+// and LandingPageTemplate/"Page Starter" (creation-time provenance + permanent visual skin, see
+// TemplateSchema.renderer). Layout is a structural arrangement of a page's EXISTING content —
+// picked in the editor, changeable any time, never gating which section types/content exist and
+// never touching templateId/pageType. Every variant must be able to render every section a page
+// already has; only presentation (grid arrangement, alignment, alternation) may differ. See
+// renderLandingPage.ts for how this composes with a Starter's own permanent skin/choreography.
+enum PageLayoutVariant {
+  STACKED
+  SPLIT
+  CENTERED
+  ALTERNATING
+  EDITORIAL
+}
+
 model LandingPage {
   id                  String     @id @default(cuid())
   businessId          String
@@ -1884,6 +1899,9 @@ model LandingPage {
   content             Json // canonical content, keyed by semantic slot group (hero, features, footer, ...) — shared across every template, not shaped per-template. See packages/db/src/content.ts.
   theme               Json? // theme tokens (brand colors, fonts) — kept distinct from content per the brief's "theme tokens/branding" callout
   layoutConfig        Json? // presentation only (section visibility/order per slot group) — never content values. See packages/db/src/content.ts.
+  // Structural arrangement of this page's existing content — see PageLayoutVariant's own doc
+  // comment. Editor-facing, changeable any time, independent of templateId/pageType/content.
+  layoutVariant       PageLayoutVariant @default(STACKED)
   // string[] of Capability.key — explicit, page-instance opt-in state for capabilities with no
   // existing relation of their own (Gallery, Social Proof, Product Catalog, Live Event Data).
   // Deliberately separate from both "does this page's content have data in the matching slot
@@ -1991,6 +2009,11 @@ model PublishedPageVersion {
   formSnapshot    Json?
   adSlotSnapshot  Json?
   layoutConfig    Json? // frozen alongside content/theme at publish time — see LandingPage.layoutConfig
+  // Frozen alongside content/theme at publish time, same immutability pattern — see
+  // LandingPage.layoutVariant. Null for versions published before this column existed; the
+  // renderer treats null as STACKED (a no-op CSS-wise), which is exactly what those versions
+  // already rendered as before Layout existed as a concept.
+  layoutVariant   PageLayoutVariant?
   // Frozen template schema at publish time. The live LandingPage.templateId can change in draft
   // (layout switch) without rewriting this, so /p/{slug} keeps rendering the published layout.
   schemaSnapshot  Json?

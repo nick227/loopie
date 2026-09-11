@@ -10,6 +10,20 @@ import type {
   TestimonialItem,
   FaqItem,
 } from '../../../pages/landing-pages/components/types'
+import type { LayoutVariant } from '../../../pages/landing-pages/components/LayoutVariantPicker'
+
+// Layout (2026-09-11) — Email Outreach's fixed 560px "letter" width is its skin, not something
+// Layout touches; every variant below only changes the internal composition/order/alignment
+// within that same envelope. A literal side-by-side column split isn't safe at 560px (each side
+// would be too narrow to read), so Split is honestly interpreted as "media moves before copy"
+// (a real, describable order change) rather than a fake two-column layout.
+const HERO_ALIGN_CLASS: Record<LayoutVariant, string> = {
+  STACKED: '',
+  SPLIT: '',
+  CENTERED: 'text-center',
+  ALTERNATING: 'text-right',
+  EDITORIAL: '',
+}
 
 // Email-shaped sales vehicle: constrained column on a soft canvas, letter hierarchy, one ask.
 // Colors come only from theme tokens so any preset still recolors correctly.
@@ -78,12 +92,18 @@ function EmailHeader({ content, editable, onChange }: SectionProps<'nav'>) {
   )
 }
 
-function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
+function HeroSection({
+  content,
+  editable,
+  onChange,
+  layoutVariant = 'STACKED',
+}: SectionProps<'hero'> & { layoutVariant?: LayoutVariant }) {
   const cta = content?.primaryCta ?? {}
   const media = content?.media ?? {}
+  const isEditorial = layoutVariant === 'EDITORIAL'
 
-  return (
-    <section className="px-7 pt-8 pb-2">
+  const copy = (
+    <>
       {editable ? (
         <CanvasText
           ariaLabel="Hero eyebrow"
@@ -115,11 +135,19 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
           onChange={(headline) => onChange({ headline })}
           multiline
           style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
-          className="mb-4 text-[1.65rem] font-semibold leading-[1.25] tracking-[-0.015em] sm:text-[1.85rem]"
+          className={
+            isEditorial
+              ? 'mb-4 text-[2.1rem] font-bold leading-[1.08] tracking-[-0.02em] sm:text-[2.4rem]'
+              : 'mb-4 text-[1.65rem] font-semibold leading-[1.25] tracking-[-0.015em] sm:text-[1.85rem]'
+          }
         />
       ) : (
         <h1
-          className="mb-4 text-[1.65rem] font-semibold leading-[1.25] tracking-[-0.015em] sm:text-[1.85rem]"
+          className={
+            isEditorial
+              ? 'mb-4 text-[2.1rem] font-bold leading-[1.08] tracking-[-0.02em] sm:text-[2.4rem]'
+              : 'mb-4 text-[1.65rem] font-semibold leading-[1.25] tracking-[-0.015em] sm:text-[1.85rem]'
+          }
           style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
         >
           {content?.headline}
@@ -165,34 +193,53 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
           {cta.label} <ArrowRight className="h-3.5 w-3.5" />
         </a>
       ) : null}
+    </>
+  )
 
-      <div
-        className="mt-2 overflow-hidden"
-        style={{ borderRadius: 'var(--lp-radius)', backgroundColor: ink(6) }}
-      >
-        {editable ? (
-          <MediaSlotField
-            kind="IMAGE"
-            urlMode
-            fill
-            fallbackUrl={media.url}
-            onUrlChange={(url) => onChange({ media: { ...media, url } })}
-          />
-        ) : media.url ? (
-          <img
-            src={media.url}
-            alt={media.alt ?? ''}
-            className="aspect-[16/10] w-full object-cover"
-          />
-        ) : (
-          <div className="aspect-[16/10] w-full" style={{ backgroundColor: ink(8) }} />
-        )}
-      </div>
+  const image = (
+    <div
+      className={`overflow-hidden ${layoutVariant === 'SPLIT' ? 'mb-6' : 'mt-2'}`}
+      style={{ borderRadius: 'var(--lp-radius)', backgroundColor: ink(6) }}
+    >
+      {editable ? (
+        <MediaSlotField
+          kind="IMAGE"
+          urlMode
+          fill
+          fallbackUrl={media.url}
+          onUrlChange={(url) => onChange({ media: { ...media, url } })}
+        />
+      ) : media.url ? (
+        <img src={media.url} alt={media.alt ?? ''} className="aspect-[16/10] w-full object-cover" />
+      ) : (
+        <div className="aspect-[16/10] w-full" style={{ backgroundColor: ink(8) }} />
+      )}
+    </div>
+  )
+
+  return (
+    <section className={`px-7 pt-8 pb-2 ${HERO_ALIGN_CLASS[layoutVariant]}`}>
+      {layoutVariant === 'SPLIT' ? (
+        <>
+          {image}
+          {copy}
+        </>
+      ) : (
+        <>
+          {copy}
+          {image}
+        </>
+      )}
     </section>
   )
 }
 
-function FeaturesSection({ content, editable, onChange }: SectionProps<'features'>) {
+function FeaturesSection({
+  content,
+  editable,
+  onChange,
+  layoutVariant = 'STACKED',
+}: SectionProps<'features'> & { layoutVariant?: LayoutVariant }) {
   const items = content?.items ?? []
 
   function updateItem(i: number, patch: Partial<FeatureItem>) {
@@ -236,9 +283,22 @@ function FeaturesSection({ content, editable, onChange }: SectionProps<'features
         </p>
       ) : null}
 
-      <div className="divide-y" style={{ borderColor: ink(10) }}>
+      <div
+        className={
+          layoutVariant === 'SPLIT'
+            ? 'grid grid-cols-2 gap-x-5 gap-y-5'
+            : `divide-y ${layoutVariant === 'CENTERED' ? 'text-center' : ''}`
+        }
+        style={{ borderColor: ink(10) }}
+      >
         {items.map((item, i) => (
-          <div key={i} className="py-5 first:pt-0 last:pb-0" style={{ borderColor: ink(10) }}>
+          <div
+            key={i}
+            className={`${layoutVariant === 'SPLIT' ? '' : 'py-5 first:pt-0 last:pb-0'} ${
+              layoutVariant === 'ALTERNATING' && i % 2 === 1 ? 'text-right' : ''
+            }`}
+            style={{ borderColor: ink(10) }}
+          >
             {editable ? (
               <CanvasText
                 ariaLabel={`Feature ${i + 1} title`}
@@ -623,6 +683,7 @@ export function EmailOutreach({
   content,
   theme,
   layoutConfig,
+  layoutVariant = 'STACKED',
   editable = false,
   onSlotChange,
   hasForm,
@@ -633,6 +694,7 @@ export function EmailOutreach({
   content?: PageContent
   theme?: Record<string, string>
   layoutConfig?: { sections?: Record<string, { hidden?: boolean }> }
+  layoutVariant?: LayoutVariant
   editable?: boolean
   onSlotChange?: (slotGroup: keyof PageContent, patch: unknown) => void
   hasForm: boolean
@@ -685,12 +747,14 @@ export function EmailOutreach({
           content={c.hero}
           editable={editable}
           onChange={(patch) => slotChange('hero', patch)}
+          layoutVariant={layoutVariant}
         />
         {!isHidden('features') && (
           <FeaturesSection
             content={c.features}
             editable={editable}
             onChange={(patch) => slotChange('features', patch)}
+            layoutVariant={layoutVariant}
           />
         )}
         {!isHidden('metrics') && (

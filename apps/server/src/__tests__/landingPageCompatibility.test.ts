@@ -1,6 +1,10 @@
-// Pages Phase 3 (2026-09-10) — GET /landing-pages/{id}/compatibility, the real endpoint behind
-// the in-editor Layout switcher and Page Type conversion. See
-// docs/strategy/pages-page-types-and-style-axes-roadmap.md §6 Phase 3.
+// Pages Phase 3 (2026-09-10) — GET /landing-pages/{id}/compatibility. As of 2026-09-11 this is no
+// longer wired to any UI (the editor's "Switch layout"/"Convert page type" modal it backed was
+// removed — "Layout" is now a purely structural, content-preserving axis, and Starter/Page Type
+// are creation-time only). Left in place per the project's "deprecated = stop writing, never
+// deleted" policy — the endpoint/contract graph may still be useful for a future real
+// Starter-migration/admin tool. See docs/strategy/pages-page-types-and-style-axes-roadmap.md §6
+// Phase 3 for the original design.
 import { describe, it, expect } from 'vitest'
 import { buildTestApp, asAuth, testUserId, testOtherBusinessId } from './helpers'
 import { db } from '@project/db'

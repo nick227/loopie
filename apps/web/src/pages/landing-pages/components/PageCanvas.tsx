@@ -1,8 +1,10 @@
 import { useEffect } from 'react'
-import { CanvasSection } from './CanvasSection'
+import { CanvasSection, HeroBlock, MediaImageBlock } from './CanvasSection'
 import { CanvasAdBand } from './CanvasAdBand'
+import { LAYOUT_VARIANT_CSS } from '@project/page-layout'
 import type { FormFieldDraft } from '@/components/forms/FormFieldsEditor'
 import type { AdSlotDraft } from './adSlots'
+import type { LayoutVariant } from './LayoutVariantPicker'
 import {
   SECTION_TYPE_TO_SLOT_GROUP,
   sectionAnchorId,
@@ -11,10 +13,15 @@ import {
   type TemplateSection,
 } from './types'
 
+// Layout (2026-09-11) — variants that pair the hero with an adjacent media section into one
+// two-column composition, rather than each rendering as its own full-width stacked block.
+const HERO_MEDIA_GROUPING_VARIANTS: LayoutVariant[] = ['SPLIT', 'ALTERNATING', 'EDITORIAL']
+
 export function PageCanvas({
   sections,
   content,
   layoutConfig,
+  layoutVariant,
   theme,
   slots,
   hasForm,
@@ -27,6 +34,7 @@ export function PageCanvas({
   sections: TemplateSection[]
   content: PageContent
   layoutConfig: LayoutConfig
+  layoutVariant: LayoutVariant
   theme: Record<string, string>
   slots: AdSlotDraft[]
   hasForm: boolean
@@ -60,9 +68,93 @@ export function PageCanvas({
     }
   }, [googleFonts])
 
+  const visibleSections = sections.filter(
+    (section) => !layoutConfig.sections?.[section.key]?.hidden,
+  )
+  const groupHeroMedia = HERO_MEDIA_GROUPING_VARIANTS.includes(layoutVariant)
+
+  const items: { key: string; node: React.ReactNode }[] = []
+  for (let i = 0; i < visibleSections.length; i++) {
+    const section = visibleSections[i]!
+    const nextSection = visibleSections[i + 1]
+    const slotGroup = SECTION_TYPE_TO_SLOT_GROUP[section.type]
+    const slotContent = slotGroup ? ((content as Record<string, unknown>)[slotGroup] ?? {}) : {}
+
+    if (section.type === 'hero' && groupHeroMedia && nextSection?.type === 'media-image') {
+      const mediaSlotGroup = SECTION_TYPE_TO_SLOT_GROUP[nextSection.type]
+      const mediaContent = mediaSlotGroup
+        ? ((content as Record<string, unknown>)[mediaSlotGroup] ?? {})
+        : {}
+      items.push({
+        key: section.key,
+        node: (
+          <div id={sectionAnchorId(section)} className="lp-hero">
+            <div className="lp-hero-copy">
+              <HeroBlock
+                section={section}
+                content={slotContent as never}
+                onChange={(next) => slotGroup && onSlot(slotGroup, next)}
+                hasForm={hasForm}
+                formFields={formFields}
+                onFormFields={onFormFields}
+                submitLabel={submitLabel}
+                set={(patch) => slotGroup && onSlot(slotGroup, { ...slotContent, ...patch })}
+              />
+            </div>
+            <div id={sectionAnchorId(nextSection)} className="lp-hero-media">
+              <MediaImageBlock
+                section={nextSection}
+                content={mediaContent as never}
+                onChange={(next) => mediaSlotGroup && onSlot(mediaSlotGroup, next)}
+                hasForm={hasForm}
+                formFields={formFields}
+                onFormFields={onFormFields}
+                submitLabel={submitLabel}
+                set={(patch) =>
+                  mediaSlotGroup && onSlot(mediaSlotGroup, { ...mediaContent, ...patch })
+                }
+              />
+            </div>
+          </div>
+        ),
+      })
+      i++ // consume the paired media section too
+      continue
+    }
+
+    items.push({
+      key: section.key,
+      node: (
+        <div id={sectionAnchorId(section)}>
+          {section.type === 'form-embed' ? (
+            <CanvasAdBand placement="BEFORE_FORM" slots={slots} onChange={onSlots} />
+          ) : null}
+          <CanvasSection
+            section={section}
+            content={slotContent as never}
+            onChange={(next) => slotGroup && onSlot(slotGroup, next)}
+            hasForm={hasForm}
+            formFields={formFields}
+            onFormFields={onFormFields}
+            submitLabel={submitLabel}
+          />
+          {section.type === 'hero' ? (
+            <CanvasAdBand placement="AFTER_HERO" slots={slots} onChange={onSlots} />
+          ) : null}
+          {section.type === 'split-capture' ||
+          (section.type === 'form-embed' &&
+            slots.some((slot) => slot.placement === 'AFTER_FORM')) ? (
+            <CanvasAdBand placement="AFTER_FORM" slots={slots} onChange={onSlots} />
+          ) : null}
+        </div>
+      ),
+    })
+  }
+
   return (
     <div
-      className="overflow-hidden rounded-xl border border-input-border shadow-sm"
+      data-lp-layout={layoutVariant.toLowerCase()}
+      className="lp-canvas overflow-hidden rounded-xl border border-input-border shadow-sm"
       style={{
         backgroundColor,
         fontFamily,
@@ -76,35 +168,10 @@ export function PageCanvas({
         ['--lp-radius' as string]: radius,
       }}
     >
-      {sections.map((section) => {
-        if (layoutConfig.sections?.[section.key]?.hidden) return null
-        const slotGroup = SECTION_TYPE_TO_SLOT_GROUP[section.type]
-        const slotContent = slotGroup ? ((content as Record<string, unknown>)[slotGroup] ?? {}) : {}
-        return (
-          <div key={section.key} id={sectionAnchorId(section)}>
-            {section.type === 'form-embed' ? (
-              <CanvasAdBand placement="BEFORE_FORM" slots={slots} onChange={onSlots} />
-            ) : null}
-            <CanvasSection
-              section={section}
-              content={slotContent as never}
-              onChange={(next) => slotGroup && onSlot(slotGroup, next)}
-              hasForm={hasForm}
-              formFields={formFields}
-              onFormFields={onFormFields}
-              submitLabel={submitLabel}
-            />
-            {section.type === 'hero' ? (
-              <CanvasAdBand placement="AFTER_HERO" slots={slots} onChange={onSlots} />
-            ) : null}
-            {section.type === 'split-capture' ||
-            (section.type === 'form-embed' &&
-              slots.some((slot) => slot.placement === 'AFTER_FORM')) ? (
-              <CanvasAdBand placement="AFTER_FORM" slots={slots} onChange={onSlots} />
-            ) : null}
-          </div>
-        )
-      })}
+      <style>{LAYOUT_VARIANT_CSS}</style>
+      {items.map((item) => (
+        <div key={item.key}>{item.node}</div>
+      ))}
       {hasBottom ? <CanvasAdBand placement="BOTTOM" slots={slots} onChange={onSlots} /> : null}
     </div>
   )

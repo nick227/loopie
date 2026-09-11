@@ -78,6 +78,7 @@ export class LandingPageRenderService {
         content,
         theme: page.publishedVersion.theme as any,
         layoutConfig: page.publishedVersion.layoutConfig as any,
+        layoutVariant: page.publishedVersion.layoutVariant ?? undefined,
         form,
         submitActionUrl: landingPageSubmitUrl(page.id),
         sessionToken: visitor.token,

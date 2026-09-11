@@ -187,6 +187,9 @@ importers:
       '@project/ad-renderer':
         specifier: workspace:*
         version: link:../../packages/ad-renderer
+      '@project/page-layout':
+        specifier: workspace:*
+        version: link:../../packages/page-layout
       '@project/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
@@ -324,6 +327,15 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@20.19.43)(happy-dom@20.11.6)(jsdom@30.0.1)
 
+  packages/page-layout:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
   packages/page-renderer:
     dependencies:
       '@prisma/client':
@@ -335,6 +347,9 @@ importers:
       '@project/db':
         specifier: workspace:*
         version: link:../db
+      '@project/page-layout':
+        specifier: workspace:*
+        version: link:../page-layout
     devDependencies:
       '@types/node':
         specifier: ^20.0.0

@@ -62,7 +62,7 @@ function PageActivity({ landingPageId }: { landingPageId: string }) {
 
 export function LandingPage() {
   const navigate = useNavigate()
-  const [tab, setTab] = useState<Tab>('content')
+  const [tab, setTab] = useState<Tab>('editor')
   const [embedModalOpen, setEmbedModalOpen] = useState(false)
   const {
     page,
@@ -71,7 +71,6 @@ export function LandingPage() {
     refetchPage,
     template,
     templateId,
-    setTemplateId,
     publishMutation,
     name,
     setName,
@@ -81,6 +80,8 @@ export function LandingPage() {
     setTheme,
     layoutConfig,
     setLayoutConfig,
+    layoutVariant,
+    setLayoutVariant,
     formId,
     setFormId,
     fields,
@@ -160,8 +161,8 @@ export function LandingPage() {
             <EntityTabs<Tab>
               compact
               tabs={[
-                { key: 'content', label: 'Content' },
                 { key: 'editor', label: 'Editor' },
+                { key: 'content', label: 'Content' },
                 { key: 'activity', label: 'Activity' },
               ]}
               active={tab}
@@ -222,12 +223,10 @@ export function LandingPage() {
             className="flex min-h-10 items-center justify-center rounded-t-xl border border-b-0 border-input-border bg-muted/45 px-2 py-1"
           >
             <PageToolbar
-              landingPageId={page.id}
-              templateId={templateId}
-              templateSchema={template?.schema}
+              layoutVariant={layoutVariant}
               theme={theme}
-              onTemplate={(id) => {
-                setTemplateId(id)
+              onLayoutVariant={(next) => {
+                setLayoutVariant(next)
                 setDirty(true)
               }}
               onTheme={(next) => {
@@ -244,6 +243,7 @@ export function LandingPage() {
                 content={content}
                 theme={theme}
                 layoutConfig={layoutConfig}
+                layoutVariant={layoutVariant}
                 hasForm={hasForm}
                 formFields={fields}
                 submitLabel={submitLabel}
@@ -262,6 +262,7 @@ export function LandingPage() {
                 sections={sections}
                 content={content}
                 layoutConfig={layoutConfig}
+                layoutVariant={layoutVariant}
                 theme={theme}
                 slots={slots}
                 hasForm={hasForm}

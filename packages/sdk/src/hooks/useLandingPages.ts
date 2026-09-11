@@ -17,10 +17,12 @@ type UpdateLandingPageInput = {
   slug?: string
   customDomain?: string | null
   formId?: string | null
-  templateId?: string
+  // templateId ("Page Starter") is creation-time only and immutable afterward — see
+  // CLAUDE.md's Layout entry. Structural changes to an existing page go through layoutVariant.
   content?: Record<string, unknown>
   theme?: Record<string, unknown> | null
   layoutConfig?: Record<string, unknown> | null
+  layoutVariant?: 'STACKED' | 'SPLIT' | 'CENTERED' | 'ALTERNATING' | 'EDITORIAL'
 }
 
 export function useLandingPageTemplates(params?: { limit?: number }) {
@@ -203,11 +205,6 @@ export function useUpdateLandingPage() {
     onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({ queryKey: ['landingPages', 'list'] })
       void queryClient.invalidateQueries({ queryKey: ['landingPage', variables.landingPageId] })
-      if (variables.templateId) {
-        void queryClient.invalidateQueries({
-          queryKey: ['landingPageTemplate', variables.templateId],
-        })
-      }
     },
   })
 }

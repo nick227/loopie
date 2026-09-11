@@ -16,6 +16,7 @@ import {
   type LayoutConfig,
   type TemplateSection,
 } from '../components/types'
+import type { LayoutVariant } from '../components/LayoutVariantPicker'
 import type { AdSlotDraft } from '../components/adSlots'
 import type { FormFieldDraft } from '@/components/forms/FormFieldsEditor'
 
@@ -86,6 +87,7 @@ export function useLandingPageEditor() {
   // kept entirely separate from content values.
   const [content, setContent] = useState<PageContent>({})
   const [layoutConfig, setLayoutConfig] = useState<LayoutConfig>({})
+  const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>('STACKED')
   const [name, setName] = useState('')
   const [theme, setTheme] = useState<Record<string, string>>({})
   const [formId, setFormId] = useState('')
@@ -125,6 +127,7 @@ export function useLandingPageEditor() {
       },
     })
     setLayoutConfig((page.layoutConfig as LayoutConfig | null) ?? {})
+    setLayoutVariant((page.layoutVariant as LayoutVariant | undefined) ?? 'STACKED')
     setTheme((page.theme as Record<string, string> | null) ?? {})
     setFormId(page.formId ?? '')
     setTemplateId(page.templateId)
@@ -210,7 +213,7 @@ export function useLandingPageEditor() {
         content: content as Record<string, unknown>,
         theme,
         layoutConfig: layoutConfig as Record<string, unknown>,
-        templateId: templateId || undefined,
+        layoutVariant,
         formId: formId || null,
       })
       await saveSlots(slots)
@@ -244,7 +247,7 @@ export function useLandingPageEditor() {
     content,
     theme,
     layoutConfig,
-    templateId,
+    layoutVariant,
     formId,
     slots,
     submitLabel,
@@ -291,7 +294,6 @@ export function useLandingPageEditor() {
     refetchPage,
     template,
     templateId,
-    setTemplateId,
     publishMutation,
     name,
     setName,
@@ -301,6 +303,8 @@ export function useLandingPageEditor() {
     setTheme,
     layoutConfig,
     setLayoutConfig,
+    layoutVariant,
+    setLayoutVariant,
     fields,
     setFields,
     submitLabel,

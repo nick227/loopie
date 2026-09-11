@@ -1,25 +1,20 @@
-import { LayoutSwitcher } from './LayoutSwitcher'
+import { LayoutVariantPicker, type LayoutVariant } from './LayoutVariantPicker'
 import { StyleSwitcher } from './StyleSwitcher'
 
 export function PageToolbar({
-  landingPageId,
-  templateId,
+  layoutVariant,
   theme,
-  onTemplate,
+  onLayoutVariant,
   onTheme,
 }: {
-  landingPageId: string
-  templateId: string
-  // Style axes are universal (Pages Phase 4) — no longer scoped by the Layout's own schema, so
-  // templateSchema is no longer read here. Kept out of the prop list rather than left unused.
-  templateSchema?: unknown
+  layoutVariant: LayoutVariant
   theme: Record<string, string>
-  onTemplate: (templateId: string) => void
+  onLayoutVariant: (value: LayoutVariant) => void
   onTheme: (theme: Record<string, string>) => void
 }) {
   return (
     <div className="flex shrink-0 items-center gap-1.5">
-      <LayoutSwitcher landingPageId={landingPageId} templateId={templateId} onSelect={onTemplate} />
+      <LayoutVariantPicker value={layoutVariant} onSelect={onLayoutVariant} />
       <StyleSwitcher theme={theme} onTheme={onTheme} />
     </div>
   )

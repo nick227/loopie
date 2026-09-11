@@ -18,6 +18,7 @@ import {
 } from './renderLandingPageSections'
 import { FORMAT_ASPECT_RATIO } from '@project/ad-renderer'
 import { carouselScript, serviceTabsScript } from './publishedScripts'
+import { LAYOUT_VARIANT_CSS } from '@project/page-layout'
 
 type TemplateSection = {
   key?: string
@@ -41,6 +42,14 @@ export type TemplateSchema = {
 }
 
 export type PageTheme = Record<string, string> | null | undefined
+
+// Layout — a structural arrangement of a page's EXISTING content, independent of the Starter
+// identity/skin (`renderer`, above) and never gating which sections/content exist. See
+// PageLayoutVariant's doc comment in schema.prisma. Applied purely as a `data-lp-layout` attribute
+// + additive CSS (see the LAYOUT_VARIANT_CSS block below) — it never changes which markup
+// renderBody/renderSection emit, so a Starter's own skin/choreography (studio/portfolio scroll
+// effects included) keeps working exactly as it does today, unaffected by this axis.
+export type LayoutVariant = 'STACKED' | 'SPLIT' | 'CENTERED' | 'ALTERNATING' | 'EDITORIAL'
 
 function renderFormHtml(
   form: RenderForm,
@@ -169,6 +178,9 @@ export function renderLandingPageHtml(input: {
   content: unknown
   theme: PageTheme
   layoutConfig?: LayoutConfig | null
+  // Defaults to STACKED (a no-op — the existing baseline arrangement) when omitted/null, which
+  // covers every PublishedPageVersion published before this column existed. See LayoutVariant.
+  layoutVariant?: LayoutVariant | null
   form: RenderForm
   submitActionUrl: string
   sessionToken?: string
@@ -202,6 +214,7 @@ export function renderLandingPageHtml(input: {
     DEFAULT_PAGE_FAVICON_URL
   const faviconHtml = faviconUrl ? `<link rel="icon" href="${escapeHtml(faviconUrl)}" />\n` : ''
   const renderer = input.templateSchema.renderer ?? 'standard'
+  const layoutVariant = (input.layoutVariant ?? 'STACKED').toLowerCase()
   const bodyHtml = renderBody(
     sections,
     content,
@@ -853,10 +866,12 @@ button[type="submit"] { padding: 0.85rem 1.5rem; background: var(--lp-primary); 
   .lp-template-store .lp-hero h1 { font-size: clamp(2.5rem, 12vw, 3.5rem); }
   .lp-template-store .lp-studio-contact { padding-block: 48px; }
 }
+
+${LAYOUT_VARIANT_CSS}
 </style>
 ${input.injectedHeadScripts ?? ''}
 </head>
-<body class="lp-template-${escapeHtml(renderer)}">
+<body class="lp-template-${escapeHtml(renderer)}" data-lp-layout="${escapeHtml(layoutVariant)}">
 ${bodyHtml}
 ${webinarScript}
 ${galleryScript}

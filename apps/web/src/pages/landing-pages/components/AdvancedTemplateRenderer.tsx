@@ -6,6 +6,8 @@ import { Portfolio } from '../../../components/landing-pages/templates/Portfolio
 import { Store } from '../../../components/landing-pages/templates/Store'
 import { EmailOutreach } from '../../../components/landing-pages/templates/EmailOutreach'
 import type { FormFieldDraft } from '@/components/forms/FormFieldsEditor'
+import { LAYOUT_VARIANT_CSS } from '@project/page-layout'
+import type { LayoutVariant } from './LayoutVariantPicker'
 import {
   CORPORATE_PROFESSIONAL_TEMPLATE_ID,
   WEBINAR_SIGNUP_TEMPLATE_ID,
@@ -25,6 +27,7 @@ export function AdvancedTemplateRenderer({
   content,
   theme,
   layoutConfig,
+  layoutVariant,
   hasForm,
   formFields,
   submitLabel,
@@ -36,6 +39,7 @@ export function AdvancedTemplateRenderer({
   content: PageContent
   theme: Record<string, string>
   layoutConfig: LayoutConfig
+  layoutVariant: LayoutVariant
   hasForm: boolean
   formFields: FormFieldDraft[]
   submitLabel: string
@@ -61,11 +65,34 @@ export function AdvancedTemplateRenderer({
     content,
     theme,
     layoutConfig,
+    layoutVariant,
     editable: true as const,
     onSlotChange: onSlot,
   }
+  // Same lp-template-{renderer} convention the server HTML renderer uses (renderLandingPage.ts) —
+  // lets the same Studio/Portfolio compose overrides in LAYOUT_VARIANT_CSS apply here too, so the
+  // editor's live canvas and the published page share one definition of what each layout looks
+  // like on each Starter's skin.
+  const skinClass =
+    templateId === STUDIO_TEMPLATE_ID
+      ? 'lp-template-studio'
+      : templateId === PORTFOLIO_TEMPLATE_ID
+        ? 'lp-template-portfolio'
+        : templateId === CORPORATE_PROFESSIONAL_TEMPLATE_ID
+          ? 'lp-template-corporate-professional'
+          : templateId === STORE_TEMPLATE_ID
+            ? 'lp-template-store'
+            : templateId === WEBINAR_SIGNUP_TEMPLATE_ID
+              ? 'lp-template-webinar-signup'
+              : templateId === EMAIL_OUTREACH_TEMPLATE_ID
+                ? 'lp-template-email-outreach'
+                : ''
   return (
-    <div className="overflow-hidden rounded-xl border border-input-border shadow-sm">
+    <div
+      data-lp-layout={layoutVariant.toLowerCase()}
+      className={`lp-canvas overflow-hidden rounded-xl border border-input-border shadow-sm ${skinClass}`}
+    >
+      <style>{LAYOUT_VARIANT_CSS}</style>
       {templateId === WEBINAR_SIGNUP_TEMPLATE_ID ? (
         <WebinarSignup
           {...shared}

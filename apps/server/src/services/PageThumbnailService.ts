@@ -311,6 +311,7 @@ export class PageThumbnailService {
       content,
       theme: (version.theme ?? {}) as never,
       layoutConfig: (version.layoutConfig ?? null) as never,
+      layoutVariant: version.layoutVariant ?? undefined,
       form: form ?? EMPTY_FORM,
       submitActionUrl: landingPageSubmitUrl(version.landingPageId),
       publishedVersionId: version.id,

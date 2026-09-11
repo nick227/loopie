@@ -1,6 +1,7 @@
 import { motion, useTransform, type MotionValue } from 'framer-motion'
 import { CanvasText } from '../../../../pages/landing-pages/components/CanvasText'
 import type { FeatureItem } from '../../../../pages/landing-pages/components/types'
+import type { LayoutVariant } from '../../../../pages/landing-pages/components/LayoutVariantPicker'
 import { AddRow, SectionHeader, type SectionProps } from './shared'
 import { ColorWash, FrameInner, SnapPanel } from './SnapPanel'
 import { useStudioMotionDisabled, useMotionPanel } from './motion'
@@ -8,7 +9,9 @@ import { BODY, washForIndex } from './tokens'
 
 /**
  * Frame gesture: process steps — the index numeral shrinks from display-scale
- * into a quiet marker as the row settles (sequence, so numbers earn their keep).
+ * into a quiet marker as the row settles (sequence, so numbers earn their keep). Layout
+ * (2026-09-11) only ever changes the row's static shape (column order/count/max-width/numeral
+ * size) — never the scroll-linked numScale/rowY transforms themselves.
  */
 function FeatureRow({
   index,
@@ -17,6 +20,7 @@ function FeatureRow({
   progress,
   onPatch,
   onRemove,
+  layoutVariant,
 }: {
   index: number
   feature: FeatureItem
@@ -24,25 +28,30 @@ function FeatureRow({
   progress: MotionValue<number>
   onPatch: (patch: Partial<FeatureItem>) => void
   onRemove: () => void
+  layoutVariant: LayoutVariant
 }) {
   const disabled = useStudioMotionDisabled()
   const start = 0.18 + index * 0.1
   const end = start + 0.2
-  const numScale = useTransform(progress, [start, end], [1.55, 1])
+  const isEditorial = layoutVariant === 'EDITORIAL'
+  const numScale = useTransform(progress, [start, end], [isEditorial ? 1.9 : 1.55, 1])
   const numOpacity = useTransform(progress, [start, end], [0.25, 0.45])
   const rowY = useTransform(progress, [start, end], [28, 0])
   const rowOpacity = useTransform(progress, [start, end], [0, 1])
+  // Alternating mirrors the numeral to the opposite side every other row; every other variant
+  // holds the numeral on the left, matching the row's own default reading order.
+  const mirrored = layoutVariant === 'ALTERNATING' && index % 2 === 1
 
   return (
     <motion.div
-      className="group relative grid grid-cols-[4.5rem_1fr] gap-4 border-t py-8 sm:grid-cols-[6rem_1fr] sm:gap-8"
+      className={`group relative grid grid-cols-[4.5rem_1fr] gap-4 border-t py-8 sm:grid-cols-[6rem_1fr] sm:gap-8 ${mirrored ? 'sm:[&>*:first-child]:order-2 text-right' : ''} ${layoutVariant === 'CENTERED' ? 'mx-auto max-w-2xl text-center sm:grid-cols-1' : ''}`}
       style={{
         borderColor: 'color-mix(in srgb, currentColor 22%, transparent)',
         ...(disabled ? {} : { y: rowY, opacity: rowOpacity }),
       }}
     >
       <motion.span
-        className="text-4xl font-bold tabular-nums sm:text-5xl"
+        className={`font-bold tabular-nums ${isEditorial ? 'text-5xl sm:text-6xl' : 'text-4xl sm:text-5xl'}`}
         style={{
           fontFamily: 'var(--lp-heading)',
           ...(disabled ? { opacity: 0.4 } : { scale: numScale, opacity: numOpacity }),
@@ -50,7 +59,7 @@ function FeatureRow({
       >
         {String(index + 1).padStart(2, '0')}
       </motion.span>
-      <div className="max-w-xl">
+      <div className={layoutVariant === 'CENTERED' ? 'mx-auto max-w-xl' : 'max-w-xl'}>
         {editable ? (
           <>
             <CanvasText
@@ -89,7 +98,12 @@ function FeatureRow({
   )
 }
 
-export function FeaturesSection({ content, editable, onChange }: SectionProps<'features'>) {
+export function FeaturesSection({
+  content,
+  editable,
+  onChange,
+  layoutVariant = 'STACKED',
+}: SectionProps<'features'> & { layoutVariant?: LayoutVariant }) {
   const items = content?.items ?? []
   const { ref, progress } = useMotionPanel()
 
@@ -112,7 +126,11 @@ export function FeaturesSection({ content, editable, onChange }: SectionProps<'f
           className="mb-10"
         />
 
-        <div>
+        <div
+          className={
+            layoutVariant === 'SPLIT' ? 'grid grid-cols-1 gap-x-12 sm:grid-cols-2' : undefined
+          }
+        >
           {items.map((feature, i) => (
             <FeatureRow
               key={i}
@@ -120,6 +138,7 @@ export function FeaturesSection({ content, editable, onChange }: SectionProps<'f
               feature={feature}
               editable={editable}
               progress={progress}
+              layoutVariant={layoutVariant}
               onPatch={(patch) =>
                 onChange({
                   items: items.map((row, idx) => (idx === i ? { ...row, ...patch } : row)),

@@ -1,5 +1,5 @@
 {
-  "name": "@project/page-renderer",
+  "name": "@project/page-layout",
   "version": "0.0.1",
   "private": true,
   "main": "./src/index.ts",
@@ -8,18 +8,11 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
     "lint": "eslint 'src/**/*.ts' --report-unused-disable-directives --max-warnings 0"
   },
-  "dependencies": {
-    "@project/ad-renderer": "workspace:*",
-    "@project/db": "workspace:*",
-    "@project/page-layout": "workspace:*",
-    "@prisma/client": "^5.0.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
-    "vitest": "^2.0.0"
+    "typescript": "^5.0.0"
   }
 }

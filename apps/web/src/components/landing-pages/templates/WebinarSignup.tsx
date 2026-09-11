@@ -10,6 +10,19 @@ import type {
   FaqItem,
   FeatureItem,
 } from '../../../pages/landing-pages/components/types'
+import type { LayoutVariant } from '../../../pages/landing-pages/components/LayoutVariantPicker'
+
+// Layout (2026-09-11) — no motion in this template at all, so every variant below is a plain,
+// low-risk static Tailwind class swap. Hero has no inline media slot (its image renders full-width
+// below the CTA, not beside the copy), so — same idiom as Portfolio/Studio's hero — Split/
+// Alternating are interpreted as the copy box's width/position, mirrored between the two.
+const HERO_BOX_CLASS: Record<LayoutVariant, string> = {
+  STACKED: 'max-w-5xl text-center',
+  SPLIT: 'max-w-xl mr-auto text-left',
+  CENTERED: 'max-w-5xl text-center',
+  ALTERNATING: 'max-w-xl ml-auto text-right',
+  EDITORIAL: 'max-w-3xl mr-auto text-left',
+}
 
 // Same token vocabulary/fallbacks as CorporateProfessional.tsx and PageCanvas.tsx — any layout
 // that sets these --lp-* custom properties on its own wrapper picks up theme changes for free.
@@ -183,28 +196,39 @@ function EditableDateTime({
 
 // --- Hero — primary color field, massive centered headline, one hot CTA (Amacrux / Forwex).
 
-function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
+function HeroSection({
+  content,
+  editable,
+  onChange,
+  layoutVariant = 'CENTERED',
+}: SectionProps<'hero'> & { layoutVariant?: LayoutVariant }) {
   const cta = content?.primaryCta ?? {}
   const media = content?.media ?? {}
   const muted = `color-mix(in srgb, var(--lp-on-primary) 78%, transparent)`
+  const isCentered = layoutVariant === 'STACKED' || layoutVariant === 'CENTERED'
+  const ctaJustify = isCentered
+    ? 'justify-center'
+    : layoutVariant === 'ALTERNATING'
+      ? 'justify-end'
+      : 'justify-start'
   return (
     <section
       className="relative overflow-hidden pt-20 pb-20 lg:pt-28 lg:pb-24"
       style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
     >
-      <div className="relative z-10 mx-auto max-w-5xl px-6 text-center lg:px-8">
+      <div className={`relative z-10 mx-auto px-6 lg:px-8 ${HERO_BOX_CLASS[layoutVariant]}`}>
         {editable ? (
           <CanvasText
             ariaLabel="Hero eyebrow"
             value={content?.eyebrow ?? ''}
             onChange={(eyebrow) => onChange({ eyebrow })}
             placeholder="Eyebrow label"
-            className="mx-auto mb-6 inline-block px-0 text-xs font-semibold uppercase tracking-[0.22em]"
+            className={`mb-6 inline-block px-0 text-xs font-semibold uppercase tracking-[0.22em] ${isCentered ? 'mx-auto' : ''}`}
             style={{ color: muted }}
           />
         ) : content?.eyebrow ? (
           <span
-            className="mb-6 inline-block text-xs font-semibold uppercase tracking-[0.22em]"
+            className={`mb-6 inline-block text-xs font-semibold uppercase tracking-[0.22em] ${isCentered ? 'mx-auto' : ''}`}
             style={{ color: muted }}
           >
             {content.eyebrow}
@@ -249,7 +273,7 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
           </p>
         )}
 
-        <div className="mt-10 flex justify-center">
+        <div className={`mt-10 flex ${ctaJustify}`}>
           {editable ? (
             <EditableLinkTrigger
               label={cta.label ?? ''}
@@ -317,15 +341,27 @@ function EventWidgetSection({
   formFields,
   onFormFields,
   submitLabel,
+  layoutVariant = 'CENTERED',
 }: SectionProps<'webinar'> & {
   seatsFilled: number
   hasForm: boolean
   formFields: FormFieldDraft[]
   onFormFields: (fields: FormFieldDraft[]) => void
   submitLabel: string
+  layoutVariant?: LayoutVariant
 }) {
   const seatsTotal = content?.seatsTotal
   const pct = seatsTotal ? Math.min(100, Math.round((seatsFilled / seatsTotal) * 100)) : null
+  // Stacked collapses the two cards to one column; Alternating swaps which card sits on which
+  // side — a real mirror of the default event-info | signup-form order; Editorial skews the
+  // split asymmetric in the signup form's favor.
+  const gridClass =
+    layoutVariant === 'STACKED'
+      ? 'lg:grid-cols-1 max-w-2xl'
+      : layoutVariant === 'EDITORIAL'
+        ? 'lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] max-w-6xl'
+        : 'lg:grid-cols-2 max-w-6xl'
+  const orderClass = layoutVariant === 'ALTERNATING' ? 'lg:[&>*:first-child]:order-2' : ''
 
   return (
     <section
@@ -333,7 +369,7 @@ function EventWidgetSection({
       className="py-16 lg:py-20"
       style={{ backgroundColor: 'var(--lp-bg)', color: 'var(--lp-ink)' }}
     >
-      <div className="mx-auto grid max-w-6xl gap-8 px-6 lg:grid-cols-2 lg:px-8">
+      <div className={`mx-auto grid gap-8 px-6 lg:px-8 ${gridClass} ${orderClass}`}>
         {/* Event meta */}
         <div
           className="p-8"
@@ -533,14 +569,27 @@ function EventWidgetSection({
 
 // --- Features / testimonials / faq / footer -------------------------------------
 
-function FeatureGridSection({ content, editable, onChange }: SectionProps<'features'>) {
+function FeatureGridSection({
+  content,
+  editable,
+  onChange,
+  layoutVariant = 'STACKED',
+}: SectionProps<'features'> & { layoutVariant?: LayoutVariant }) {
   const items = content?.items ?? []
   function updateItem(i: number, patch: Partial<FeatureItem>) {
     onChange({ items: items.map((row, idx) => (idx === i ? { ...row, ...patch } : row)) })
   }
+  const gridClass =
+    layoutVariant === 'STACKED'
+      ? 'grid-cols-1 max-w-xl mx-auto'
+      : layoutVariant === 'SPLIT'
+        ? 'sm:grid-cols-2'
+        : 'sm:grid-cols-2 lg:grid-cols-3'
   return (
     <section id="features" className="py-24" style={{ backgroundColor: 'var(--lp-bg)' }}>
-      <div className="mx-auto max-w-5xl px-6 lg:px-8">
+      <div
+        className={`mx-auto px-6 lg:px-8 ${layoutVariant === 'CENTERED' ? 'max-w-3xl' : 'max-w-5xl'}`}
+      >
         <div className="mx-auto mb-16 max-w-2xl text-center">
           {editable ? (
             <>
@@ -575,11 +624,13 @@ function FeatureGridSection({ content, editable, onChange }: SectionProps<'featu
             </>
           )}
         </div>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className={`grid gap-6 ${gridClass}`}>
           {items.map((feature, i) => (
             <div
               key={i}
-              className="group relative rounded-2xl border p-6"
+              className={`group relative rounded-2xl border p-6 ${
+                layoutVariant === 'ALTERNATING' && i % 2 === 1 ? 'text-right' : ''
+              } ${layoutVariant === 'EDITORIAL' && i === 0 ? 'sm:col-span-2' : ''}`}
               style={{ borderColor: ink(12), backgroundColor: ink(3) }}
             >
               <div
@@ -902,6 +953,7 @@ export function WebinarSignup({
   content,
   theme,
   layoutConfig,
+  layoutVariant = 'CENTERED',
   editable = false,
   onSlotChange,
   hasForm,
@@ -913,6 +965,7 @@ export function WebinarSignup({
   content?: PageContent
   theme?: Record<string, string>
   layoutConfig?: { sections?: Record<string, { hidden?: boolean }> }
+  layoutVariant?: LayoutVariant
   editable?: boolean
   onSlotChange?: (slotGroup: keyof PageContent, patch: unknown) => void
   hasForm: boolean
@@ -952,6 +1005,7 @@ export function WebinarSignup({
         content={c.hero}
         editable={editable}
         onChange={(patch) => slotChange('hero', patch)}
+        layoutVariant={layoutVariant}
       />
       <EventWidgetSection
         content={c.webinar}
@@ -962,12 +1016,14 @@ export function WebinarSignup({
         formFields={formFields}
         onFormFields={onFormFields}
         submitLabel={submitLabel}
+        layoutVariant={layoutVariant}
       />
       {!isHidden('features') && (
         <FeatureGridSection
           content={c.features}
           editable={editable}
           onChange={(patch) => slotChange('features', patch)}
+          layoutVariant={layoutVariant}
         />
       )}
       {!isHidden('testimonials') && (

@@ -6640,6 +6640,11 @@ export interface components {
       layoutConfig?: {
         [key: string]: unknown
       } | null
+      /**
+       * @description Structural arrangement of this page's existing content. Editor-facing, changeable any time — independent of templateId/pageType/content. See CLAUDE.md's Layout entry.
+       * @enum {string}
+       */
+      layoutVariant: 'STACKED' | 'SPLIT' | 'CENTERED' | 'ALTERNATING' | 'EDITORIAL'
       publishedVersionId?: string | null
       /** @description Public live URL — GET /p/{slug}. 404 until the page is published. */
       hostedUrl?: string
@@ -6725,7 +6730,6 @@ export interface components {
       slug?: string
       customDomain?: string | null
       formId?: string | null
-      templateId?: string
       content?: {
         [key: string]: unknown
       }
@@ -6735,6 +6739,11 @@ export interface components {
       layoutConfig?: {
         [key: string]: unknown
       } | null
+      /**
+       * @description Structural arrangement, changeable any time. templateId ("Page Starter") is creation-time only and cannot be changed here — see CLAUDE.md's Layout entry.
+       * @enum {string}
+       */
+      layoutVariant?: 'STACKED' | 'SPLIT' | 'CENTERED' | 'ALTERNATING' | 'EDITORIAL'
     }
     PublishedPageVersion: {
       id: string
@@ -6757,6 +6766,11 @@ export interface components {
         successMessage: string | null
         fields: components['schemas']['FormFieldSchema'][]
       } | null
+      /**
+       * @description Frozen at publish time, same immutability pattern as content/theme. Null for versions published before this column existed — treat as STACKED (a no-op).
+       * @enum {string|null}
+       */
+      layoutVariant?: 'STACKED' | 'SPLIT' | 'CENTERED' | 'ALTERNATING' | 'EDITORIAL' | null
       /** Format: date-time */
       publishedAt: string
       /** Format: date-time */

@@ -20,43 +20,45 @@ export type CanvasBlockProps = {
   set: (patch: Record<string, unknown>) => void
 }
 
-const HeroBlock = ({ content, set }: CanvasBlockProps) => {
+export const HeroBlock = ({ content, set }: CanvasBlockProps) => {
   const cta = (content.primaryCta ?? {}) as { label?: string; url?: string }
   return (
-    <section className="mx-auto max-w-[1040px] px-6 pb-4 pt-14 sm:pt-16">
-      <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--lp-primary)]">
-        Now booking
-      </p>
-      <CanvasText
-        as="h1"
-        ariaLabel="Headline"
-        value={(content.headline as string) ?? ''}
-        onChange={(headline) => set({ headline })}
-        placeholder="Headline"
-        style={{ fontFamily: 'var(--lp-heading)' }}
-        className="text-[2.8rem] font-bold leading-[1.08] tracking-tight sm:text-[3.2rem]"
-      />
-      <CanvasText
-        ariaLabel="Body"
-        value={(content.body as string) ?? ''}
-        onChange={(body) => set({ body })}
-        placeholder="Body copy"
-        multiline
-        className="mt-4 max-w-xl text-[1.05rem] leading-relaxed text-[color:color-mix(in_srgb,var(--lp-ink)_72%,var(--lp-bg))]"
-      />
-      <EditableLinkTrigger
-        label={cta.label ?? ''}
-        url={cta.url ?? '#form'}
-        onChange={(next) => set({ primaryCta: next })}
-        className="mt-6"
-      >
-        <span
-          className="inline-block bg-[var(--lp-primary)] px-6 py-3 text-sm font-medium tracking-wide text-[color:var(--lp-on-primary)]"
-          style={{ borderRadius: 'var(--lp-radius)' }}
+    <section className="lp-hero mx-auto max-w-[1040px] px-6 pb-4 pt-14 sm:pt-16">
+      <div className="lp-hero-copy">
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--lp-primary)]">
+          Now booking
+        </p>
+        <CanvasText
+          as="h1"
+          ariaLabel="Headline"
+          value={(content.headline as string) ?? ''}
+          onChange={(headline) => set({ headline })}
+          placeholder="Headline"
+          style={{ fontFamily: 'var(--lp-heading)' }}
+          className="text-[2.8rem] font-bold leading-[1.08] tracking-tight sm:text-[3.2rem]"
+        />
+        <CanvasText
+          ariaLabel="Body"
+          value={(content.body as string) ?? ''}
+          onChange={(body) => set({ body })}
+          placeholder="Body copy"
+          multiline
+          className="mt-4 max-w-xl text-[1.05rem] leading-relaxed text-[color:color-mix(in_srgb,var(--lp-ink)_72%,var(--lp-bg))]"
+        />
+        <EditableLinkTrigger
+          label={cta.label ?? ''}
+          url={cta.url ?? '#form'}
+          onChange={(next) => set({ primaryCta: next })}
+          className="mt-6"
         >
-          {cta.label || 'Request a callback'}
-        </span>
-      </EditableLinkTrigger>
+          <span
+            className="inline-block bg-[var(--lp-primary)] px-6 py-3 text-sm font-medium tracking-wide text-[color:var(--lp-on-primary)]"
+            style={{ borderRadius: 'var(--lp-radius)' }}
+          >
+            {cta.label || 'Request a callback'}
+          </span>
+        </EditableLinkTrigger>
+      </div>
     </section>
   )
 }
@@ -66,14 +68,18 @@ const FeatureGridBlock = ({ content, set }: CanvasBlockProps) => {
   return (
     <section className="mx-auto max-w-[1040px] px-6 py-10">
       <div
-        className="grid gap-px overflow-hidden sm:grid-cols-3"
+        className="lp-feature-grid grid gap-px overflow-hidden sm:grid-cols-3"
         style={{
           backgroundColor: 'color-mix(in srgb, var(--lp-ink) 12%, var(--lp-bg))',
           borderRadius: 'var(--lp-radius)',
         }}
       >
         {items.map((item, i) => (
-          <div key={i} className="space-y-2 p-5" style={{ backgroundColor: 'var(--lp-card)' }}>
+          <div
+            key={i}
+            className="lp-feature space-y-2 p-5"
+            style={{ backgroundColor: 'var(--lp-card)' }}
+          >
             <CanvasText
               ariaLabel={`Feature ${i + 1} title`}
               value={item.title}
@@ -181,7 +187,7 @@ const SplitCaptureBlock = ({
 }
 
 const FooterBlock = ({ content, set }: CanvasBlockProps) => (
-  <footer className="mx-auto max-w-[1040px] px-6 py-10 text-center text-sm text-[color:color-mix(in_srgb,var(--lp-ink)_65%,var(--lp-bg))]">
+  <footer className="lp-footer mx-auto max-w-[1040px] px-6 py-10 text-center text-sm text-[color:color-mix(in_srgb,var(--lp-ink)_65%,var(--lp-bg))]">
     <CanvasText
       ariaLabel="Footer text"
       value={(content.body as string) ?? ''}
@@ -192,7 +198,7 @@ const FooterBlock = ({ content, set }: CanvasBlockProps) => (
   </footer>
 )
 
-const MediaImageBlock = ({ content, set }: CanvasBlockProps) => (
+export const MediaImageBlock = ({ content, set }: CanvasBlockProps) => (
   <section className="mx-auto max-w-[1040px] px-6 py-6">
     <MediaSlotField
       kind="IMAGE"

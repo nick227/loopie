@@ -4,12 +4,29 @@ import { CanvasText } from '../../../../pages/landing-pages/components/CanvasTex
 import { EditableLinkTrigger } from '../../../../pages/landing-pages/components/editable/EditableLinkTrigger'
 import { MediaSlotField } from '../../../../pages/landing-pages/components/MediaSlotField'
 import type { ServiceItem } from '../../../../pages/landing-pages/components/types'
+import type { LayoutVariant } from '../../../../pages/landing-pages/components/LayoutVariantPicker'
 import { AddRow, Eyebrow, SectionHeader, type SectionProps } from './shared'
 import { ColorWash, FrameInner, SnapPanel, type Tone } from './SnapPanel'
 import { useStudioMotionDisabled, useMotionPanel } from './motion'
 import { BODY, TITLE, washForIndex } from './tokens'
 
 const TONES: Tone[] = ['bg', 'ink', 'primary']
+
+// Layout (2026-09-11) — Studio's service rows natively alternate image/copy sides per project;
+// that native behavior IS the Alternating interpretation here. The other four variants reuse the
+// same motion/ColorWash/SnapPanel machinery, only changing the static grid shape (never the
+// scroll-linked transforms themselves): Stacked/Centered collapse to one column (image above
+// copy); Split holds a consistent, non-alternating two-column split; Editorial skews the split
+// asymmetric with larger type.
+function gridClassFor(layoutVariant: LayoutVariant): string {
+  return layoutVariant === 'STACKED' || layoutVariant === 'CENTERED'
+    ? 'grid-cols-1'
+    : 'lg:grid-cols-12'
+}
+function colSpanFor(layoutVariant: LayoutVariant): { media: string; copy: string } {
+  if (layoutVariant === 'EDITORIAL') return { media: 'lg:col-span-7', copy: 'lg:col-span-5' }
+  return { media: 'lg:col-span-6', copy: 'lg:col-span-6' }
+}
 
 /**
  * Frame gesture: image Ken-Burns (scale down) while copy slides in from the
@@ -22,6 +39,7 @@ function ServicePanel({
   onPatch,
   onRemove,
   tone,
+  layoutVariant,
 }: {
   service: ServiceItem
   index: number
@@ -29,10 +47,14 @@ function ServicePanel({
   onPatch: (patch: Partial<ServiceItem>) => void
   onRemove: () => void
   tone: Tone
+  layoutVariant: LayoutVariant
 }) {
   const { ref, progress } = useMotionPanel()
   const disabled = useStudioMotionDisabled()
-  const fromRight = index % 2 === 1
+  const isStackedOrCentered = layoutVariant === 'STACKED' || layoutVariant === 'CENTERED'
+  // Only the Alternating variant mirrors direction per project — every other variant holds a
+  // single, consistent direction so it reads as one deliberate choice, not a coin flip.
+  const fromRight = layoutVariant === 'ALTERNATING' ? index % 2 === 1 : false
 
   const imgScale = useTransform(progress, [0.15, 0.55], [1.12, 1])
   const copyX = useTransform(progress, [0.2, 0.5], [fromRight ? 56 : -56, 0])
@@ -40,6 +62,7 @@ function ServicePanel({
 
   const muted = 'color-mix(in srgb, currentColor 70%, transparent)'
   const wash = washForIndex(index + 1, tone)
+  const { media: mediaSpan, copy: copySpan } = colSpanFor(layoutVariant)
 
   return (
     <SnapPanel ref={ref} tone={tone} className="flex flex-col justify-center">
@@ -48,9 +71,9 @@ function ServicePanel({
         progress={progress}
         tone={tone}
         wash={wash.color}
-        className={`grid items-center gap-10 lg:grid-cols-12 lg:gap-14 ${fromRight ? 'lg:[&>*:first-child]:order-2' : ''}`}
+        className={`grid items-center gap-10 lg:gap-14 ${gridClassFor(layoutVariant)} ${fromRight ? 'lg:[&>*:first-child]:order-2' : ''} ${isStackedOrCentered ? 'max-w-2xl' : ''} ${layoutVariant === 'CENTERED' ? 'mx-auto text-center' : ''}`}
       >
-        <motion.div className="lg:col-span-6" style={disabled ? undefined : { scale: imgScale }}>
+        <motion.div className={mediaSpan} style={disabled ? undefined : { scale: imgScale }}>
           {editable ? (
             <MediaSlotField
               kind="IMAGE"
@@ -68,7 +91,7 @@ function ServicePanel({
         </motion.div>
 
         <motion.div
-          className="group relative lg:col-span-6"
+          className={`group relative ${copySpan}`}
           style={disabled ? undefined : { x: copyX, opacity: copyOpacity }}
         >
           <Eyebrow>
@@ -178,7 +201,12 @@ function ServicesIntro({ content, editable, onChange }: SectionProps<'services'>
   )
 }
 
-export function ServicesSection({ content, editable, onChange }: SectionProps<'services'>) {
+export function ServicesSection({
+  content,
+  editable,
+  onChange,
+  layoutVariant = 'ALTERNATING',
+}: SectionProps<'services'> & { layoutVariant?: LayoutVariant }) {
   const items = content?.items ?? []
 
   return (
@@ -193,6 +221,7 @@ export function ServicesSection({ content, editable, onChange }: SectionProps<'s
           index={i}
           editable={editable}
           tone={TONES[i % TONES.length]!}
+          layoutVariant={layoutVariant}
           onPatch={(patch) =>
             onChange({ items: items.map((row, idx) => (idx === i ? { ...row, ...patch } : row)) })
           }

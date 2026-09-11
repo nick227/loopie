@@ -10,6 +10,18 @@ import type {
   NavLink,
   CtaRef,
 } from '../../../pages/landing-pages/components/types'
+import type { LayoutVariant } from '../../../pages/landing-pages/components/LayoutVariantPicker'
+
+// Layout (2026-09-11) — Store has no hero at all (its schema goes straight to the product grid),
+// so the grid itself and the closing promo strip carry the whole axis. Nothing here is motion —
+// purely static Tailwind grid/column classes, so every variant is a plain, low-risk class swap.
+const PRODUCT_GRID_CLASS: Record<LayoutVariant, string> = {
+  STACKED: 'grid-cols-1 max-w-2xl mx-auto',
+  SPLIT: 'grid-cols-2',
+  CENTERED: 'grid-cols-2 sm:grid-cols-3 max-w-4xl mx-auto',
+  ALTERNATING: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4',
+  EDITORIAL: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4',
+}
 
 // Same token vocabulary/fallbacks as every other rich template — Store's retail energy comes from
 // rounder radii, pill-shaped CTAs, and leaning on --lp-primary as a bold block (not just an
@@ -110,7 +122,12 @@ function getFallbackPattern(index: number) {
   return colors[index % colors.length]
 }
 
-function ProductsSection({ content, editable, onChange }: SectionProps<'products'>) {
+function ProductsSection({
+  content,
+  editable,
+  onChange,
+  layoutVariant = 'ALTERNATING',
+}: SectionProps<'products'> & { layoutVariant?: LayoutVariant }) {
   const mockNames = [
     'Meteor Shower Tee',
     'The Power of Reading',
@@ -184,11 +201,13 @@ function ProductsSection({ content, editable, onChange }: SectionProps<'products
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 lg:gap-6">
+        <div className={`grid gap-4 lg:gap-6 ${PRODUCT_GRID_CLASS[layoutVariant]}`}>
           {visibleGridItems.map((product, i) => (
             <div
               key={i}
-              className="group relative flex flex-col transition-shadow hover:shadow-lg"
+              className={`group relative flex flex-col transition-shadow hover:shadow-lg ${
+                layoutVariant === 'EDITORIAL' && i === 0 ? 'sm:col-span-2 sm:row-span-2' : ''
+              } ${layoutVariant === 'ALTERNATING' && i % 2 === 1 ? 'text-right' : ''}`}
               style={{ backgroundColor: 'transparent' }}
             >
               <div
@@ -251,7 +270,7 @@ function ProductsSection({ content, editable, onChange }: SectionProps<'products
                 ) : null}
               </div>
 
-              <div className="flex flex-col flex-grow text-left px-1">
+              <div className="flex flex-col flex-grow px-1">
                 {editable ? (
                   <>
                     <CanvasText
@@ -345,13 +364,20 @@ function PromoFooterSection({
   formFields,
   onFormFields,
   submitLabel,
+  layoutVariant = 'ALTERNATING',
 }: SectionProps<'footer'> & {
   hasForm: boolean
   formFields: FormFieldDraft[]
   onFormFields: (fields: FormFieldDraft[]) => void
   submitLabel: string
+  layoutVariant?: LayoutVariant
 }) {
   const cta: CtaRef = content?.cta ?? {}
+  // Stacked collapses the promo strip to one column (its own "conventional vertical flow");
+  // Alternating swaps which side the form sits on — a real mirror of the default text|form order.
+  const gridClass =
+    layoutVariant === 'STACKED' ? 'lg:grid-cols-1 max-w-2xl' : 'lg:grid-cols-2 max-w-6xl'
+  const orderClass = layoutVariant === 'ALTERNATING' ? 'lg:[&>*:first-child]:order-2' : ''
 
   return (
     <section
@@ -359,7 +385,7 @@ function PromoFooterSection({
       className="w-full max-w-none py-14"
       style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
     >
-      <div className="mx-auto grid max-w-6xl items-center gap-8 px-6 lg:grid-cols-2 lg:px-8">
+      <div className={`mx-auto grid items-center gap-8 px-6 lg:px-8 ${gridClass} ${orderClass}`}>
         <div>
           {editable ? (
             <CanvasText
@@ -461,6 +487,7 @@ export function Store({
   content,
   theme,
   layoutConfig,
+  layoutVariant = 'ALTERNATING',
   editable = false,
   onSlotChange,
   hasForm,
@@ -471,6 +498,7 @@ export function Store({
   content?: PageContent
   theme?: Record<string, string>
   layoutConfig?: { sections?: Record<string, { hidden?: boolean }> }
+  layoutVariant?: LayoutVariant
   editable?: boolean
   onSlotChange?: (slotGroup: keyof PageContent, patch: unknown) => void
   hasForm: boolean
@@ -513,6 +541,7 @@ export function Store({
             content={c.products}
             editable={editable}
             onChange={(patch) => slotChange('products', patch)}
+            layoutVariant={layoutVariant}
           />
         )}
       </main>
@@ -525,6 +554,7 @@ export function Store({
         formFields={formFields}
         onFormFields={onFormFields}
         submitLabel={submitLabel}
+        layoutVariant={layoutVariant}
       />
     </div>
   )

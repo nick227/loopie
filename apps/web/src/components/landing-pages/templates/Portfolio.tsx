@@ -5,11 +5,36 @@ import { CanvasText } from '../../../pages/landing-pages/components/CanvasText'
 import { EditableLinkTrigger } from '../../../pages/landing-pages/components/editable/EditableLinkTrigger'
 import { MediaSlotField } from '../../../pages/landing-pages/components/MediaSlotField'
 import { FormFieldsEditor, type FormFieldDraft } from '@/components/forms/FormFieldsEditor'
+import type { LayoutVariant } from '../../../pages/landing-pages/components/LayoutVariantPicker'
 import type {
   PageContent,
   ServiceItem,
   NavLink,
 } from '../../../pages/landing-pages/components/types'
+
+// Layout (2026-09-11) — Portfolio's hero has no inline media slot by design (the image is always
+// full-bleed behind the overlaid text — that's its identity), so Layout is interpreted as the
+// width/position/vertical-anchor of the text box sitting over it, never its own text-align (every
+// text element keeps its existing centered alignment untouched) and never the scroll-linked
+// image/opacity motion. Split positions the box in a real left column; Alternating mirrors it to
+// the right (the same idea, flipped) — a legitimate "alternate side" reading even for a section
+// that has only one instance. Centered narrows the box to a real centered column (a clearly
+// narrower content axis) while the background image stays exactly as full-bleed as ever — nothing
+// about the "Noisefracture editorial" identity changes, only how wide the text sits within it.
+const HERO_BOX_CLASS: Record<LayoutVariant, string> = {
+  STACKED: 'w-full',
+  SPLIT: 'w-full max-w-xl mr-auto',
+  CENTERED: 'w-full max-w-2xl mx-auto',
+  ALTERNATING: 'w-full max-w-xl ml-auto',
+  EDITORIAL: 'w-full max-w-2xl mr-auto',
+}
+const HERO_JUSTIFY_CLASS: Record<LayoutVariant, string> = {
+  STACKED: 'justify-center',
+  SPLIT: 'justify-center',
+  CENTERED: 'justify-center',
+  ALTERNATING: 'justify-center',
+  EDITORIAL: 'justify-end pb-24',
+}
 
 // Same token vocabulary/fallbacks as every other rich template. Portfolio's own register — quiet,
 // visual-first, editorial — comes entirely from type weight/scale, generous whitespace, and large
@@ -106,7 +131,12 @@ function NavBar({ content, editable, onChange }: SectionProps<'nav'>) {
 // --- Hero — full-bleed media with overlaid left-aligned brutal headline so pitch + CTA land in
 // the first viewport (Noisefracture editorial). Dark gradient from bottom/left; text uses --lp-bg.
 
-function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
+function HeroSection({
+  content,
+  editable,
+  onChange,
+  layoutVariant = 'CENTERED',
+}: SectionProps<'hero'> & { layoutVariant?: LayoutVariant }) {
   const cta = content?.primaryCta ?? {}
   const media = content?.media ?? {}
 
@@ -152,9 +182,11 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
 
       <motion.div
         style={disableMotion ? {} : { opacity, y: textY }}
-        className="relative z-10 mx-auto flex h-full flex-col justify-center px-6 text-center sm:px-12 lg:px-20 mix-blend-difference pointer-events-none"
+        className={`relative z-10 mx-auto flex h-full flex-col px-6 text-center sm:px-12 lg:px-20 mix-blend-difference pointer-events-none ${HERO_JUSTIFY_CLASS[layoutVariant]}`}
       >
-        <div className="w-full text-center flex flex-col items-center pointer-events-auto">
+        <div
+          className={`text-center flex flex-col items-center pointer-events-auto ${HERO_BOX_CLASS[layoutVariant]}`}
+        >
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -273,7 +305,12 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
 
 // --- Featured work — full-width projects with a left-aligned caption rail (not centered mush).
 
-function ServiceSelectorSection({ content, editable, onChange }: SectionProps<'services'>) {
+function ServiceSelectorSection({
+  content,
+  editable,
+  onChange,
+  layoutVariant = 'CENTERED',
+}: SectionProps<'services'> & { layoutVariant?: LayoutVariant }) {
   const items = content?.items ?? []
   function updateItem(i: number, patch: Partial<ServiceItem>) {
     onChange({ items: items.map((row, idx) => (idx === i ? { ...row, ...patch } : row)) })
@@ -337,7 +374,15 @@ function ServiceSelectorSection({ content, editable, onChange }: SectionProps<'s
             </motion.div>
 
             <div className="absolute inset-0 flex flex-col justify-center pointer-events-none z-10 mix-blend-difference">
-              <div className="pointer-events-auto absolute top-1/2 -translate-y-1/2 left-[-10vw] right-[-10vw] flex flex-col items-center text-center">
+              <div
+                className={`pointer-events-auto absolute top-1/2 -translate-y-1/2 left-[-10vw] right-[-10vw] flex flex-col ${
+                  layoutVariant === 'ALTERNATING'
+                    ? i % 2 === 1
+                      ? 'items-end text-right'
+                      : 'items-start text-left'
+                    : 'items-center text-center'
+                }`}
+              >
                 {editable ? (
                   <CanvasText
                     ariaLabel={`Project ${i + 1} label`}
@@ -553,6 +598,7 @@ export function Portfolio({
   content,
   theme,
   layoutConfig,
+  layoutVariant = 'CENTERED',
   editable = false,
   onSlotChange,
   hasForm,
@@ -563,6 +609,7 @@ export function Portfolio({
   content?: PageContent
   theme?: Record<string, string>
   layoutConfig?: { sections?: Record<string, { hidden?: boolean }> }
+  layoutVariant?: LayoutVariant
   editable?: boolean
   onSlotChange?: (slotGroup: keyof PageContent, patch: unknown) => void
   hasForm: boolean
@@ -602,12 +649,14 @@ export function Portfolio({
         content={c.hero}
         editable={editable}
         onChange={(patch) => slotChange('hero', patch)}
+        layoutVariant={layoutVariant}
       />
       {!isHidden('services') && (
         <ServiceSelectorSection
           content={c.services}
           editable={editable}
           onChange={(patch) => slotChange('services', patch)}
+          layoutVariant={layoutVariant}
         />
       )}
       <ContactSection

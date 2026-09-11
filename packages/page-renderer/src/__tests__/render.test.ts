@@ -64,6 +64,95 @@ describe('renderLandingPageHtml', () => {
     expect(html).toContain('The advantage')
   })
 
+  describe('Layout (layoutVariant)', () => {
+    const LAYOUT_VARIANTS = ['STACKED', 'SPLIT', 'CENTERED', 'ALTERNATING', 'EDITORIAL'] as const
+
+    const basePayload = {
+      pageName: 'Variant Page',
+      templateSchema: {
+        sections: [
+          { key: 'hero', type: 'hero', order: 0 },
+          { key: 'features', type: 'feature-grid', order: 1 },
+          { key: 'testimonials', type: 'testimonials', order: 2 },
+          { key: 'footer', type: 'footer', order: 3 },
+        ],
+      },
+      content: {
+        hero: {
+          headline: 'Come see us',
+          body: 'A real body copy.',
+          media: { url: 'https://example.com/hero.jpg' },
+        },
+        features: { items: [{ title: 'Fast', body: 'Quick turnaround' }] },
+        testimonials: { items: [{ quote: 'Great work', author: 'A. Customer' }] },
+        footer: { headline: 'Get started', body: 'Reach out today.' },
+      },
+      theme: {},
+      form: null,
+      submitActionUrl: '/submit',
+    }
+
+    it('defaults to STACKED when layoutVariant is omitted, and it is a no-op vs. the pre-Layout baseline', () => {
+      const withDefault = renderLandingPageHtml(basePayload)
+      const withExplicitStacked = renderLandingPageHtml({
+        ...basePayload,
+        layoutVariant: 'STACKED',
+      })
+      expect(withDefault).toContain('data-lp-layout="stacked"')
+      expect(withDefault).toStrictEqual(withExplicitStacked)
+    })
+
+    it('every variant renders every section — never hides or removes content', () => {
+      for (const layoutVariant of LAYOUT_VARIANTS) {
+        const html = renderLandingPageHtml({ ...basePayload, layoutVariant })
+        expect(html).toContain(`data-lp-layout="${layoutVariant.toLowerCase()}"`)
+        expect(html).toContain('class="lp-section lp-hero"')
+        expect(html).toContain('class="lp-section lp-features"')
+        expect(html).toContain('class="lp-section lp-testimonials"')
+        expect(html).toContain('<footer class="lp-section lp-footer">')
+        expect(html).toContain('Come see us')
+        expect(html).toContain('Fast')
+        expect(html).toContain('Great work')
+        expect(html).toContain('Get started')
+      }
+    })
+
+    it('SPLIT/ALTERNATING/EDITORIAL visibly rearrange the hero relative to STACKED', () => {
+      const stacked = renderLandingPageHtml({ ...basePayload, layoutVariant: 'STACKED' })
+      const split = renderLandingPageHtml({ ...basePayload, layoutVariant: 'SPLIT' })
+      const alternating = renderLandingPageHtml({ ...basePayload, layoutVariant: 'ALTERNATING' })
+      const editorial = renderLandingPageHtml({ ...basePayload, layoutVariant: 'EDITORIAL' })
+      for (const html of [split, alternating, editorial]) {
+        expect(html).not.toStrictEqual(stacked)
+      }
+      // The actual CSS rules that produce the rearrangement are shipped, not just the attribute.
+      expect(stacked).toContain(':where([data-lp-layout="split"]) .lp-hero')
+      expect(stacked).toContain(
+        ':where([data-lp-layout="alternating"]) .lp-feature:nth-child(even)',
+      )
+      expect(stacked).toContain(':where([data-lp-layout="editorial"]) .lp-hero {')
+    })
+
+    it('a Studio-skinned page keeps its scroll-snap/parallax choreography under every layout, unaffected by the axis', () => {
+      const studioPayload = {
+        ...basePayload,
+        templateSchema: { ...basePayload.templateSchema, renderer: 'studio' as const },
+      }
+      for (const layoutVariant of LAYOUT_VARIANTS) {
+        const html = renderLandingPageHtml({ ...studioPayload, layoutVariant })
+        expect(html).toContain('class="lp-template-studio"')
+        expect(html).toContain('data-lp-snap')
+        expect(html).toContain('data-lp-fx="hero-wipe"')
+        expect(html).toContain('lp-parallax-bridge')
+      }
+      // Centered is a real, deliberately-composed exception: it visibly re-centers Studio's
+      // normally left-aligned hero copy without touching any of the choreography markup above.
+      const centered = renderLandingPageHtml({ ...studioPayload, layoutVariant: 'CENTERED' })
+      expect(centered).toContain('data-lp-layout="centered"')
+      expect(centered).toContain('class="lp-template-studio"')
+    })
+  })
+
   it('renders layout-independent page title and favicon settings', () => {
     const html = renderLandingPageHtml({
       pageName: 'Internal campaign name',

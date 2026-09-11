@@ -64,6 +64,7 @@ function toLandingPageDTO(
     content: unknown
     theme: unknown
     layoutConfig: unknown
+    layoutVariant: string
     publishedVersionId: string | null
     formStartCount: number
     createdAt: Date
@@ -111,6 +112,7 @@ function baseLandingPageFields(
     content: unknown
     theme: unknown
     layoutConfig: unknown
+    layoutVariant: string
     publishedVersionId: string | null
     formStartCount: number
     createdAt: Date
@@ -130,6 +132,7 @@ function baseLandingPageFields(
     content: page.content,
     theme: page.theme,
     layoutConfig: page.layoutConfig,
+    layoutVariant: page.layoutVariant,
     publishedVersionId: page.publishedVersionId,
     hostedUrl: hostedPageUrl(page.slug),
     previewUrl: landingPagePreviewUrl(page.id),
@@ -189,6 +192,7 @@ function toVersionDTO(version: any) {
     content: version.content,
     theme: version.theme,
     layoutConfig: version.layoutConfig ?? null,
+    layoutVariant: version.layoutVariant ?? null,
     formId: version.formId,
     formSnapshot: version.formSnapshot ?? null,
     publishedAt: version.publishedAt.toISOString(),
@@ -368,13 +372,6 @@ export class LandingPageService {
       })
       if (!form) throw { statusCode: 404, message: 'Form not found' }
     }
-    if (data.templateId) {
-      await ensureSystemTemplates(db)
-      const template = await db.landingPageTemplate.findFirst({
-        where: { id: data.templateId, OR: [{ businessId: null }, { businessId }] },
-      })
-      if (!template) throw { statusCode: 404, message: 'Template not found' }
-    }
     if (data.content) assertYoutubeUrlsInContent(data.content)
 
     // Slug behavior: auto-follows the title on every draft save until either (a) it's
@@ -404,10 +401,13 @@ export class LandingPageService {
         ...(lockSlug ? { slugAutoManaged: false } : {}),
         ...(data.customDomain !== undefined ? { customDomain: data.customDomain } : {}),
         ...(data.formId !== undefined ? { formId: data.formId } : {}),
-        ...(data.templateId !== undefined ? { templateId: data.templateId } : {}),
+        // templateId ("Page Starter") is creation-time only and immutable afterward — see
+        // CLAUDE.md's Layout entry. Structural changes to an existing page go through
+        // layoutVariant instead, which never touches which content/sections exist.
         ...(data.content !== undefined ? { content: data.content } : {}),
         ...(data.theme !== undefined ? { theme: data.theme } : {}),
         ...(data.layoutConfig !== undefined ? { layoutConfig: data.layoutConfig } : {}),
+        ...(data.layoutVariant !== undefined ? { layoutVariant: data.layoutVariant } : {}),
       },
       include: {
         adSlots: { include: { assignments: true }, orderBy: { sortOrder: 'asc' as const } },
@@ -476,6 +476,7 @@ export class LandingPageService {
         content: current.content,
         theme: current.theme,
         layoutConfig: current.layoutConfig,
+        layoutVariant: current.layoutVariant,
         formSnapshot,
         adSlotSnapshot,
         schemaSnapshot,
@@ -489,6 +490,7 @@ export class LandingPageService {
           content: current.content as Prisma.InputJsonValue,
           theme: current.theme as Prisma.InputJsonValue | undefined,
           layoutConfig: current.layoutConfig as Prisma.InputJsonValue | undefined,
+          layoutVariant: current.layoutVariant,
           formId: current.formId,
           formSnapshot: formSnapshot as unknown as Prisma.InputJsonValue | undefined,
           adSlotSnapshot: adSlotSnapshot as unknown as Prisma.InputJsonValue,
@@ -596,6 +598,7 @@ export class LandingPageService {
       content,
       theme: page.theme as any,
       layoutConfig: page.layoutConfig as any,
+      layoutVariant: page.layoutVariant,
       form,
       submitActionUrl: landingPageSubmitUrl(page.id),
       adSlots: await snapshotSlots(slots),

@@ -110,9 +110,9 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
   const cta = content?.primaryCta ?? {}
   const media = content?.media ?? {}
   return (
-    <section className="relative overflow-hidden pt-16 pb-20 lg:pt-24 lg:pb-28">
+    <section className="lp-hero relative overflow-hidden pt-16 pb-20 lg:pt-24 lg:pb-28">
       <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-12 px-6 lg:grid-cols-12 lg:gap-10 lg:px-8">
-        <div className="text-center lg:col-span-7 lg:text-left">
+        <div className="lp-hero-copy text-center lg:col-span-7 lg:text-left">
           {badges.map((badge, i) => (
             <span
               key={i}
@@ -197,7 +197,7 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
             ) : null}
           </div>
         </div>
-        <div className="relative w-full lg:col-span-5">
+        <div className="lp-hero-media relative w-full lg:col-span-5">
           {editable ? (
             <div
               className="aspect-[4/3] w-full overflow-hidden"

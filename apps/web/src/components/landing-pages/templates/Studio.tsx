@@ -1,5 +1,6 @@
 import type { FormFieldDraft } from '@/components/forms/FormFieldsEditor'
 import type { PageContent } from '../../../pages/landing-pages/components/types'
+import type { LayoutVariant } from '../../../pages/landing-pages/components/LayoutVariantPicker'
 import { ContactSection } from './studio/Contact'
 import { FAQSection } from './studio/FAQ'
 import { FeaturesSection } from './studio/Features'
@@ -16,6 +17,7 @@ export function Studio({
   content,
   theme,
   layoutConfig,
+  layoutVariant = 'STACKED',
   editable = false,
   onSlotChange,
   hasForm,
@@ -26,6 +28,7 @@ export function Studio({
   content?: PageContent
   theme?: Record<string, string>
   layoutConfig?: { sections?: Record<string, { hidden?: boolean }> }
+  layoutVariant?: LayoutVariant
   editable?: boolean
   onSlotChange?: (slotGroup: keyof PageContent, patch: unknown) => void
   hasForm: boolean
@@ -79,6 +82,7 @@ export function Studio({
           content={c.hero}
           editable={editable}
           onChange={(patch) => slotChange('hero', patch)}
+          layoutVariant={layoutVariant}
         />
         {!isHidden('logos') && (
           <div id="logos">
@@ -97,6 +101,7 @@ export function Studio({
             content={c.services}
             editable={editable}
             onChange={(patch) => slotChange('services', patch)}
+            layoutVariant={layoutVariant}
           />
         </div>
       )}
@@ -115,6 +120,7 @@ export function Studio({
             content={c.features}
             editable={editable}
             onChange={(patch) => slotChange('features', patch)}
+            layoutVariant={layoutVariant}
           />
         </div>
       )}
