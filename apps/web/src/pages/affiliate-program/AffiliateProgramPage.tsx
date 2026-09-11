@@ -6,7 +6,7 @@ import {
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { CopyText } from '@/components/affiliates/CopyText'
+import { CopyText, CopyButton } from '@/components/affiliates/CopyText'
 
 const formatCurrency = (minor: number) => `$${(minor / 100).toFixed(2)}`
 const formatRate = (bps: number) => `${(bps / 100).toFixed(2)}%`
@@ -84,10 +84,39 @@ export function AffiliateProgramPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Your referral link</CardTitle>
+          <CardTitle>Referral code</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {affiliate ? <CopyText value={referralLink} /> : null}
+          {affiliate ? (
+            <div className="rounded-lg border bg-muted/40 p-4">
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <p className="font-mono text-2xl font-semibold tracking-wide">
+                  {affiliate.referralCode}
+                </p>
+                <CopyButton value={affiliate.referralCode} />
+              </div>
+            </div>
+          ) : null}
+          {affiliate ? (
+            <div className="rounded-lg border bg-muted/40 p-4">
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Referral link
+                  </p>
+                  <a
+                    href={referralLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm hover:underline"
+                  >
+                    {referralLink}
+                  </a>
+                </div>
+                <CopyButton value={referralLink} />
+              </div>
+            </div>
+          ) : null}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <div>
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
