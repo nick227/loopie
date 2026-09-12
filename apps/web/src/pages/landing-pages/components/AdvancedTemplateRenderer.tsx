@@ -6,7 +6,7 @@ import { Portfolio } from '../../../components/landing-pages/templates/Portfolio
 import { Store } from '../../../components/landing-pages/templates/Store'
 import { EmailOutreach } from '../../../components/landing-pages/templates/EmailOutreach'
 import type { FormFieldDraft } from '@/components/forms/FormFieldsEditor'
-import { LAYOUT_VARIANT_CSS } from '@project/page-layout'
+import { LAYOUT_VARIANT_CSS, GRID_TOKENS_CSS } from '@project/page-layout'
 import type { LayoutVariant } from './LayoutVariantPicker'
 import {
   CORPORATE_PROFESSIONAL_TEMPLATE_ID,
@@ -92,6 +92,7 @@ export function AdvancedTemplateRenderer({
       data-lp-layout={layoutVariant.toLowerCase()}
       className={`lp-canvas overflow-hidden rounded-xl border border-input-border shadow-sm ${skinClass}`}
     >
+      <style>{GRID_TOKENS_CSS}</style>
       <style>{LAYOUT_VARIANT_CSS}</style>
       {templateId === WEBINAR_SIGNUP_TEMPLATE_ID ? (
         <WebinarSignup

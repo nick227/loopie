@@ -201,7 +201,7 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
           {editable ? (
             <div
               className="aspect-[4/3] w-full overflow-hidden"
-              style={{ borderRadius: 'var(--lp-radius)' }}
+              style={{ borderRadius: 'var(--lp-radius-lg)' }}
             >
               <MediaSlotField
                 kind="IMAGE"
@@ -215,7 +215,7 @@ function HeroSection({ content, editable, onChange }: SectionProps<'hero'>) {
               src={media.url}
               alt={media.alt || 'Hero Image'}
               className="aspect-[4/3] w-full object-cover"
-              style={{ borderRadius: 'var(--lp-radius)' }}
+              style={{ borderRadius: 'var(--lp-radius-lg)' }}
             />
           )}
         </div>
@@ -629,7 +629,7 @@ function FeatureGridSection({ content, editable, onChange }: SectionProps<'featu
           style={{
             backgroundColor: ink(12),
             border: `1px solid ${ink(12)}`,
-            borderRadius: 'var(--lp-radius)',
+            borderRadius: 'var(--lp-radius-lg)',
           }}
         >
           {items.map((feature, i) => {
@@ -1151,7 +1151,7 @@ function ContactSection({
             </p>
           ) : (
             <>
-              <div className="[&_label]:!text-[color:color-mix(in_srgb,var(--lp-bg)_70%,var(--lp-ink))] [&_input]:!border [&_input]:!border-[color:color-mix(in_srgb,var(--lp-bg)_20%,var(--lp-ink))] [&_input]:!bg-transparent [&_input]:!text-[color:var(--lp-bg)] [&_input]:![border-radius:var(--lp-radius)] [&_select]:!border [&_select]:!border-[color:color-mix(in_srgb,var(--lp-bg)_20%,var(--lp-ink))] [&_select]:!bg-transparent [&_select]:!text-[color:var(--lp-bg)] [&_select]:![border-radius:var(--lp-radius)] [&_.text-muted-foreground]:!text-[color:color-mix(in_srgb,var(--lp-bg)_60%,var(--lp-ink))] [&_button]:!text-[color:var(--lp-bg)] [&_button]:!border-[color:color-mix(in_srgb,var(--lp-bg)_25%,var(--lp-ink))]">
+              <div>
                 <FormFieldsEditor fields={formFields} onChange={onFormFields} protectEmail />
               </div>
               <button
@@ -1335,7 +1335,7 @@ function NavBar({
           style={{
             backgroundColor: 'var(--lp-bg)',
             border: `1px solid ${ink(12)}`,
-            borderRadius: 'var(--lp-radius)',
+            borderRadius: 'var(--lp-radius-lg)',
           }}
         >
           <div className="flex flex-col gap-3">
@@ -1419,6 +1419,7 @@ export function CorporateProfessional({
         ['--lp-card' as string]: t.cardColor ?? TOKEN_DEFAULTS.cardColor,
         ['--lp-heading' as string]: t.headingFont ?? TOKEN_DEFAULTS.headingFont,
         ['--lp-radius' as string]: t.radius ?? TOKEN_DEFAULTS.radius,
+        ['--lp-radius-lg' as string]: `min(${t.radius ?? TOKEN_DEFAULTS.radius}, 28px)`,
       }}
     >
       <NavBar content={c.nav} editable={editable} onChange={(patch) => slotChange('nav', patch)} />

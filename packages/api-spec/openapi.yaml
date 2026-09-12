@@ -5626,8 +5626,6 @@ components:
             - STACKED
             - SPLIT
             - CENTERED
-            - ALTERNATING
-            - EDITORIAL
           description: Structural arrangement of this page's existing content. Editor-facing, changeable any time — independent of templateId/pageType/content. See CLAUDE.md's Layout entry.
         publishedVersionId:
           type: string
@@ -5838,8 +5836,6 @@ components:
             - STACKED
             - SPLIT
             - CENTERED
-            - ALTERNATING
-            - EDITORIAL
           description: Structural arrangement, changeable any time. templateId ("Page Starter") is creation-time only and cannot be changed here — see CLAUDE.md's Layout entry.
     PublishedPageVersion:
       type: object
@@ -5899,8 +5895,6 @@ components:
             - STACKED
             - SPLIT
             - CENTERED
-            - ALTERNATING
-            - EDITORIAL
           description: Frozen at publish time, same immutability pattern as content/theme. Null for versions published before this column existed — treat as STACKED (a no-op).
         publishedAt:
           type: string

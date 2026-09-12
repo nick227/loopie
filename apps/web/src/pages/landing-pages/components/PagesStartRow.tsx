@@ -129,7 +129,12 @@ export function PagesStartRow({ onError }: { onError: (message: string | null) =
     )
   }
 
-  // Step 1: pick a Page Type — one screenshot tile per type, taken from its first Layout.
+  // Step 1: pick a Page Type — one screenshot tile per type, taken from its first Layout. A type
+  // with only one Layout has no real second decision left to make — Step 2 would just be showing
+  // the user the same single tile again, an unwanted extra click before reaching the editor — so
+  // it creates and navigates immediately, same one-click behavior as picking a Layout in Step 2.
+  // Only a genuinely multi-Layout type (Studio: Creative studio + Portfolio) still opens Step 2,
+  // since there's a real choice to make there.
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {availableTypes.map((pageType) => {
@@ -143,10 +148,12 @@ export function PagesStartRow({ onError }: { onError: (message: string | null) =
             imageUrl={mediaSrc(
               (primary as { previewImageUrl?: string | null } | undefined)?.previewImageUrl,
             )}
-            pending={false}
+            pending={pendingId === primary?.id}
             disabled={disabled}
             badge={layouts.length > 1 ? `${layouts.length} layouts` : undefined}
-            onClick={() => setOpenType(pageType)}
+            onClick={() =>
+              layouts.length === 1 && primary ? start(primary.id) : setOpenType(pageType)
+            }
           />
         )
       })}

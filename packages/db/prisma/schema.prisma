@@ -1878,12 +1878,16 @@ enum PageStatus {
 // never touching templateId/pageType. Every variant must be able to render every section a page
 // already has; only presentation (grid arrangement, alignment, alternation) may differ. See
 // renderLandingPage.ts for how this composes with a Starter's own permanent skin/choreography.
+// 2026-09-11 design-committee review: ALTERNATING removed outright (its media/copy row-mirror
+// mechanism was applied indiscriminately to plain title+body content with no media, producing a
+// disconnected, unreadable split — not a polish gap, the concept didn't fit this product's actual
+// content shapes) and EDITORIAL folded into SPLIT (its one real idea, oversized asymmetric display
+// type, is a stronger presentation of Split's own "give one side visual weight" concept, not a
+// separate structural axis) — see the Layout redesign migration for the one-time data remap.
 enum PageLayoutVariant {
   STACKED
   SPLIT
   CENTERED
-  ALTERNATING
-  EDITORIAL
 }
 
 model LandingPage {

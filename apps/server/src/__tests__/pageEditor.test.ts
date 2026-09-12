@@ -126,7 +126,7 @@ describe('page editor', () => {
     expect(patched.json().data.name).toBe('Renamed')
   })
 
-  it('preserves every section and content value across all five Layout variants', async () => {
+  it('preserves every section and content value across all three Layout variants', async () => {
     const created = await app.inject({
       method: 'POST',
       url: '/landing-pages',
@@ -143,7 +143,7 @@ describe('page editor', () => {
     expect(page.content.features).toBeTruthy()
     expect(page.content.media.url).toContain('images.unsplash.com')
 
-    const variants = ['SPLIT', 'CENTERED', 'ALTERNATING', 'EDITORIAL', 'STACKED'] as const
+    const variants = ['SPLIT', 'CENTERED', 'STACKED'] as const
     for (const layoutVariant of variants) {
       const updated = await app.inject({
         method: 'PATCH',

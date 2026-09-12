@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { CanvasSection, HeroBlock, MediaImageBlock } from './CanvasSection'
 import { CanvasAdBand } from './CanvasAdBand'
-import { LAYOUT_VARIANT_CSS } from '@project/page-layout'
+import { LAYOUT_VARIANT_CSS, GRID_TOKENS_CSS } from '@project/page-layout'
 import type { FormFieldDraft } from '@/components/forms/FormFieldsEditor'
 import type { AdSlotDraft } from './adSlots'
 import type { LayoutVariant } from './LayoutVariantPicker'
@@ -14,8 +14,11 @@ import {
 } from './types'
 
 // Layout (2026-09-11) — variants that pair the hero with an adjacent media section into one
-// two-column composition, rather than each rendering as its own full-width stacked block.
-const HERO_MEDIA_GROUPING_VARIANTS: LayoutVariant[] = ['SPLIT', 'ALTERNATING', 'EDITORIAL']
+// two-column composition, rather than each rendering as its own full-width stacked block. Kept
+// as a list (not a single `=== 'SPLIT'` check) since the server renderer's own equivalent grouping
+// (composition/composePage.ts's composeDefault) reads from this exact same concept — see that
+// file's own doc comment for why the two must stay in sync.
+const HERO_MEDIA_GROUPING_VARIANTS: LayoutVariant[] = ['SPLIT']
 
 export function PageCanvas({
   sections,
@@ -88,7 +91,10 @@ export function PageCanvas({
       items.push({
         key: section.key,
         node: (
-          <div id={sectionAnchorId(section)} className="lp-hero">
+          <div
+            id={sectionAnchorId(section)}
+            className="lp-hero mx-auto max-w-[1040px] px-6 pb-4 pt-14 sm:pt-16"
+          >
             <div className="lp-hero-copy">
               <HeroBlock
                 section={section}
@@ -99,6 +105,7 @@ export function PageCanvas({
                 onFormFields={onFormFields}
                 submitLabel={submitLabel}
                 set={(patch) => slotGroup && onSlot(slotGroup, { ...slotContent, ...patch })}
+                bare
               />
             </div>
             <div id={sectionAnchorId(nextSection)} className="lp-hero-media">
@@ -113,6 +120,7 @@ export function PageCanvas({
                 set={(patch) =>
                   mediaSlotGroup && onSlot(mediaSlotGroup, { ...mediaContent, ...patch })
                 }
+                bare
               />
             </div>
           </div>
@@ -166,8 +174,10 @@ export function PageCanvas({
         ['--lp-ink' as string]: inkColor,
         ['--lp-card' as string]: cardColor,
         ['--lp-radius' as string]: radius,
+        ['--lp-radius-lg' as string]: `min(${radius}, 28px)`,
       }}
     >
+      <style>{GRID_TOKENS_CSS}</style>
       <style>{LAYOUT_VARIANT_CSS}</style>
       {items.map((item) => (
         <div key={item.key}>{item.node}</div>

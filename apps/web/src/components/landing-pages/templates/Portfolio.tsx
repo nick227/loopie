@@ -12,28 +12,26 @@ import type {
   NavLink,
 } from '../../../pages/landing-pages/components/types'
 
-// Layout (2026-09-11) — Portfolio's hero has no inline media slot by design (the image is always
-// full-bleed behind the overlaid text — that's its identity), so Layout is interpreted as the
-// width/position/vertical-anchor of the text box sitting over it, never its own text-align (every
-// text element keeps its existing centered alignment untouched) and never the scroll-linked
-// image/opacity motion. Split positions the box in a real left column; Alternating mirrors it to
-// the right (the same idea, flipped) — a legitimate "alternate side" reading even for a section
-// that has only one instance. Centered narrows the box to a real centered column (a clearly
-// narrower content axis) while the background image stays exactly as full-bleed as ever — nothing
-// about the "Noisefracture editorial" identity changes, only how wide the text sits within it.
+// Layout (2026-09-11, redesigned 2026-09-11 per design-committee review) — Portfolio's hero has
+// no inline media slot by design (the image is always full-bleed behind the overlaid text —
+// that's its identity), so Layout is interpreted as the width/position/vertical-anchor of the
+// text box sitting over it, never its own text-align (every text element keeps its existing
+// centered alignment untouched) and never the scroll-linked image/opacity motion. Split gives the
+// box real asymmetric weight — a right-anchored, wider column sitting low against the image, the
+// bold "give one side of the frame real weight" idea the committee kept from the old Editorial
+// variant rather than Split's own previously-timid narrow-left-column version. Centered narrows
+// the box to a real centered column (a clearly narrower content axis) while the background image
+// stays exactly as full-bleed as ever — nothing about the "Noisefracture editorial" identity
+// changes, only how wide the text sits within it.
 const HERO_BOX_CLASS: Record<LayoutVariant, string> = {
   STACKED: 'w-full',
-  SPLIT: 'w-full max-w-xl mr-auto',
+  SPLIT: 'w-full max-w-2xl mr-auto',
   CENTERED: 'w-full max-w-2xl mx-auto',
-  ALTERNATING: 'w-full max-w-xl ml-auto',
-  EDITORIAL: 'w-full max-w-2xl mr-auto',
 }
 const HERO_JUSTIFY_CLASS: Record<LayoutVariant, string> = {
   STACKED: 'justify-center',
-  SPLIT: 'justify-center',
+  SPLIT: 'justify-end pb-24',
   CENTERED: 'justify-center',
-  ALTERNATING: 'justify-center',
-  EDITORIAL: 'justify-end pb-24',
 }
 
 // Same token vocabulary/fallbacks as every other rich template. Portfolio's own register — quiet,
@@ -374,15 +372,7 @@ function ServiceSelectorSection({
             </motion.div>
 
             <div className="absolute inset-0 flex flex-col justify-center pointer-events-none z-10 mix-blend-difference">
-              <div
-                className={`pointer-events-auto absolute top-1/2 -translate-y-1/2 left-[-10vw] right-[-10vw] flex flex-col ${
-                  layoutVariant === 'ALTERNATING'
-                    ? i % 2 === 1
-                      ? 'items-end text-right'
-                      : 'items-start text-left'
-                    : 'items-center text-center'
-                }`}
-              >
+              <div className="pointer-events-auto absolute top-1/2 -translate-y-1/2 left-[-10vw] right-[-10vw] flex flex-col items-center text-center">
                 {editable ? (
                   <CanvasText
                     ariaLabel={`Project ${i + 1} label`}

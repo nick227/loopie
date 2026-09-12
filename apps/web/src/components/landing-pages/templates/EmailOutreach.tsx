@@ -21,8 +21,6 @@ const HERO_ALIGN_CLASS: Record<LayoutVariant, string> = {
   STACKED: '',
   SPLIT: '',
   CENTERED: 'text-center',
-  ALTERNATING: 'text-right',
-  EDITORIAL: '',
 }
 
 // Email-shaped sales vehicle: constrained column on a soft canvas, letter hierarchy, one ask.
@@ -100,7 +98,7 @@ function HeroSection({
 }: SectionProps<'hero'> & { layoutVariant?: LayoutVariant }) {
   const cta = content?.primaryCta ?? {}
   const media = content?.media ?? {}
-  const isEditorial = layoutVariant === 'EDITORIAL'
+  const isSplit = layoutVariant === 'SPLIT'
 
   const copy = (
     <>
@@ -136,7 +134,7 @@ function HeroSection({
           multiline
           style={{ fontFamily: 'var(--lp-heading)', color: 'var(--lp-ink)' }}
           className={
-            isEditorial
+            isSplit
               ? 'mb-4 text-[2.1rem] font-bold leading-[1.08] tracking-[-0.02em] sm:text-[2.4rem]'
               : 'mb-4 text-[1.65rem] font-semibold leading-[1.25] tracking-[-0.015em] sm:text-[1.85rem]'
           }
@@ -144,7 +142,7 @@ function HeroSection({
       ) : (
         <h1
           className={
-            isEditorial
+            isSplit
               ? 'mb-4 text-[2.1rem] font-bold leading-[1.08] tracking-[-0.02em] sm:text-[2.4rem]'
               : 'mb-4 text-[1.65rem] font-semibold leading-[1.25] tracking-[-0.015em] sm:text-[1.85rem]'
           }
@@ -199,7 +197,7 @@ function HeroSection({
   const image = (
     <div
       className={`overflow-hidden ${layoutVariant === 'SPLIT' ? 'mb-6' : 'mt-2'}`}
-      style={{ borderRadius: 'var(--lp-radius)', backgroundColor: ink(6) }}
+      style={{ borderRadius: 'var(--lp-radius-lg)', backgroundColor: ink(6) }}
     >
       {editable ? (
         <MediaSlotField
@@ -294,9 +292,7 @@ function FeaturesSection({
         {items.map((item, i) => (
           <div
             key={i}
-            className={`${layoutVariant === 'SPLIT' ? '' : 'py-5 first:pt-0 last:pb-0'} ${
-              layoutVariant === 'ALTERNATING' && i % 2 === 1 ? 'text-right' : ''
-            }`}
+            className={layoutVariant === 'SPLIT' ? '' : 'py-5 first:pt-0 last:pb-0'}
             style={{ borderColor: ink(10) }}
           >
             {editable ? (
@@ -727,6 +723,7 @@ export function EmailOutreach({
         ['--lp-card' as string]: t.cardColor ?? TOKEN_DEFAULTS.cardColor,
         ['--lp-heading' as string]: t.headingFont ?? TOKEN_DEFAULTS.headingFont,
         ['--lp-radius' as string]: t.radius ?? TOKEN_DEFAULTS.radius,
+        ['--lp-radius-lg' as string]: `min(${t.radius ?? TOKEN_DEFAULTS.radius}, 28px)`,
       }}
     >
       <article

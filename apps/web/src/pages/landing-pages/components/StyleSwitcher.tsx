@@ -65,7 +65,6 @@ export function StyleSwitcher({
         className="relative inline-flex h-8 min-w-0 items-center gap-1.5 rounded-lg border border-input-border bg-transparent px-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:border-foreground/20"
       >
         <span className="shrink-0">Style</span>
-        <Swatch palette={palette} />
         <span className="max-w-[7rem] truncate text-xs normal-case text-foreground">
           {bundle?.name ?? 'Custom'}
         </span>

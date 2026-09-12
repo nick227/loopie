@@ -49,8 +49,6 @@ describe('PageToolbar', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByText('Split')).toBeInTheDocument()
     expect(screen.getByText('Centered')).toBeInTheDocument()
-    expect(screen.getByText('Alternating')).toBeInTheDocument()
-    expect(screen.getByText('Editorial')).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('Split'))
     expect(onLayoutVariant).toHaveBeenCalledWith('SPLIT')

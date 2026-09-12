@@ -33,25 +33,22 @@ function FeatureRow({
   const disabled = useStudioMotionDisabled()
   const start = 0.18 + index * 0.1
   const end = start + 0.2
-  const isEditorial = layoutVariant === 'EDITORIAL'
-  const numScale = useTransform(progress, [start, end], [isEditorial ? 1.9 : 1.55, 1])
+  const isSplit = layoutVariant === 'SPLIT'
+  const numScale = useTransform(progress, [start, end], [isSplit ? 1.9 : 1.55, 1])
   const numOpacity = useTransform(progress, [start, end], [0.25, 0.45])
   const rowY = useTransform(progress, [start, end], [28, 0])
   const rowOpacity = useTransform(progress, [start, end], [0, 1])
-  // Alternating mirrors the numeral to the opposite side every other row; every other variant
-  // holds the numeral on the left, matching the row's own default reading order.
-  const mirrored = layoutVariant === 'ALTERNATING' && index % 2 === 1
 
   return (
     <motion.div
-      className={`group relative grid grid-cols-[4.5rem_1fr] gap-4 border-t py-8 sm:grid-cols-[6rem_1fr] sm:gap-8 ${mirrored ? 'sm:[&>*:first-child]:order-2 text-right' : ''} ${layoutVariant === 'CENTERED' ? 'mx-auto max-w-2xl text-center sm:grid-cols-1' : ''}`}
+      className={`group relative grid grid-cols-[4.5rem_1fr] gap-4 border-t py-8 sm:grid-cols-[6rem_1fr] sm:gap-8 ${layoutVariant === 'CENTERED' ? 'mx-auto max-w-2xl text-center sm:grid-cols-1' : ''}`}
       style={{
         borderColor: 'color-mix(in srgb, currentColor 22%, transparent)',
         ...(disabled ? {} : { y: rowY, opacity: rowOpacity }),
       }}
     >
       <motion.span
-        className={`font-bold tabular-nums ${isEditorial ? 'text-5xl sm:text-6xl' : 'text-4xl sm:text-5xl'}`}
+        className={`font-bold tabular-nums ${isSplit ? 'text-5xl sm:text-6xl' : 'text-4xl sm:text-5xl'}`}
         style={{
           fontFamily: 'var(--lp-heading)',
           ...(disabled ? { opacity: 0.4 } : { scale: numScale, opacity: numOpacity }),

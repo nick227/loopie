@@ -17,10 +17,8 @@ import type { LayoutVariant } from '../../../pages/landing-pages/components/Layo
 // purely static Tailwind grid/column classes, so every variant is a plain, low-risk class swap.
 const PRODUCT_GRID_CLASS: Record<LayoutVariant, string> = {
   STACKED: 'grid-cols-1 max-w-2xl mx-auto',
-  SPLIT: 'grid-cols-2',
+  SPLIT: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4',
   CENTERED: 'grid-cols-2 sm:grid-cols-3 max-w-4xl mx-auto',
-  ALTERNATING: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4',
-  EDITORIAL: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4',
 }
 
 // Same token vocabulary/fallbacks as every other rich template — Store's retail energy comes from
@@ -126,7 +124,7 @@ function ProductsSection({
   content,
   editable,
   onChange,
-  layoutVariant = 'ALTERNATING',
+  layoutVariant = 'STACKED',
 }: SectionProps<'products'> & { layoutVariant?: LayoutVariant }) {
   const mockNames = [
     'Meteor Shower Tee',
@@ -206,8 +204,8 @@ function ProductsSection({
             <div
               key={i}
               className={`group relative flex flex-col transition-shadow hover:shadow-lg ${
-                layoutVariant === 'EDITORIAL' && i === 0 ? 'sm:col-span-2 sm:row-span-2' : ''
-              } ${layoutVariant === 'ALTERNATING' && i % 2 === 1 ? 'text-right' : ''}`}
+                layoutVariant === 'SPLIT' && i === 0 ? 'sm:col-span-2 sm:row-span-2' : ''
+              }`}
               style={{ backgroundColor: 'transparent' }}
             >
               <div
@@ -364,7 +362,7 @@ function PromoFooterSection({
   formFields,
   onFormFields,
   submitLabel,
-  layoutVariant = 'ALTERNATING',
+  layoutVariant = 'STACKED',
 }: SectionProps<'footer'> & {
   hasForm: boolean
   formFields: FormFieldDraft[]
@@ -374,10 +372,11 @@ function PromoFooterSection({
 }) {
   const cta: CtaRef = content?.cta ?? {}
   // Stacked collapses the promo strip to one column (its own "conventional vertical flow");
-  // Alternating swaps which side the form sits on — a real mirror of the default text|form order.
+  // Split swaps which side the form sits on — a real mirror of the default text|form order,
+  // putting the CTA first the same way Split gives the hero's media side more weight elsewhere.
   const gridClass =
     layoutVariant === 'STACKED' ? 'lg:grid-cols-1 max-w-2xl' : 'lg:grid-cols-2 max-w-6xl'
-  const orderClass = layoutVariant === 'ALTERNATING' ? 'lg:[&>*:first-child]:order-2' : ''
+  const orderClass = layoutVariant === 'SPLIT' ? 'lg:[&>*:first-child]:order-2' : ''
 
   return (
     <section
@@ -458,7 +457,7 @@ function PromoFooterSection({
           ) : (
             <div
               className="p-5"
-              style={{ backgroundColor: inv(12), borderRadius: 'var(--lp-radius)' }}
+              style={{ backgroundColor: inv(12), borderRadius: 'var(--lp-radius-lg)' }}
             >
               <div className="[&_label]:!text-[color:color-mix(in_srgb,var(--lp-on-primary)_80%,var(--lp-primary))] [&_input]:!border-0 [&_input]:!bg-[color:var(--lp-on-primary)] [&_input]:!px-4 [&_input]:!py-2 [&_input]:!text-[color:var(--lp-primary)] [&_select]:!border-0 [&_select]:!bg-[color:var(--lp-on-primary)] [&_select]:!px-4 [&_select]:!text-[color:var(--lp-primary)] [&_.text-muted-foreground]:!text-[color:color-mix(in_srgb,var(--lp-on-primary)_65%,var(--lp-primary))] [&_button]:!text-[color:var(--lp-on-primary)] [&_button]:!border-[color:color-mix(in_srgb,var(--lp-on-primary)_25%,var(--lp-primary))] [&_input]:![border-radius:var(--lp-radius)] [&_select]:![border-radius:var(--lp-radius)]">
                 <FormFieldsEditor fields={formFields} onChange={onFormFields} protectEmail />
@@ -487,7 +486,7 @@ export function Store({
   content,
   theme,
   layoutConfig,
-  layoutVariant = 'ALTERNATING',
+  layoutVariant = 'STACKED',
   editable = false,
   onSlotChange,
   hasForm,
@@ -531,6 +530,7 @@ export function Store({
         ['--lp-card' as string]: t.cardColor ?? TOKEN_DEFAULTS.cardColor,
         ['--lp-heading' as string]: t.headingFont ?? TOKEN_DEFAULTS.headingFont,
         ['--lp-radius' as string]: t.radius ?? TOKEN_DEFAULTS.radius,
+        ['--lp-radius-lg' as string]: `min(${t.radius ?? TOKEN_DEFAULTS.radius}, 28px)`,
       }}
     >
       <NavBar content={c.nav} editable={editable} onChange={(patch) => slotChange('nav', patch)} />

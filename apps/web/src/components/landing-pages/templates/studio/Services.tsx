@@ -12,19 +12,22 @@ import { BODY, TITLE, washForIndex } from './tokens'
 
 const TONES: Tone[] = ['bg', 'ink', 'primary']
 
-// Layout (2026-09-11) — Studio's service rows natively alternate image/copy sides per project;
-// that native behavior IS the Alternating interpretation here. The other four variants reuse the
-// same motion/ColorWash/SnapPanel machinery, only changing the static grid shape (never the
-// scroll-linked transforms themselves): Stacked/Centered collapse to one column (image above
-// copy); Split holds a consistent, non-alternating two-column split; Editorial skews the split
-// asymmetric with larger type.
+// Layout (2026-09-11, redesigned 2026-09-11 per design-committee review) — Studio's service rows
+// reuse the same motion/ColorWash/SnapPanel machinery across every variant, only changing the
+// static grid shape (never the scroll-linked transforms themselves): Stacked/Centered collapse to
+// one column (image above copy); Split holds a two-column split, skewed asymmetric in the media's
+// favor with larger type — the bold idea kept from the old Editorial variant. Per-project
+// left/right mirroring (the old Alternating variant) was removed outright: Studio's gallery is
+// the one place the committee found it failing at its own name (real project rows ended up on
+// the same side instead of alternating), and a single consistent direction reads as one
+// deliberate choice rather than a coin flip.
 function gridClassFor(layoutVariant: LayoutVariant): string {
   return layoutVariant === 'STACKED' || layoutVariant === 'CENTERED'
     ? 'grid-cols-1'
     : 'lg:grid-cols-12'
 }
 function colSpanFor(layoutVariant: LayoutVariant): { media: string; copy: string } {
-  if (layoutVariant === 'EDITORIAL') return { media: 'lg:col-span-7', copy: 'lg:col-span-5' }
+  if (layoutVariant === 'SPLIT') return { media: 'lg:col-span-7', copy: 'lg:col-span-5' }
   return { media: 'lg:col-span-6', copy: 'lg:col-span-6' }
 }
 
@@ -52,9 +55,9 @@ function ServicePanel({
   const { ref, progress } = useMotionPanel()
   const disabled = useStudioMotionDisabled()
   const isStackedOrCentered = layoutVariant === 'STACKED' || layoutVariant === 'CENTERED'
-  // Only the Alternating variant mirrors direction per project — every other variant holds a
-  // single, consistent direction so it reads as one deliberate choice, not a coin flip.
-  const fromRight = layoutVariant === 'ALTERNATING' ? index % 2 === 1 : false
+  // A single, consistent slide-in direction across every project — reads as one deliberate
+  // choice rather than a coin flip. See this file's Layout doc comment above.
+  const fromRight = false
 
   const imgScale = useTransform(progress, [0.15, 0.55], [1.12, 1])
   const copyX = useTransform(progress, [0.2, 0.5], [fromRight ? 56 : -56, 0])
@@ -205,7 +208,7 @@ export function ServicesSection({
   content,
   editable,
   onChange,
-  layoutVariant = 'ALTERNATING',
+  layoutVariant = 'STACKED',
 }: SectionProps<'services'> & { layoutVariant?: LayoutVariant }) {
   const items = content?.items ?? []
 

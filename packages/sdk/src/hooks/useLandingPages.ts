@@ -22,7 +22,7 @@ type UpdateLandingPageInput = {
   content?: Record<string, unknown>
   theme?: Record<string, unknown> | null
   layoutConfig?: Record<string, unknown> | null
-  layoutVariant?: 'STACKED' | 'SPLIT' | 'CENTERED' | 'ALTERNATING' | 'EDITORIAL'
+  layoutVariant?: 'STACKED' | 'SPLIT' | 'CENTERED'
 }
 
 export function useLandingPageTemplates(params?: { limit?: number }) {

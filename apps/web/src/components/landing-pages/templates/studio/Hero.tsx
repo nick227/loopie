@@ -8,18 +8,17 @@ import { useStudioMotionDisabled, useMotionPanel } from './motion'
 import { SolidCta, type SectionProps } from './shared'
 import { BODY, DISPLAY, ink } from './tokens'
 
-// Layout (2026-09-11) — a structural rearrangement of the same hero copy, layered onto Studio's
-// existing frame without touching its scroll-choreography (clip-path wipe / rail settle / snap
-// panel all stay exactly as they are — only the static width/alignment/type-scale of the copy
-// block changes). Studio's hero has no inline media slot by design (the image lives in the
-// shared ParallaxBridge behind it), so Split/Editorial are interpreted as column-width/type-scale
-// changes rather than a literal second column.
+// Layout (2026-09-11, redesigned 2026-09-11 per design-committee review) — a structural
+// rearrangement of the same hero copy, layered onto Studio's existing frame without touching its
+// scroll-choreography (clip-path wipe / rail settle / snap panel all stay exactly as they are —
+// only the static width/alignment/type-scale of the copy block changes). Studio's hero has no
+// inline media slot by design (the image lives in the shared ParallaxBridge behind it), so Split
+// is interpreted as a wider column with real oversized display type (the bold idea kept from the
+// old Editorial variant), not a literal second column.
 const HERO_WIDTH_CLASS: Record<LayoutVariant, string> = {
   STACKED: 'max-w-3xl',
-  SPLIT: 'max-w-md',
+  SPLIT: 'max-w-4xl',
   CENTERED: 'mx-auto max-w-2xl text-center',
-  ALTERNATING: 'max-w-3xl',
-  EDITORIAL: 'max-w-4xl',
 }
 
 /**
@@ -35,7 +34,7 @@ export function HeroSection({
   const cta = content?.primaryCta ?? {}
   const { ref, progress } = useMotionPanel()
   const disabled = useStudioMotionDisabled()
-  const isEditorial = layoutVariant === 'EDITORIAL'
+  const isSplit = layoutVariant === 'SPLIT'
   const isCentered = layoutVariant === 'CENTERED'
 
   const clip = useTransform(progress, [0.1, 0.4], ['inset(0 100% 0 0)', 'inset(0 0% 0 0)'])
@@ -57,7 +56,16 @@ export function HeroSection({
                 style={{
                   fontFamily: 'var(--lp-heading)',
                   color: 'var(--lp-ink)',
-                  ...(isEditorial ? { fontSize: 'clamp(3.5rem, 11vw, 8.5rem)' } : {}),
+                  // The base DISPLAY scale (studio/tokens.ts) sizes off viewport width alone, so
+                  // it never shrinks for a narrower container — under Centered that overflowed
+                  // its own 32rem copy box on a long headline (a real bug the committee found,
+                  // not a style choice). Both overrides use a container-aware clamp instead: a
+                  // bigger one for Split's wider box, a smaller one for Centered's narrower one.
+                  ...(isSplit
+                    ? { fontSize: 'clamp(3.5rem, 11vw, 8.5rem)' }
+                    : isCentered
+                      ? { fontSize: 'clamp(2.25rem, 6vw, 4.5rem)' }
+                      : {}),
                 }}
                 className={DISPLAY}
               />
@@ -67,7 +75,16 @@ export function HeroSection({
                 style={{
                   fontFamily: 'var(--lp-heading)',
                   color: 'var(--lp-ink)',
-                  ...(isEditorial ? { fontSize: 'clamp(3.5rem, 11vw, 8.5rem)' } : {}),
+                  // The base DISPLAY scale (studio/tokens.ts) sizes off viewport width alone, so
+                  // it never shrinks for a narrower container — under Centered that overflowed
+                  // its own 32rem copy box on a long headline (a real bug the committee found,
+                  // not a style choice). Both overrides use a container-aware clamp instead: a
+                  // bigger one for Split's wider box, a smaller one for Centered's narrower one.
+                  ...(isSplit
+                    ? { fontSize: 'clamp(3.5rem, 11vw, 8.5rem)' }
+                    : isCentered
+                      ? { fontSize: 'clamp(2.25rem, 6vw, 4.5rem)' }
+                      : {}),
                 }}
               >
                 {content?.headline}

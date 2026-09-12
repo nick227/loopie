@@ -12,16 +12,15 @@ import type {
 } from '../../../pages/landing-pages/components/types'
 import type { LayoutVariant } from '../../../pages/landing-pages/components/LayoutVariantPicker'
 
-// Layout (2026-09-11) — no motion in this template at all, so every variant below is a plain,
-// low-risk static Tailwind class swap. Hero has no inline media slot (its image renders full-width
-// below the CTA, not beside the copy), so — same idiom as Portfolio/Studio's hero — Split/
-// Alternating are interpreted as the copy box's width/position, mirrored between the two.
+// Layout (2026-09-11, redesigned 2026-09-11 per design-committee review) — no motion in this
+// template at all, so every variant below is a plain, low-risk static Tailwind class swap. Hero
+// has no inline media slot (its image renders full-width below the CTA, not beside the copy), so
+// — same idiom as Portfolio/Studio's hero — Split is interpreted as the copy box's width/
+// position: narrower and left-anchored, implying real negative space on the right.
 const HERO_BOX_CLASS: Record<LayoutVariant, string> = {
   STACKED: 'max-w-5xl text-center',
   SPLIT: 'max-w-xl mr-auto text-left',
   CENTERED: 'max-w-5xl text-center',
-  ALTERNATING: 'max-w-xl ml-auto text-right',
-  EDITORIAL: 'max-w-3xl mr-auto text-left',
 }
 
 // Same token vocabulary/fallbacks as CorporateProfessional.tsx and PageCanvas.tsx — any layout
@@ -206,11 +205,7 @@ function HeroSection({
   const media = content?.media ?? {}
   const muted = `color-mix(in srgb, var(--lp-on-primary) 78%, transparent)`
   const isCentered = layoutVariant === 'STACKED' || layoutVariant === 'CENTERED'
-  const ctaJustify = isCentered
-    ? 'justify-center'
-    : layoutVariant === 'ALTERNATING'
-      ? 'justify-end'
-      : 'justify-start'
+  const ctaJustify = isCentered ? 'justify-center' : 'justify-start'
   return (
     <section
       className="relative overflow-hidden pt-20 pb-20 lg:pt-28 lg:pb-24"
@@ -311,7 +306,7 @@ function HeroSection({
         {(editable || media.url) && (
           <div
             className="relative mx-auto mt-14 max-w-4xl overflow-hidden"
-            style={{ borderRadius: 'var(--lp-radius)' }}
+            style={{ borderRadius: 'var(--lp-radius-lg)' }}
           >
             {editable ? (
               <MediaSlotField
@@ -352,16 +347,16 @@ function EventWidgetSection({
 }) {
   const seatsTotal = content?.seatsTotal
   const pct = seatsTotal ? Math.min(100, Math.round((seatsFilled / seatsTotal) * 100)) : null
-  // Stacked collapses the two cards to one column; Alternating swaps which card sits on which
-  // side — a real mirror of the default event-info | signup-form order; Editorial skews the
-  // split asymmetric in the signup form's favor.
+  // Stacked collapses the two cards to one column; Split skews the split asymmetric in the
+  // signup form's favor and swaps which side it sits on — a real "give the CTA side more
+  // weight" move, not just a mirror of the default event-info | signup-form order.
   const gridClass =
     layoutVariant === 'STACKED'
       ? 'lg:grid-cols-1 max-w-2xl'
-      : layoutVariant === 'EDITORIAL'
+      : layoutVariant === 'SPLIT'
         ? 'lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] max-w-6xl'
         : 'lg:grid-cols-2 max-w-6xl'
-  const orderClass = layoutVariant === 'ALTERNATING' ? 'lg:[&>*:first-child]:order-2' : ''
+  const orderClass = layoutVariant === 'SPLIT' ? 'lg:[&>*:first-child]:order-2' : ''
 
   return (
     <section
@@ -377,7 +372,7 @@ function EventWidgetSection({
             backgroundColor: 'var(--lp-card)',
             color: 'var(--lp-ink)',
             border: `2px solid ${ink(28)}`,
-            borderRadius: 'var(--lp-radius)',
+            borderRadius: 'var(--lp-radius-lg)',
           }}
         >
           <div className="mb-8">
@@ -526,7 +521,7 @@ function EventWidgetSection({
             backgroundColor: 'var(--lp-card)',
             color: 'var(--lp-ink)',
             border: `2px solid ${ink(28)}`,
-            borderRadius: 'var(--lp-radius)',
+            borderRadius: 'var(--lp-radius-lg)',
           }}
         >
           <h3 className="mb-1 text-2xl font-bold" style={{ fontFamily: 'var(--lp-heading)' }}>
@@ -629,8 +624,8 @@ function FeatureGridSection({
             <div
               key={i}
               className={`group relative rounded-2xl border p-6 ${
-                layoutVariant === 'ALTERNATING' && i % 2 === 1 ? 'text-right' : ''
-              } ${layoutVariant === 'EDITORIAL' && i === 0 ? 'sm:col-span-2' : ''}`}
+                layoutVariant === 'SPLIT' && i === 0 ? 'sm:col-span-2' : ''
+              }`}
               style={{ borderColor: ink(12), backgroundColor: ink(3) }}
             >
               <div
@@ -999,6 +994,7 @@ export function WebinarSignup({
         ['--lp-card' as string]: t.cardColor ?? TOKEN_DEFAULTS.cardColor,
         ['--lp-heading' as string]: t.headingFont ?? TOKEN_DEFAULTS.headingFont,
         ['--lp-radius' as string]: t.radius ?? TOKEN_DEFAULTS.radius,
+        ['--lp-radius-lg' as string]: `min(${t.radius ?? TOKEN_DEFAULTS.radius}, 28px)`,
       }}
     >
       <HeroSection

@@ -20,45 +20,58 @@ export type CanvasBlockProps = {
   set: (patch: Record<string, unknown>) => void
 }
 
-export const HeroBlock = ({ content, set }: CanvasBlockProps) => {
+// `bare`: PageCanvas.tsx groups this block with an adjacent media-image section under Split into
+// one shared `.lp-hero` grid row (see its own doc comment on HERO_MEDIA_GROUPING_VARIANTS) — that
+// outer wrapper already supplies the page's standard container (mx-auto max-w-[1040px] px-6) and
+// the `.lp-hero-copy` class, so this must render its copy alone, or the grouped hero ends up
+// double-containered: this component's own mx-auto centers within the (narrower, arbitrary) grid
+// cell instead of the page's real content column, landing the headline's left edge wherever that
+// cell's width happens to fall rather than flush with every section below it — confirmed as a
+// real bug from a live screenshot, not a hypothetical (a visibly random-looking left offset,
+// inconsistent with the feature/form sections directly beneath it).
+export const HeroBlock = ({ content, set, bare }: CanvasBlockProps & { bare?: boolean }) => {
   const cta = (content.primaryCta ?? {}) as { label?: string; url?: string }
+  const copy = (
+    <>
+      <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--lp-primary)]">
+        Now booking
+      </p>
+      <CanvasText
+        as="h1"
+        ariaLabel="Headline"
+        value={(content.headline as string) ?? ''}
+        onChange={(headline) => set({ headline })}
+        placeholder="Headline"
+        style={{ fontFamily: 'var(--lp-heading)' }}
+        className="text-[2.8rem] font-bold leading-[1.08] tracking-tight sm:text-[3.2rem]"
+      />
+      <CanvasText
+        ariaLabel="Body"
+        value={(content.body as string) ?? ''}
+        onChange={(body) => set({ body })}
+        placeholder="Body copy"
+        multiline
+        className="mt-4 max-w-xl text-[1.05rem] leading-relaxed text-[color:color-mix(in_srgb,var(--lp-ink)_72%,var(--lp-bg))]"
+      />
+      <EditableLinkTrigger
+        label={cta.label ?? ''}
+        url={cta.url ?? '#form'}
+        onChange={(next) => set({ primaryCta: next })}
+        className="mt-6"
+      >
+        <span
+          className="inline-block bg-[var(--lp-primary)] px-6 py-3 text-sm font-medium tracking-wide text-[color:var(--lp-on-primary)]"
+          style={{ borderRadius: 'var(--lp-radius)' }}
+        >
+          {cta.label || 'Request a callback'}
+        </span>
+      </EditableLinkTrigger>
+    </>
+  )
+  if (bare) return copy
   return (
     <section className="lp-hero mx-auto max-w-[1040px] px-6 pb-4 pt-14 sm:pt-16">
-      <div className="lp-hero-copy">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--lp-primary)]">
-          Now booking
-        </p>
-        <CanvasText
-          as="h1"
-          ariaLabel="Headline"
-          value={(content.headline as string) ?? ''}
-          onChange={(headline) => set({ headline })}
-          placeholder="Headline"
-          style={{ fontFamily: 'var(--lp-heading)' }}
-          className="text-[2.8rem] font-bold leading-[1.08] tracking-tight sm:text-[3.2rem]"
-        />
-        <CanvasText
-          ariaLabel="Body"
-          value={(content.body as string) ?? ''}
-          onChange={(body) => set({ body })}
-          placeholder="Body copy"
-          multiline
-          className="mt-4 max-w-xl text-[1.05rem] leading-relaxed text-[color:color-mix(in_srgb,var(--lp-ink)_72%,var(--lp-bg))]"
-        />
-        <EditableLinkTrigger
-          label={cta.label ?? ''}
-          url={cta.url ?? '#form'}
-          onChange={(next) => set({ primaryCta: next })}
-          className="mt-6"
-        >
-          <span
-            className="inline-block bg-[var(--lp-primary)] px-6 py-3 text-sm font-medium tracking-wide text-[color:var(--lp-on-primary)]"
-            style={{ borderRadius: 'var(--lp-radius)' }}
-          >
-            {cta.label || 'Request a callback'}
-          </span>
-        </EditableLinkTrigger>
-      </div>
+      <div className="lp-hero-copy">{copy}</div>
     </section>
   )
 }
@@ -71,7 +84,7 @@ const FeatureGridBlock = ({ content, set }: CanvasBlockProps) => {
         className="lp-feature-grid grid gap-px overflow-hidden sm:grid-cols-3"
         style={{
           backgroundColor: 'color-mix(in srgb, var(--lp-ink) 12%, var(--lp-bg))',
-          borderRadius: 'var(--lp-radius)',
+          borderRadius: 'var(--lp-radius-lg)',
         }}
       >
         {items.map((item, i) => (
@@ -122,7 +135,7 @@ const FormEmbedBlock = ({ hasForm, formFields, onFormFields, submitLabel }: Canv
           style={{
             backgroundColor: 'var(--lp-card)',
             borderColor: 'color-mix(in srgb, var(--lp-ink) 18%, var(--lp-bg))',
-            borderRadius: 'var(--lp-radius)',
+            borderRadius: 'var(--lp-radius-lg)',
           }}
         >
           <p className="font-medium">No reusable form attached</p>
@@ -138,7 +151,6 @@ const FormEmbedBlock = ({ hasForm, formFields, onFormFields, submitLabel }: Canv
         style={{
           backgroundColor: 'var(--lp-card)',
           border: '1px solid color-mix(in srgb, var(--lp-ink) 12%, var(--lp-bg))',
-          borderRadius: 'var(--lp-radius)',
         }}
       >
         <p className="mb-4 text-xl font-semibold" style={{ fontFamily: 'var(--lp-heading)' }}>
@@ -198,16 +210,33 @@ const FooterBlock = ({ content, set }: CanvasBlockProps) => (
   </footer>
 )
 
-export const MediaImageBlock = ({ content, set }: CanvasBlockProps) => (
-  <section className="mx-auto max-w-[1040px] px-6 py-6">
-    <MediaSlotField
-      kind="IMAGE"
-      assetId={content.assetId as string | undefined}
-      fallbackUrl={content.url as string | undefined}
-      onChange={(assetId) => set({ assetId })}
-    />
-  </section>
-)
+// `bare`: see HeroBlock's own doc comment — when PageCanvas.tsx groups this with an adjacent hero
+// under Split, the outer wrapper already supplies the shared container, so this renders just the
+// picker (still inside its own aspect-ratio box — that part of the earlier fix stands either way).
+export const MediaImageBlock = ({ content, set, bare }: CanvasBlockProps & { bare?: boolean }) => {
+  // Every other MediaSlotField call site wraps it in an aspect-ratio-sized box, so the
+  // absolutely-positioned "Choose image" button always has a real container to fill — this was
+  // the one place that didn't, so an empty slot had nothing establishing a height at all.
+  // Harmless when stacked full-width on its own; under Split's grid (grouped beside the hero
+  // copy column) the row height comes from copy instead, and the button just floated in
+  // whatever that happened to be — a real bug, found from a live screenshot of a real Blank
+  // page, not a hypothetical. aspect-[16/9] matches the published page's own .lp-media rule.
+  const picker = (
+    <div
+      className="aspect-[16/9] w-full overflow-hidden"
+      style={{ backgroundColor: 'color-mix(in srgb, var(--lp-ink) 8%, var(--lp-bg))' }}
+    >
+      <MediaSlotField
+        kind="IMAGE"
+        assetId={content.assetId as string | undefined}
+        fallbackUrl={content.url as string | undefined}
+        onChange={(assetId) => set({ assetId })}
+      />
+    </div>
+  )
+  if (bare) return picker
+  return <section className="mx-auto max-w-[1040px] px-6 py-6">{picker}</section>
+}
 
 const MediaAudioBlock = ({ content, set }: CanvasBlockProps) => (
   <section className="mx-auto max-w-[1040px] px-6 py-6">

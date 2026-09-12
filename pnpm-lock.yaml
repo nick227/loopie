@@ -354,6 +354,9 @@ importers:
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.43
+      postcss:
+        specifier: ^8.5.26
+        version: 8.5.26
       typescript:
         specifier: ^5.0.0
         version: 5.9.3

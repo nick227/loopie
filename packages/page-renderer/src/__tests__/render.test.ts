@@ -65,7 +65,7 @@ describe('renderLandingPageHtml', () => {
   })
 
   describe('Layout (layoutVariant)', () => {
-    const LAYOUT_VARIANTS = ['STACKED', 'SPLIT', 'CENTERED', 'ALTERNATING', 'EDITORIAL'] as const
+    const LAYOUT_VARIANTS = ['STACKED', 'SPLIT', 'CENTERED'] as const
 
     const basePayload = {
       pageName: 'Variant Page',
@@ -117,20 +117,65 @@ describe('renderLandingPageHtml', () => {
       }
     })
 
-    it('SPLIT/ALTERNATING/EDITORIAL visibly rearrange the hero relative to STACKED', () => {
+    it('SPLIT/CENTERED visibly rearrange the hero relative to STACKED', () => {
       const stacked = renderLandingPageHtml({ ...basePayload, layoutVariant: 'STACKED' })
       const split = renderLandingPageHtml({ ...basePayload, layoutVariant: 'SPLIT' })
-      const alternating = renderLandingPageHtml({ ...basePayload, layoutVariant: 'ALTERNATING' })
-      const editorial = renderLandingPageHtml({ ...basePayload, layoutVariant: 'EDITORIAL' })
-      for (const html of [split, alternating, editorial]) {
+      const centered = renderLandingPageHtml({ ...basePayload, layoutVariant: 'CENTERED' })
+      for (const html of [split, centered]) {
         expect(html).not.toStrictEqual(stacked)
       }
       // The actual CSS rules that produce the rearrangement are shipped, not just the attribute.
       expect(stacked).toContain(':where([data-lp-layout="split"]) .lp-hero')
-      expect(stacked).toContain(
-        ':where([data-lp-layout="alternating"]) .lp-feature:nth-child(even)',
+      expect(stacked).toContain(':where([data-lp-layout="centered"]) .lp-hero')
+    })
+
+    it('ALTERNATING and EDITORIAL no longer exist as Layout options', () => {
+      const html = renderLandingPageHtml({
+        ...basePayload,
+        layoutVariant: 'STACKED',
+      })
+      expect(html).not.toContain('data-lp-layout="alternating"')
+      expect(html).not.toContain('data-lp-layout="editorial"')
+    })
+
+    it('SPLIT groups a hero with its immediately-following media-image section into one real', () => {
+      const paired = {
+        ...basePayload,
+        templateSchema: {
+          sections: [
+            { key: 'hero', type: 'hero', order: 0 },
+            { key: 'image', type: 'media-image', order: 1 },
+            { key: 'footer', type: 'footer', order: 2 },
+          ],
+        },
+        content: {
+          hero: {
+            headline: 'Come see us',
+            body: 'A real body copy.',
+            media: { url: 'https://example.com/stale-hero-image.jpg' },
+          },
+          media: { url: 'https://example.com/real-sibling-image.jpg' },
+          footer: { headline: 'Get started' },
+        },
+      }
+
+      const stacked = renderLandingPageHtml({ ...paired, layoutVariant: 'STACKED' })
+      // Hero's own (stale/legacy) media field is never shown once a real sibling media-image
+      // section exists — the sibling is the one true source, matching the editor canvas exactly.
+      expect(stacked).not.toContain('stale-hero-image.jpg')
+      // Under Stacked, the sibling still renders as its own separate full-width section.
+      expect(stacked.match(/real-sibling-image\.jpg/g)).toHaveLength(1)
+      expect(stacked).toContain('class="lp-section lp-media"')
+
+      const split = renderLandingPageHtml({ ...paired, layoutVariant: 'SPLIT' })
+      expect(split).not.toContain('stale-hero-image.jpg')
+      // Under Split, the sibling's image is grouped INSIDE .lp-hero (as .lp-hero-media) instead
+      // of rendering as its own separate section — exactly once, never duplicated.
+      expect(split.match(/real-sibling-image\.jpg/g)).toHaveLength(1)
+      expect(split).not.toContain('class="lp-section lp-media"')
+      expect(split).toContain(
+        'class="lp-hero-media"><img src="https://example.com/real-sibling-image.jpg"',
       )
-      expect(stacked).toContain(':where([data-lp-layout="editorial"]) .lp-hero {')
     })
 
     it('a Studio-skinned page keeps its scroll-snap/parallax choreography under every layout, unaffected by the axis', () => {

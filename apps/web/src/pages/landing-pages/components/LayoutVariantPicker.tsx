@@ -1,13 +1,23 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { ChevronDown, Columns2, AlignCenter, Rows3, Shuffle, Newspaper, Check } from 'lucide-react'
+import { ChevronDown, Columns2, AlignCenter, Rows3, Check } from 'lucide-react'
 
-// Layout (2026-09-11) — see docs/strategy CLAUDE.md's Layout entry. A structural arrangement of
-// this page's EXISTING content: never gates which sections/content exist, never touches Page Type
-// or the Page Starter (templateId) — that's why this is a compact inline popover, not the old
-// modal "Switch layout"/"Convert page type" flow (LayoutSwitcher, removed). Nothing here can hide
-// content, so there's no confirmation step to click through.
+// Layout (2026-09-11, redesigned 2026-09-11 per a 5-role design-committee review) — see
+// docs/strategy CLAUDE.md's Layout entry. A structural arrangement of this page's EXISTING
+// content: never gates which sections/content exist, never touches Page Type or the Page Starter
+// (templateId) — that's why this is a compact inline popover, not the old modal "Switch
+// layout"/"Convert page type" flow (LayoutSwitcher, removed). Nothing here can hide content, so
+// there's no confirmation step to click through.
+//
+// Down to 3 options, deliberately. The committee's review of all 25 real Starter×Layout
+// combinations found ALTERNATING actively broken everywhere it wasn't a no-op (its media/copy
+// row-mirror mechanism applied to plain title+body content with no media at all, producing a
+// disconnected, unreadable split — not a polish gap, the concept itself didn't fit this product's
+// real content shapes) and EDITORIAL a thin, mostly-no-op idea whose one real trick (oversized,
+// asymmetric display type) is a stronger presentation of SPLIT's own "give one side visual
+// weight" concept, not a separate structural axis. Both were removed rather than patched — see
+// the PageLayoutVariant enum's own doc comment in schema.prisma for the data-migration story.
 
-export type LayoutVariant = 'STACKED' | 'SPLIT' | 'CENTERED' | 'ALTERNATING' | 'EDITORIAL'
+export type LayoutVariant = 'STACKED' | 'SPLIT' | 'CENTERED'
 
 const LAYOUT_OPTIONS: {
   value: LayoutVariant
@@ -16,24 +26,17 @@ const LAYOUT_OPTIONS: {
   Icon: typeof Rows3
 }[] = [
   { value: 'STACKED', label: 'Stacked', description: 'One column, top to bottom', Icon: Rows3 },
-  { value: 'SPLIT', label: 'Split', description: 'Copy and media side by side', Icon: Columns2 },
+  {
+    value: 'SPLIT',
+    label: 'Split',
+    description: 'Copy and media side by side, bold where it counts',
+    Icon: Columns2,
+  },
   {
     value: 'CENTERED',
     label: 'Centered',
     description: 'Narrower, centered content',
     Icon: AlignCenter,
-  },
-  {
-    value: 'ALTERNATING',
-    label: 'Alternating',
-    description: 'Rows mirror side to side',
-    Icon: Shuffle,
-  },
-  {
-    value: 'EDITORIAL',
-    label: 'Editorial',
-    description: 'Bigger type, asymmetric',
-    Icon: Newspaper,
   },
 ]
 
