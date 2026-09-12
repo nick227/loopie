@@ -15,11 +15,11 @@
     "@project/ad-renderer": "workspace:*",
     "@project/db": "workspace:*",
     "@project/page-layout": "workspace:*",
-    "@prisma/client": "^5.0.0"
+    "@prisma/client": "^7.10.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
-    "vitest": "^2.0.0"
+    "@types/node": "^26.5.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
   }
 }
