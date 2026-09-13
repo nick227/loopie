@@ -3,6 +3,9 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { SupportModeBanner } from '@/components/layout/SupportModeBanner'
 import { CreativeToAd, CreativeEditToAd } from '@/pages/ads/CreativeRedirects'
+const HomePage = lazy(() =>
+  import('@/pages/marketing/HomePage').then((m) => ({ default: m.HomePage })),
+)
 const RegisterPage = lazy(() =>
   import('@/pages/auth/RegisterPage').then((m) => ({ default: m.RegisterPage })),
 )
@@ -492,18 +495,21 @@ export function App() {
             {/* Public / auth routes */}
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/login" element={<LoginPage />} />
-            {/* River, River post permalinks, and a business's public profile — the routes Shell
-                renders outside <AuthGuard/>: an anonymous visitor can browse any of them
-                directly, an authenticated business user gets the same Shell chrome plus
-                reactions/follows/composer/pin/comments (each page branches on useCurrentUser()
-                itself). /b/:slug used to be its own standalone page outside the Shell entirely —
-                reversed per the "Business profiles: redesign + fold into the app shell" plan doc:
-                Business Profile is the business's identity *inside* Loopie, not a separate
-                published website product, so River authors should land on it without leaving the
-                app's chrome. GET /b/:slug's server-rendered HTML (content-negotiated, see
-                apps/server/src/lib/renderBusinessProfile.ts) stays the canonical, shareable URL
-                for non-JS visitors, crawlers, and link unfurls. */}
+            {/* LOOPIE's permanent public homepage, and River/River permalinks/a business's public
+                profile — the routes Shell renders outside <AuthGuard/>: an anonymous visitor can
+                browse any of them directly (using the same standard Shell header every other page
+                uses — no separate marketing header/footer), an authenticated business user gets
+                the same Shell chrome plus their usual signed-in affordances (each page branches on
+                useCurrentUser() itself). See docs/strategy/public-marketing-homepage-proposal.md
+                for the homepage; /b/:slug used to be its own standalone page outside the Shell
+                entirely — reversed per the "Business profiles: redesign + fold into the app shell"
+                plan doc: Business Profile is the business's identity *inside* Loopie, not a
+                separate published website product, so River authors should land on it without
+                leaving the app's chrome. GET /b/:slug's server-rendered HTML (content-negotiated,
+                see apps/server/src/lib/renderBusinessProfile.ts) stays the canonical, shareable
+                URL for non-JS visitors, crawlers, and link unfurls. */}
             <Route element={<Shell />}>
+              <Route path="/" element={<HomePage />} />
               <Route path="/river" element={<RiverPage />} />
               <Route path="/river/posts/:riverPostId" element={<RiverPostPage />} />
               <Route path="/b/:slug" element={<BusinessProfilePage />} />
@@ -524,7 +530,11 @@ export function App() {
                 </Route>
                 <Route path="/activity" element={<ActivityPage />} />
                 <Route element={<RequireNonAffiliate />}>
-                  <Route index element={<BusinessDefaultRoute />} />
+                  {/* The authenticated app's real entry point, reached one hop after login/register
+                      (see LoginPage.tsx/RegisterPage.tsx) or from the public homepage's own
+                      "Open LOOPIE" button — not `/`, which is now the permanent public homepage
+                      for everyone. Resolves to /business/setup or /calendar exactly as before. */}
+                  <Route path="/app" element={<BusinessDefaultRoute />} />
                   <Route path="/contacts" element={<ContactsPage />} />
                   <Route path="/contacts/insights" element={<ContactsInsightsPage />} />
                   {/* /contacts/new and /contacts/:contactId render the same unified profile

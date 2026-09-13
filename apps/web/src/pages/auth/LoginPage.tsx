@@ -24,10 +24,13 @@ export function LoginPage() {
   const [searchParams] = useSearchParams()
   const mutation = useLogin()
   const requestedReturnTo = searchParams.get('returnTo')
+  // '/' is now the permanent public homepage for everyone (see
+  // docs/strategy/public-marketing-homepage-proposal.md), so a login with no explicit returnTo
+  // lands in the app at /app instead of back on the marketing page.
   const returnTo =
     requestedReturnTo?.startsWith('/') && !requestedReturnTo.startsWith('//')
       ? requestedReturnTo
-      : '/'
+      : '/app'
 
   return (
     <div className="flex min-h-dvh w-full items-center justify-center overflow-y-auto bg-background px-4 py-8">

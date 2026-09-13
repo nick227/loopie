@@ -2,6 +2,7 @@
 // means the first tab click rarely suspends, so Suspense never swaps to a blank skeleton.
 
 const PREFETCHERS: Record<string, () => Promise<unknown>> = {
+  '/': () => import('@/pages/marketing/HomePage'),
   '/calendar': () => import('@/pages/calendar/CalendarPage'),
   '/landing-pages': () => import('@/pages/landing-pages/LandingPagesPage'),
   '/ads': () => import('@/pages/ads/AdsPage'),

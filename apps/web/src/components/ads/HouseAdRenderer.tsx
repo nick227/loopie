@@ -1,6 +1,11 @@
-import React, { useEffect, useRef, memo, useCallback } from 'react'
+import React, { useEffect, useRef, useState, memo, useCallback } from 'react'
 import { useServeHouseAd, useTrackHouseAdMetric } from '@project/sdk'
 import { mediaSrc } from '@/lib/media'
+
+// A WORDPRESS_EMBED script is third-party and can fail for reasons outside this app
+// (see the injection effect below); one retry, then the slot goes quiet.
+const MAX_EMBED_ATTEMPTS = 2
+const EMBED_RETRY_DELAY_MS = 800
 
 interface HouseAdRendererProps {
   placement: string
@@ -39,6 +44,7 @@ export function HouseAdRenderer({ placement }: HouseAdRendererProps) {
   const trackedViewId = useRef<string | null>(null)
 
   const wrapperRef = useRef<HTMLDivElement>(null)
+  const [embedFailed, setEmbedFailed] = useState(false)
 
   const handleTrackClick = useCallback(() => {
     if (ad?.id) {
@@ -67,20 +73,50 @@ export function HouseAdRenderer({ placement }: HouseAdRendererProps) {
   }, [ad, placement, trackMetric])
 
   useEffect(() => {
-    if (ad?.type === 'WORDPRESS_EMBED' && ad.scriptUrl && wrapperRef.current) {
-      const scriptUrl = ad.scriptUrl
+    if (ad?.type !== 'WORDPRESS_EMBED' || !ad.scriptUrl || !wrapperRef.current) return
 
-      // Clean up any previously injected script to prevent duplicates on re-render
-      const oldScript = wrapperRef.current.querySelector('script')
-      if (oldScript) {
-        oldScript.remove()
-      }
+    const wrapper = wrapperRef.current
+    const scriptUrl = ad.scriptUrl
+    let cancelled = false
+    let attempt = 0
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
+
+    setEmbedFailed(false)
+
+    const inject = () => {
+      if (cancelled) return
+      attempt += 1
+
+      // Clean up any previously injected script to prevent duplicates on re-render/retry
+      wrapper.querySelectorAll('script[data-wp-advertising-embed]').forEach((s) => s.remove())
 
       const script = document.createElement('script')
       script.async = true
       script.src = scriptUrl
       script.setAttribute('data-wp-advertising-embed', '1')
-      wrapperRef.current.appendChild(script)
+      // A publisher host guarded by a bot/JS challenge answers a visitor it doesn't
+      // recognize with an HTML "checking your browser" interstitial instead of the
+      // script, which the browser then refuses to execute (MIME mismatch / ORB). A
+      // cross-origin <script> can never clear such a challenge on its own, but hosts
+      // typically stop issuing it once they've seen the request, so one retry usually
+      // succeeds where the first load could not. If it still fails we render nothing
+      // rather than leaving a dead slot behind.
+      script.onerror = () => {
+        if (cancelled) return
+        if (attempt < MAX_EMBED_ATTEMPTS) {
+          retryTimer = setTimeout(inject, EMBED_RETRY_DELAY_MS)
+          return
+        }
+        setEmbedFailed(true)
+      }
+      wrapper.appendChild(script)
+    }
+
+    inject()
+
+    return () => {
+      cancelled = true
+      if (retryTimer) clearTimeout(retryTimer)
     }
   }, [ad])
 
@@ -88,6 +124,7 @@ export function HouseAdRenderer({ placement }: HouseAdRendererProps) {
   if (!ad) return null // Render nothing gracefully if no active ad
 
   if (ad.type === 'WORDPRESS_EMBED') {
+    if (embedFailed) return null
     return (
       <div ref={wrapperRef}>
         <StaticEmbedZone

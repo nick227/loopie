@@ -81,7 +81,9 @@ export function RegisterPage() {
                   ...data,
                   referralCode: data.referralCode || undefined,
                 })
-                navigate('/')
+                // '/' is now the permanent public homepage for everyone — the app's own entry
+                // point after signup is /app (see public-marketing-homepage-proposal.md).
+                navigate('/app')
               }}
               isLoading={mutation.isPending}
               submitLabel="Create Account"
@@ -100,7 +102,7 @@ export function RegisterPage() {
               variant="outline"
               type="button"
               className="w-full"
-              onClick={() => startGoogleAuth('/', referralCode)}
+              onClick={() => startGoogleAuth('/app', referralCode)}
             >
               <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                 <path

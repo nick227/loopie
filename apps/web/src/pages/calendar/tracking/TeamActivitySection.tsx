@@ -1,51 +1,49 @@
-import { useCurrentUser, useTeamActivity } from '@project/sdk'
-import { formatElapsedMinutes } from '../calendar.dates'
+import { useTeamActivity } from '@project/sdk'
+import { sameDay, formatElapsedMinutes } from '../calendar.dates'
 import { TeamActivityMember } from '../calendar.types'
 import { useElapsedMinutes } from './useElapsedMinutes'
 
-// One team member's line — "Name — activity · elapsed" or "Name — Not tracking." Compact tracking
-// state only, per the product rule: there is no presence/online concept, so a member with no
-// currentEntry never reads as "away" or "offline," just not tracking right now.
-function TeamActivityRow({ member, isMe }: { member: TeamActivityMember; isMe: boolean }) {
+// One standard task line, same shape everywhere in Calendar — no "You" special-casing, no
+// separate my-tasks/team-tasks grouping, just whoever on the team is actually tracking something
+// right now. A member with nothing running today simply isn't in the list.
+function TeamActivityRow({ member }: { member: TeamActivityMember }) {
   const elapsedMinutes = useElapsedMinutes(member.currentEntry?.startedAt ?? null)
-  const name = isMe ? 'You' : (member.email.split('@')[0] ?? member.email)
+  const name = member.email.split('@')[0] ?? member.email
 
   return (
     <p className="truncate text-xs">
       <span className="font-medium text-foreground">{name}</span>
       <span className="text-muted-foreground">
-        {member.currentEntry ? (
-          <>
-            {' '}
-            — {member.currentEntry.description} · {formatElapsedMinutes(elapsedMinutes)}
-          </>
-        ) : (
-          ' — Not tracking'
-        )}
+        {' '}
+        — {member.currentEntry?.description} · {formatElapsedMinutes(elapsedMinutes)}
       </span>
     </p>
   )
 }
 
-// Team Activity (Phase 3, 2026-09-09) — Calendar as a shared team resource: what everyone's
-// doing right now, sourced entirely from real TimeEntry rows. No presence/online tracking exists
-// anywhere in this product — see useTeamActivity's own comment — so this only ever shows what a
-// member is actively tracking, never whether they're "online." Only worth showing once there's a
-// team to show; a solo business never sees this.
+// Team Activity (Phase 3, 2026-09-09; simplified 2026-09-12) — Calendar as a shared team resource:
+// what's actively being worked on today, sourced from real TimeEntry rows. Deliberately flat — one
+// list, one line format, no me-vs-team split and no "Not tracking" placeholders, since a member
+// with nothing running has nothing worth a line. Only worth showing once there's a team to show
+// (solo business never sees this) and only while someone is actually tracking something today.
 export function TeamActivitySection() {
   const { data } = useTeamActivity()
-  const { data: me } = useCurrentUser()
-  const members = data?.data ?? []
+  const allMembers = data?.data ?? []
+  if (allMembers.length < 2) return null
 
-  if (members.length < 2) return null
+  const now = new Date()
+  const active = allMembers.filter(
+    (member) => member.currentEntry && sameDay(new Date(member.currentEntry.startedAt), now),
+  )
+  if (active.length === 0) return null
 
   return (
     <div className="space-y-1 rounded-lg border border-border p-3">
       <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">
         Team activity
       </p>
-      {members.map((member) => (
-        <TeamActivityRow key={member.userId} member={member} isMe={member.userId === me?.data.id} />
+      {active.map((member) => (
+        <TeamActivityRow key={member.userId} member={member} />
       ))}
     </div>
   )

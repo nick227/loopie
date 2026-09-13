@@ -164,11 +164,13 @@ function Header({
             <Command size={16} />
           </span>
         </button>
-        {/* Active company — always visible (desktop + mobile). Switch companies from Profile → Your team. */}
+        {/* The LOOPIE wordmark — links to the public homepage (`/`), not the in-app account
+            surface. Switch companies from Profile → Your team (reached via the Account nav tab
+            or the trailing profile avatar below, not this wordmark). */}
         <Link
-          to="/profile"
-          onMouseEnter={() => prefetchRoute('/profile')}
-          onFocus={() => prefetchRoute('/profile')}
+          to="/"
+          onMouseEnter={() => prefetchRoute('/')}
+          onFocus={() => prefetchRoute('/')}
           className="min-w-0 max-w-[8rem] truncate rounded-lg px-1 py-1.5 text-2xl font-semibold tracking-tight text-foreground transition-colors hover:bg-accent sm:max-w-[10rem] sm:px-1.5"
         >
           Loopie
