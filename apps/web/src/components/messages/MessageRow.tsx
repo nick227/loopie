@@ -5,18 +5,18 @@ import { relativeTime } from '@/components/home/homeFormat'
 
 type Message = components['schemas']['Message']
 
-const CHANNEL_ICON: Record<string, typeof Mail> = {
+export const CHANNEL_ICON: Record<string, typeof Mail> = {
   EMAIL: Mail,
   TEXT: MessageSquare,
   SOCIAL: Share2,
 }
-const CHANNEL_LABEL: Record<string, string> = {
+export const CHANNEL_LABEL: Record<string, string> = {
   EMAIL: 'Email',
   TEXT: 'Text',
   SOCIAL: 'Social',
 }
 
-const STATUS: Record<string, string> = {
+export const STATUS: Record<string, string> = {
   DRAFT: 'Draft',
   SCHEDULED: 'Scheduled',
   SENT: 'Sent',
@@ -25,14 +25,14 @@ const STATUS: Record<string, string> = {
 
 // Same tint-pair status-pill convention as AdRow/PageRow — sent is the positive/complete state,
 // failed is destructive, scheduled/draft stay neutral (nothing has happened yet).
-const STATUS_STYLE: Record<string, string> = {
+export const STATUS_STYLE: Record<string, string> = {
   DRAFT: 'bg-muted text-muted-foreground',
   SCHEDULED: 'bg-info/10 text-info',
   SENT: 'bg-success/10 text-success',
   FAILED: 'bg-destructive/10 text-destructive',
 }
 
-function bodyPreview(body: string): string {
+export function bodyPreview(body: string): string {
   const flat = body.replace(/\s+/g, ' ').trim()
   return flat.length > 90 ? `${flat.slice(0, 90)}…` : flat
 }

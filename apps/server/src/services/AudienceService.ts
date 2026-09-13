@@ -189,6 +189,15 @@ export class AudienceService {
 
   async delete(businessId: string, audienceId: string) {
     await this._find(businessId, audienceId)
+    // Message.audienceId is a required FK with no cascade — same "check referencing rows before
+    // delete, retire instead of leak a raw constraint error" idiom as AdRunService.delete().
+    const referencingMessages = await db.message.count({ where: { audienceId } })
+    if (referencingMessages > 0) {
+      throw {
+        statusCode: 409,
+        message: `Cannot delete this audience — it's used by ${referencingMessages} message${referencingMessages === 1 ? '' : 's'}. Delete those messages first, or leave this audience in place.`,
+      }
+    }
     await db.$transaction(async (tx) => {
       await tx.audienceMember.deleteMany({ where: { audienceId } })
       await tx.audience.delete({ where: { id: audienceId } })

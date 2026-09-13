@@ -10,7 +10,7 @@ import { EmailDeliveryService } from '../services/EmailDeliveryService'
 
 const app = buildTestApp()
 
-async function seedAudienceOfOne(channel: 'EMAIL' | 'SOCIAL') {
+async function seedAudienceOfOne(channel: 'EMAIL' | 'TEXT' | 'SOCIAL') {
   const contact = await db.contact.create({
     data: {
       businessId: testBusinessId,
@@ -111,5 +111,50 @@ describe('social "send" is an honest manual-post log, not a fake publish', () =>
       },
     })
     expect(interaction).not.toBeNull()
+  })
+})
+
+describe('test-send is real for EMAIL and honestly blocked for everything else', () => {
+  it('sends a real test email through EmailDeliveryService rather than a silent no-op', async () => {
+    const { messageId } = await seedAudienceOfOne('EMAIL')
+    const spy = vi.spyOn(EmailDeliveryService.prototype, 'publishBatch')
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/messages/${messageId}/test-send`,
+      headers: asAuth(testUserId),
+      payload: { toEmailOrPhone: 'someone@example.com' },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(spy).toHaveBeenCalledWith('Hi', 'Hello there', ['someone@example.com'])
+  })
+
+  it('fails visibly (500), not silently, when the delivery provider rejects the test send', async () => {
+    const { messageId } = await seedAudienceOfOne('EMAIL')
+    vi.spyOn(EmailDeliveryService.prototype, 'publishBatch').mockResolvedValue({
+      success: false,
+      sentCount: 0,
+      errors: ['rejected by provider'],
+    })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/messages/${messageId}/test-send`,
+      headers: asAuth(testUserId),
+      payload: { toEmailOrPhone: 'someone@example.com' },
+    })
+    expect(res.statusCode).toBe(500)
+  })
+
+  it('blocks a TEXT test-send with an honest 501 instead of pretending it worked', async () => {
+    const { messageId } = await seedAudienceOfOne('TEXT')
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/messages/${messageId}/test-send`,
+      headers: asAuth(testUserId),
+      payload: { toEmailOrPhone: '+15555550100' },
+    })
+    expect(res.statusCode).toBe(501)
   })
 })

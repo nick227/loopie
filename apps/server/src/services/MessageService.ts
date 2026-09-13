@@ -264,9 +264,25 @@ export class MessageService {
     return this._toDTOWithCount(sent)
   }
 
-  async testSend(businessId: string, messageId: string, _data: { toEmailOrPhone: string }) {
-    await this._find(businessId, messageId) // 404 + tenant guard
-    // No email/SMS provider wired yet (plugin deferred — see CLAUDE.md Parking lot). Accepted as a no-op.
+  async testSend(businessId: string, messageId: string, data: { toEmailOrPhone: string }) {
+    const message = await this._find(businessId, messageId) // 404 + tenant guard
+    if (message.channel !== 'EMAIL') {
+      // TEXT/SOCIAL have no real delivery provider wired (SMS is deliberately not built yet;
+      // SOCIAL is compose/draft-only — see CLAUDE.md). A test send must fail honestly here
+      // rather than silently accepting and delivering nothing.
+      throw {
+        statusCode: 501,
+        message: `Test send isn't available for ${message.channel} yet — no delivery provider is wired for it.`,
+      }
+    }
+    const { EmailDeliveryService } = await import('./EmailDeliveryService')
+    const emailDelivery = new EmailDeliveryService()
+    const result = await emailDelivery.publishBatch(message.subject ?? '', message.body, [
+      data.toEmailOrPhone,
+    ])
+    if (!result.success) {
+      throw { statusCode: 500, message: `Test send failed: ${result.errors[0]}` }
+    }
   }
 
   async performance(businessId: string, messageId: string) {
