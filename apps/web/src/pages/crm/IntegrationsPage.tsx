@@ -210,6 +210,19 @@ export function IntegrationsPage() {
                     >
                       {row.syncHasMore ? 'Continue sync' : 'Sync now'}
                     </Button>
+                  ) : row && row.status !== 'CONNECTED' && provider.oauth && provider.configured ? (
+                    // A row stuck at INCOMPLETE (OAuth started but never finished — cancelled,
+                    // tab closed, expired state) or NEEDS_REAUTH (a token that stopped working)
+                    // previously had no way back: CrmOAuthService.start() already reuses this
+                    // same row rather than creating a duplicate, so re-running the exact connect
+                    // flow is always safe here — the bug was purely that this UI never offered it.
+                    <Button
+                      type="button"
+                      disabled={oauth.isPending}
+                      onClick={() => connect(provider.provider, true)}
+                    >
+                      Reconnect
+                    </Button>
                   ) : row ? null : provider.availability !== 'LIVE' ? (
                     <Button type="button" disabled>
                       Coming soon
