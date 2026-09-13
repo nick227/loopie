@@ -1,12 +1,28 @@
 import './env'
 import { db, assertTestDatabaseUrl } from '@project/db'
-import { afterEach, vi } from 'vitest'
+import { afterEach, beforeEach, vi } from 'vitest'
+import { EmailDeliveryService } from '../../services/EmailDeliveryService'
 
 // Hard safety net, not just a config default: this file's afterEach wipes EVERY table, so a
 // misconfigured DATABASE_URL (TEST_DATABASE_URL unset somewhere new, a future vitest.config.ts
 // refactor, an env file mistake) must fail loudly here rather than silently deleting real data —
 // see CLAUDE.md's "Shared Database Policy" incident, discovered only after the fact.
 assertTestDatabaseUrl(process.env.DATABASE_URL)
+
+// EmailDeliveryService now fails closed (success:false) when RESEND_API_KEY is unset — the
+// correct production behavior (see the 2026-09-13 email-honesty fix), but most tests only care
+// about what happens *after* a send succeeds (channel tagging, Calendar auto-complete, Inbox
+// threads, ...) and don't set a real key. Default every test to a mocked successful delivery so
+// those tests don't need to know about Resend at all. A test that specifically needs to exercise
+// real failure/success behavior (e.g. emailDeliveryHonesty.test.ts) calls vi.restoreAllMocks()
+// (or re-spies with its own implementation) to override this for itself — the next test's
+// beforeEach always re-establishes this default regardless of what a prior test did.
+beforeEach(() => {
+  vi.spyOn(EmailDeliveryService.prototype, 'publishBatch').mockImplementation(
+    (_subject, _body, recipients) =>
+      Promise.resolve({ success: true, sentCount: recipients.length, errors: [] }),
+  )
+})
 
 // Clean between tests — order matters for FK constraints (children before parents).
 // LandingPage <-> PublishedPageVersion is a genuine cycle (each has a FK to the other), so

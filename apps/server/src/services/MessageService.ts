@@ -130,22 +130,14 @@ export class MessageService {
   }
 
   // Resolves the audience to eligible contacts, writes one Interaction per recipient, and
-  // marks the message SENT. Actual email/SMS delivery is a plugin not yet installed (see
-  // CLAUDE.md Parking lot) — this records the send as a real business event either way.
+  // marks the message SENT. EMAIL delivers for real via EmailDeliveryService (Resend); a
+  // missing/misconfigured provider fails the send rather than faking success. SOCIAL has no
+  // live publishing integration (V1 is deliberately compose/draft-only, see CLAUDE.md) — SENT
+  // for a SOCIAL message means "I posted this myself," a manual action being logged, never an
+  // automated publish. See SendMessagePage.tsx for the matching "Mark as posted" framing.
   async send(businessId: string, messageId: string) {
     const message = await this._find(businessId, messageId)
     if (message.status === 'SENT') throw { statusCode: 409, message: 'Message already sent' }
-
-    if (message.channel === 'SOCIAL') {
-      const { SocialDeliveryService } = await import('./SocialDeliveryService')
-      const delivery = new SocialDeliveryService()
-      const result = await delivery.publish(message.id, businessId)
-      if (!result.success) {
-        // Mark failed if external delivery fails
-        await db.message.update({ where: { id: messageId }, data: { status: 'FAILED' } })
-        throw { statusCode: 500, message: `Social delivery failed: ${result.reason}` }
-      }
-    }
 
     const audience = await db.audience.findFirst({ where: { id: message.audienceId, businessId } })
     if (!audience) throw { statusCode: 404, message: 'Audience not found' }

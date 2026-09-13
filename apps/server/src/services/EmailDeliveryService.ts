@@ -25,8 +25,16 @@ export class EmailDeliveryService {
     recipients: string[],
   ): Promise<{ success: boolean; sentCount: number; errors: any[] }> {
     if (!this.resend) {
-      console.warn('[EmailDeliveryService] RESEND_API_KEY not set. Skipping actual delivery.')
-      return { success: true, sentCount: recipients.length, errors: [] }
+      // Fail closed: a missing key must never be reported as a successful send. The caller
+      // (MessageService.send) already treats success:false as a real delivery failure — marks
+      // the Message FAILED and throws 500 — so this flows into the same honest error path
+      // rather than needing its own handling.
+      console.error('[EmailDeliveryService] RESEND_API_KEY not set. No email was sent.')
+      return {
+        success: false,
+        sentCount: 0,
+        errors: ['RESEND_API_KEY is not configured — no email was sent'],
+      }
     }
 
     const BATCH_SIZE = 50
