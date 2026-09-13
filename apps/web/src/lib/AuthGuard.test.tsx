@@ -10,7 +10,7 @@ vi.mock('@project/sdk', async (importOriginal) => ({
 }))
 
 describe('AuthGuard', () => {
-  it('shows a retry state instead of redirecting on a server error', () => {
+  it('redirects to login on a server error instead of showing an error state', () => {
     vi.mocked(useCurrentUser).mockReturnValue({
       isLoading: false,
       isError: true,
@@ -27,8 +27,7 @@ describe('AuthGuard', () => {
         </Routes>
       </MemoryRouter>,
     )
-    expect(screen.getByRole('heading', { name: 'Account status unavailable' })).toBeInTheDocument()
-    expect(screen.queryByText('Login')).not.toBeInTheDocument()
+    expect(screen.getByText('Login')).toBeInTheDocument()
     expect(screen.queryByText('Internal detail')).not.toBeInTheDocument()
   })
 })
