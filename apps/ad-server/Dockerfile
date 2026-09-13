@@ -8,6 +8,7 @@ WORKDIR /app
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY packages/db/package.json ./packages/db/
 COPY packages/ad-renderer/package.json ./packages/ad-renderer/
+COPY packages/page-layout/package.json ./packages/page-layout/
 COPY packages/page-renderer/package.json ./packages/page-renderer/
 COPY apps/ad-server/package.json ./apps/ad-server/
 
@@ -54,6 +55,10 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages/db ./packages/db
 COPY --from=builder /app/packages/ad-renderer/src ./packages/ad-renderer/src
 COPY --from=builder /app/packages/ad-renderer/package.json ./packages/ad-renderer/
+# page-renderer depends on @project/page-layout (the shared LAYOUT_VARIANT_CSS source) — same
+# no-build-step shape as every other @project/* package here, needs the same runtime copy.
+COPY --from=builder /app/packages/page-layout/src ./packages/page-layout/src
+COPY --from=builder /app/packages/page-layout/package.json ./packages/page-layout/
 COPY --from=builder /app/packages/page-renderer/src ./packages/page-renderer/src
 COPY --from=builder /app/packages/page-renderer/package.json ./packages/page-renderer/
 COPY --from=builder /app/apps/ad-server/src ./apps/ad-server/src

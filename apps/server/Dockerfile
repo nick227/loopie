@@ -16,6 +16,7 @@ WORKDIR /app
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY packages/db/package.json ./packages/db/
 COPY packages/ad-renderer/package.json ./packages/ad-renderer/
+COPY packages/page-layout/package.json ./packages/page-layout/
 COPY packages/page-renderer/package.json ./packages/page-renderer/
 COPY packages/embed-contract/package.json ./packages/embed-contract/
 COPY apps/server/package.json ./apps/server/
@@ -97,6 +98,11 @@ COPY --from=builder /app/packages/ad-renderer/package.json ./packages/ad-rendere
 # Dockerfile had otherwise never copied packages/sdk at all.
 COPY --from=builder /app/packages/sdk/src ./packages/sdk/src
 COPY --from=builder /app/packages/sdk/package.json ./packages/sdk/
+# page-renderer itself depends on @project/page-layout (the shared LAYOUT_VARIANT_CSS source) —
+# same no-build-step shape as every @project/* package here, so it needs the identical runtime
+# copy or page-renderer's own `import ... from '@project/page-layout'` is MODULE_NOT_FOUND.
+COPY --from=builder /app/packages/page-layout/src ./packages/page-layout/src
+COPY --from=builder /app/packages/page-layout/package.json ./packages/page-layout/
 # LandingPageService.ts/LandingPageRenderService.ts/LandingPageSubmissionService.ts/
 # provisionDefaultPage.ts import @project/page-renderer directly. Same shape of bug as
 # @project/sdk above: its package.json#main points straight at .ts source with no build step, so
