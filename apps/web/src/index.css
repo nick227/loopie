@@ -115,6 +115,11 @@
   textarea {
     background-color: hsl(var(--input-background));
   }
+
+  .wp-advertising-zone {
+    min-height: 510px;
+    width: 100%;
+  }
 }
 
 @layer utilities {
