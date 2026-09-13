@@ -3,7 +3,11 @@ import { formBody, jsonFetch } from './http'
 import type { CrmLiveConnector, CrmContactPage, CrmOrderPage, CrmToken } from './types'
 
 const SCOPES = 'read_customers,read_orders'
-const API = '2024-10'
+// 2024-10 was retired (Shopify API versions are supported for ~12 months); an inaccessible
+// version silently "falls forward" to whatever the oldest still-accessible stable version
+// happens to be, rather than erroring — see shopify.dev/docs/api/usage/versioning. Bump this
+// deliberately at each future version boundary rather than relying on that fallback behavior.
+const API = '2026-07'
 
 export function normalizeShop(raw: string) {
   const host = raw
