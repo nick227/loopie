@@ -9,6 +9,8 @@ import { Eye, Rocket } from 'lucide-react'
 import { PageCanvas } from './components/PageCanvas'
 import { PageToolbar } from './components/PageToolbar'
 import { LandingPageShareMenu } from './components/LandingPageShareMenu'
+import { LandingPageMoreMenu } from './components/LandingPageMoreMenu'
+import { LandingPageVersionsModal } from './components/LandingPageVersionsModal'
 import { EmbedModal } from '@/components/shared/EmbedModal'
 import { RICH_TEMPLATE_IDS, type TemplateSection } from './components/types'
 import { useLandingPageEditor } from './hooks/useLandingPageEditor'
@@ -64,6 +66,7 @@ export function LandingPage() {
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('editor')
   const [embedModalOpen, setEmbedModalOpen] = useState(false)
+  const [versionsModalOpen, setVersionsModalOpen] = useState(false)
   const {
     page,
     pageLoading,
@@ -185,6 +188,10 @@ export function LandingPage() {
                 published={page.status === 'PUBLISHED' && Boolean(page.hostedUrl)}
                 onEmbed={() => setEmbedModalOpen(true)}
               />
+              <LandingPageMoreMenu
+                landingPageId={page.id}
+                onVersions={() => setVersionsModalOpen(true)}
+              />
               <Button
                 size="sm"
                 onClick={handlePublish}
@@ -205,6 +212,14 @@ export function LandingPage() {
         objectType="PAGE"
         objectId={page.id}
       />
+
+      {versionsModalOpen ? (
+        <LandingPageVersionsModal
+          landingPageId={page.id}
+          currentPublishedVersionId={page.publishedVersionId}
+          onClose={() => setVersionsModalOpen(false)}
+        />
+      ) : null}
 
       {saveError && (
         <p
