@@ -48,6 +48,28 @@ function show() {
   )
 }
 
+// Keeps the Advertising section's cards inert (no Disconnect/Reconnect buttons of their own) so a
+// test can assert on a single CRM card's buttons without also matching Meta's default-CONNECTED
+// fixture from the shared beforeEach.
+function disableAllPlatforms() {
+  vi.mocked(usePlatformConnection).mockImplementation(
+    (platform) =>
+      ({
+        isLoading: false,
+        isError: false,
+        data: {
+          data: {
+            platform,
+            status: 'DISCONNECTED',
+            adAccountId: null,
+            configured: true,
+            capabilities: { pullSpend: true, mappingFields: [] },
+          },
+        },
+      }) as unknown as ReturnType<typeof usePlatformConnection>,
+  )
+}
+
 describe('ConnectionsPage', () => {
   beforeEach(() => {
     vi.mocked(useCrmCatalog).mockReturnValue({
@@ -173,5 +195,170 @@ describe('ConnectionsPage', () => {
     expect(screen.getByText('Access & permissions')).toBeInTheDocument()
     expect(screen.getByText(/Read contacts/)).toBeInTheDocument()
     expect(screen.getByText(/Read advertising spend/)).toBeInTheDocument()
+  })
+
+  // Regression coverage for the 2026-09-13 card-grammar fixes: non-OAuth providers (WooCommerce,
+  // Webhook) previously had no Disconnect action at all once CONNECTED, and a disconnected
+  // WooCommerce row had no way back into the credential form to reconnect.
+  it('shows Disconnect for a connected WooCommerce integration, and lets a paused one reconnect via the credential form', () => {
+    disableAllPlatforms()
+    vi.mocked(useCrmCatalog).mockReturnValue({
+      isLoading: false,
+      data: {
+        data: [
+          {
+            provider: 'WOOCOMMERCE',
+            label: 'WooCommerce',
+            availability: 'LIVE',
+            oauth: false,
+            configured: true,
+            capabilities: { contacts: true, orders: true },
+          },
+        ],
+      },
+    } as unknown as ReturnType<typeof useCrmCatalog>)
+    vi.mocked(useIntegrations).mockReturnValue({
+      isLoading: false,
+      data: {
+        pages: [
+          {
+            data: [
+              {
+                id: 'woo-1',
+                provider: 'WOOCOMMERCE',
+                status: 'CONNECTED',
+                capabilities: { contacts: true, orders: true },
+              },
+            ],
+          },
+        ],
+      },
+    } as unknown as ReturnType<typeof useIntegrations>)
+
+    const { rerender } = render(
+      <MemoryRouter initialEntries={['/connections']}>
+        <ConnectionsPage />
+      </MemoryRouter>,
+    )
+    // Connected: Sync now + Disconnect, no credential form (it's already connected).
+    expect(screen.getByRole('button', { name: 'Sync now' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Disconnect' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('WooCommerce store URL')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }))
+    expect(mocks.disconnectIntegration).toHaveBeenCalledWith('woo-1')
+
+    // Paused (disconnected): the credential form must reappear so the store can be reconnected,
+    // and the action button reads "Reconnect" rather than silently offering nothing.
+    vi.mocked(useIntegrations).mockReturnValue({
+      isLoading: false,
+      data: {
+        pages: [
+          {
+            data: [
+              {
+                id: 'woo-1',
+                provider: 'WOOCOMMERCE',
+                status: 'PAUSED',
+                capabilities: { contacts: true, orders: true },
+              },
+            ],
+          },
+        ],
+      },
+    } as unknown as ReturnType<typeof useIntegrations>)
+    rerender(
+      <MemoryRouter initialEntries={['/connections']}>
+        <ConnectionsPage />
+      </MemoryRouter>,
+    )
+    expect(screen.getByLabelText('WooCommerce store URL')).toBeInTheDocument()
+    expect(screen.getByLabelText('WooCommerce consumer key')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Reconnect' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Disconnect' })).not.toBeInTheDocument()
+  })
+
+  it('shows Disconnect for a connected Webhook integration even though it has no sync action', () => {
+    disableAllPlatforms()
+    vi.mocked(useCrmCatalog).mockReturnValue({
+      isLoading: false,
+      data: {
+        data: [
+          {
+            provider: 'WEBHOOK',
+            label: 'Webhook',
+            availability: 'LIVE',
+            oauth: false,
+            configured: true,
+            capabilities: {},
+          },
+        ],
+      },
+    } as unknown as ReturnType<typeof useCrmCatalog>)
+    vi.mocked(useIntegrations).mockReturnValue({
+      isLoading: false,
+      data: {
+        pages: [
+          {
+            data: [
+              {
+                id: 'wh-1',
+                provider: 'WEBHOOK',
+                status: 'CONNECTED',
+                webhookUrl: 'https://api.example.com/hooks/wh-1',
+                capabilities: {},
+              },
+            ],
+          },
+        ],
+      },
+    } as unknown as ReturnType<typeof useIntegrations>)
+
+    show()
+    expect(screen.getByRole('button', { name: 'Disconnect' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Sync now' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }))
+    expect(mocks.disconnectIntegration).toHaveBeenCalledWith('wh-1')
+  })
+
+  it('labels an OAuth row that never finished setup "Finish connecting" instead of "Reconnect"', () => {
+    disableAllPlatforms()
+    vi.mocked(useCrmCatalog).mockReturnValue({
+      isLoading: false,
+      data: {
+        data: [
+          {
+            provider: 'HUBSPOT',
+            label: 'HubSpot',
+            availability: 'LIVE',
+            oauth: true,
+            configured: true,
+            capabilities: { contacts: true, deals: true },
+          },
+        ],
+      },
+    } as unknown as ReturnType<typeof useCrmCatalog>)
+    vi.mocked(useIntegrations).mockReturnValue({
+      isLoading: false,
+      data: {
+        pages: [
+          {
+            data: [
+              {
+                id: 'hs-1',
+                provider: 'HUBSPOT',
+                status: 'INCOMPLETE',
+                capabilities: { contacts: true, deals: true },
+              },
+            ],
+          },
+        ],
+      },
+    } as unknown as ReturnType<typeof useIntegrations>)
+
+    show()
+    expect(screen.getByRole('button', { name: 'Finish connecting' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reconnect' })).not.toBeInTheDocument()
   })
 })

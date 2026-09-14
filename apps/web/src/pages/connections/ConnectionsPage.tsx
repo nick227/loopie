@@ -39,7 +39,7 @@ const CRM_LABELS: Record<string, string> = {
 const CRM_PURPOSE: Record<string, string> = {
   HUBSPOT: 'Sync contacts and deals from your HubSpot CRM.',
   SHOPIFY: 'Import customers and orders from your Shopify store.',
-  WOOCOMMERCE: 'Import customers and orders from your WooCommerce store.',
+  WOOCOMMERCE: 'Import customers and orders from your WooCommerce store using a read-only API key.',
   WEBHOOK: 'Receive contacts and orders pushed from your own systems.',
   GOOGLE_SHEETS: 'Use spreadsheets as LOOPIE data sources and schedule-sync destinations.',
   SALESFORCE: 'Sync contacts and deals from Salesforce.',
@@ -214,7 +214,7 @@ function CrmConnectionCard({
             aria-label="Shopify shop domain"
           />
         ) : null}
-        {provider === 'WOOCOMMERCE' && !row ? (
+        {provider === 'WOOCOMMERCE' && (!row || row.status !== 'CONNECTED') ? (
           <div className="space-y-2">
             <Input
               value={wooStoreUrl}
@@ -278,29 +278,56 @@ function CrmConnectionCard({
                 Disconnect
               </Button>
             </>
-          ) : row?.status === 'CONNECTED' && provider !== 'WEBHOOK' ? (
+          ) : row?.status === 'CONNECTED' && provider === 'WEBHOOK' ? (
+            // Push-based, not pull — there's nothing to "sync now", but the secret is still a
+            // real credential a business may want to revoke.
+            <Button type="button" variant="outline" onClick={onDisconnect}>
+              Disconnect
+            </Button>
+          ) : row?.status === 'CONNECTED' ? (
             <>
               <Button type="button" disabled={sync.isPending} onClick={() => sync.mutate(row.id)}>
                 {row.syncHasMore ? 'Continue sync' : 'Sync now'}
               </Button>
-              {oauth ? (
-                <Button type="button" variant="outline" onClick={onDisconnect}>
-                  Disconnect
-                </Button>
-              ) : null}
+              <Button type="button" variant="outline" onClick={onDisconnect}>
+                Disconnect
+              </Button>
             </>
           ) : row && row.status !== 'CONNECTED' && oauth && configured ? (
             // A row stuck at INCOMPLETE/NEEDS_REAUTH/PAUSED reuses the same row (never
             // re-enters as a duplicate) — CrmOAuthService.start() looks it up by
             // businessId+provider(+shop). Pass the row's own known shop domain for SHOPIFY;
             // the create-flow Input above is never rendered once a row exists, so it would
-            // otherwise always be empty here.
+            // otherwise always be empty here. Label distinguishes "never finished the OAuth
+            // screen" from "was connected, now needs reauthorizing/was disconnected" — same
+            // action, different real history, worth naming accurately.
             <Button
               type="button"
               disabled={oauthStart.isPending}
               onClick={() => connect(row.externalAccountId ?? undefined)}
             >
-              Reconnect
+              {row.status === 'INCOMPLETE' ? 'Finish connecting' : 'Reconnect'}
+            </Button>
+          ) : row &&
+            row.status !== 'CONNECTED' &&
+            (provider === 'WOOCOMMERCE' || provider === 'WEBHOOK') ? (
+            // Non-OAuth providers have no token to silently resume. WooCommerce re-enters
+            // credentials through the exact same create() call a first-time connect uses —
+            // its upsert (keyed by store URL) revives this row rather than duplicating it,
+            // confirmed safe. Webhook mints a genuinely new endpoint+secret by design (a
+            // revoked secret should never become silently reusable) — the old row stays PAUSED
+            // and drops out of this one-card-per-provider view, a known minor limitation, same
+            // shape as a business running more than one Shopify store.
+            <Button
+              type="button"
+              disabled={
+                create.isPending ||
+                (provider === 'WOOCOMMERCE' &&
+                  (!wooStoreUrl || !wooConsumerKey || !wooConsumerSecret))
+              }
+              onClick={() => connect()}
+            >
+              {provider === 'WEBHOOK' ? 'Create new webhook' : 'Reconnect'}
             </Button>
           ) : row ? null : availability !== 'LIVE' ? (
             <Button type="button" disabled>
