@@ -49,11 +49,15 @@ export function IntegrationsPage() {
       | 'PIPEDRIVE'
       | 'GOOGLE_SHEETS',
     oauthEnabled?: boolean,
+    // Reconnect passes the row's own already-known shop domain — the shop Input field only
+    // renders on a brand-new connection (`!row`), so it's always empty for an existing row and
+    // must never be relied on here.
+    shopOverride?: string,
   ) {
     if (oauthEnabled) {
       const started = await oauth.mutateAsync({
         provider: provider as Exclude<typeof provider, 'WEBHOOK'>,
-        shop: provider === 'SHOPIFY' ? shop : undefined,
+        shop: provider === 'SHOPIFY' ? (shopOverride ?? shop) : undefined,
       })
       if (!started.data) throw new Error('Missing OAuth URL')
       window.location.assign(started.data.url)
@@ -253,7 +257,9 @@ export function IntegrationsPage() {
                     <Button
                       type="button"
                       disabled={oauth.isPending}
-                      onClick={() => connect(provider.provider, true)}
+                      onClick={() =>
+                        connect(provider.provider, true, row.externalAccountId ?? undefined)
+                      }
                     >
                       Reconnect
                     </Button>
