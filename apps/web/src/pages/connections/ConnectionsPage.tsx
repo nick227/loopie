@@ -416,7 +416,7 @@ function PlatformConnectionCard({ platform, label }: { platform: string; label: 
             </Button>
           ) : connected ? (
             <>
-              <Link to="/campaigns">
+              <Link to="/ads">
                 <Button type="button" variant="outline">
                   Manage
                 </Button>

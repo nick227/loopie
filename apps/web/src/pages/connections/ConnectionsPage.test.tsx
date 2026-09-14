@@ -173,6 +173,11 @@ describe('ConnectionsPage', () => {
     expect(screen.getByText('Ad account act-42')).toBeInTheDocument()
   })
 
+  it("links a connected platform's Manage button to /ads (the current Advertisement/AdRun model), not the legacy /campaigns route", () => {
+    show()
+    expect(screen.getByRole('link', { name: 'Manage' })).toHaveAttribute('href', '/ads')
+  })
+
   it('shows a toast for ?connected= and syncs/disconnects a CRM card from the same card', () => {
     show()
     fireEvent.click(screen.getByRole('button', { name: 'Sync now' }))
