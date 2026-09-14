@@ -20,7 +20,7 @@ vi.mock('@/hooks/useOverviewScroll', () => ({
 
 const views = [
   ['/profile', 'Profile'],
-  ['/permissions', 'Permissions'],
+  ['/connections', 'Connections'],
   ['/team', 'Team'],
   ['/billing', 'Billing'],
   ['/affiliate-program', 'Affiliate'],

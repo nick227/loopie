@@ -2,10 +2,9 @@ import { NavLink } from 'react-router-dom'
 import { useCrmCatalog } from '@project/sdk'
 import { cn } from '@/lib/utils'
 
-const items = [
-  { to: '/contacts', label: 'Contacts', end: true },
-  { to: '/integrations', label: 'Integrations', end: true },
-]
+// Integrations moved into the unified /connections page (2026-09-14) — CRM management is no
+// longer a distinct destination from ad-platform connections, so it's no longer listed here.
+const items = [{ to: '/contacts', label: 'Contacts', end: true }]
 
 export function CrmNav() {
   const catalog = useCrmCatalog()

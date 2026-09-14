@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Building2, Users, CreditCard, ShieldCheck, ScrollText, Gift } from 'lucide-react'
+import { Building2, Users, CreditCard, Plug, ScrollText, Gift } from 'lucide-react'
 import { BusinessHeader } from '@/components/business/BusinessHeader'
 import { cn } from '@/lib/utils'
 
@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 // to the platform referral program.
 const NAV_ITEMS = [
   { to: '/profile', label: 'Profile', icon: Building2 },
-  { to: '/permissions', label: 'Permissions', icon: ShieldCheck },
+  { to: '/connections', label: 'Connections', icon: Plug },
   { to: '/team', label: 'Team', icon: Users },
   { to: '/billing', label: 'Billing', icon: CreditCard },
   { to: '/affiliate-program', label: 'Affiliate', icon: Gift },

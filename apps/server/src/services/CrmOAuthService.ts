@@ -99,7 +99,7 @@ export class CrmOAuthService {
           capabilities: entry.capabilities as object,
         },
       }))
-    const returnPath = opts.returnPath?.startsWith('/') ? opts.returnPath : '/integrations'
+    const returnPath = opts.returnPath?.startsWith('/') ? opts.returnPath : '/connections'
     const dest = new URL(returnPath, 'http://loopie.local')
     dest.searchParams.set('iid', row.id)
     const state = issueOAuthState({
@@ -162,12 +162,11 @@ export class CrmOAuthService {
       },
     })
     if (targetId !== row.id) await db.integration.delete({ where: { id: row.id } })
-    const dest = new URL(
-      provider === 'GOOGLE_SHEETS'
-        ? `/integrations/${targetId}/google-sheets`
-        : parsed.returnPath.split('?')[0] || '/integrations',
-      appBaseUrl(),
-    )
+    // Every provider (including GOOGLE_SHEETS, previously a hardcoded exception) returns to
+    // whatever bare path the frontend actually requested — a connect flow forcing its own caller
+    // straight into a sub-task (e.g. "add a spreadsheet now") surprised users expecting the same
+    // "land back, then choose what's next" behavior every other provider already gets.
+    const dest = new URL(parsed.returnPath.split('?')[0] || '/connections', appBaseUrl())
     dest.searchParams.set('connected', provider)
     return dest.toString()
   }

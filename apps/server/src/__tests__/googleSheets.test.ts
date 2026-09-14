@@ -293,7 +293,10 @@ describe('Google Sheets mapping and source identity', () => {
       url: `/v1/integrations/google-sheets/callback?code=abc&state=${encodeURIComponent(state)}`,
     })
     expect(callback.statusCode).toBe(302)
-    expect(callback.headers.location).toMatch(/\/integrations\/[^/]+\/google-sheets/)
+    // GOOGLE_SHEETS returns to whatever bare path the caller requested, same as every other
+    // provider — no more hardcoded forward into the sources sub-page. No returnPath was
+    // supplied here, so it lands on the default.
+    expect(callback.headers.location).toContain('/connections?connected=GOOGLE_SHEETS')
     expect(
       (await db.integration.findUniqueOrThrow({ where: { id: original.id } })).externalAccountId,
     ).toBe('original@example.com')
@@ -311,7 +314,7 @@ describe('Google Sheets mapping and source identity', () => {
       url: `/v1/integrations/google-sheets/callback?code=abc&state=${encodeURIComponent(againState)}`,
     })
     expect(reconnected.statusCode).toBe(302)
-    expect(reconnected.headers.location).toContain(`/integrations/${added.id}/google-sheets`)
+    expect(reconnected.headers.location).toContain('/connections?connected=GOOGLE_SHEETS')
     expect(
       await db.integration.count({
         where: { businessId: testBusinessId, provider: 'GOOGLE_SHEETS' },

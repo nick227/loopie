@@ -31,8 +31,8 @@ const ContactInteractionsPage = lazy(() =>
 const ContactMatchesPage = lazy(() =>
   import('@/pages/crm/ContactMatchesPage').then((m) => ({ default: m.ContactMatchesPage })),
 )
-const IntegrationsPage = lazy(() =>
-  import('@/pages/crm/IntegrationsPage').then((m) => ({ default: m.IntegrationsPage })),
+const ConnectionsPage = lazy(() =>
+  import('@/pages/connections/ConnectionsPage').then((m) => ({ default: m.ConnectionsPage })),
 )
 const GoogleSheetsAccountsPage = lazy(() =>
   import('@/pages/crm/GoogleSheetsAccountsPage').then((m) => ({
@@ -375,9 +375,6 @@ const BillingPage = lazy(() =>
 const ProfilePage = lazy(() =>
   import('@/pages/core/ProfilePage').then((m) => ({ default: m.ProfilePage })),
 )
-const PermissionsPage = lazy(() =>
-  import('@/pages/core/PermissionsPage').then((m) => ({ default: m.PermissionsPage })),
-)
 const TeamPage = lazy(() => import('@/pages/team/TeamPage').then((m) => ({ default: m.TeamPage })))
 const TeamMemberPage = lazy(() =>
   import('@/pages/team/TeamMemberPage').then((m) => ({ default: m.TeamMemberPage })),
@@ -411,9 +408,6 @@ import { BusinessAdminLayout } from '@/components/layout/BusinessAdminLayout'
 import { SiteAdminLayout } from '@/components/layout/SiteAdminLayout'
 import { Shell } from '@/components/layout/Shell'
 
-const PlatformsPage = lazy(() =>
-  import('@/pages/platforms/PlatformsPage').then((m) => ({ default: m.PlatformsPage })),
-)
 const AdminBusinessesPage = lazy(() =>
   import('@/pages/admin/AdminBusinessesPage').then((m) => ({ default: m.AdminBusinessesPage })),
 )
@@ -524,7 +518,7 @@ export function App() {
               <Route element={<Shell />}>
                 <Route element={<BusinessAdminLayout />}>
                   <Route path="/profile" element={<ProfilePage />} />
-                  <Route path="/permissions" element={<PermissionsPage />} />
+                  <Route path="/connections" element={<ConnectionsPage />} />
                   <Route path="/team" element={<TeamPage />} />
                   <Route path="/team/members/:userId" element={<TeamMemberPage />} />
                 </Route>
@@ -551,7 +545,7 @@ export function App() {
                     path="/contacts/:contactId/interactions"
                     element={<ContactInteractionsPage />}
                   />
-                  <Route path="/integrations" element={<IntegrationsPage />} />
+                  <Route path="/integrations" element={<Navigate to="/connections" replace />} />
                   <Route
                     path="/integrations/google-sheets"
                     element={<GoogleSheetsAccountsPage />}
@@ -712,7 +706,8 @@ export function App() {
                   <Route path="/home" element={<LegacyHomeRoute />} />
                   <Route path="/inbox" element={<Navigate to="/profile" replace />} />
                   <Route path="/results" element={<ResultsSummaryPage />} />
-                  <Route path="/platforms" element={<PlatformsPage />} />
+                  <Route path="/platforms" element={<Navigate to="/connections" replace />} />
+                  <Route path="/permissions" element={<Navigate to="/connections" replace />} />
                   <Route element={<BusinessAdminLayout />}>
                     <Route
                       path="/affiliates"
