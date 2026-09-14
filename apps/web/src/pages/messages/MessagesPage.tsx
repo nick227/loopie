@@ -1,6 +1,6 @@
 import { AssignmentNotifications } from '@/components/messages/AssignmentNotifications'
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useInboxThreads, useMessages } from '@project/sdk'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SearchFilterBar } from '@/components/ui/SearchFilterBar'
@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Button } from '@/components/ui/Button'
 import { UniversalRowList } from '@/components/ui/UniversalRow'
 import { MessageRow } from '@/components/messages/MessageRow'
-import { Inbox, List, Plus } from 'lucide-react'
+import { Inbox, List, Plus, FileText } from 'lucide-react'
 import { useFlatPages } from '@/hooks/useFlatPages'
 import { InboxThreadRow } from '@/components/messages/InboxThreadRow'
 import { StatusTabs } from '@/components/ui/StatusTabs'
@@ -51,6 +51,13 @@ export function MessagesPage() {
         variant="list"
         title="Messages"
         description="Write, schedule, and follow up with your audience."
+        secondaryActions={
+          <Link to="/templates">
+            <Button variant="outline">
+              <FileText size={16} /> Templates
+            </Button>
+          </Link>
+        }
         primaryAction={
           <Button onClick={() => navigate('/messages/new')}>
             <Plus size={16} /> New message

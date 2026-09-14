@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { List } from 'lucide-react'
 import { useFlatPages } from '@/hooks/useFlatPages'
+import { CrmNav } from '@/pages/crm/CrmNav'
 
 const SUGGESTED = [
   {
@@ -38,6 +39,7 @@ export function AudiencesPage() {
         title="Audiences"
         description="Live queries over the customer graph — not copied import lists."
       />
+      <CrmNav />
 
       <div className="flex flex-wrap gap-2">
         {SUGGESTED.filter((row) => !items.some((item) => item.name === row.name)).map((row) => (

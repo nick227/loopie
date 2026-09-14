@@ -151,16 +151,6 @@ const ResumeAutomationPage = lazy(() =>
 const AutomationLogsPage = lazy(() =>
   import('@/pages/automations/AutomationLogsPage').then((m) => ({ default: m.AutomationLogsPage })),
 )
-const LandingPageTemplatesPage = lazy(() =>
-  import('@/pages/landing-pages/LandingPageTemplatesPage').then((m) => ({
-    default: m.LandingPageTemplatesPage,
-  })),
-)
-const LandingPageTemplatePage = lazy(() =>
-  import('@/pages/landing-pages/LandingPageTemplatePage').then((m) => ({
-    default: m.LandingPageTemplatePage,
-  })),
-)
 const LandingPagesPage = lazy(() =>
   import('@/pages/landing-pages/LandingPagesPage').then((m) => ({ default: m.LandingPagesPage })),
 )
@@ -188,15 +178,8 @@ const LandingPagePerformancePage = lazy(() =>
     default: m.LandingPagePerformancePage,
   })),
 )
-const FormsPage = lazy(() =>
-  import('@/pages/forms/FormsPage').then((m) => ({ default: m.FormsPage })),
-)
 const CreateFormPage = lazy(() =>
   import('@/pages/forms/CreateFormPage').then((m) => ({ default: m.CreateFormPage })),
-)
-const FormPage = lazy(() => import('@/pages/forms/FormPage').then((m) => ({ default: m.FormPage })))
-const UpdateFormPage = lazy(() =>
-  import('@/pages/forms/UpdateFormPage').then((m) => ({ default: m.UpdateFormPage })),
 )
 const PlatformAffiliateLayout = lazy(() =>
   import('@/pages/platform-affiliates/PlatformAffiliateLayout').then((m) => ({
@@ -286,9 +269,6 @@ const CreateSalePage = lazy(() =>
   import('@/pages/sales/CreateSalePage').then((m) => ({ default: m.CreateSalePage })),
 )
 const SalePage = lazy(() => import('@/pages/sales/SalePage').then((m) => ({ default: m.SalePage })))
-const ResultsSummaryPage = lazy(() =>
-  import('@/pages/core/ResultsSummaryPage').then((m) => ({ default: m.ResultsSummaryPage })),
-)
 const BillingPage = lazy(() =>
   import('@/pages/core/BillingPage').then((m) => ({ default: m.BillingPage })),
 )
@@ -555,10 +535,13 @@ export function App() {
                       strand a stale bookmark/link. */}
                   <Route path="/campaigns/*" element={<Navigate to="/ads" replace />} />
                   <Route path="/deployments/*" element={<Navigate to="/ads" replace />} />
-                  <Route path="/landing-page-templates" element={<LandingPageTemplatesPage />} />
+                  {/* The old standalone template catalog is retired (2026-09-14) — page creation
+                      already goes through the real Page Type/Layout picker (PagesStartRow.tsx)
+                      wired into /landing-pages itself; this separate browse-a-catalog-first flow
+                      was never linked to it. */}
                   <Route
-                    path="/landing-page-templates/:templateId"
-                    element={<LandingPageTemplatePage />}
+                    path="/landing-page-templates/*"
+                    element={<Navigate to="/landing-pages" replace />}
                   />
                   <Route path="/landing-pages" element={<LandingPagesPage />} />
                   <Route
@@ -586,10 +569,17 @@ export function App() {
                     path="/landing-pages/:landingPageId/performance"
                     element={<LandingPagePerformancePage />}
                   />
-                  <Route path="/forms" element={<FormsPage />} />
+                  {/* Forms are page-owned, not a standalone destination (2026-09-14) — a form's
+                      real create/edit experience already lives inline inside the page editor
+                      itself (FormFieldsEditor rendered directly in each template's canvas;
+                      ContentView.tsx's onAddForm creates one in place via /forms/new, which stays
+                      real and reachable, unlike the pages below it). */}
                   <Route path="/forms/new" element={<CreateFormPage />} />
-                  <Route path="/forms/:formId" element={<FormPage />} />
-                  <Route path="/forms/:formId/edit" element={<UpdateFormPage />} />
+                  <Route path="/forms" element={<Navigate to="/landing-pages" replace />} />
+                  <Route
+                    path="/forms/:formId/*"
+                    element={<Navigate to="/landing-pages" replace />}
+                  />
                   <Route path="/ad-units/*" element={<Navigate to="/ads" replace />} />
                   <Route path="/calendar" element={<CalendarPage />} />
                   <Route path="/leads" element={<LeadsPage />} />
@@ -600,7 +590,11 @@ export function App() {
                   <Route path="/sales/:saleId" element={<SalePage />} />
                   <Route path="/home" element={<LegacyHomeRoute />} />
                   <Route path="/inbox" element={<Navigate to="/profile" replace />} />
-                  <Route path="/results" element={<ResultsSummaryPage />} />
+                  {/* No standalone Results/Reports destination by design (2026-08-27 IA
+                      revision) — performance lives with the thing being measured (Messages ->
+                      Performance, Ads, Pages -> Performance). /profile is this product's
+                      operational-overview equivalent (see LegacyHomeRoute). */}
+                  <Route path="/results" element={<Navigate to="/profile" replace />} />
                   <Route path="/platforms" element={<Navigate to="/connections" replace />} />
                   <Route path="/permissions" element={<Navigate to="/connections" replace />} />
                   <Route element={<BusinessAdminLayout />}>

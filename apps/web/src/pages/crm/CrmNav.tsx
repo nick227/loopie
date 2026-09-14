@@ -6,9 +6,16 @@ import { cn } from '@/lib/utils'
 // no longer a distinct destination from ad-platform connections. Connections stays listed here
 // deliberately: the key UX test is that someone on Contacts thinking "I need to connect Shopify"
 // has one obvious click to the right place, not a hunt through Settings.
+//
+// Audiences (2026-09-14): a real, already-built CRM concept (live saved queries over the
+// customer graph, targeted by Messages) whose list page had no inbound link from anywhere — the
+// detail page was reachable (linked from a message's audience name) but the list wasn't, an IA
+// bug rather than an intentionally orphaned surface. Belongs alongside Contacts/Leads, not as its
+// own top-level nav destination.
 const items = [
   { to: '/contacts', label: 'Contacts', end: true },
   { to: '/leads', label: 'Leads', end: true },
+  { to: '/audiences', label: 'Audiences', end: true },
   { to: '/connections', label: 'Connections', end: true },
 ]
 
