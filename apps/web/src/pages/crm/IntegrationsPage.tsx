@@ -1,13 +1,16 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { toast } from 'sonner'
 import {
   useCreateIntegration,
   useCrmCatalog,
+  useDisconnectIntegration,
   useIntegrations,
   usePreviewIntegration,
   useStartCrmOAuth,
   useSyncIntegration,
 } from '@project/sdk'
+import { apiErrorMessage } from '@/lib/apiError'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -23,6 +26,7 @@ export function IntegrationsPage() {
   const oauth = useStartCrmOAuth()
   const sync = useSyncIntegration()
   const preview = usePreviewIntegration()
+  const disconnect = useDisconnectIntegration()
   const connected = useFlatPages(list)
   const [shop, setShop] = useState('')
   const [wooStoreUrl, setWooStoreUrl] = useState('')
@@ -75,6 +79,16 @@ export function IntegrationsPage() {
     if (provider === 'WOOCOMMERCE' && created.data) {
       setPreviewIntegrationId(created.data.id)
       await preview.mutateAsync(created.data.id)
+    }
+  }
+
+  async function onDisconnect(integrationId: string, label: string) {
+    if (!confirm(`Disconnect ${label}? You can reconnect at any time.`)) return
+    try {
+      await disconnect.mutateAsync(integrationId)
+      toast.success(`${label} disconnected`)
+    } catch (error) {
+      toast.error(apiErrorMessage(error, `Could not disconnect ${label}.`))
     }
   }
 
@@ -203,13 +217,33 @@ export function IntegrationsPage() {
                       </Link>
                     </div>
                   ) : row?.status === 'CONNECTED' && provider.provider !== 'WEBHOOK' ? (
-                    <Button
-                      type="button"
-                      disabled={sync.isPending}
-                      onClick={() => sync.mutate(row.id)}
-                    >
-                      {row.syncHasMore ? 'Continue sync' : 'Sync now'}
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        disabled={sync.isPending}
+                        onClick={() => sync.mutate(row.id)}
+                      >
+                        {row.syncHasMore ? 'Continue sync' : 'Sync now'}
+                      </Button>
+                      {provider.oauth ? (
+                        // Disconnect existed on the backend (POST /integrations/{id}/disconnect)
+                        // but was never wired into this generic card — the only way to force a
+                        // fresh OAuth handshake (e.g. to pick up a newly-granted permission) was
+                        // to uninstall the app from the provider's own dashboard. Scoped to OAuth
+                        // providers only: the Reconnect branch below already handles a disconnected
+                        // (PAUSED) row correctly for these, since CrmOAuthService.start() reuses
+                        // the same row regardless of status — WooCommerce's connect flow needs its
+                        // credential inputs re-shown to reconnect, which this doesn't build.
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={disconnect.isPending}
+                          onClick={() => onDisconnect(row.id, provider.label)}
+                        >
+                          Disconnect
+                        </Button>
+                      ) : null}
+                    </div>
                   ) : row && row.status !== 'CONNECTED' && provider.oauth && provider.configured ? (
                     // A row stuck at INCOMPLETE (OAuth started but never finished — cancelled,
                     // tab closed, expired state) or NEEDS_REAUTH (a token that stopped working)
