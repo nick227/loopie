@@ -2,9 +2,15 @@ import { NavLink } from 'react-router-dom'
 import { useCrmCatalog } from '@project/sdk'
 import { cn } from '@/lib/utils'
 
-// Integrations moved into the unified /connections page (2026-09-14) — CRM management is no
-// longer a distinct destination from ad-platform connections, so it's no longer listed here.
-const items = [{ to: '/contacts', label: 'Contacts', end: true }]
+// Integrations was replaced by the unified /connections page (2026-09-14) — CRM management is
+// no longer a distinct destination from ad-platform connections. Connections stays listed here
+// deliberately: the key UX test is that someone on Contacts thinking "I need to connect Shopify"
+// has one obvious click to the right place, not a hunt through Settings.
+const items = [
+  { to: '/contacts', label: 'Contacts', end: true },
+  { to: '/leads', label: 'Leads', end: true },
+  { to: '/connections', label: 'Connections', end: true },
+]
 
 export function CrmNav() {
   const catalog = useCrmCatalog()

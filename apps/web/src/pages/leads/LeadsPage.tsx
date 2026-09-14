@@ -51,6 +51,7 @@ function LeadRow({ lead }: { lead: Lead }) {
 
 import { ExportImportActions } from '@/components/ui/ExportImportActions'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { CrmNav } from '@/pages/crm/CrmNav'
 
 export function LeadsPage() {
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useLeads()
@@ -78,6 +79,7 @@ export function LeadsPage() {
           />
         }
       />
+      <CrmNav />
 
       {items.length === 0 ? (
         <EmptyState

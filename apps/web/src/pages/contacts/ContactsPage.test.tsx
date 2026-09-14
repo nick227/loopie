@@ -5,35 +5,27 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   useContacts,
   useContactTags,
-  useCreateIntegration,
   useCrmCatalog,
-  useDisconnectIntegration,
   useHomeSummary,
   useImportContacts,
   useIntegrations,
   useLeadQueue,
-  usePreviewIntegration,
-  useStartCrmOAuth,
-  useSyncIntegration,
-  useUpdateIntegration,
 } from '@project/sdk'
 import { ContactsPage } from './ContactsPage'
 
+// Regression coverage for the 2026-09-14 /connections consolidation: Contacts no longer owns a
+// second, duplicate CRM connect/disconnect/sync surface (the old ConnectIntegrationsButton modal)
+// — it only consumes connected-provider state (an obvious link to /connections, and a contextual
+// shortcut straight into Google Sheets' source picker when that's already connected).
 vi.mock('@project/sdk', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@project/sdk')>()),
   useContacts: vi.fn(),
   useContactTags: vi.fn(),
-  useCreateIntegration: vi.fn(),
   useCrmCatalog: vi.fn(),
-  useDisconnectIntegration: vi.fn(),
   useHomeSummary: vi.fn(),
   useImportContacts: vi.fn(),
   useIntegrations: vi.fn(),
   useLeadQueue: vi.fn(),
-  usePreviewIntegration: vi.fn(),
-  useStartCrmOAuth: vi.fn(),
-  useSyncIntegration: vi.fn(),
-  useUpdateIntegration: vi.fn(),
 }))
 
 describe('ContactsPage', () => {
@@ -59,30 +51,6 @@ describe('ContactsPage', () => {
       isLoading: false,
       data: { pages: [{ data: [] }] },
     } as unknown as ReturnType<typeof useIntegrations>)
-    vi.mocked(useCreateIntegration).mockReturnValue({
-      isPending: false,
-      mutateAsync: vi.fn(),
-    } as unknown as ReturnType<typeof useCreateIntegration>)
-    vi.mocked(useStartCrmOAuth).mockReturnValue({
-      isPending: false,
-      mutateAsync: vi.fn(),
-    } as unknown as ReturnType<typeof useStartCrmOAuth>)
-    vi.mocked(useSyncIntegration).mockReturnValue({
-      isPending: false,
-      mutateAsync: vi.fn(),
-    } as unknown as ReturnType<typeof useSyncIntegration>)
-    vi.mocked(useUpdateIntegration).mockReturnValue({
-      isPending: false,
-      mutateAsync: vi.fn(),
-    } as unknown as ReturnType<typeof useUpdateIntegration>)
-    vi.mocked(useDisconnectIntegration).mockReturnValue({
-      isPending: false,
-      mutateAsync: vi.fn(),
-    } as unknown as ReturnType<typeof useDisconnectIntegration>)
-    vi.mocked(usePreviewIntegration).mockReturnValue({
-      isPending: false,
-      mutateAsync: vi.fn(),
-    } as unknown as ReturnType<typeof usePreviewIntegration>)
     vi.mocked(useContactTags).mockReturnValue({
       data: { data: [] },
     } as unknown as ReturnType<typeof useContactTags>)
@@ -136,5 +104,64 @@ describe('ContactsPage', () => {
     // belongs to it, not to the filtered list query below it.
     expect(useContacts).toHaveBeenCalledWith({ source: 'HUBSPOT' })
     expect(screen.queryByText('Alice Smith')).not.toBeInTheDocument()
+  })
+
+  it('always links to /connections, and shortcuts straight into Google Sheets sources once connected — no separate connect/disconnect modal', () => {
+    vi.mocked(useHomeSummary).mockReturnValue({
+      isLoading: true,
+      isError: false,
+      data: undefined,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useHomeSummary>)
+    vi.mocked(useImportContacts).mockReturnValue({
+      isPending: false,
+      mutateAsync: vi.fn(),
+    } as unknown as ReturnType<typeof useImportContacts>)
+    vi.mocked(useContactTags).mockReturnValue({
+      data: { data: [] },
+    } as unknown as ReturnType<typeof useContactTags>)
+    vi.mocked(useLeadQueue).mockReturnValue({
+      isLoading: false,
+      data: { data: [] },
+    } as unknown as ReturnType<typeof useLeadQueue>)
+    vi.mocked(useContacts).mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { pages: [{ data: [] }] },
+      hasNextPage: false,
+    } as unknown as ReturnType<typeof useContacts>)
+    vi.mocked(useCrmCatalog).mockReturnValue({
+      data: { data: [], unresolvedMatchCount: 0 },
+    } as unknown as ReturnType<typeof useCrmCatalog>)
+    vi.mocked(useIntegrations).mockReturnValue({
+      isLoading: false,
+      data: {
+        pages: [
+          {
+            data: [{ id: 'gs-1', provider: 'GOOGLE_SHEETS', status: 'CONNECTED' }],
+          },
+        ],
+      },
+    } as unknown as ReturnType<typeof useIntegrations>)
+
+    render(
+      <MemoryRouter>
+        <ContactsPage />
+      </MemoryRouter>,
+    )
+
+    // Obvious one-click path to the actual provider-management surface — no hunting. Two links
+    // point there: the CrmNav sub-nav tab, and the ConnectionsPrompt shortcut in the page header.
+    const connectionsLinks = screen.getAllByRole('link', { name: 'Connections' })
+    expect(connectionsLinks.length).toBeGreaterThanOrEqual(2)
+    connectionsLinks.forEach((link) => expect(link).toHaveAttribute('href', '/connections'))
+    // Contextual shortcut into the existing sources screen, not a new connect path.
+    expect(screen.getByRole('link', { name: /Import from Google Sheets/ })).toHaveAttribute(
+      'href',
+      '/integrations/gs-1/google-sheets',
+    )
+    // No modal-based connect/manage/disconnect surface anywhere on this page anymore.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Manage$/ })).not.toBeInTheDocument()
   })
 })
