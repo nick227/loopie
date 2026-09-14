@@ -402,6 +402,68 @@ describe('HubSpot and Shopify connectors', () => {
     expect(Number(sale.amount)).toBe(42.5)
   })
 
+  it('disconnect preserves the shop domain so Reconnect can rebuild the authorize URL without re-entering it', async () => {
+    // Regression for a real bug found live: disconnect() used to null externalAccountId too
+    // (only credentialsEnc is actually a secret) — for SHOPIFY specifically, that field IS the
+    // shop domain, structurally required to build the next /admin/oauth/authorize URL, so
+    // disconnecting then reconnecting silently sent shop='' and 400'd.
+    enableCrm()
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/admin/oauth/access_token')) return json({ access_token: 'SH_TOKEN' })
+      return json({ error: url }, 500)
+    })
+
+    await app.inject({
+      method: 'GET',
+      url: '/integrations/SHOPIFY/oauth/start?shop=acme',
+      headers: asAuth(testUserId),
+    })
+    const row = await db.integration.findFirstOrThrow({
+      where: { businessId: testBusinessId, provider: 'SHOPIFY' },
+    })
+    const state = issueOAuthState({
+      businessId: testBusinessId,
+      platform: 'crm:SHOPIFY',
+      returnPath: `/integrations?iid=${row.id}`,
+    })
+    await app.inject({
+      method: 'GET',
+      url: `/integrations/SHOPIFY/oauth/callback?code=xyz&state=${encodeURIComponent(state)}`,
+    })
+
+    const disconnected = await app.inject({
+      method: 'POST',
+      url: `/integrations/${row.id}/disconnect`,
+      headers: asAuth(testUserId),
+    })
+    expect(disconnected.statusCode).toBe(200)
+    expect(disconnected.json().data.status).toBe('PAUSED')
+    expect(disconnected.json().data.externalAccountId).toBe('acme.myshopify.com')
+
+    const dbRow = await db.integration.findUniqueOrThrow({ where: { id: row.id } })
+    expect(dbRow.credentialsEnc).toBeNull()
+    expect(dbRow.externalAccountId).toBe('acme.myshopify.com')
+
+    // Reconnect: the fixed IntegrationsPage.tsx now always resends the row's own preserved
+    // externalAccountId as ?shop= (never the empty create-flow input state) — start() itself
+    // still requires shop explicitly on every call, by design: a business can have more than one
+    // Shopify store connected (businessId+provider+externalAccountId is the real unique key), so
+    // silently falling back to "any existing row" without a shop would be ambiguous. This proves
+    // the two pieces compose correctly: the same preserved domain reconnects the same row.
+    const restart = await app.inject({
+      method: 'GET',
+      url: '/integrations/SHOPIFY/oauth/start?shop=acme',
+      headers: asAuth(testUserId),
+    })
+    expect(restart.statusCode).toBe(200)
+    expect(restart.json().data.url).toContain('acme.myshopify.com')
+    const reusedRow = await db.integration.findFirstOrThrow({
+      where: { businessId: testBusinessId, provider: 'SHOPIFY' },
+    })
+    expect(reusedRow.id).toBe(row.id)
+  })
+
   it('a mid-sync failure marks the ImportJob FAILED with a persisted error, not stuck PENDING, and keeps the page progress already made', async () => {
     enableCrm()
     vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {

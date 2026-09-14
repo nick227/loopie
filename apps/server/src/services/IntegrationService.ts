@@ -223,12 +223,17 @@ export class IntegrationService {
 
   async disconnect(businessId: string, integrationId: string) {
     await this.get(businessId, integrationId)
+    // credentialsEnc is the real secret (the OAuth token) — always wipe it on disconnect.
+    // externalAccountId is an identifier, not a secret (for SHOPIFY it's the shop domain itself,
+    // structurally required to rebuild the next authorize URL) — clearing it used to silently
+    // break Reconnect for exactly the providers that need it, found live: disconnecting Shopify
+    // then reconnecting sent an empty shop domain because this wiped the only place it was
+    // stored. Keep it so Reconnect can pick the same account back up without re-entering it.
     const row = await db.integration.update({
       where: { id: integrationId },
       data: {
         status: 'PAUSED',
         credentialsEnc: null,
-        externalAccountId: null,
       },
     })
     return toDTO(row)
