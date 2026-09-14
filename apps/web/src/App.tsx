@@ -151,74 +151,6 @@ const ResumeAutomationPage = lazy(() =>
 const AutomationLogsPage = lazy(() =>
   import('@/pages/automations/AutomationLogsPage').then((m) => ({ default: m.AutomationLogsPage })),
 )
-const CampaignsPage = lazy(() =>
-  import('@/pages/campaigns/CampaignsPage').then((m) => ({ default: m.CampaignsPage })),
-)
-const CreateCampaignPage = lazy(() =>
-  import('@/pages/campaigns/CreateCampaignPage').then((m) => ({ default: m.CreateCampaignPage })),
-)
-const CampaignPage = lazy(() =>
-  import('@/pages/campaigns/CampaignPage').then((m) => ({ default: m.CampaignPage })),
-)
-const UpdateCampaignPage = lazy(() =>
-  import('@/pages/campaigns/UpdateCampaignPage').then((m) => ({ default: m.UpdateCampaignPage })),
-)
-const PauseCampaignPage = lazy(() =>
-  import('@/pages/campaigns/PauseCampaignPage').then((m) => ({ default: m.PauseCampaignPage })),
-)
-const ResumeCampaignPage = lazy(() =>
-  import('@/pages/campaigns/ResumeCampaignPage').then((m) => ({ default: m.ResumeCampaignPage })),
-)
-const EndCampaignPage = lazy(() =>
-  import('@/pages/campaigns/EndCampaignPage').then((m) => ({ default: m.EndCampaignPage })),
-)
-const DuplicateCampaignPage = lazy(() =>
-  import('@/pages/campaigns/DuplicateCampaignPage').then((m) => ({
-    default: m.DuplicateCampaignPage,
-  })),
-)
-const CampaignPerformancePage = lazy(() =>
-  import('@/pages/campaigns/CampaignPerformancePage').then((m) => ({
-    default: m.CampaignPerformancePage,
-  })),
-)
-const CampaignBudgetPage = lazy(() =>
-  import('@/pages/campaigns/CampaignBudgetPage').then((m) => ({ default: m.CampaignBudgetPage })),
-)
-const CampaignCreativesPage = lazy(() =>
-  import('@/pages/campaigns/CampaignCreativesPage').then((m) => ({
-    default: m.CampaignCreativesPage,
-  })),
-)
-const CampaignCreateCreativePage = lazy(() =>
-  import('@/pages/campaigns/CampaignCreateCreativePage').then((m) => ({
-    default: m.CampaignCreateCreativePage,
-  })),
-)
-const CampaignAdUnitsPage = lazy(() =>
-  import('@/pages/campaigns/CampaignAdUnitsPage').then((m) => ({ default: m.CampaignAdUnitsPage })),
-)
-const CampaignCreateAdUnitPage = lazy(() =>
-  import('@/pages/campaigns/CampaignCreateAdUnitPage').then((m) => ({
-    default: m.CampaignCreateAdUnitPage,
-  })),
-)
-const CampaignLeadsPage = lazy(() =>
-  import('@/pages/campaigns/CampaignLeadsPage').then((m) => ({ default: m.CampaignLeadsPage })),
-)
-const DeploymentsPage = lazy(() =>
-  import('@/pages/deployments/DeploymentsPage').then((m) => ({ default: m.DeploymentsPage })),
-)
-const CreateDeploymentPage = lazy(() =>
-  import('@/pages/deployments/CreateDeploymentPage').then((m) => ({
-    default: m.CreateDeploymentPage,
-  })),
-)
-const UpdateDeploymentPage = lazy(() =>
-  import('@/pages/deployments/UpdateDeploymentPage').then((m) => ({
-    default: m.UpdateDeploymentPage,
-  })),
-)
 const LandingPageTemplatesPage = lazy(() =>
   import('@/pages/landing-pages/LandingPageTemplatesPage').then((m) => ({
     default: m.LandingPageTemplatesPage,
@@ -336,18 +268,6 @@ const AdminPlatformAffiliateNav = lazy(() =>
   import('@/components/admin/AdminPlatformAffiliateNav').then((m) => ({
     default: m.AdminPlatformAffiliateNav,
   })),
-)
-const AdUnitsPage = lazy(() =>
-  import('@/pages/ad-units/AdUnitsPage').then((m) => ({ default: m.AdUnitsPage })),
-)
-const CreateAdUnitPage = lazy(() =>
-  import('@/pages/ad-units/CreateAdUnitPage').then((m) => ({ default: m.CreateAdUnitPage })),
-)
-const AdUnitPage = lazy(() =>
-  import('@/pages/ad-units/AdUnitPage').then((m) => ({ default: m.AdUnitPage })),
-)
-const UpdateAdUnitPage = lazy(() =>
-  import('@/pages/ad-units/UpdateAdUnitPage').then((m) => ({ default: m.UpdateAdUnitPage })),
 )
 const LeadsPage = lazy(() =>
   import('@/pages/leads/LeadsPage').then((m) => ({ default: m.LeadsPage })),
@@ -621,45 +541,20 @@ export function App() {
                     element={<ResumeAutomationPage />}
                   />
                   <Route path="/automations/:automationId/logs" element={<AutomationLogsPage />} />
-                  <Route path="/campaigns" element={<CampaignsPage />} />
-                  <Route path="/campaigns/new" element={<CreateCampaignPage />} />
-                  <Route path="/campaigns/:campaignId" element={<CampaignPage />} />
-                  <Route path="/campaigns/:campaignId/edit" element={<UpdateCampaignPage />} />
-                  <Route path="/campaigns/:campaignId/pause" element={<PauseCampaignPage />} />
-                  <Route path="/campaigns/:campaignId/resume" element={<ResumeCampaignPage />} />
-                  <Route path="/campaigns/:campaignId/end" element={<EndCampaignPage />} />
-                  <Route
-                    path="/campaigns/:campaignId/duplicate"
-                    element={<DuplicateCampaignPage />}
-                  />
-                  <Route
-                    path="/campaigns/:campaignId/performance"
-                    element={<CampaignPerformancePage />}
-                  />
-                  <Route path="/campaigns/:campaignId/budget" element={<CampaignBudgetPage />} />
-                  <Route
-                    path="/campaigns/:campaignId/creatives/new"
-                    element={<CampaignCreateCreativePage />}
-                  />
-                  <Route
-                    path="/campaigns/:campaignId/creatives"
-                    element={<CampaignCreativesPage />}
-                  />
-                  <Route
-                    path="/campaigns/:campaignId/ad-units/new"
-                    element={<CampaignCreateAdUnitPage />}
-                  />
-                  <Route path="/campaigns/:campaignId/ad-units" element={<CampaignAdUnitsPage />} />
-                  <Route path="/campaigns/:campaignId/leads" element={<CampaignLeadsPage />} />
-                  <Route path="/campaigns/:campaignId/deployments" element={<DeploymentsPage />} />
-                  <Route
-                    path="/campaigns/:campaignId/deployments/new"
-                    element={<CreateDeploymentPage />}
-                  />
-                  <Route
-                    path="/deployments/:deploymentId/edit"
-                    element={<UpdateDeploymentPage />}
-                  />
+                  {/* The old Campaign -> Deployment/AdUnit UI is retired from the frontend
+                      (2026-09-14) — Advertisement -> AdRun at /ads is the current model, and a
+                      production data audit confirmed zero real businesses ever used this one
+                      (the only rows in the whole database are seed fixtures on the demo
+                      account). The Campaign/Deployment/AdUnit backend (models, services, API
+                      operations, migrations, seed data) is deliberately untouched — this is a
+                      frontend-only retirement, not a decision about the domain concept, which
+                      may be revisited later under a new strategy. Every old page component stays
+                      on disk unrouted, per this project's "deprecated = stop writing, never
+                      delete" convention. A wildcard catches every nested path (budget, creatives,
+                      leads, deployments, ad-units, etc.) so nothing under the old tree can 404 or
+                      strand a stale bookmark/link. */}
+                  <Route path="/campaigns/*" element={<Navigate to="/ads" replace />} />
+                  <Route path="/deployments/*" element={<Navigate to="/ads" replace />} />
                   <Route path="/landing-page-templates" element={<LandingPageTemplatesPage />} />
                   <Route
                     path="/landing-page-templates/:templateId"
@@ -695,10 +590,7 @@ export function App() {
                   <Route path="/forms/new" element={<CreateFormPage />} />
                   <Route path="/forms/:formId" element={<FormPage />} />
                   <Route path="/forms/:formId/edit" element={<UpdateFormPage />} />
-                  <Route path="/ad-units" element={<AdUnitsPage />} />
-                  <Route path="/ad-units/new" element={<CreateAdUnitPage />} />
-                  <Route path="/ad-units/:adUnitId" element={<AdUnitPage />} />
-                  <Route path="/ad-units/:adUnitId/edit" element={<UpdateAdUnitPage />} />
+                  <Route path="/ad-units/*" element={<Navigate to="/ads" replace />} />
                   <Route path="/calendar" element={<CalendarPage />} />
                   <Route path="/leads" element={<LeadsPage />} />
                   <Route path="/leads/:leadId" element={<LeadPage />} />

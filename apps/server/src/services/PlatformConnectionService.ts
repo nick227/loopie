@@ -85,7 +85,10 @@ export class PlatformConnectionService {
     if (!connector.capabilities.oauth)
       throw { statusCode: 501, message: 'This platform does not support OAuth' }
     if (!connector.configured()) throw { statusCode: 503, message: `${platform} is not configured` }
-    const path = returnPath && returnPath.startsWith('/') ? returnPath : '/campaigns'
+    // /campaigns (the old Campaign/Deployment/AdUnit UI) is retired from the frontend — every
+    // live caller of startOAuth already passes its own returnPath (ConnectionsPage.tsx uses
+    // /connections), so this default is only a safety net for a caller that doesn't.
+    const path = returnPath && returnPath.startsWith('/') ? returnPath : '/connections'
     const state = issueOAuthState({ businessId, platform, returnPath: path })
     return { url: connector.authUrl(state) }
   }
