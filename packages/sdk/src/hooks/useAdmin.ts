@@ -139,6 +139,30 @@ export function useAdminListAuditEvents(query: AdminListAuditEventsQuery = {}, o
   })
 }
 
+type AdminGetWorkerHeartbeatResponse =
+  paths['/admin/worker-heartbeat']['get']['responses']['200']['content']['application/json']
+
+// Refetches on its own — this is the "is the worker still alive" check named in the 2026-09-14
+// worker production-gap fix, and a page showing it needs to notice on its own if a poller goes
+// quiet, not only when someone happens to reload.
+export function useAdminGetWorkerHeartbeat(
+  options?: Omit<
+    UseQueryOptions<AdminGetWorkerHeartbeatResponse, Error, AdminGetWorkerHeartbeatResponse, any>,
+    'queryKey' | 'queryFn'
+  >,
+) {
+  return useQuery({
+    queryKey: ['admin', 'worker-heartbeat'],
+    queryFn: async () => {
+      const { data, error } = await getApiClient().GET('/admin/worker-heartbeat', {})
+      if (error) throw error
+      return data
+    },
+    refetchInterval: 30_000,
+    ...options,
+  })
+}
+
 type AdminStartSupportSessionBody =
   operations['adminStartSupportSession']['requestBody']['content']['application/json']
 type AdminStartSupportSessionResponse =

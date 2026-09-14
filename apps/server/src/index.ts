@@ -13,6 +13,8 @@ import { mapErrorToReply } from './plugins/errorHandler'
 import { publicRateLimit } from './plugins/publicRateLimit'
 import { BODY_LIMIT_BYTES, registerUploadStatic } from './lib/mediaStorage'
 import { ensureDefaultThumbnails } from './lib/ensureDefaultThumbnails'
+import { processPendingPageThumbnails } from './services/PageThumbnailService'
+import { schedulePoller } from './lib/workerHeartbeat'
 
 // trustProxy: true so request.ip resolves to the real client (X-Forwarded-For) rather than
 // Railway's edge proxy — without this, every request behind the proxy shares one IP, collapsing
@@ -132,6 +134,17 @@ async function main() {
     .catch((err) => {
       server.log.error({ err }, 'Background thumbnail regen failed; server continues running')
     })
+
+  // Runs here, not in the separate worker service (apps/server/src/worker.ts) — see that file's
+  // own comment on why: PageThumbnailService writes real files to a Railway volume mounted only
+  // on this service, so the draining poller has to live wherever that volume actually is.
+  if (process.env.NODE_ENV !== 'test') {
+    schedulePoller(
+      'page-thumbnails',
+      Number(process.env.PAGE_THUMBNAIL_POLL_INTERVAL_MS ?? 15_000),
+      () => processPendingPageThumbnails(),
+    )
+  }
 
   const shutdown = async () => {
     server.log.info('Shutting down server...')

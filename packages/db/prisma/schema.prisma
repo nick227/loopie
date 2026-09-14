@@ -574,6 +574,12 @@ model Message {
   status       MessageStatus  @default(DRAFT)
   scheduledAt  DateTime?
   sentAt       DateTime?
+  // Claim lease for MessageExecutorService.runDueMessages — set atomically before send() runs so
+  // a worker restart mid-send (crash between the real email publish and the SENT status flip)
+  // can't have a later poller tick pick the same SCHEDULED row back up and send it twice. A claim
+  // older than CLAIM_STALE_MS is treated as abandoned and reclaimed (same lease idiom as
+  // ScheduleSyncTarget.lockToken/lockExpiresAt) rather than left stuck forever.
+  claimedAt    DateTime?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
@@ -685,6 +691,10 @@ model AutomationRun {
   triggerEventAt  DateTime // when the trigger event actually happened
   runAt           DateTime // triggerEventAt + waitDays (waitDays null/0 => due on next poll)
   status          AutomationRunStatus @default(PENDING)
+  // Same claim-lease idiom as Message.claimedAt above — protects processRun's real side effect
+  // (actionService.fireAction, e.g. a real email send) from firing twice if the worker crashes
+  // between firing the action and the status update that would otherwise stop a retry.
+  claimedAt       DateTime?
   createdAt       DateTime            @default(now())
 
   automation Automation @relation(fields: [automationId], references: [id])
@@ -2935,6 +2945,20 @@ model RateLimitBucket {
   expiresAt DateTime
 
   @@index([expiresAt])
+}
+
+// One row per named poller in apps/server/src/worker.ts, upserted on every tick (success or
+// failure) so a dead/crash-looping worker process is visible from the outside instead of only
+// showing up as "features silently stopped happening" weeks later — see the 2026-09-14 worker
+// production-gap fix. lastTickAt moves on every attempt; lastSuccessAt/lastError only change on
+// their respective outcome, so a poller that's failing every tick still shows a recent lastTickAt
+// (proving the worker itself is alive) alongside a stale lastSuccessAt and a populated lastError.
+model WorkerHeartbeat {
+  pollerName   String    @id
+  lastTickAt   DateTime
+  lastSuccessAt DateTime?
+  lastError    String?   @db.Text
+  lastErrorAt  DateTime?
 }
 
 // ---------- Activity Command Center ----------

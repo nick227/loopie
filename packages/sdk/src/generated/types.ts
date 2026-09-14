@@ -155,6 +155,23 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/admin/worker-heartbeat': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Last-tick/last-success/last-error status for every background poller (Site Admin only) */
+    get: operations['adminGetWorkerHeartbeat']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/embed-deployments/get-or-create': {
     parameters: {
       query?: never
@@ -8307,6 +8324,37 @@ export interface operations {
           'application/json': {
             data: components['schemas']['AuditEvent'][]
             nextCursor: string | null
+          }
+        }
+      }
+    }
+  }
+  adminGetWorkerHeartbeat: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: {
+              pollerName: string
+              /** Format: date-time */
+              lastTickAt: string
+              /** Format: date-time */
+              lastSuccessAt?: string | null
+              lastError?: string | null
+              /** Format: date-time */
+              lastErrorAt?: string | null
+            }[]
           }
         }
       }

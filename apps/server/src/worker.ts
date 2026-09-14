@@ -6,84 +6,74 @@ import { runDueAdRunSyncs } from './services/AdRunSyncService'
 import { db, cleanupExpiredRateLimitBuckets } from '@project/db'
 import { processEmbedOutbox } from './services/activity/EmbedProjectionWorker'
 import { runDueGoalReminders } from './services/CalendarReminderService'
-import { processPendingPageThumbnails } from './services/PageThumbnailService'
 import { runDueScheduleSyncs } from './services/ScheduleSyncService'
+import { schedulePoller } from './lib/workerHeartbeat'
 
 function main() {
   console.log('Worker started. Initializing pollers...')
 
   if (process.env.NODE_ENV !== 'test') {
-    const intervalMs = Number(process.env.AUTOMATION_POLL_INTERVAL_MS ?? 60_000)
-    setInterval(() => {
-      runDueAutomations().catch((err) =>
-        console.error('[Worker] Error running due automations:', err),
-      )
-    }, intervalMs)
-
-    const messagePollIntervalMs = Number(process.env.MESSAGE_POLL_INTERVAL_MS ?? 60_000)
-    setInterval(() => {
-      runDueMessages().catch((err) => console.error('[Worker] Error running due messages:', err))
-    }, messagePollIntervalMs)
-
-    const payoutIntervalMs = Number(process.env.AFFILIATE_PAYOUT_POLL_INTERVAL_MS ?? 60 * 60_000)
-    setInterval(() => {
-      runDuePayouts().catch((err) => console.error('[Worker] Error running due payouts:', err))
-    }, payoutIntervalMs)
-
-    const platformEarningClearingIntervalMs = Number(
-      process.env.PLATFORM_EARNING_CLEARING_POLL_INTERVAL_MS ?? 60 * 60_000,
+    schedulePoller(
+      'automations',
+      Number(process.env.AUTOMATION_POLL_INTERVAL_MS ?? 60_000),
+      runDueAutomations,
     )
-    setInterval(() => {
-      runDuePlatformEarningPromotions().catch((err) =>
-        console.error('[Worker] Error promoting due platform-affiliate earnings:', err),
-      )
-    }, platformEarningClearingIntervalMs)
 
-    const adRunSyncIntervalMs = Number(process.env.AD_RUN_SYNC_POLL_INTERVAL_MS ?? 5 * 60_000)
-    setInterval(() => {
-      runDueAdRunSyncs().catch((err) =>
-        console.error('[Worker] Error running due ad run syncs:', err),
-      )
-    }, adRunSyncIntervalMs)
-
-    const rateLimitCleanupIntervalMs = Number(
-      process.env.RATE_LIMIT_CLEANUP_INTERVAL_MS ?? 10 * 60_000,
+    schedulePoller(
+      'messages',
+      Number(process.env.MESSAGE_POLL_INTERVAL_MS ?? 60_000),
+      runDueMessages,
     )
-    setInterval(() => {
-      cleanupExpiredRateLimitBuckets(db).catch((err) =>
-        console.error('[Worker] Error cleaning rate limit buckets:', err),
-      )
-    }, rateLimitCleanupIntervalMs)
 
-    const embedProjectionIntervalMs = Number(process.env.EMBED_PROJECTION_INTERVAL_MS ?? 10_000)
-    setInterval(() => {
-      processEmbedOutbox().catch((err) =>
-        console.error('[Worker] Error processing embed outbox:', err),
-      )
-    }, embedProjectionIntervalMs)
-
-    const calendarReminderIntervalMs = Number(
-      process.env.CALENDAR_REMINDER_POLL_INTERVAL_MS ?? 60_000,
+    schedulePoller(
+      'affiliate-payouts',
+      Number(process.env.AFFILIATE_PAYOUT_POLL_INTERVAL_MS ?? 60 * 60_000),
+      runDuePayouts,
     )
-    setInterval(() => {
-      runDueGoalReminders().catch((err) =>
-        console.error('[Worker] Error running due Calendar reminders:', err),
-      )
-    }, calendarReminderIntervalMs)
 
-    const thumbnailIntervalMs = Number(process.env.PAGE_THUMBNAIL_POLL_INTERVAL_MS ?? 15_000)
-    setInterval(() => {
-      processPendingPageThumbnails().catch((err) =>
-        console.error('[Worker] Error processing page thumbnails:', err),
-      )
-    }, thumbnailIntervalMs)
+    schedulePoller(
+      'platform-earning-clearing',
+      Number(process.env.PLATFORM_EARNING_CLEARING_POLL_INTERVAL_MS ?? 60 * 60_000),
+      runDuePlatformEarningPromotions,
+    )
 
-    const scheduleSyncIntervalMs = Number(process.env.SCHEDULE_SYNC_POLL_INTERVAL_MS ?? 2 * 60_000)
-    setInterval(() => {
-      runDueScheduleSyncs().catch((err) =>
-        console.error('[Worker] Error running due schedule syncs:', err),
-      )
-    }, scheduleSyncIntervalMs)
+    schedulePoller(
+      'ad-run-sync',
+      Number(process.env.AD_RUN_SYNC_POLL_INTERVAL_MS ?? 5 * 60_000),
+      runDueAdRunSyncs,
+    )
+
+    schedulePoller(
+      'rate-limit-cleanup',
+      Number(process.env.RATE_LIMIT_CLEANUP_INTERVAL_MS ?? 10 * 60_000),
+      () => cleanupExpiredRateLimitBuckets(db),
+    )
+
+    schedulePoller(
+      'embed-projection',
+      Number(process.env.EMBED_PROJECTION_INTERVAL_MS ?? 10_000),
+      processEmbedOutbox,
+    )
+
+    schedulePoller(
+      'calendar-reminders',
+      Number(process.env.CALENDAR_REMINDER_POLL_INTERVAL_MS ?? 60_000),
+      runDueGoalReminders,
+    )
+
+    // page-thumbnails deliberately does NOT run here. PageThumbnailService writes real files to
+    // local disk (UPLOAD_DIR) via a Railway volume mounted on the `server` service specifically —
+    // Railway volumes are per-service, not shared, so a separate worker process would write
+    // thumbnails to a filesystem the actual HTTP server serving /uploads can never see (a row
+    // marked READY whose file 404s — worse than the pre-fix "Preview unavailable" state, not
+    // better). It keeps running inside apps/server/src/index.ts instead, alongside the boot-time
+    // ensureDefaultThumbnails() call, where the volume is actually mounted.
+
+    schedulePoller(
+      'schedule-sync',
+      Number(process.env.SCHEDULE_SYNC_POLL_INTERVAL_MS ?? 2 * 60_000),
+      runDueScheduleSyncs,
+    )
   }
 
   const shutdown = async () => {

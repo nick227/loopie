@@ -9181,6 +9181,46 @@ paths:
                   nextCursor:
                     type: string
                     nullable: true
+  /admin/worker-heartbeat:
+    get:
+      operationId: adminGetWorkerHeartbeat
+      summary: Last-tick/last-success/last-error status for every background poller (Site Admin only)
+      tags:
+        - admin
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - pollerName
+                        - lastTickAt
+                      properties:
+                        pollerName:
+                          type: string
+                        lastTickAt:
+                          type: string
+                          format: date-time
+                        lastSuccessAt:
+                          type: string
+                          format: date-time
+                          nullable: true
+                        lastError:
+                          type: string
+                          nullable: true
+                        lastErrorAt:
+                          type: string
+                          format: date-time
+                          nullable: true
   /embed-deployments/get-or-create:
     post:
       operationId: getOrCreateEmbedDeployment

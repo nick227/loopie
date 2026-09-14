@@ -7,6 +7,10 @@ import { AutomationActionService } from './AutomationActionService'
 const conditionService = new AutomationConditionService()
 const actionService = new AutomationActionService()
 
+// A claim older than this is treated as abandoned (worker crashed after claiming, before this
+// run's status flipped off PENDING) and safe to retry — same lease idiom as MessageExecutorService.
+const CLAIM_STALE_MS = 10 * 60_000
+
 async function processRun(run: AutomationRun): Promise<void> {
   const automation = await db.automation.findUnique({ where: { id: run.automationId } })
   const contact = await db.contact.findUnique({ where: { id: run.contactId } })
@@ -96,6 +100,19 @@ export async function runDueAutomations(): Promise<{ processed: number; failed: 
 
   let failed = 0
   for (const run of dueRuns) {
+    // Atomic claim: processRun's real side effect (actionService.fireAction, e.g. a real email
+    // send) must never run twice for the same row. Without this, two overlapping ticks or a
+    // worker restart landing mid-run could both act on the same PENDING row.
+    const claimed = await db.automationRun.updateMany({
+      where: {
+        id: run.id,
+        status: 'PENDING',
+        OR: [{ claimedAt: null }, { claimedAt: { lt: new Date(Date.now() - CLAIM_STALE_MS) } }],
+      },
+      data: { claimedAt: new Date() },
+    })
+    if (claimed.count === 0) continue
+
     try {
       await processRun(run)
     } catch (err) {

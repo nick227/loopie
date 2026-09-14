@@ -415,6 +415,9 @@ const AdminSiteInboxPage = lazy(() =>
   import('@/pages/admin/AdminSiteInboxPage').then((m) => ({ default: m.AdminSiteInboxPage })),
 )
 
+const AdminWorkerHealthPage = lazy(() =>
+  import('@/pages/admin/AdminWorkerHealthPage').then((m) => ({ default: m.AdminWorkerHealthPage })),
+)
 const AdminAuditPage = lazy(() =>
   import('@/pages/admin/AdminAuditPage').then((m) => ({ default: m.AdminAuditPage })),
 )
@@ -782,6 +785,7 @@ export function App() {
                   <Route path="house-ads" element={<AdminHouseAdsPage />} />
                   <Route path="inbox" element={<AdminSiteInboxPage />} />
                   <Route path="audit" element={<AdminAuditPage />} />
+                  <Route path="worker-health" element={<AdminWorkerHealthPage />} />
                 </Route>
                 {/* Platform Affiliates */}
                 <Route

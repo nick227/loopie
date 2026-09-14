@@ -19,14 +19,28 @@ export async function runDueGoalReminders(): Promise<{ sent: number }> {
 
   let sent = 0
   for (const goal of due) {
-    await notifyGoalReminder(goal.businessId, {
-      id: goal.id,
-      title: goal.title,
-      subjectType: goal.subjectType,
-      subjectId: goal.subjectId,
+    // Claim before notifying, not after: an overlapping tick or a restart mid-loop must not
+    // double-send the same one-shot reminder. reminderSentAt is already the eligibility gate
+    // above, so claiming it is just moving the write earlier and checking it actually landed.
+    const claimed = await db.scheduledGoal.updateMany({
+      where: { id: goal.id, reminderSentAt: null },
+      data: { reminderSentAt: new Date() },
     })
-    await db.scheduledGoal.update({ where: { id: goal.id }, data: { reminderSentAt: new Date() } })
-    sent++
+    if (claimed.count === 0) continue
+
+    try {
+      await notifyGoalReminder(goal.businessId, {
+        id: goal.id,
+        title: goal.title,
+        subjectType: goal.subjectType,
+        subjectId: goal.subjectId,
+      })
+      sent++
+    } catch (err) {
+      // A missed reminder is far less bad than a duplicate one (this is a one-shot encouraging
+      // nudge, not a billed action) — log and move on rather than reverting the claim to retry.
+      console.error(`[CalendarReminder] Failed to notify for goal ${goal.id}:`, err)
+    }
   }
   return { sent }
 }

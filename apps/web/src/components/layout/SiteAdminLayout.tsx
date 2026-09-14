@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Building2, Users, Megaphone, Inbox } from 'lucide-react'
+import { Building2, Users, Megaphone, Inbox, Activity } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const NAV_ITEMS = [
@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { to: '/admin/platform-affiliates', label: 'Affiliates', icon: Users },
   { to: '/admin/house-ads', label: 'House Ads', icon: Megaphone },
   { to: '/admin/audit', label: 'Audit Log', icon: Building2 },
+  { to: '/admin/worker-health', label: 'Worker health', icon: Activity },
 ]
 
 export function SiteAdminLayout() {

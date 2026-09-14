@@ -388,3 +388,9 @@ export async function adminEndSupportSession(request: FastifyRequest, reply: Fas
 
   return reply.send({ success: true })
 }
+
+export async function adminGetWorkerHeartbeat(request: FastifyRequest, reply: FastifyReply) {
+  requireSiteAdmin((request as any).user)
+  const rows = await db.workerHeartbeat.findMany({ orderBy: { pollerName: 'asc' } })
+  reply.send({ data: rows })
+}
