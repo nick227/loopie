@@ -68,8 +68,14 @@ function AssignEstimateForm({ goal, onDone }: { goal: ScheduledGoal; onDone: () 
 
       <div className="mt-5 space-y-4">
         <div>
-          <p className="mb-1.5 text-xs font-medium text-muted-foreground">Assigned to</p>
+          <label
+            htmlFor="assign-estimate-form-assignee"
+            className="mb-1.5 block text-xs font-medium text-muted-foreground"
+          >
+            Assigned to
+          </label>
           <select
+            id="assign-estimate-form-assignee"
             value={assignedToUserId}
             onChange={(event) => setAssignedToUserId(event.target.value)}
             className="h-8 w-full rounded border border-input-border bg-transparent px-2 text-xs"
