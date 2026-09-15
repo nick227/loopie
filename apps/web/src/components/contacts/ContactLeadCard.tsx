@@ -288,8 +288,19 @@ export function NextAction({
   }
 
   return (
-    <button type="button" onClick={() => setEditing(true)} className="block w-full text-left">
-      <p className="text-sm text-foreground">{note}</p>
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      aria-label={note ? undefined : 'Add a next action'}
+      className="block w-full text-left"
+    >
+      {/* An empty <p> with no text (the common "nothing set yet" state) has zero rendered
+          height/width, making this trigger genuinely unclickable — not just unlabeled — until
+          something is typed once. A real business landing on a fresh Lead with no follow-up
+          set had no way to open this editor at all. */}
+      <p className={note ? 'text-sm text-foreground' : 'text-sm text-muted-foreground'}>
+        {note || 'Add a next action'}
+      </p>
       {at ? (
         <p className="text-xs text-muted-foreground">
           Due {new Date(at).toLocaleDateString()}
