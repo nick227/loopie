@@ -119,7 +119,7 @@ test.describe('Advertising — Singleton/Collection/Entity reference implementat
     await expect(page.locator('header').getByText(marker, { exact: true })).toBeVisible()
 
     // --- Inspect the result, on the entity itself: monitoring-first, LOOPIE-owned delivery ---
-    await expect(page.getByText('On this page')).toBeVisible()
+    await expect(page.getByText(/Eligible for this page/)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Embed' })).toBeDisabled()
 
     // --- Back -> the Advertising collection restores its exact state ---

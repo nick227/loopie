@@ -65,7 +65,7 @@ test.describe('ads library', () => {
     await page.getByRole('button', { name: 'Put ad on page' }).click()
     await page.waitForURL(/\/ads\/(?!new$)[^/]+$/)
     await expect(page.getByRole('heading', { name: adName })).toBeVisible()
-    await expect(page.getByText('On this page')).toBeVisible()
+    await expect(page.getByText(/Eligible for this page/)).toBeVisible()
     await page.getByRole('button', { name: 'Remove' }).click()
     await expect(page.getByRole('button', { name: 'Choose media' })).toBeVisible()
     await page.getByRole('button', { name: 'Choose media' }).click()

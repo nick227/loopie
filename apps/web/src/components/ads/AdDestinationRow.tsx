@@ -1200,11 +1200,13 @@ export function PaidRunRow({
 
 export function PageRunRow({
   label,
+  pageId,
   onPause,
   onPublish,
   publicationHistory = [],
 }: {
   label: string
+  pageId?: string
   onPause?: () => void
   onPublish?: () => void
   publicationHistory?: string[]
@@ -1214,9 +1216,26 @@ export function PageRunRow({
       <input type="checkbox" checked disabled className="h-4 w-4 shrink-0 accent-primary" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{label}</p>
-        <p className="text-xs text-muted-foreground">On this page</p>
+        {/* "On this page" previously implied the ad was already visible there. Publishing a
+            PAGE-placement AdRun only makes the ad *eligible* for that page — a real
+            LandingPageAdSlotAssignment (created from the page's own editor, which lets an owner
+            choose which of possibly several eligible ads actually fills a given slot) is a
+            separate, deliberate step. Confirmed live: a page with an ACTIVE run here rendered
+            nothing ad-related at all until a slot assignment existed. */}
+        <p className="text-xs text-muted-foreground">
+          Eligible for this page — place it in a slot from the page&apos;s own editor to make it
+          visible.
+        </p>
         <PublicationHistory timestamps={publicationHistory} />
       </div>
+      {pageId ? (
+        <a
+          href={`/landing-pages/${pageId}`}
+          className="inline-flex h-8 items-center rounded-lg px-3 text-xs font-medium text-primary hover:underline"
+        >
+          Manage on page
+        </a>
+      ) : null}
       {onPublish ? (
         <Button type="button" size="sm" variant="outline" onClick={onPublish}>
           <Send size={13} /> Publish again

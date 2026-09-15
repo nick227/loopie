@@ -280,6 +280,7 @@ export function AdDestinations({
           <PageRunRow
             key={key}
             label={page.name}
+            pageId={page.id}
             onPause={run.status === 'ACTIVE' && onPausePage ? () => onPausePage(run.id) : undefined}
             publicationHistory={(historyByKey.get(key) ?? []).map((item) => item.createdAt)}
             onPublish={onRepublishPage ? () => onRepublishPage(key, run.id) : undefined}
