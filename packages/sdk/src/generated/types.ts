@@ -3590,6 +3590,26 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/calendar/link-candidates': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Search real LOOPIE records to link a task to, scoped by type
+     * @description Backs the rail's "Linked to: [type] [record]" picker — a type-scoped search, never a global one. subjectType=CRM searches Contacts (a Lead's own contact record).
+     */
+    get: operations['listCalendarLinkCandidates']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/calendar/goals/{goalId}': {
     parameters: {
       query?: never
@@ -7118,8 +7138,20 @@ export interface components {
       /** @description Who is doing this task. Defaults to the creator (self-assignment) for a USER_CREATED task; reassignable via PATCH. */
       assignedToUserId?: string | null
       /** @enum {string} */
-      subjectType: 'GENERAL' | 'CRM' | 'ADVERTISEMENT' | 'PAGE' | 'RIVER' | 'BUSINESS'
+      subjectType: 'GENERAL' | 'CRM' | 'ADVERTISEMENT' | 'PAGE' | 'RIVER' | 'BUSINESS' | 'MESSAGE'
+      /** @description The linked record's id, when this task is linked to one (Page/Advertisement/Message/Contact — see subjectType). Set together with actionType/actionTarget/actionLabel, which are resolved and frozen server-side from the real record at link time. */
       subjectId?: string | null
+      /** @description Freeform, user-editable working notes — independent of `detail`, which stays a read-only copy of the source template's own copy. */
+      notes?: string | null
+      /**
+       * @description Set means this task repeats. A background poller keeps at most one future instance of the series materialized — see RecurringGoalService. Clearing this on the series' latest instance stops the series.
+       * @enum {string|null}
+       */
+      recurrenceRule?: 'DAILY' | 'WEEKDAYS' | 'WEEKLY' | 'MONTHLY' | null
+      /** @description Shared across every instance of one recurring series. */
+      recurrenceGroupId?: string | null
+      /** Format: date-time */
+      recurrenceEndDate?: string | null
       /** @enum {string} */
       trackingType: 'MANUAL' | 'ENTITY_STATE' | 'COUNT'
       metricKey?: string | null
@@ -7172,14 +7204,30 @@ export interface components {
       utcOffsetMinutes: number
     }
     UpdateScheduledGoalInput: {
+      title?: string
       /** @enum {string} */
-      status?: 'SCHEDULED' | 'DONE'
+      status?: 'SCHEDULED' | 'DONE' | 'DISMISSED'
       /** Format: date-time */
       scheduledFor?: string | null
       hasTime?: boolean
       estimateMinutes?: number | null
       /** @description Reassign this task to a teammate (or null to unassign). Audited as a REASSIGNED GoalEvent. */
       assignedToUserId?: string | null
+      notes?: string | null
+      /**
+       * @description Set together with subjectId to link this task to a real record, or set both to null to remove an existing link. actionType/actionTarget/actionLabel are resolved and frozen server-side from the real record — never accepted directly from the client.
+       * @enum {string|null}
+       */
+      subjectType?:
+        'GENERAL' | 'CRM' | 'ADVERTISEMENT' | 'PAGE' | 'RIVER' | 'BUSINESS' | 'MESSAGE' | null
+      subjectId?: string | null
+      /**
+       * @description Set to make this task repeat, or null to stop the series after this instance.
+       * @enum {string|null}
+       */
+      recurrenceRule?: 'DAILY' | 'WEEKDAYS' | 'WEEKLY' | 'MONTHLY' | null
+      /** Format: date-time */
+      recurrenceEndDate?: string | null
     }
     /** @description One span of tracked work. endedAt is null while running. A user has at most one running entry globally (see startTimeEntry's 409 contract) — this is never a per-business count. */
     TimeEntry: {
@@ -15012,6 +15060,34 @@ export interface operations {
             data?: {
               templateId?: string
             }
+          }
+        }
+      }
+    }
+  }
+  listCalendarLinkCandidates: {
+    parameters: {
+      query: {
+        subjectType: 'PAGE' | 'ADVERTISEMENT' | 'MESSAGE' | 'CRM'
+        q?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Up to 8 matching records */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            data: {
+              id: string
+              label: string
+            }[]
           }
         }
       }

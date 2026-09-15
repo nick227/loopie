@@ -3,19 +3,24 @@
 `CalendarPage.tsx` composes the feature. Keep calculations, mutations, form state,
 and individual query-state rendering in the modules below.
 
-| Change                                                                        | Owner                                                   |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------- |
-| Defaults, estimate presets, scheduling targets, display caps, timer threshold | `calendar.config.ts`                                    |
-| URL state and navigation transitions                                          | `hooks/useCalendarNavigation.ts`                        |
-| Board/range reads, filtering, independent loading/error/retry states          | `hooks/useCalendarData.ts`                              |
-| Local date inputs, ISO conversion, date labels, month interval                | `calendar.dates.ts`                                     |
-| Grouping, assignee filtering, day/month summaries, timer picks                | `calendar.selectors.ts`                                 |
-| List and grid composition                                                     | `views/`                                                |
-| Goal/idea mutations and form drafts                                           | `components/GoalRow.tsx`, `components/IdeasSection.tsx` |
-| Create then schedule, pending guard, partial-failure retry                    | `hooks/useQuickAddTask.ts`                              |
-| Start/stop work and correction flow                                           | `tracking/TimeTracker.tsx`                              |
-| Shared timer refresh lifecycle                                                | `tracking/useElapsedMinutes.ts`                         |
-| Transport, query keys, invalidation                                           | `packages/sdk/src/hooks/useCalendar.ts`                 |
+| Change                                                                        | Owner                                              |
+| ----------------------------------------------------------------------------- | -------------------------------------------------- |
+| Defaults, estimate presets, scheduling targets, display caps, timer threshold | `calendar.config.ts`                               |
+| URL state and navigation transitions                                          | `hooks/useCalendarNavigation.ts`                   |
+| Board/range reads, filtering, independent loading/error/retry states          | `hooks/useCalendarData.ts`                         |
+| Local date inputs, ISO conversion, date labels, month interval                | `calendar.dates.ts`                                |
+| Grouping, assignee filtering, day/month summaries, timer picks                | `calendar.selectors.ts`                            |
+| List and grid composition                                                     | `views/`                                           |
+| Task row, task popover (Complete/Start-Stop/Reschedule/Open/Dismiss)          | `components/GoalRow.tsx`                           |
+| Idea mutations and form drafts                                                | `components/IdeasSection.tsx`                      |
+| Full task editor (title/date/assignee/estimate/repeats/notes/link)            | `components/EditTaskRail.tsx`                      |
+| Linked-object type+record picker ("Linked to: [type] [record]")               | `components/LinkPicker.tsx`, `linkTypes.ts`        |
+| Create then schedule, pending guard, partial-failure retry                    | `hooks/useQuickAddTask.ts`                         |
+| Start/stop work rail and correction flow                                      | `tracking/TimeTracker.tsx`                         |
+| Shared start-with-conflict-handling logic (rail + inline task popover button) | `tracking/useQuickStartWork.ts`                    |
+| Shared timer refresh lifecycle                                                | `tracking/useElapsedMinutes.ts`                    |
+| Transport, query keys, invalidation                                           | `packages/sdk/src/hooks/useCalendar.ts`            |
+| Recurrence generation (server poller, "at most one future instance")          | `apps/server/src/services/RecurringGoalService.ts` |
 
 `CalendarPrimitives.tsx` contains the small shared section, estimate picker, and
 query-feedback UI. Other small components remain private to their feature module.

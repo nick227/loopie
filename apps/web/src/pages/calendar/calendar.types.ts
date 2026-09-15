@@ -1,4 +1,7 @@
 import { type components } from '@project/sdk'
+import type { LinkableSubjectType, GoalRecurrenceRule } from '@project/sdk'
+
+export type { LinkableSubjectType, GoalRecurrenceRule }
 
 export type ScheduledGoal = components['schemas']['ScheduledGoal']
 

@@ -6740,8 +6740,34 @@ components:
             - PAGE
             - RIVER
             - BUSINESS
+            - MESSAGE
         subjectId:
           type: string
+          nullable: true
+          description: |
+            The linked record's id, when this task is linked to one (Page/Advertisement/Message/Contact — see subjectType). Set together with actionType/actionTarget/actionLabel, which are resolved and frozen server-side from the real record at link time.
+        notes:
+          type: string
+          nullable: true
+          description: Freeform, user-editable working notes — independent of `detail`, which stays a read-only copy of the source template's own copy.
+        recurrenceRule:
+          type: string
+          nullable: true
+          enum:
+            - DAILY
+            - WEEKDAYS
+            - WEEKLY
+            - MONTHLY
+            - null
+          description: |
+            Set means this task repeats. A background poller keeps at most one future instance of the series materialized — see RecurringGoalService. Clearing this on the series' latest instance stops the series.
+        recurrenceGroupId:
+          type: string
+          nullable: true
+          description: Shared across every instance of one recurring series.
+        recurrenceEndDate:
+          type: string
+          format: date-time
           nullable: true
         trackingType:
           type: string
@@ -6860,11 +6886,16 @@ components:
     UpdateScheduledGoalInput:
       type: object
       properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
         status:
           type: string
           enum:
             - SCHEDULED
             - DONE
+            - DISMISSED
         scheduledFor:
           type: string
           format: date-time
@@ -6878,6 +6909,40 @@ components:
           type: string
           nullable: true
           description: Reassign this task to a teammate (or null to unassign). Audited as a REASSIGNED GoalEvent.
+        notes:
+          type: string
+          nullable: true
+        subjectType:
+          type: string
+          nullable: true
+          enum:
+            - GENERAL
+            - CRM
+            - ADVERTISEMENT
+            - PAGE
+            - RIVER
+            - BUSINESS
+            - MESSAGE
+            - null
+          description: |
+            Set together with subjectId to link this task to a real record, or set both to null to remove an existing link. actionType/actionTarget/actionLabel are resolved and frozen server-side from the real record — never accepted directly from the client.
+        subjectId:
+          type: string
+          nullable: true
+        recurrenceRule:
+          type: string
+          nullable: true
+          enum:
+            - DAILY
+            - WEEKDAYS
+            - WEEKLY
+            - MONTHLY
+            - null
+          description: Set to make this task repeat, or null to stop the series after this instance.
+        recurrenceEndDate:
+          type: string
+          format: date-time
+          nullable: true
     TimeEntry:
       type: object
       required:
@@ -15251,6 +15316,51 @@ paths:
                     properties:
                       templateId:
                         type: string
+  /calendar/link-candidates:
+    get:
+      operationId: listCalendarLinkCandidates
+      summary: Search real LOOPIE records to link a task to, scoped by type
+      description: |
+        Backs the rail's "Linked to: [type] [record]" picker — a type-scoped search, never a global one. subjectType=CRM searches Contacts (a Lead's own contact record).
+      tags:
+        - calendar
+      parameters:
+        - in: query
+          name: subjectType
+          required: true
+          schema:
+            type: string
+            enum:
+              - PAGE
+              - ADVERTISEMENT
+              - MESSAGE
+              - CRM
+        - in: query
+          name: q
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Up to 8 matching records
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - label
+                      properties:
+                        id:
+                          type: string
+                        label:
+                          type: string
   /calendar/goals/{goalId}:
     patch:
       operationId: updateScheduledGoal

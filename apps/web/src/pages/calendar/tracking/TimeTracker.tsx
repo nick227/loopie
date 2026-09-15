@@ -3,11 +3,9 @@ import { SlideoutRail } from '@/components/ui/SlideoutRail'
 import { Textarea } from '@/components/ui/Textarea'
 import { cn } from '@/lib/utils'
 import {
-  ApiError,
   useCalendarBoard,
   useCurrentTimeEntry,
   useCurrentUser,
-  useStartTimeEntry,
   useStopCurrentTimeEntry,
 } from '@project/sdk'
 import { Play, Square } from 'lucide-react'
@@ -23,6 +21,7 @@ import {
 import { trackingPicks } from '../calendar.selectors'
 import { ScheduledGoal, TimeEntry } from '../calendar.types'
 import { useElapsedMinutes } from './useElapsedMinutes'
+import { useQuickStartWork } from './useQuickStartWork'
 
 // The "Start Work" rail (Time Tracking, Phase 2, 2026-09-09) — free-text description plus a few
 // quick picks (my tasks today, then unassigned tasks today; never a teammate's own assigned
@@ -34,7 +33,7 @@ function TimeTrackerForm({ onDone }: { onDone: () => void }) {
   const [scheduledGoalId, setScheduledGoalId] = useState<string | null>(null)
   const { data: board } = useCalendarBoard()
   const { data: me } = useCurrentUser()
-  const start = useStartTimeEntry()
+  const { startWork, isPending } = useQuickStartWork()
 
   const today = board?.data.today ?? []
   const picks = trackingPicks(today, me?.data.id)
@@ -45,32 +44,8 @@ function TimeTrackerForm({ onDone }: { onDone: () => void }) {
   }
 
   async function submit() {
-    const trimmed = description.trim()
-    if (!trimmed) return
-    try {
-      await start.mutateAsync({
-        description: trimmed,
-        scheduledGoalId: scheduledGoalId ?? undefined,
-      })
-      toast.success('Started')
-      onDone()
-    } catch (error) {
-      if (error instanceof ApiError && error.code === 'ACTIVE_TIME_ENTRY_EXISTS') {
-        const active = error.data as
-          { businessId: string; businessName: string; description: string } | undefined
-        if (active) {
-          const sameBusiness = active.businessId === me?.data.businessId
-          toast.error(
-            sameBusiness
-              ? `You're already tracking "${active.description}". Stop it first.`
-              : `You're tracking "${active.description}" for ${active.businessName}. Stop it there first.`,
-          )
-          onDone()
-          return
-        }
-      }
-      toast.error(error instanceof Error ? error.message : 'Could not start this.')
-    }
+    const result = await startWork(description, scheduledGoalId)
+    if (result === 'started' || result === 'conflict') onDone()
   }
 
   return (
@@ -128,7 +103,7 @@ function TimeTrackerForm({ onDone }: { onDone: () => void }) {
       <div className="mt-auto pt-4">
         <Button
           className="w-full"
-          loading={start.isPending}
+          loading={isPending}
           disabled={!description.trim()}
           onClick={submit}
         >
@@ -225,14 +200,36 @@ function StopWorkCorrectionForm({
   )
 }
 
+// Shared stop-with-forgotten-timer-correction logic — the header control and the inline per-task
+// Start/Stop button (see InlineStartStop below) both need the same "never silently stop a very-
+// long-running entry" guard, each with its own independent correction rail.
+function useStopWork() {
+  const stop = useStopCurrentTimeEntry()
+  const [correcting, setCorrecting] = useState(false)
+
+  async function stopWork(elapsedMinutes: number) {
+    if (elapsedMinutes >= calendarConfig.tracking.correctionThresholdMinutes) {
+      setCorrecting(true)
+      return
+    }
+    try {
+      await stop.mutateAsync({})
+      toast.success('Stopped')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not stop this.')
+    }
+  }
+
+  return { stopWork, isPending: stop.isPending, correcting, setCorrecting }
+}
+
 // The header Start/Stop Work control — next to Add task, per the product spec. Idle: opens
 // TimeTrackerForm. Running: shows the description + elapsed time (to the nearest minute) and a
 // Stop Work button. Never auto-stops anything — see useStartTimeEntry's own comment.
 export function StartStopWorkControl() {
   const { data } = useCurrentTimeEntry()
-  const stop = useStopCurrentTimeEntry()
+  const { stopWork, isPending, correcting, setCorrecting } = useStopWork()
   const [railOpen, setRailOpen] = useState(false)
-  const [correcting, setCorrecting] = useState(false)
 
   const entry = data?.data ?? null
   const elapsedMinutes = useElapsedMinutes(entry?.startedAt ?? null)
@@ -251,19 +248,6 @@ export function StartStopWorkControl() {
     )
   }
 
-  async function handleStopClick() {
-    if (elapsedMinutes >= calendarConfig.tracking.correctionThresholdMinutes) {
-      setCorrecting(true)
-      return
-    }
-    try {
-      await stop.mutateAsync({})
-      toast.success('Stopped')
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not stop this.')
-    }
-  }
-
   return (
     <div className="flex min-w-0 shrink-0 items-center gap-2">
       <span className="hidden max-w-[10rem] truncate text-xs text-muted-foreground sm:inline">
@@ -272,7 +256,12 @@ export function StartStopWorkControl() {
       <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
         {formatElapsedMinutes(elapsedMinutes)}
       </span>
-      <Button variant="outline" size="sm" loading={stop.isPending} onClick={handleStopClick}>
+      <Button
+        variant="outline"
+        size="sm"
+        loading={isPending}
+        onClick={() => stopWork(elapsedMinutes)}
+      >
         <Square size={13} />
         <span className="hidden sm:inline">Stop Work</span>
       </Button>
@@ -284,5 +273,50 @@ export function StartStopWorkControl() {
         />
       </SlideoutRail>
     </div>
+  )
+}
+
+// The task popover's own Start/Stop — already knows which task, so no description/pick step:
+// Start immediately tracks this task's title against it; Stop (shown only while this exact task
+// is the one running) reuses the same forgotten-timer correction guard as the header control.
+export function InlineStartStop({ goal }: { goal: ScheduledGoal }) {
+  const { data } = useCurrentTimeEntry()
+  const entry = data?.data ?? null
+  const isThisGoal = entry?.scheduledGoalId === goal.id
+  const { startWork, isPending: starting } = useQuickStartWork()
+  const { stopWork, isPending: stopping, correcting, setCorrecting } = useStopWork()
+  const elapsedMinutes = useElapsedMinutes(isThisGoal ? (entry?.startedAt ?? null) : null)
+
+  if (isThisGoal && entry) {
+    return (
+      <>
+        <Button
+          variant="outline"
+          size="sm"
+          loading={stopping}
+          onClick={() => stopWork(elapsedMinutes)}
+        >
+          <Square size={13} /> Stop ({formatElapsedMinutes(elapsedMinutes)})
+        </Button>
+        <SlideoutRail open={correcting} onClose={() => setCorrecting(false)}>
+          <StopWorkCorrectionForm
+            entry={entry}
+            elapsedMinutes={elapsedMinutes}
+            onDone={() => setCorrecting(false)}
+          />
+        </SlideoutRail>
+      </>
+    )
+  }
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      loading={starting}
+      onClick={() => startWork(goal.title, goal.id)}
+    >
+      <Play size={13} /> Start Work
+    </Button>
   )
 }

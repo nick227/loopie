@@ -39,6 +39,15 @@ export async function dismissGoalIdea(request: any, reply: any) {
   return reply.send(data)
 }
 
+export async function listCalendarLinkCandidates(request: any, reply: any) {
+  const data = await calendarService.listLinkCandidates(
+    request.user.businessId,
+    request.query.subjectType,
+    request.query.q,
+  )
+  return reply.send(data)
+}
+
 export async function updateScheduledGoal(request: any, reply: any) {
   const data = await calendarService.updateGoal(
     request.user.businessId,

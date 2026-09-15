@@ -1,7 +1,15 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { useBusinessTeam, useUpdateScheduledGoal } from '@project/sdk'
+import {
+  useBusinessTeam,
+  useUpdateScheduledGoal,
+  useCurrentTimeEntry,
+  useCurrentUser,
+  useStartTimeEntry,
+  useStopCurrentTimeEntry,
+  useCalendarLinkCandidates,
+} from '@project/sdk'
 import { GoalRow } from './GoalRow'
 import type { ScheduledGoal } from '../calendar.types'
 
@@ -12,10 +20,20 @@ import type { ScheduledGoal } from '../calendar.types'
 // assistive-tech behavior) resolved to nothing at all. A screen-reader user would have hit the
 // identical wall. Found because the automated flow couldn't select an assignee, not by reading
 // the code.
+//
+// The task popover (2026-09-15 connective-tissue pass) also renders an inline Start/Stop Work
+// button and the rail's own link picker, both real query hooks — mocked here rather than wrapped
+// in a QueryClientProvider, matching this file's existing narrow-mock style: the test is about one
+// accessible-label regression, not a full data-fetching integration.
 vi.mock('@project/sdk', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@project/sdk')>()),
   useBusinessTeam: vi.fn(),
   useUpdateScheduledGoal: vi.fn(),
+  useCurrentTimeEntry: vi.fn(),
+  useCurrentUser: vi.fn(),
+  useStartTimeEntry: vi.fn(),
+  useStopCurrentTimeEntry: vi.fn(),
+  useCalendarLinkCandidates: vi.fn(),
 }))
 
 const GOAL: ScheduledGoal = {
@@ -47,6 +65,24 @@ describe('GoalRow: Assign & Estimate rail', () => {
       mutateAsync: vi.fn(),
       isPending: false,
     } as unknown as ReturnType<typeof useUpdateScheduledGoal>)
+    vi.mocked(useCurrentTimeEntry).mockReturnValue({
+      data: { data: null },
+    } as unknown as ReturnType<typeof useCurrentTimeEntry>)
+    vi.mocked(useCurrentUser).mockReturnValue({
+      data: { data: { id: 'u-1', businessId: 'biz-1' } },
+    } as unknown as ReturnType<typeof useCurrentUser>)
+    vi.mocked(useStartTimeEntry).mockReturnValue({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    } as unknown as ReturnType<typeof useStartTimeEntry>)
+    vi.mocked(useStopCurrentTimeEntry).mockReturnValue({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    } as unknown as ReturnType<typeof useStopCurrentTimeEntry>)
+    vi.mocked(useCalendarLinkCandidates).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+    } as unknown as ReturnType<typeof useCalendarLinkCandidates>)
 
     render(
       <MemoryRouter>
@@ -55,7 +91,7 @@ describe('GoalRow: Assign & Estimate rail', () => {
     )
 
     fireEvent.click(screen.getByText('Test task'))
-    fireEvent.click(screen.getByRole('button', { name: 'Assign' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit task →' }))
 
     const select = screen.getByLabelText('Assigned to')
     expect(select).toBeVisible()

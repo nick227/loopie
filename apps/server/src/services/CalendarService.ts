@@ -4,6 +4,8 @@ import type {
   ScheduledGoal,
   ScheduledGoalSource,
   GoalTrackingType,
+  GoalSubjectType,
+  GoalRecurrenceRule,
 } from '@prisma/client'
 import { ensureSystemGoalIdeaTemplates } from '../lib/ensureSystemGoalIdeas'
 import { localDayWindow, localWeekWindow, resolveHorizonDate } from '../lib/calendarWindows'
@@ -73,6 +75,10 @@ function toScheduledGoalDTO(goal: ScheduledGoal, currentValue: number | null) {
     assignedToUserId: goal.assignedToUserId,
     subjectType: goal.subjectType,
     subjectId: goal.subjectId,
+    notes: goal.notes,
+    recurrenceRule: goal.recurrenceRule,
+    recurrenceGroupId: goal.recurrenceGroupId,
+    recurrenceEndDate: goal.recurrenceEndDate?.toISOString() ?? null,
     trackingType: goal.trackingType,
     metricKey: goal.metricKey,
     targetValue: goal.targetValue,
@@ -360,13 +366,22 @@ export class CalendarService {
     businessId: string,
     goalId: string,
     input: {
-      status?: 'SCHEDULED' | 'DONE'
+      title?: string
+      status?: 'SCHEDULED' | 'DONE' | 'DISMISSED'
       scheduledFor?: string | null
       hasTime?: boolean
       estimateMinutes?: number | null
       // Attribution (2026-09-09 Time Tracking & Team Activity epic) — nullable so a task can be
       // explicitly unassigned, distinct from "field omitted, leave as-is".
       assignedToUserId?: string | null
+      notes?: string | null
+      // Set both to link (or re-link); set subjectType to null to remove an existing link —
+      // actionType/actionTarget/actionLabel are never accepted from the client, only resolved
+      // here from the real record. See _resolveSubjectLink.
+      subjectType?: GoalSubjectType | null
+      subjectId?: string | null
+      recurrenceRule?: GoalRecurrenceRule | null
+      recurrenceEndDate?: string | null
     },
     actorUserId?: string,
   ) {
@@ -374,10 +389,17 @@ export class CalendarService {
     if (!goal) throw { statusCode: 404, message: 'Scheduled item not found' }
 
     const data: Record<string, unknown> = {}
-    let eventType: 'COMPLETED' | 'RESCHEDULED' | null = null
+    let eventType: 'COMPLETED' | 'RESCHEDULED' | 'DISMISSED' | null = null
     const reassigned =
       input.assignedToUserId !== undefined && input.assignedToUserId !== goal.assignedToUserId
 
+    if (input.title !== undefined) {
+      const title = input.title.trim()
+      if (!title) throw { statusCode: 400, message: 'Give this task a title' }
+      if (title.length > 200)
+        throw { statusCode: 400, message: 'Keep the title under 200 characters' }
+      data.title = title
+    }
     if (input.status === 'DONE' && goal.status !== 'DONE') {
       data.status = 'DONE'
       data.completedAt = new Date()
@@ -385,6 +407,11 @@ export class CalendarService {
     } else if (input.status === 'SCHEDULED' && goal.status !== 'SCHEDULED') {
       data.status = 'SCHEDULED'
       data.completedAt = null
+      data.dismissedAt = null
+    } else if (input.status === 'DISMISSED' && goal.status !== 'DISMISSED') {
+      data.status = 'DISMISSED'
+      data.dismissedAt = new Date()
+      eventType = 'DISMISSED'
     }
     if (input.scheduledFor !== undefined) {
       data.scheduledFor = input.scheduledFor ? new Date(input.scheduledFor) : null
@@ -393,10 +420,38 @@ export class CalendarService {
     }
     if (input.hasTime !== undefined) data.hasTime = input.hasTime
     if (input.estimateMinutes !== undefined) data.estimateMinutes = input.estimateMinutes
+    if (input.notes !== undefined) data.notes = input.notes
     // Commitment change — audited (REASSIGNED), unlike the plain estimate edit above, matching
     // this epic's own "audit status/schedule/assignee, not estimates" rule.
     if (reassigned) {
       data.assignedToUserId = input.assignedToUserId
+    }
+    if (input.subjectType !== undefined) {
+      if (input.subjectType === null) {
+        data.subjectId = null
+        data.actionType = null
+        data.actionTarget = null
+        data.actionLabel = null
+      } else {
+        if (!input.subjectId) throw { statusCode: 400, message: 'A linked record is required' }
+        const link = await this._resolveSubjectLink(businessId, input.subjectType, input.subjectId)
+        data.subjectType = input.subjectType
+        data.subjectId = input.subjectId
+        data.actionType = 'NAVIGATE'
+        data.actionTarget = link.actionTarget
+        data.actionLabel = link.actionLabel
+      }
+    }
+    if (input.recurrenceRule !== undefined) {
+      data.recurrenceRule = input.recurrenceRule
+      // Turning repeats on for the first time needs a stable series id; the goal's own id works
+      // (every later instance in the series carries it forward) and needs no extra generation.
+      if (input.recurrenceRule !== null && !goal.recurrenceGroupId) {
+        data.recurrenceGroupId = goal.id
+      }
+    }
+    if (input.recurrenceEndDate !== undefined) {
+      data.recurrenceEndDate = input.recurrenceEndDate ? new Date(input.recurrenceEndDate) : null
     }
 
     const updated = await db.$transaction(async (tx) => {
@@ -419,6 +474,31 @@ export class CalendarService {
       if (!changed.count)
         throw { statusCode: 409, message: 'Task assignment changed. Refresh and try again.' }
       const result = await tx.scheduledGoal.findUniqueOrThrow({ where: { id: goalId } })
+      // The poller (RecurringGoalService) only ever consults the *latest* instance in a series —
+      // but once a next instance has already been generated ahead of time, both it and the
+      // still-open current one carry the same recurrenceRule/recurrenceEndDate. Editing whichever
+      // one happens to be open (very often the current one, not the generated-ahead "latest") must
+      // still control the whole series, so a repeat-policy change here propagates to every other
+      // still-SCHEDULED sibling in the group — never to DONE/DISMISSED history, and never touching
+      // any other field (title/assignee/notes/schedule stay independently editable per instance).
+      if (
+        (input.recurrenceRule !== undefined || input.recurrenceEndDate !== undefined) &&
+        result.recurrenceGroupId
+      ) {
+        const siblingData: Record<string, unknown> = {}
+        if (input.recurrenceRule !== undefined) siblingData.recurrenceRule = data.recurrenceRule
+        if (input.recurrenceEndDate !== undefined)
+          siblingData.recurrenceEndDate = data.recurrenceEndDate
+        await tx.scheduledGoal.updateMany({
+          where: {
+            businessId,
+            recurrenceGroupId: result.recurrenceGroupId,
+            id: { not: goalId },
+            status: 'SCHEDULED',
+          },
+          data: siblingData,
+        })
+      }
       if (reassigned) {
         await tx.goalEvent.create({ data: { goalId, type: 'REASSIGNED' } })
         if (input.assignedToUserId && actorUserId && input.assignedToUserId !== actorUserId) {
@@ -564,6 +644,101 @@ export class CalendarService {
     })
     if (!template) throw { statusCode: 404, message: 'Idea not found' }
     return template
+  }
+
+  // The task-linking search (rail's "Linked to: [type] [record]" picker) and the resolver that
+  // freezes a link into actionType/actionTarget/actionLabel at set time — same "resolved once,
+  // never recomputed on read" contract as every other actionTarget on this model. Both dispatch on
+  // the same 4 subject types; CRM always means Contact (a Lead has no standalone list of its own
+  // worth searching — this mirrors the existing CRM_NEXT_ACTION mirror's own actionTarget).
+  async listLinkCandidates(businessId: string, subjectType: GoalSubjectType, q?: string) {
+    const query = q?.trim() || undefined
+    switch (subjectType) {
+      case 'PAGE': {
+        const rows = await db.landingPage.findMany({
+          where: { businessId, deletedAt: null, ...(query ? { name: { contains: query } } : {}) },
+          orderBy: { updatedAt: 'desc' },
+          take: 8,
+          select: { id: true, name: true },
+        })
+        return { data: rows.map((r) => ({ id: r.id, label: r.name })) }
+      }
+      case 'ADVERTISEMENT': {
+        const rows = await db.advertisement.findMany({
+          where: { businessId, deletedAt: null, ...(query ? { name: { contains: query } } : {}) },
+          orderBy: { updatedAt: 'desc' },
+          take: 8,
+          select: { id: true, name: true },
+        })
+        return { data: rows.map((r) => ({ id: r.id, label: r.name })) }
+      }
+      case 'MESSAGE': {
+        const rows = await db.message.findMany({
+          where: { businessId, ...(query ? { subject: { contains: query } } : {}) },
+          orderBy: { updatedAt: 'desc' },
+          take: 8,
+          select: { id: true, subject: true },
+        })
+        return { data: rows.map((r) => ({ id: r.id, label: r.subject || 'Untitled message' })) }
+      }
+      case 'CRM': {
+        const rows = await db.contact.findMany({
+          where: { businessId, deletedAt: null, ...(query ? { name: { contains: query } } : {}) },
+          orderBy: { updatedAt: 'desc' },
+          take: 8,
+          select: { id: true, name: true },
+        })
+        return { data: rows.map((r) => ({ id: r.id, label: r.name })) }
+      }
+      default:
+        throw { statusCode: 400, message: 'This task type cannot be linked' }
+    }
+  }
+
+  private async _resolveSubjectLink(
+    businessId: string,
+    subjectType: GoalSubjectType,
+    subjectId: string,
+  ): Promise<{ actionTarget: string; actionLabel: string }> {
+    switch (subjectType) {
+      case 'PAGE': {
+        const page = await db.landingPage.findFirst({
+          where: { id: subjectId, businessId, deletedAt: null },
+          select: { name: true },
+        })
+        if (!page) throw { statusCode: 404, message: 'Page not found' }
+        return { actionTarget: `/landing-pages/${subjectId}`, actionLabel: page.name }
+      }
+      case 'ADVERTISEMENT': {
+        const ad = await db.advertisement.findFirst({
+          where: { id: subjectId, businessId, deletedAt: null },
+          select: { name: true },
+        })
+        if (!ad) throw { statusCode: 404, message: 'Advertisement not found' }
+        return { actionTarget: `/ads/${subjectId}`, actionLabel: ad.name }
+      }
+      case 'MESSAGE': {
+        const message = await db.message.findFirst({
+          where: { id: subjectId, businessId },
+          select: { subject: true },
+        })
+        if (!message) throw { statusCode: 404, message: 'Message not found' }
+        return {
+          actionTarget: `/messages/${subjectId}`,
+          actionLabel: message.subject || 'Untitled message',
+        }
+      }
+      case 'CRM': {
+        const contact = await db.contact.findFirst({
+          where: { id: subjectId, businessId, deletedAt: null },
+          select: { name: true },
+        })
+        if (!contact) throw { statusCode: 404, message: 'Contact not found' }
+        return { actionTarget: `/contacts/${subjectId}`, actionLabel: contact.name }
+      }
+      default:
+        throw { statusCode: 400, message: 'This task type cannot be linked' }
+    }
   }
 
   private async _resolveTemplateForScheduling(template: GoalIdeaTemplate, businessId: string) {

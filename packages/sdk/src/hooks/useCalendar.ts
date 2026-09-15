@@ -176,6 +176,34 @@ export function useStopCurrentTimeEntry() {
   })
 }
 
+export type CalendarSubjectType =
+  'GENERAL' | 'CRM' | 'ADVERTISEMENT' | 'PAGE' | 'RIVER' | 'BUSINESS' | 'MESSAGE'
+
+// The 4 subject types a task can actually be linked to from the rail — a narrower list than the
+// full GoalSubjectType enum (GENERAL/RIVER/BUSINESS are categories, not linkable record types).
+export type LinkableSubjectType = 'PAGE' | 'ADVERTISEMENT' | 'MESSAGE' | 'CRM'
+
+export type GoalRecurrenceRule = 'DAILY' | 'WEEKDAYS' | 'WEEKLY' | 'MONTHLY'
+
+// Backs the rail's "Linked to: [type] [record]" picker — a type-scoped search, never a global one.
+export function useCalendarLinkCandidates(subjectType: LinkableSubjectType | null, q: string) {
+  return useQuery({
+    queryKey: ['calendar', 'link-candidates', subjectType, q],
+    enabled: subjectType != null,
+    queryFn: async () => {
+      const client = getApiClient()
+      const result = await client.GET('/calendar/link-candidates', {
+        params: { query: { subjectType: subjectType as LinkableSubjectType, q: q || undefined } },
+      })
+      const err = result.error
+      const status = result.response.status
+      const data = result.data
+      if (err) throw new ApiError(status, (err as { error?: string }).error ?? 'Request failed')
+      return data!
+    },
+  })
+}
+
 export function useUpdateScheduledGoal() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -184,11 +212,17 @@ export function useUpdateScheduledGoal() {
       ...body
     }: {
       goalId: string
-      status?: 'SCHEDULED' | 'DONE'
+      title?: string
+      status?: 'SCHEDULED' | 'DONE' | 'DISMISSED'
       scheduledFor?: string | null
       hasTime?: boolean
       estimateMinutes?: number | null
       assignedToUserId?: string | null
+      notes?: string | null
+      subjectType?: CalendarSubjectType | null
+      subjectId?: string | null
+      recurrenceRule?: GoalRecurrenceRule | null
+      recurrenceEndDate?: string | null
     }) => {
       const client = getApiClient()
       const result = await client.PATCH('/calendar/goals/{goalId}', {

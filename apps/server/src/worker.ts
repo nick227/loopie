@@ -6,6 +6,7 @@ import { runDueAdRunSyncs } from './services/AdRunSyncService'
 import { db, cleanupExpiredRateLimitBuckets } from '@project/db'
 import { processEmbedOutbox } from './services/activity/EmbedProjectionWorker'
 import { runDueGoalReminders } from './services/CalendarReminderService'
+import { runDueRecurringGoals } from './services/RecurringGoalService'
 import { runDueScheduleSyncs } from './services/ScheduleSyncService'
 import { schedulePoller } from './lib/workerHeartbeat'
 
@@ -59,6 +60,12 @@ function main() {
       'calendar-reminders',
       Number(process.env.CALENDAR_REMINDER_POLL_INTERVAL_MS ?? 60_000),
       runDueGoalReminders,
+    )
+
+    schedulePoller(
+      'recurring-goals',
+      Number(process.env.RECURRING_GOAL_POLL_INTERVAL_MS ?? 60_000),
+      runDueRecurringGoals,
     )
 
     // page-thumbnails deliberately does NOT run here. PageThumbnailService writes real files to

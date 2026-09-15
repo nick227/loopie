@@ -3431,6 +3431,16 @@ enum GoalSubjectType {
   PAGE
   RIVER
   BUSINESS
+  MESSAGE
+}
+
+// Small closed vocabulary, deliberately not RRULE — see ScheduledGoal.recurrenceRule's own
+// comment for the generation model this backs.
+enum GoalRecurrenceRule {
+  DAILY
+  WEEKDAYS
+  WEEKLY
+  MONTHLY
 }
 
 // The one universal progression Loopie coaches every business through (2026-09-02 "Calendar as
@@ -3642,6 +3652,10 @@ model ScheduledGoal {
   // USER_CREATED/CRM_NEXT_ACTION goals that have none) — read-only in the detail view; editing an
   // in-flight goal's own notes is out of POC scope.
   detail               String?             @db.Text
+  // User-editable working notes (2026-09-15 Calendar connective-tissue pass). Deliberately
+  // separate from `detail`, which stays a read-only copy of the source template's own "why this
+  // matters" copy — this is the task's own, freely editable scratch space.
+  notes                String?             @db.Text
   // Frozen at schedule/creation time from whichever destination was resolved then (a template's
   // static actionTarget, a live-resolved one such as a specific draft ad, or set directly for
   // CRM_NEXT_ACTION mirrors — see lib/coachRules.ts's resolveAction and LeadService). Not
@@ -3688,6 +3702,22 @@ model ScheduledGoal {
   status               ScheduledGoalStatus @default(SCHEDULED)
   // Set once the due-time reminder has fired so the poller never sends it twice.
   reminderSentAt       DateTime?
+  // Recurrence (2026-09-15 Calendar connective-tissue pass) — deliberately NOT completion-
+  // triggered ("finish today's occurrence to unlock tomorrow's" would silently stall a series the
+  // moment someone forgets to check a box). Instead RecurringGoalService's poller keeps at most
+  // one *future* (not-yet-arrived) instance materialized per series at all times: once an
+  // instance's own scheduledFor has arrived, the poller creates the next one from it, regardless
+  // of that instance's status. A series is every ScheduledGoal sharing one recurrenceGroupId; the
+  // poller only ever looks at the latest instance per group. Because a next instance can already
+  // exist by the time someone edits the still-open current one, CalendarService.updateGoal
+  // propagates a recurrenceRule/recurrenceEndDate change to every other still-SCHEDULED sibling in
+  // the group (never DONE/DISMISSED history) — so turning "Repeats" off (or setting an end date)
+  // reliably stops the whole series regardless of which instance you happen to have open, not just
+  // the poller's own latest pick. Editing any single instance's other fields (reassign, reschedule,
+  // notes, linked object) only ever affects that one row.
+  recurrenceRule       GoalRecurrenceRule?
+  recurrenceGroupId    String?
+  recurrenceEndDate    DateTime?
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
 
@@ -3706,6 +3736,7 @@ model ScheduledGoal {
   @@index([sourceTemplateId])
   @@index([assistantGoalCycleId])
   @@index([businessId, assignedToUserId])
+  @@index([recurrenceGroupId])
 }
 
 // Append-only audit trail for a ScheduledGoal — mirrors AutomationLog's role for Automation.
