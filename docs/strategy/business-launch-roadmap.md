@@ -11,15 +11,15 @@ Ad **buying** happens on Meta, Google, and the like. LOOPIE is the book: campaig
 
 ## 90 days
 
-| Week | Product | Marketing | Ads (buying) | Sales | Customer |
-| --- | --- | --- | --- | --- | --- |
-| **1–2** · by 4 Sep | Screens in progress | Page, booking, emails 1–8 live | Ad accounts listed; no spend | Booking calendar on | — |
-| **3** · by 11 Sep | **M1** QA pass + demo + **our** workspace | Kit + templates; profiles + 3 posts | Our two Campaigns in LOOPIE, $0 spend, destinations set | First outbound **from LOOPIE** | CSV + 7-step list |
-| **4** · by 18 Sep | **M2** real email | Screenshots if UI is clean; posts 3×/week | Tracked click → page → contact on demo data | Demos include ad → person → follow-up | Practice 7 steps on Riverside |
-| **5** · by 25 Sep | **M3** live site | Page still matches live | Live tracked URLs; spend still typed in | Same 20-minute demo | Login + import on live |
-| **6** · by 2 Oct | **M4** billing | Payment + welcome | Our ads only if GM wrote a cap. Client ads only if quoted. | First cards. No discount. | **Managed start** (email). Ads handoff if quoted. |
-| **7–10** · to 30 Oct | Fix send + ad→lead breaks | Proof + referral after two shops send | Daily spend log in LOOPIE. Pause losers. | Same kit every day | Live in 14 days; they send email #2 |
-| **11–13** · to 24 Nov | **M5** first-customer bugs + proven `gap`s | Page, posts, claims still true | Self-run clients enter their own spend. We buy only on quoted accounts. | New hire trains, then demos | Most **self-run**. Managed ads only if GM quoted. |
+| Week                  | Product                                    | Marketing                                 | Ads (buying)                                                            | Sales                                 | Customer                                          |
+| --------------------- | ------------------------------------------ | ----------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------- |
+| **1–2** · by 4 Sep    | Screens in progress                        | Page, booking, emails 1–8 live            | Ad accounts listed; no spend                                            | Booking calendar on                   | —                                                 |
+| **3** · by 11 Sep     | **M1** QA pass + demo + **our** workspace  | Kit + templates; profiles + 3 posts       | Our two Campaigns in LOOPIE, $0 spend, destinations set                 | First outbound **from LOOPIE**        | CSV + 7-step list                                 |
+| **4** · by 18 Sep     | **M2** real email                          | Screenshots if UI is clean; posts 3×/week | Tracked click → page → contact on demo data                             | Demos include ad → person → follow-up | Practice 7 steps on Riverside                     |
+| **5** · by 25 Sep     | **M3** live site                           | Page still matches live                   | Live tracked URLs; spend still typed in                                 | Same 20-minute demo                   | Login + import on live                            |
+| **6** · by 2 Oct      | **M4** billing                             | Payment + welcome                         | Our ads only if GM wrote a cap. Client ads only if quoted.              | First cards. No discount.             | **Managed start** (email). Ads handoff if quoted. |
+| **7–10** · to 30 Oct  | Fix send + ad→lead breaks                  | Proof + referral after two shops send     | Daily spend log in LOOPIE. Pause losers.                                | Same kit every day                    | Live in 14 days; they send email #2               |
+| **11–13** · to 24 Nov | **M5** first-customer bugs + proven `gap`s | Page, posts, claims still true            | Self-run clients enter their own spend. We buy only on quoted accounts. | New hire trains, then demos           | Most **self-run**. Managed ads only if GM quoted. |
 
 ---
 
@@ -92,38 +92,38 @@ A milestone is not done when the code is merged. It is done when someone who did
 
 Put every file in `LOOPIE-sales-kit/` **and** in LOOPIE (templates for anything we send, notes for anything we say). Sales should not write from scratch. If it is not a LOOPIE template or on the contact, it does not exist.
 
-| # | File | Sales uses it | Due |
-| --- | --- | --- | --- |
-| 1 | Public page (one URL, book button, price $299) | Send instead of a pitch deck | **4 Sep** |
-| 2 | One-pager PDF | Attach to email 1; leave after demo | **4 Sep** |
-| 3 | Email 1 — first touch | Day 0 outbound | **4 Sep** |
-| 4 | Email 2 — bump | Day 3, same thread | **4 Sep** |
-| 5 | Email 3 — last note | Day 7, then stop | **4 Sep** |
-| 6 | Instagram / Facebook DM | When that is how they market | **4 Sep** |
-| 7 | Voicemail (15 seconds) | After a no-answer call | **4 Sep** |
-| 8 | Phone opener (20 seconds) | Live pickup | **4 Sep** |
-| 9 | Email signature + booking link | Every outbound | **4 Sep** |
-| 10 | Calendar booking + invite text | “Book 20 minutes” | **4 Sep** |
-| 11 | Demo confirmation + “bring this” | Auto on book | **11 Sep** |
-| 12 | No-show email (two new times) | Same day they miss | **11 Sep** |
-| 13 | Same-day after-demo email (yes / not now / lost) | Before they leave the call | **11 Sep** |
-| 14 | 20-minute demo script | Every demo, same clicks | **11 Sep** |
-| 15 | Price sheet (in / out / how to pay) | Minute 12 of the demo | **11 Sep** |
-| 16 | Objection card (five nos) | On the call | **11 Sep** |
-| 17 | Contact import CSV | They fill it; we import | **11 Sep** |
-| 18 | First-send checklist (7 steps) | Hand to them at close | **11 Sep** |
-| 19 | 4 screenshots: Jordan Hale, send, lead, sale | Only after M1 QA says the UI is fit. Until then, no shots. | **18 Sep** |
-| 20 | Pay-now email (card link, $299, cancel anytime) | When they say yes | **2 Oct** |
-| 21 | Welcome + “send your CSV” | Same day they pay | **2 Oct** |
-| 22 | Proof sentence + referral ask | After **two** customers have sent a real email and said yes in writing | **14 Oct** or skip |
-| 23 | Three social posts (reuse) | Every post ends at the booking URL | **11 Sep**, then 3×/week |
-| 24 | Profile bios (Instagram, Facebook, LinkedIn) | Bio = one sentence + book link | **11 Sep** |
-| 25 | Share image for the public page | Link previews do not look empty | **11 Sep** |
-| 26 | Source cheat-sheet | Sales/marketing/ads tag the same way | **11 Sep** |
-| 27 | Ads one-pager (what $299 includes vs buying ads) | Sales leaves this when they ask “do you run Facebook?” | **11 Sep** |
-| 28 | Ad creative brief + approval line | Ads does not buy until they sign the words/image | **11 Sep** |
-| 29 | Daily spend log (platform → LOOPIE) | Ads types yesterday’s spend into the Campaign | **11 Sep** |
-| 30 | Pause / kill rule (one page) | Stop a campaign at cap or when cost-per-book blows the cap | **11 Sep** |
+| #   | File                                             | Sales uses it                                                          | Due                      |
+| --- | ------------------------------------------------ | ---------------------------------------------------------------------- | ------------------------ |
+| 1   | Public page (one URL, book button, price $299)   | Send instead of a pitch deck                                           | **4 Sep**                |
+| 2   | One-pager PDF                                    | Attach to email 1; leave after demo                                    | **4 Sep**                |
+| 3   | Email 1 — first touch                            | Day 0 outbound                                                         | **4 Sep**                |
+| 4   | Email 2 — bump                                   | Day 3, same thread                                                     | **4 Sep**                |
+| 5   | Email 3 — last note                              | Day 7, then stop                                                       | **4 Sep**                |
+| 6   | Instagram / Facebook DM                          | When that is how they market                                           | **4 Sep**                |
+| 7   | Voicemail (15 seconds)                           | After a no-answer call                                                 | **4 Sep**                |
+| 8   | Phone opener (20 seconds)                        | Live pickup                                                            | **4 Sep**                |
+| 9   | Email signature + booking link                   | Every outbound                                                         | **4 Sep**                |
+| 10  | Calendar booking + invite text                   | “Book 20 minutes”                                                      | **4 Sep**                |
+| 11  | Demo confirmation + “bring this”                 | Auto on book                                                           | **11 Sep**               |
+| 12  | No-show email (two new times)                    | Same day they miss                                                     | **11 Sep**               |
+| 13  | Same-day after-demo email (yes / not now / lost) | Before they leave the call                                             | **11 Sep**               |
+| 14  | 20-minute demo script                            | Every demo, same clicks                                                | **11 Sep**               |
+| 15  | Price sheet (in / out / how to pay)              | Minute 12 of the demo                                                  | **11 Sep**               |
+| 16  | Objection card (five nos)                        | On the call                                                            | **11 Sep**               |
+| 17  | Contact import CSV                               | They fill it; we import                                                | **11 Sep**               |
+| 18  | First-send checklist (7 steps)                   | Hand to them at close                                                  | **11 Sep**               |
+| 19  | 4 screenshots: Jordan Hale, send, lead, sale     | Only after M1 QA says the UI is fit. Until then, no shots.             | **18 Sep**               |
+| 20  | Pay-now email (card link, $299, cancel anytime)  | When they say yes                                                      | **2 Oct**                |
+| 21  | Welcome + “send your CSV”                        | Same day they pay                                                      | **2 Oct**                |
+| 22  | Proof sentence + referral ask                    | After **two** customers have sent a real email and said yes in writing | **14 Oct** or skip       |
+| 23  | Three social posts (reuse)                       | Every post ends at the booking URL                                     | **11 Sep**, then 3×/week |
+| 24  | Profile bios (Instagram, Facebook, LinkedIn)     | Bio = one sentence + book link                                         | **11 Sep**               |
+| 25  | Share image for the public page                  | Link previews do not look empty                                        | **11 Sep**               |
+| 26  | Source cheat-sheet                               | Sales/marketing/ads tag the same way                                   | **11 Sep**               |
+| 27  | Ads one-pager (what $299 includes vs buying ads) | Sales leaves this when they ask “do you run Facebook?”                 | **11 Sep**               |
+| 28  | Ad creative brief + approval line                | Ads does not buy until they sign the words/image                       | **11 Sep**               |
+| 29  | Daily spend log (platform → LOOPIE)              | Ads types yesterday’s spend into the Campaign                          | **11 Sep**               |
+| 30  | Pause / kill rule (one page)                     | Stop a campaign at cap or when cost-per-book blows the cap             | **11 Sep**               |
 
 **How to use, in order:** 3 → 4 → 5 (or 6/7/8) → 10 → 11 → 14 with 15–16 and **27** if they ask about ads → 13 → 20 → 21 → 18. Item 2 goes with 3 and at the end of 14. Item 19 only on the call or in 13, never in cold email until M1 passes. Item 22 only in the next wave of 3. Items 23–25 are marketing’s public face; 26 is how inbound is saved. Items **28–30** are Ads’ daily kit.
 
@@ -137,14 +137,14 @@ One business in LOOPIE: **Midnight Creative**. This is the real sales book, not 
 
 **Lead stages we use (as they exist today):**
 
-| Stage in LOOPIE | Means for us |
-| --- | --- |
-| New | Saved, not reached |
-| Contacted | Email 1 or call done |
-| Qualified | Demo is on the calendar |
-| Quoted | Demo done, asked for $299 |
-| Won | Card taken. Also record a **Sale $299**. |
-| Lost | No, too expensive, or silent after email 3. Keep the contact. |
+| Stage in LOOPIE | Means for us                                                  |
+| --------------- | ------------------------------------------------------------- |
+| New             | Saved, not reached                                            |
+| Contacted       | Email 1 or call done                                          |
+| Qualified       | Demo is on the calendar                                       |
+| Quoted          | Demo done, asked for $299                                     |
+| Won             | Card taken. Also record a **Sale $299**.                      |
+| Lost            | No, too expensive, or silent after email 3. Keep the contact. |
 
 **Audiences to save:** Added this week · Silent 3 days · Silent 7 days · Demo this week · Quoted not paid · Won, no CSV · Check next month · Saw their ads · Inbound website · Inbound social.
 
@@ -154,11 +154,11 @@ One business in LOOPIE: **Midnight Creative**. This is the real sales book, not 
 
 **Campaigns (required, not optional):**
 
-| Campaign | Whose money | Destination | Job |
-| --- | --- | --- | --- |
-| LOOPIE runs LOOPIE | Ours (only after GM cap) | Public page / book 20 min | Book demos from people who already want a simpler follow-up |
-| Where did the lead go? | Ours (only after GM cap) | Same | Book demos from shops already running ads |
-| *(client name) — (concept)* | **Theirs**, on their ad account | Their LOOPIE landing page or tracked URL | New leads into **their** Contacts — never into Midnight Creative’s book |
+| Campaign                    | Whose money                     | Destination                              | Job                                                                     |
+| --------------------------- | ------------------------------- | ---------------------------------------- | ----------------------------------------------------------------------- |
+| LOOPIE runs LOOPIE          | Ours (only after GM cap)        | Public page / book 20 min                | Book demos from people who already want a simpler follow-up             |
+| Where did the lead go?      | Ours (only after GM cap)        | Same                                     | Book demos from shops already running ads                               |
+| _(client name) — (concept)_ | **Theirs**, on their ad account | Their LOOPIE landing page or tracked URL | New leads into **their** Contacts — never into Midnight Creative’s book |
 
 Every dollar spent is typed onto that Campaign (spend, dates, platform). Client spend is never LOOPIE revenue. Our buying hours are a quoted line, not $299.
 
@@ -216,24 +216,24 @@ Finish the step anyway (phone, Calendly, Stripe, Instagram, **Ads Manager**). Th
 
 **Already expected (log them when they bite, so we have proof):**
 
-| We will hit this | Workaround now | What LOOPIE would need |
-| --- | --- | --- |
-| Day 3 / day 7 follow-up does not send itself | Sales sends Email 2/3 by audience | Follow-up that actually runs |
-| No “next action” date on a contact | Tags `next:day3` etc. | Next action + date on Home |
-| Booking lives in Calendly | Paste the time in a note | Book 20 minutes from the contact |
-| Pay lives in Stripe | Human records Sale $299 after the card | Paid → Won + Sale without a second typing |
-| Cannot attach the one-pager | Link the public page | File on the email |
-| Calls and Instagram DMs | Note / Call log | Log a call or paste a DM without leaving |
-| Home does not show “no next step” | 4 p.m. manual filter | Home queue for our own pipeline |
-| Stages are New…Lost, not “demo booked” | Qualified = demo booked | Fine if the table above stays taught; change only if sales keeps mis-clicking |
-| Social posts are not in LOOPIE | Paste post URL on the Campaign | Save a social post against a campaign |
-| Calendly books do not create contacts | Marketing/sales add them same day | Booking → contact + Qualified |
-| Friday counts are a handwritten note | Pinned “Weekly numbers” contact | Home: contacts / books / Won by source |
-| Our staff has no “work as the client” login | Second user on their business (our email) with their OK | Staff access that is not a shared password |
-| Meta/Google do not type spend into LOOPIE | Ads types yesterday’s numbers on the Campaign | Live spend sync (V2 — do not promise a date) |
-| Buying still happens in Ads Manager | Create the Campaign in LOOPIE **before** the first dollar | Push budget/creative from LOOPIE to the platform |
-| Ad click does not create a LOOPIE contact | Use tracked URL / landing page; fix or `gap` | Click → session → form/book → Contact + Lead |
-| Client ad spend mixed with our SaaS | Separate: their platform bill vs $299 vs our buying fee | Clear three-line invoice |
+| We will hit this                             | Workaround now                                            | What LOOPIE would need                                                        |
+| -------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Day 3 / day 7 follow-up does not send itself | Sales sends Email 2/3 by audience                         | Follow-up that actually runs                                                  |
+| No “next action” date on a contact           | Tags `next:day3` etc.                                     | Next action + date on Home                                                    |
+| Booking lives in Calendly                    | Paste the time in a note                                  | Book 20 minutes from the contact                                              |
+| Pay lives in Stripe                          | Human records Sale $299 after the card                    | Paid → Won + Sale without a second typing                                     |
+| Cannot attach the one-pager                  | Link the public page                                      | File on the email                                                             |
+| Calls and Instagram DMs                      | Note / Call log                                           | Log a call or paste a DM without leaving                                      |
+| Home does not show “no next step”            | 4 p.m. manual filter                                      | Home queue for our own pipeline                                               |
+| Stages are New…Lost, not “demo booked”       | Qualified = demo booked                                   | Fine if the table above stays taught; change only if sales keeps mis-clicking |
+| Social posts are not in LOOPIE               | Paste post URL on the Campaign                            | Save a social post against a campaign                                         |
+| Calendly books do not create contacts        | Marketing/sales add them same day                         | Booking → contact + Qualified                                                 |
+| Friday counts are a handwritten note         | Pinned “Weekly numbers” contact                           | Home: contacts / books / Won by source                                        |
+| Our staff has no “work as the client” login  | Second user on their business (our email) with their OK   | Staff access that is not a shared password                                    |
+| Meta/Google do not type spend into LOOPIE    | Ads types yesterday’s numbers on the Campaign             | Live spend sync (V2 — do not promise a date)                                  |
+| Buying still happens in Ads Manager          | Create the Campaign in LOOPIE **before** the first dollar | Push budget/creative from LOOPIE to the platform                              |
+| Ad click does not create a LOOPIE contact    | Use tracked URL / landing page; fix or `gap`              | Click → session → form/book → Contact + Lead                                  |
+| Client ad spend mixed with our SaaS          | Separate: their platform bill vs $299 vs our buying fee   | Clear three-line invoice                                                      |
 
 This list grows from real `gap` tags. Do not add features from imagination.
 
@@ -252,39 +252,39 @@ Marketing owns the page, posts, and organic inbound. **Ads owns paid media** (ou
 
 ### Goals (by 24 Nov)
 
-| Goal | Done when |
-| --- | --- |
-| Page books meetings | URL live **4 Sep**. Button puts 20 minutes on the sales calendar. |
-| Sales never writes copy | Kit 1–26 in the folder **and** as LOOPIE templates **11 Sep**. |
-| People can find us | Bios + 3 posts live **11 Sep**. Then **3 posts every week**, each with the book link. |
-| Inbound is in LOOPIE | Same day someone books or comments, they are a contact with source `website` or `social`. |
-| We know what worked | Friday: count new contacts, books, demos, and Won by source. `unknown` is fine. |
+| Goal                     | Done when                                                                                                                                          |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Page books meetings      | URL live **4 Sep**. Button puts 20 minutes on the sales calendar.                                                                                  |
+| Sales never writes copy  | Kit 1–26 in the folder **and** as LOOPIE templates **11 Sep**.                                                                                     |
+| People can find us       | Bios + 3 posts live **11 Sep**. Then **3 posts every week**, each with the book link.                                                              |
+| Inbound is in LOOPIE     | Same day someone books or comments, they are a contact with source `website` or `social`.                                                          |
+| We know what worked      | Friday: count new contacts, books, demos, and Won by source. `unknown` is fine.                                                                    |
 | Inbound pulls its weight | **10 completed demos** in 90 days whose first touch was the page or a post (not sales outbound). If not, change the page or posts — not the price. |
-| Proof without lying | Item 22 only after two shops sent a real email and said yes in writing. |
-| Paid vs organic | Marketing does not spend. Ads spends only with a GM cap. Friday counts split `website` / `social` / **campaign** / `outbound`. |
+| Proof without lying      | Item 22 only after two shops sent a real email and said yes in writing.                                                                            |
+| Paid vs organic          | Marketing does not spend. Ads spends only with a GM cap. Friday counts split `website` / `social` / **campaign** / `outbound`.                     |
 
 ### Responsibilities
 
-| Marketing owns | Ads owns | Sales owns | GM owns | Engineering owns |
-| --- | --- | --- | --- | --- |
+| Marketing owns                     | Ads owns                                            | Sales owns                   | GM owns                                         | Engineering owns                                     |
+| ---------------------------------- | --------------------------------------------------- | ---------------------------- | ----------------------------------------------- | ---------------------------------------------------- |
 | Public page, bios, posts, kit copy | Buying, spend log, pause/kill, tracked destinations | Outbound 8/day, demos, close | Price, claims, **our** ad cap, client ad quotes | App, demo account, live site, billing, tracked links |
-| Organic inbound contacts | Campaign + source on paid inbound | Outbound contacts | Refunds | `gap` on send **or** click→contact |
-| Friday organic counts | Friday spend and cost-per-book | Lost reasons | Opening our spend | Screenshots date (M1) |
+| Organic inbound contacts           | Campaign + source on paid inbound                   | Outbound contacts            | Refunds                                         | `gap` on send **or** click→contact                   |
+| Friday organic counts              | Friday spend and cost-per-book                      | Lost reasons                 | Opening our spend                               | Screenshots date (M1)                                |
 
 Marketing does **not** discount, run a custom demo, promise texts, start a blog, or **buy ads**.
 
 ### Requirements (what marketing needs)
 
-| Need | From | By |
-| --- | --- | --- |
-| Price $299 and the claims list above, in writing | GM | **4 Sep** |
-| Booking URL on the sales calendar (20 min, 10 min buffer) | Sales | **4 Sep** |
-| LOOPIE login on Midnight Creative, permission to edit templates and campaigns | Engineering | **11 Sep** |
-| “UI is fit” for screenshots | Engineering (M1 QA) | **11 Sep** / shots **18 Sep** |
-| Privacy + terms URLs for the page footer | Engineering | **25 Sep** (M3) |
-| Every Calendly book named so we can match a contact | Sales | ongoing |
-| Lost reasons added to the objection card | Sales | Fridays |
-| Written OK to name a customer | Sales / the customer | before item 22 |
+| Need                                                                          | From                 | By                            |
+| ----------------------------------------------------------------------------- | -------------------- | ----------------------------- |
+| Price $299 and the claims list above, in writing                              | GM                   | **4 Sep**                     |
+| Booking URL on the sales calendar (20 min, 10 min buffer)                     | Sales                | **4 Sep**                     |
+| LOOPIE login on Midnight Creative, permission to edit templates and campaigns | Engineering          | **11 Sep**                    |
+| “UI is fit” for screenshots                                                   | Engineering (M1 QA)  | **11 Sep** / shots **18 Sep** |
+| Privacy + terms URLs for the page footer                                      | Engineering          | **25 Sep** (M3)               |
+| Every Calendly book named so we can match a contact                           | Sales                | ongoing                       |
+| Lost reasons added to the objection card                                      | Sales                | Fridays                       |
+| Written OK to name a customer                                                 | Sales / the customer | before item 22                |
 
 If a need is late, marketing ships without it (text posts, no screenshots) and tags `gap` — they do not wait in a doc forever.
 
@@ -330,7 +330,7 @@ If the list is done, start again at 1. Creating a contact or a booked demo count
 
 Ads’ job: **turn money into contacts we can follow up.** Buying is on Meta/Google (or LOOPIE’s own ad server). The record is a Campaign in LOOPIE. If spend is not on the Campaign, it did not happen.
 
-Budgets, kill lines, SLAs, and the two campaign strategies: [Ad budgets, metrics, SLAs, and strategies](ad-budgets-metrics-slas.md).
+Budgets, kill lines, SLAs, and the two campaign strategies: [Ad budgets, metrics, SLAs, and strategies](../operations/ad-budgets-metrics-slas.md).
 
 Two books, never mixed:
 
@@ -339,15 +339,15 @@ Two books, never mixed:
 
 ### Goals (by 24 Nov)
 
-| Goal | Done when |
-| --- | --- |
-| Nothing spends in the dark | Every live buy has a Campaign, creative, platform, budget, dates, destination **before** the first dollar |
-| Clicks become people | Tracked URL or landing page. New person is a Contact + Lead on that campaign |
-| Spend is in LOOPIE by noon | Yesterday’s platform numbers are typed on the Campaign (kit 29). Sync is not required |
-| We know when to kill it | Kit 30: cap hit or cost-per-book / cost-per-lead over the written number → pause the same day |
-| Our own ads | LOOPIE runs LOOPIE and Where did the lead go? exist **11 Sep** at $0. Spend only with a GM cap |
-| Client ads | No buy on a $299-only account. Quoted accounts: first campaign live in 7 days after access to their ad account |
-| Self-run ads | Client can see the Campaign and type spend (or we type it). They approve creative (kit 28) even when we buy |
+| Goal                       | Done when                                                                                                      |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Nothing spends in the dark | Every live buy has a Campaign, creative, platform, budget, dates, destination **before** the first dollar      |
+| Clicks become people       | Tracked URL or landing page. New person is a Contact + Lead on that campaign                                   |
+| Spend is in LOOPIE by noon | Yesterday’s platform numbers are typed on the Campaign (kit 29). Sync is not required                          |
+| We know when to kill it    | Kit 30: cap hit or cost-per-book / cost-per-lead over the written number → pause the same day                  |
+| Our own ads                | LOOPIE runs LOOPIE and Where did the lead go? exist **11 Sep** at $0. Spend only with a GM cap                 |
+| Client ads                 | No buy on a $299-only account. Quoted accounts: first campaign live in 7 days after access to their ad account |
+| Self-run ads               | Client can see the Campaign and type spend (or we type it). They approve creative (kit 28) even when we buy    |
 
 ### Responsibilities
 
@@ -362,15 +362,15 @@ Ads does **not** discount LOOPIE, send their customer emails, or run spend witho
 
 ### Requirements
 
-| Need | From | By |
-| --- | --- | --- |
-| Campaign screens + demo campaign on Riverside | Engineering (M1) | **11 Sep** |
-| Tracked click → contact (or a written `gap`) | Engineering | **18 Sep** |
-| Public page / book URL as a destination | Marketing | **4 Sep** |
-| GM cap (our money) or written “$0” | GM | before any Midnight Creative dollar |
-| Client ad-account access + creative approval | Customer / client | before we buy for them |
-| Quote amount and what “managed ads” includes | GM | before Sales says we will buy |
-| Kit 27–30 | Marketing writes, Ads uses | **11 Sep** |
+| Need                                          | From                       | By                                  |
+| --------------------------------------------- | -------------------------- | ----------------------------------- |
+| Campaign screens + demo campaign on Riverside | Engineering (M1)           | **11 Sep**                          |
+| Tracked click → contact (or a written `gap`)  | Engineering                | **18 Sep**                          |
+| Public page / book URL as a destination       | Marketing                  | **4 Sep**                           |
+| GM cap (our money) or written “$0”            | GM                         | before any Midnight Creative dollar |
+| Client ad-account access + creative approval  | Customer / client          | before we buy for them              |
+| Quote amount and what “managed ads” includes  | GM                         | before Sales says we will buy       |
+| Kit 27–30                                     | Marketing writes, Ads uses | **11 Sep**                          |
 
 ### Daily work (in LOOPIE, then in the platform)
 
@@ -406,18 +406,18 @@ LOOPIE is one product. The difference is **who clicks**. The customer always app
 
 **Where we are now:** the first shops will not get Live if we only email them a login. So we do the first **email** with them. Ads we **buy** only when quoted.
 
-| | **$299 self-run** (the offer) | **Managed start** (every new paid account, ~14 days) | **Managed ongoing** (not in $299) |
-| --- | --- | --- | --- |
-| Who it is for | Owner will log in after they have seen one send | Everyone we just charged | Big or busy accounts who will not run it — **GM quotes a price** |
-| Import / clean list | Them, we help once | Us | Us |
-| Draft the email | Them | Us | Us |
-| Approve the exact words | Them | Them | Them |
-| Send | Them | Us, they watch on screen | Us |
-| Replies and lead status | Them | We show Home; they answer their customers | We flag Home; they still answer unless GM sold reply-handling |
-| Next email after Live | Them | Them. We sit in on send #2 once if they freeze. | Us, on a written cadence |
-| Ads in LOOPIE (record campaign, type spend) | Them | We set up the first Campaign if they already buy ads | Us, on quoted accounts |
-| Ads we **buy** on Meta/Google | Not included | Not included | **GM quote.** Their media bill + our buying fee. Not $299 |
-| Texts / social publish to networks | Not sold | Not sold | Not sold unless GM wrote it |
+|                                             | **$299 self-run** (the offer)                   | **Managed start** (every new paid account, ~14 days) | **Managed ongoing** (not in $299)                                |
+| ------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------- |
+| Who it is for                               | Owner will log in after they have seen one send | Everyone we just charged                             | Big or busy accounts who will not run it — **GM quotes a price** |
+| Import / clean list                         | Them, we help once                              | Us                                                   | Us                                                               |
+| Draft the email                             | Them                                            | Us                                                   | Us                                                               |
+| Approve the exact words                     | Them                                            | Them                                                 | Them                                                             |
+| Send                                        | Them                                            | Us, they watch on screen                             | Us                                                               |
+| Replies and lead status                     | Them                                            | We show Home; they answer their customers            | We flag Home; they still answer unless GM sold reply-handling    |
+| Next email after Live                       | Them                                            | Them. We sit in on send #2 once if they freeze.      | Us, on a written cadence                                         |
+| Ads in LOOPIE (record campaign, type spend) | Them                                            | We set up the first Campaign if they already buy ads | Us, on quoted accounts                                           |
+| Ads we **buy** on Meta/Google               | Not included                                    | Not included                                         | **GM quote.** Their media bill + our buying fee. Not $299        |
+| Texts / social publish to networks          | Not sold                                        | Not sold                                             | Not sold unless GM wrote it                                      |
 
 **Big account** here means they will not log in, they have a large list, or they asked us to run it. Size alone is not a reason to work for free. Managed ongoing is hours we sell, recorded as its own money — not hidden inside the $299 SaaS.
 
@@ -436,13 +436,13 @@ Job: first send in 14 days, then they can repeat it without us.
 
 ### Goals (by 24 Nov)
 
-| Goal | Done when |
-| --- | --- |
-| Same-day handoff | Every Won has a login, a CSV request, and a named Customer owner the day the card clears |
-| Live in 14 days | Kit 18 steps 1–6 done. Not “they paid.” |
-| They keep the account | Second send is **theirs** (self-run) unless GM quoted managed |
-| Proof is real | Two Live shops + written OK before marketing uses names |
-| We know the mode | Contact/business tagged `self-run` or `managed` — never unclear |
+| Goal                  | Done when                                                                                |
+| --------------------- | ---------------------------------------------------------------------------------------- |
+| Same-day handoff      | Every Won has a login, a CSV request, and a named Customer owner the day the card clears |
+| Live in 14 days       | Kit 18 steps 1–6 done. Not “they paid.”                                                  |
+| They keep the account | Second send is **theirs** (self-run) unless GM quoted managed                            |
+| Proof is real         | Two Live shops + written OK before marketing uses names                                  |
+| We know the mode      | Contact/business tagged `self-run` or `managed` — never unclear                          |
 
 ### Responsibilities
 

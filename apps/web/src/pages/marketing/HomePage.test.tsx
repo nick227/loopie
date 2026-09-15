@@ -1,113 +1,85 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, within, cleanup } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createApiClient } from '@project/sdk'
 import { HomePage } from './HomePage'
 
-// HomePage renders inside the app's normal Shell (see App.tsx) — no header/footer of its own.
-// Shell's own auth-aware header behavior is already covered by Shell.test.tsx; these tests cover
-// only HomePage's own content.
-function mount() {
+function mount(role?: string) {
+  const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+    role
+      ? new Response(
+          JSON.stringify({
+            data: {
+              id: 'user-1',
+              platformRole: role,
+              businessName: 'Example',
+              email: 'test@example.com',
+            },
+          }),
+          { status: 200 },
+        )
+      : new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }),
+  )
   createApiClient({ baseUrl: 'http://localhost:3001' })
   render(
     <QueryClientProvider
-      client={
-        new QueryClient({
-          defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-        })
-      }
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
-      <MemoryRouter initialEntries={['/']}>
+      <MemoryRouter>
         <HomePage />
       </MemoryRouter>
     </QueryClientProvider>,
   )
+  return fetcher
 }
 
-function mockRiverFeedFetch() {
-  return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
-    const request = input as Request
-    if (request.url.includes('/river/feed'))
-      return new Response(JSON.stringify({ items: [], nextCursor: null }), { status: 200 })
-    // Hero's and CtaBand's SiteInquiryButton each call useCurrentUser() to prefill the inquiry
-    // form — irrelevant to what these tests assert, but must resolve for the page to render.
-    if (request.url.includes('/auth/me')) return new Response('{}', { status: 401 })
-    throw new Error(`Unexpected fetch in test: ${request.url}`)
-  })
-}
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
 
 describe('HomePage', () => {
-  afterEach(() => {
-    vi.restoreAllMocks()
+  it('explains the product in a table without fetching a public feed', async () => {
+    const fetcher = mount()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'Plan your business, launch pages and ads, and handle messaging on one platform.',
+    )
+    const table = screen.getByRole('table')
+    expect(within(table).getAllByRole('rowheader')).toHaveLength(10)
+    expect(screen.getByRole('link', { name: /Browse River/ })).toHaveAttribute('href', '/river')
+    const links = await screen.findAllByRole('link', { name: /Create an account/ })
+    for (const link of links) expect(link).toHaveAttribute('href', '/register')
+    expect(screen.getAllByRole('button', { name: 'Talk to us' })).toHaveLength(2)
+    expect(fetcher.mock.calls.every(([input]) => (input as Request).url.includes('/auth/me'))).toBe(
+      true,
+    )
   })
 
-  it('renders the hero, pillar index, River section, and CTA without throwing', async () => {
-    const fetcher = mockRiverFeedFetch()
-    mount()
-
-    expect(
-      screen.getByText('Run the work that brings in customers and turns them into sales.'),
-    ).toBeInTheDocument()
-    expect(screen.getAllByRole('link', { name: 'Get started' }).length).toBe(2)
-    expect(screen.getAllByRole('button', { name: 'Talk to us' }).length).toBe(2)
-    expect(screen.getByText('What LOOPIE does')).toBeInTheDocument()
-    expect(
-      screen.getByText(
-        'Run customer acquisition, follow-up, sales, operations, and partner growth from one place.',
-      ),
-    ).toBeInTheDocument()
-    expect(screen.getByText('Ready to put it all in one place?')).toBeInTheDocument()
-    expect(
-      await screen.findByText(
-        'Real posts from LOOPIE businesses will appear here as they’re published.',
-      ),
-    ).toBeInTheDocument()
-    fetcher.mockRestore()
+  it.each([
+    ['BUSINESS_USER', '/app'],
+    ['AFFILIATE', '/portal'],
+  ])('opens the correct app destination for %s', async (role, destination) => {
+    mount(role)
+    for (const link of await screen.findAllByRole('link', { name: /Open LOOPIE/ })) {
+      expect(link).toHaveAttribute('href', destination)
+    }
+    expect(screen.queryByRole('link', { name: /Create an account/ })).not.toBeInTheDocument()
   })
 
-  it('renders every pillar across the four groups, with no per-group visual', async () => {
-    const fetcher = mockRiverFeedFetch()
-    mount()
-    await screen.findByText('What LOOPIE does')
-
-    const pillarSection = document.getElementById('pillars')
-    if (!pillarSection) throw new Error('pillar index section not found')
-
-    for (const group of [
-      'Bring in customers',
-      'Manage leads and sales',
-      'Plan, track, and operate',
-      'Grow through partners and reach',
-    ]) {
-      expect(within(pillarSection).getByRole('heading', { name: group })).toBeInTheDocument()
-    }
-    for (const pillar of [
-      'Advertising',
-      'Landing Pages',
-      'Forms',
-      'Messages & Automation',
-      'Contacts & Audiences',
-      'Leads & Sales Pipeline',
-      'Calendar',
-      'Teams',
-      'CRM Integrations',
-      'Money & Ledger',
-      'Affiliate Partners',
-      'River',
-    ]) {
-      expect(within(pillarSection).getByText(pillar)).toBeInTheDocument()
-    }
-    // First-Party Ad Serving isn't a separate pillar — Advertising's own one-sentence copy
-    // folds it in as a clause ("serve ads with full attribution") instead of a second sentence.
+  it('does not offer registration while the session is still loading', () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise(() => {}))
+    createApiClient({ baseUrl: 'http://localhost:3001' })
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter>
+          <HomePage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    expect(screen.getAllByRole('status')).toHaveLength(2)
     expect(
-      within(pillarSection).getByText(
-        'Create campaigns, publish creative, and serve ads with full attribution.',
-      ),
-    ).toBeInTheDocument()
-    expect(within(pillarSection).queryByText('First-Party Ad Serving')).not.toBeInTheDocument()
-    // Purely typographic now — no visual/screenshot elements in this section.
-    expect(within(pillarSection).queryAllByRole('img').length).toBe(0)
-    fetcher.mockRestore()
+      screen.queryByRole('link', { name: /Create an account|Open LOOPIE/ }),
+    ).not.toBeInTheDocument()
   })
 })

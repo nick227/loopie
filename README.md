@@ -10,6 +10,8 @@ Message, affiliate, import, or manual entry ────────────
 
 The same attribution spine survives hosted pages, publisher embeds, exported HTML, LOOPIE forms, imported identities, and external purchase events. Acquisition can happen in many systems; LOOPIE resolves the person once and keeps the path to revenue intact.
 
+Repository status reviewed 2026-09-13 against code and configuration; provider setup and production health were not checked. See [current navigation](docs/architecture/00-unified-ia-navigation.md) and [documentation status](docs/README.md).
+
 ## Core Features
 
 - **Advertisements and Platform Runs:** Build an advertisement once, validate its real media for each placement, provision supported platforms idempotently, and manage paid or LOOPIE-owned runs as one portfolio.
@@ -90,12 +92,12 @@ River is LOOPIE's first-party public discovery and organic publishing surface. `
 - The feed is reverse chronological, supports cursor pagination and a following-only view, limits long same-business streaks, and inserts clearly labeled sponsored Advertisement posts at a fixed cadence. It is intentionally deterministic rather than algorithmically ranked.
 - Authenticated businesses can react, follow/unfollow, delete their own posts, and pin one post as Featured. Click-through and profile-visit events are tracked; anonymous visitors can browse but cannot engage.
 - Every business receives a stable public slug at `/b/{slug}`. The profile combines identity, description, contact details, hours, social links, gallery media, follower count, a Featured post, and that business's latest River posts.
-- Business identity is completed during first-login setup and remains editable inline from Home. Older rows can be assigned slugs with `apps/server/scripts/backfillBusinessSlugs.ts`.
+- Business identity is completed during first-login setup and remains editable from Account (`/profile`). Older rows can be assigned slugs with `apps/server/scripts/backfillBusinessSlugs.ts`.
 
 ### Messaging, audiences, and automations
 
-- Messaging is the owned-communication side of the customer graph: select an audience, reuse a template, compose email or text, and retain follow-up activity on the Contact timeline. Posts for external social networks are **compose/draft only**—River publishing is the separate live first-party path.
-- Email delivery uses Resend in batches of 50 when `RESEND_API_KEY` is configured. Without it, the send is recorded but no email leaves the system. SMS still records only; delivery/open/click/unsubscribe webhooks and the test-send transport are not wired.
+- Messaging is the owned-communication side of the customer graph: select an audience, reuse a template, compose email or text, and retain follow-up activity on the Contact timeline. Posts for external social networks are composed locally; **Mark as posted** records a manual action and does not publish to a platform. River publishing is the separate live first-party path.
+- Email delivery uses Resend in batches of 50 when `RESEND_API_KEY` is configured. For audience sends with recipients, a missing key or provider failure marks the message `FAILED` and returns an error; it does not record a successful send. SMS still records only; delivery/open/click/unsubscribe webhooks and the test-send transport are not wired.
 - Audiences can be manual lists, imported lists, saved filters, or live predefined queries. Examples include recent customers, ad-sourced Leads who never bought, Shopify-linked people, customers, open Leads, no-response Contacts, and recently contacted people.
 - Because derived audiences query the canonical graph, a Sale reversal, provider link, new Lead, purchase, or eligibility change can affect membership without copying the person into another silo.
 - Automations are `Trigger → Wait → Condition → Action`. They **run**: a scheduler creates internal `AutomationRun` rows; a poller evaluates due runs. The user-visible history is `AutomationLog` (`GET /automations/{id}/logs`).
@@ -117,7 +119,7 @@ CRM is LOOPIE's operational data hub, not a separate contact book. It consolidat
 - A generic inbound webhook integration is live. LOOPIE generates a bearer secret and tenant-specific endpoint, then idempotently ingests contact, order, payment, deal, or other external events through the same identity and Sale materialization path.
 - Salesforce, Square, and Pipedrive are catalog roadmap entries and appear as Coming soon rather than connectable integrations.
 - `DEAL_WON`, `ORDER_CREATED`, and `PAYMENT_COMPLETED` events can idempotently materialize a Sale and attach it to the attributed open Lead when one exists.
-- The shared pipeline is `NEW → CONTACTED → ENGAGED → QUALIFIED → PROPOSAL → WON/LOST`, with one Interaction timeline and acquisition context across messages, runs, first-party ads, affiliates, imports, and manual entry.
+- The shared pipeline is `NEW | UNDECIDED | INTERESTED | CLOSED | NOT_INTERESTED`, with one Interaction timeline and acquisition context across messages, runs, first-party ads, affiliates, imports, and manual entry.
 
 ### Sale integrity
 
@@ -125,27 +127,15 @@ CRM is LOOPIE's operational data hub, not a separate contact book. It consolidat
 - A Sale can close only a compatible Lead created before the Sale. Repeat purchases use a new Lead or a standalone Sale rather than reopening historical acquisition credit.
 - Reversal is concurrency-safe and creates compensating finance/commission entries; posted history is never mutated.
 
-### Home
+### Calendar and Account
 
-Home is LOOPIE's unifying operational surface: a high-level answer to what changed, what needs attention, and where the business should act next. It monitors the customer graph, communication, acquisition, revenue, advertisements, and integrations without forcing the user to reconstruct business state from separate product areas.
+Calendar is the default workspace for established business users (`/app` → `/calendar`). The desktop tabs are **Calendar · Pages · Advertising · CRM · Account**; Messages and River are available from header actions and the navigation drawer.
 
-```text
-INBOX · REACH · RESPONSE · SPEND · LEADS · REVENUE
-```
-
-The signal rail gives the immediate business pulse. Below it, activity and attention surfaces bring together:
-
-- customer actions such as replies and form submissions;
-- new Leads, Sales, and revenue-producing external events;
-- Advertisement and Platform Run state, including provisioning failures;
-- connector failures, unresolved identity matches, and other system issues;
-- meaningful “what changed” summaries rather than a stream of low-value telemetry.
-
-Routine clicks remain in analytics. Home promotes events only when they change business state, explain an outcome, or require action.
+The former Home business overview now lives on Account (`/profile`) through `WelcomeSection`. Legacy `/home` links redirect there, subject to first-login setup and affiliate routing. `/` is the public homepage, while affiliates use their own `/portal` shell. The dedicated Activity surface remains at `/activity`.
 
 ### Activity command center
 
-The dedicated Activity surface is the inspectable operational history behind Home. Projectors normalize meaningful Website, LOOPIE, Platform, and Automation events without blocking the originating business transaction when projection fails.
+The dedicated Activity surface is the inspectable operational history behind the business overview. Projectors normalize meaningful Website, LOOPIE, Platform, and Automation events without blocking the originating business transaction when projection fails.
 
 - The API can filter the cursor-paginated stream by source, type, related person/ad/page, status, or whether action is required; the current UI exposes source and Needs Action and can save filter sets as named views.
 - The inspector links to related records and lets operators resolve or snooze an `AttentionItem`; the API also supports assignment and priority. A lightweight checkpoint supports manual new-item refresh.
@@ -153,7 +143,7 @@ The dedicated Activity surface is the inspectable operational history behind Hom
 
 ### Product UI system
 
-The frontend is converging on a reusable product system: semantic color and typography tokens, consistent interaction states, shared headers, contextual search/filter controls, and reusable media and list primitives. Home is an intentional flagship monitoring layout; ordinary product surfaces keep the shared system instead of copying dashboard-specific presentation.
+The frontend is converging on a reusable product system: semantic color and typography tokens, consistent interaction states, shared headers, contextual search/filter controls, and reusable media and list primitives. The Account overview has a distinct monitoring layout; ordinary product surfaces keep the shared system instead of copying dashboard-specific presentation.
 
 ### Money & Stripe
 
@@ -171,7 +161,7 @@ Affiliates form a complete referral-revenue subsystem rather than a link-trackin
 
 - Referral link/code → tracked session (`GET /r/affiliate/{affiliateId}`) → Contact/Lead → Sale → Commission → Payout.
 - Policy lives on **class → deal** (percentage or fixed, cap, eligibility window from the actual click, payout cadence/threshold, manager share). Assignment + optional rate overrides. A sale freezes `SaleAffiliateSplit`; changing a deal later does not rewrite history. Manager share is a split of gross, not extra cost.
-- ADMIN tools: directory, destination, payable queue (Payable / Sending / Transferred / Paid / Failed), class/deal assignment.
+- Administration tools: directory, destination, payable queue (Payable / Sending / Transferred / Paid / Failed), class/deal assignment.
 - Affiliates get a small portal (home, team, payouts) — not an agency/multi-account layer.
 
 ---
@@ -195,12 +185,12 @@ These are roadmap items, not claims about currently active behavior.
 
 ## Current integration status
 
-| Status                     | Integrations                                                                                                                                                                                                                                        |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Live**                   | HubSpot contacts + closed-won deals; Shopify customers + orders; WooCommerce customers + orders; generic inbound webhook; Resend email when configured; LOOPIE Ad Server and publisher Page embeds; River; Meta paused-draft pushes when configured |
-| **Manual**                 | Google Ads and TikTok Platform Runs; SMS send records; external social drafts; client ad-fund deposits; connectorless metrics/status                                                                                                                |
-| **Catalog / roadmap only** | Salesforce, Square, and Pipedrive                                                                                                                                                                                                                   |
-| **Planned**                | The broader platform and channel roadmap below                                                                                                                                                                                                      |
+| Status                     | Integrations                                                                                                                                                                                                                                                                                                              |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Live**                   | Google Sheets saved-source CRM imports (manual pull when configured); HubSpot contacts + closed-won deals; Shopify customers + orders; WooCommerce customers + orders; generic inbound webhook; Resend email when configured; LOOPIE Ad Server and publisher Page embeds; River; Meta paused-draft pushes when configured |
+| **Manual**                 | Google Ads and TikTok Platform Runs; SMS send records; external social drafts; client ad-fund deposits; connectorless metrics/status                                                                                                                                                                                      |
+| **Catalog / roadmap only** | Salesforce, Square, and Pipedrive                                                                                                                                                                                                                                                                                         |
+| **Planned**                | The broader platform and channel roadmap below                                                                                                                                                                                                                                                                            |
 
 ---
 
@@ -214,6 +204,8 @@ pnpm workspace
   packages/db      Prisma schema + shared DB helpers (content, sessions, rate limit, …)
   packages/api-spec  Canonical openapi.yaml
   packages/embed-contract  Canonical embed payloads, hashes, origins, and browser protocol
+  packages/ad-renderer     Shared ad creative HTML and stylesheet
+  packages/page-layout     Shared layout CSS for published pages and editor canvases
   packages/page-renderer   Shared landing-page HTML renderer and form snapshots
   packages/sdk     Generated types + React Query hooks (openapi-fetch)
 ```
@@ -222,12 +214,12 @@ pnpm workspace
 - Public attribution obeys a tenant-isolation invariant: scoped HMAC `sid` tokens are accepted only with tenant-scoped `(id, businessId)` storage lookups. Possessing a valid token from one business cannot expose or claim another business's session. Rate limits are DB-backed (`RateLimitBucket`) so they work across processes.
 - `Contact` is the canonical person; `ContactIdentifier`, `ExternalContactRecord`, `ExternalEvent`, and `ImportJob` preserve cross-system identity, provenance, and sync state around it.
 - `compareSourcePair()` and `apps/server/scripts/shadow-compare.ts` prove structural parity between legacy `Deployment`/`AdUnit` data and `AdRun` before reads and writes cut over. This allows the product model to migrate without rewriting or discarding historical finance; structural differences are reported instead of silently accepted.
-- Shared semantic tokens and reusable page-header/search/filter primitives form the default design system. Home is an intentional operational-dashboard exception rather than a template for every list page.
+- Shared semantic tokens and reusable page-header/search/filter primitives form the default design system. The Account overview is an intentional operational-dashboard exception rather than a template for every list page.
 - Both services ship with `Dockerfile` + `railway.json`. Production start uses `tsx` (plain `node dist/` cannot load `@project/db` TypeScript).
 
 ### Contract-first workflow
 
-1. Model in `packages/db/prisma/schema.prisma` → `pnpm db:push`
+1. Model in `packages/db/prisma/schema.prisma` and generate a migration with `prisma migrate dev` from `packages/db` against a local database; see [migration policy](docs/deploy/database-migrations.md). `db:push` is only for disposable local experimentation.
 2. Routes and schemas in `packages/api-spec/openapi.yaml`
 3. Handler + service in `apps/server`
 4. `pnpm sdk:generate`
@@ -268,23 +260,23 @@ pnpm --filter web test:e2e # requires the three dev services to be running
 
 `pnpm db:seed` is idempotent. Password for every login: **`password123`**.
 
-| Email                         | Role      | Tenant     | What it’s for                                               |
-| ----------------------------- | --------- | ---------- | ----------------------------------------------------------- |
-| `demo@loopie.app`             | ADMIN     | Riverside  | Owner — advertisements, affiliates, billing (e2e uses this) |
-| `shop@loopie.app`             | USER      | Riverside  | Staff — Home, CRM, Messages, Advertisements, Pages, Media   |
-| `marketer@loopie.app`         | USER      | Riverside  | Second staff login                                          |
-| `suspended@loopie.app`        | USER      | Riverside  | Login returns **403**                                       |
-| `affiliate@loopie.app`        | AFFILIATE | Riverside  | Jordan — independent field rep                              |
-| `manager@loopie.app`          | AFFILIATE | Riverside  | Casey — has a downline                                      |
-| `downline@loopie.app`         | AFFILIATE | Riverside  | Riley — reports to Casey                                    |
-| `paused-affiliate@loopie.app` | AFFILIATE | Riverside  | Taylor — paused                                             |
-| `oak@loopie.app`              | ADMIN     | Oak Street | Second-tenant owner                                         |
-| `oak-shop@loopie.app`         | USER      | Oak Street | Second-tenant staff                                         |
-| `oak-affiliate@loopie.app`    | AFFILIATE | Oak Street | Sam — other-tenant affiliate                                |
+| Email                         | Role       | Tenant     | What it’s for                                               |
+| ----------------------------- | ---------- | ---------- | ----------------------------------------------------------- |
+| `demo@loopie.app`             | SITE_ADMIN | Riverside  | Owner — advertisements, affiliates, billing (e2e uses this) |
+| `shop@loopie.app`             | USER       | Riverside  | Staff — Calendar, CRM, Messages, Advertising, Pages, Media  |
+| `marketer@loopie.app`         | USER       | Riverside  | Second staff login                                          |
+| `suspended@loopie.app`        | USER       | Riverside  | Login returns **403**                                       |
+| `affiliate@loopie.app`        | AFFILIATE  | Riverside  | Jordan — independent field rep                              |
+| `manager@loopie.app`          | AFFILIATE  | Riverside  | Casey — has a downline                                      |
+| `downline@loopie.app`         | AFFILIATE  | Riverside  | Riley — reports to Casey                                    |
+| `paused-affiliate@loopie.app` | AFFILIATE  | Riverside  | Taylor — paused                                             |
+| `oak@loopie.app`              | SITE_ADMIN | Oak Street | Second-tenant owner                                         |
+| `oak-shop@loopie.app`         | USER       | Oak Street | Second-tenant staff                                         |
+| `oak-affiliate@loopie.app`    | AFFILIATE  | Oak Street | Sam — other-tenant affiliate                                |
 
 Maya (`maya25`) is an affiliate **without** a login (flat $25 deal), so the admin directory is not only portal users. Riverside demo data is unchanged (Jane, campaign, `/p/raw-customer-stories`, form, ad unit). Affiliate deals include Standard 10, Weekly 8, and Flat 25.
 
-Vitest has its own throwaway users (`alice@test.local` ADMIN, `shop@test.local` USER, `bob@test.local` on a second business) in `apps/server/src/__tests__/helpers`. Those are wiped every test and are not for clicking around in the app.
+Vitest has its own throwaway users (`alice@test.local`, `shop@test.local` USER, `bob@test.local` on a second business) in `apps/server/src/__tests__/helpers`. Those are wiped every test and are not for clicking around in the app.
 
 - `apps/server` and `apps/ad-server` load the root `.env` in development. Production `start` commands expect the deployment environment to provide variables.
 - Tests never use whatever `DATABASE_URL` happens to be in the shell. `pnpm --filter server test` / `pnpm --filter ad-server test` default to a dedicated `loopie_test` database. Do not point that suite at the shared `loopie` DB — the suite wipes tables.

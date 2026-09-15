@@ -1,5 +1,27 @@
 # Unified IA & Navigation
 
+## Current navigation (reviewed 2026-09-13)
+
+Source: `apps/web/src/components/layout/Shell.tsx`, `apps/web/src/App.tsx`, and `apps/web/src/lib/RequireRole.tsx`. This section supersedes the historical revisions below.
+
+| Desktop tab | Route            |
+| ----------- | ---------------- |
+| Calendar    | `/calendar`      |
+| Pages       | `/landing-pages` |
+| Advertising | `/ads`           |
+| CRM         | `/contacts`      |
+| Account     | `/profile`       |
+
+Messages (`/messages`) and River (`/river`) have header actions and drawer entries. The drawer contains Calendar, Pages, Advertising, CRM, Messages, and River; the profile avatar also opens Account. Platform administration is a separate header action for `SITE_ADMIN`, not an appended ADMIN navigation row. Affiliates have their own Home/Team/Payouts navigation at `/portal`, `/portal/team`, and `/portal/payouts`.
+
+`/` is the public homepage. `/app` sends established business users to Calendar, users needing initial identity setup to `/business/setup`, and affiliates to `/portal`. Legacy `/home` sends established business users to `/profile`, where `WelcomeSection` renders the former Home overview. The same setup/affiliate routing applies. `/activity` remains a dedicated operational history surface; `/inbox/:threadId` remains thread detail.
+
+Advertising uses `Advertisement → AdRun`. Legacy `/campaigns` routes still exist but are not primary navigation. Media remains available at `/media` and through contextual pickers. Messages is reachable from current navigation; it is not an orphaned surface. Route existence does not imply an entry in the primary tab strip.
+
+## Historical navigation decisions
+
+The following revisions explain earlier designs. Their nav rows, deleted-component descriptions, “known gaps,” and typecheck claims are historical and must not be used as current implementation status.
+
 ## Purpose
 
 Resolves the vocabulary and navigation conflict between the two packs: Messaging's design rules blacklist "Campaign" in UI copy (`09-design-system-interaction-rules.md`), while Campaigns treats it as the primary unit and top-level nav item (`07-ux-information-architecture.md`). This doc is the merged product's actual navigation — it depends on `00-unified-data-model.md` but adds nothing to it.

@@ -40,13 +40,13 @@ Pages only → apply LOOPIE placements (no money modal)
 
 Page rows can also use Put ad on page directly because LOOPIE owns that destination
 
-Labels the user sees are destinations, not APIs. META/FEED, GOOGLE/DISPLAY, GOOGLE/YOUTUBE stay in [adPreview.ts](apps/web/src/lib/adPreview.ts) as implementation keys. Confirmation (and later a destination expander) can get more specific: Facebook Feed, Google Display, YouTube In-stream video — so Stories/Reels, Search/Shopping, Shorts/In-feed can appear later without changing the top-level model.
+Labels the user sees are destinations, not APIs. META/FEED, GOOGLE/DISPLAY, GOOGLE/YOUTUBE stay in [adPreview.ts](../../apps/web/src/lib/adPreview.ts) as implementation keys. Confirmation (and later a destination expander) can get more specific: Facebook Feed, Google Display, YouTube In-stream video — so Stories/Reels, Search/Shopping, Shorts/In-feed can appear later without changing the top-level model.
 
 TikTok drops off this list. No Google/YouTube connectors this pass; Continue still collects the order, createAndProvision leaves those runs unsent until a connector exists.
 
 Media-order confirmation (reusable surface)
 
-New [AdBuyReview.tsx](apps/web/src/components/ads/AdBuyReview.tsx) in existing [Modal](apps/web/src/components/ui/Modal.tsx). One review per paid destination (Facebook first if several). This is the important reusable surface — not a throwaway dialog.
+New [AdBuyReview.tsx](../../apps/web/src/components/ads/AdBuyReview.tsx) in existing [Modal](../../apps/web/src/components/ui/Modal.tsx). One review per paid destination (Facebook first if several). This is the important reusable surface — not a throwaway dialog.
 
 Where — Facebook Feed (Google Display, YouTube In-stream video)
 
@@ -94,7 +94,7 @@ If the user changes the parent Advertisement after a send: Your changes are save
 
 Copy
 
-Rewrite [adCopy.ts](apps/web/src/lib/adCopy.ts). Setup explains where, not money. Kill “a running buy stays on until you pause it,” daily-budget-on-the-row, and Start.
+Rewrite [adCopy.ts](../../apps/web/src/lib/adCopy.ts). Setup explains where, not money. Kill “a running buy stays on until you pause it,” daily-budget-on-the-row, and Start.
 
 Tests
 

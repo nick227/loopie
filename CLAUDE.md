@@ -1,5 +1,32 @@
 # Project State — LOOPIE
 
+## Current repository state (reviewed 2026-09-13)
+
+This section supersedes conflicting status claims in the historical build notes below. This review checked repository code and configuration, not production deployment, credentials, or live test results. Historical test counts are not current verification.
+
+- **Product:** advertisements and platform runs, Pages/forms, first-party serving and publisher embeds, Messages, CRM, Calendar, River, teams, billing, and affiliate portals share one customer/revenue graph. See [README](README.md) and the [documentation index](docs/README.md).
+- **Navigation:** desktop tabs are Calendar · Pages · Advertising · CRM · Account. Messages and River are header actions and drawer destinations. `/app` routes established business users to `/calendar`; `/home` redirects to `/profile`, which contains the former business overview. `/` is the public homepage. Affiliates use `/portal`, `/portal/team`, `/portal/payouts`. Source: `apps/web/src/components/layout/Shell.tsx`, `apps/web/src/App.tsx`, `apps/web/src/lib/RequireRole.tsx`.
+- **Identity:** `UserPlatformRole` is `USER | SITE_ADMIN | AFFILIATE`; business membership is separately `OWNER | MEMBER`, with founder protection and active-company selection. Older `UserRole.ADMIN` descriptions are obsolete.
+- **Paid media:** `Advertisement → AdRun` is the current model. `Campaign`, `Creative`, `Deployment`, and `AdUnit` remain compatibility/history surfaces; do not assume old Campaign workflows describe current Advertising UI.
+- **Lead stages:** `NEW | UNDECIDED | INTERESTED | CLOSED | NOT_INTERESTED`. Closed and not-interested leads leave active follow-up; recording a Sale is a separate operation. Source: Prisma `LeadStage`, `LeadService.ts`, and `apps/web/src/lib/leadStages.ts`.
+- **Delivery:** email uses Resend. An audience email send with recipients fails and marks the message `FAILED` when the provider is missing or rejects delivery. SMS records activity without transport. External social uses manual “Mark as posted”; River is the live first-party publishing path. Test-send remains a no-op. Read `MessageService.ts` and `EmailDeliveryService.ts` before changing delivery claims.
+- **Integrations:** HubSpot, Shopify, WooCommerce, inbound webhooks, and Google Sheets have implementations; actual availability depends on credentials. Sheets CRM import supports saved sources, mapping, preview, and resumable manual import; see [Google Sheets](docs/crm/google-sheets.md). Salesforce, Square, and Pipedrive are catalog/roadmap entries. Meta supports configured paused-draft pushes, not full activation/status/spend sync.
+- **Finance:** Stripe subscription billing and Connect payout flows exist, as do affiliate frontend routes. Client ad-fund deposits remain recorded funding, not card charges. `FinanceService` owns the append-only ledger.
+- **Runtime:** pnpm monorepo; `apps/web` is React/Vite, `apps/server` is Fastify plus a separate worker, and `apps/ad-server` serves public ads/embeds. Shared packages include `db`, `api-spec`, `sdk`, `ad-renderer`, `embed-contract`, `page-renderer`, and `page-layout`. Both page rendering and the browser canvas import canonical layout CSS from `@project/page-layout`; the earlier hand-synced CSS copies are gone.
+
+## Working rules and verification
+
+- Use Prisma schema and OpenAPI as the current field/route contracts; use Shell/App for current navigation. Architecture prose explains decisions, and dated proposals/build notes describe their own point in time.
+- Schema changes must include generated migrations; `db:push` is for disposable local experimentation. Follow [database migrations](docs/deploy/database-migrations.md). The checked-in API and ad-server Dockerfiles run `prisma migrate deploy` before starting with `tsx`.
+- Keep ledger history immutable; use compensating/reversal entries. Preserve tenant scoping and published-page/form snapshots. Do not delete compatibility models merely because current navigation omits them.
+- Keep `AD_CREATIVE_STYLESHEET` mounted once in the SPA shell for shared ad fragments. Published/iframe rendering includes its own styles.
+- `pnpm dev` starts the web app, API/worker, and ad-server. Root scripts provide `typecheck`, `lint`, `test`, `sdk:generate`, and `sdk:check`; see README for setup.
+- Server/ad-server tests use `TEST_DATABASE_URL` or their dedicated `loopie_test` default and wipe test data. Never target a shared development or production database. Historical “green” runs below do not replace checks for a new change.
+
+## Historical build notes
+
+The remainder is retained for implementation rationale and past verification. Its MVP scope, parking lot, navigation, plugin status, counts, and phase-completion claims are historical, not current inventory. Later dated corrections supersede earlier entries; the current overview above takes precedence where they conflict.
+
 ## MVP
 
 **What it does:** A business manages owned communication (email/text/social messages), paid advertising campaigns, LOOPIE-hosted landing pages, first-party ad serving, and forms from one platform, with every lead and sale — regardless of which side generated it — landing in one shared CRM pipeline.
